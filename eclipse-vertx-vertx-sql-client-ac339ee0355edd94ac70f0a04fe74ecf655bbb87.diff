@@ -1,0 +1,1536 @@
+diff --git a/vertx-mssql-client/src/main/java/io/vertx/mssqlclient/MSSQLPool.java b/vertx-mssql-client/src/main/java/io/vertx/mssqlclient/MSSQLPool.java
+index a8280169..4c52dc70 100644
+--- a/vertx-mssql-client/src/main/java/io/vertx/mssqlclient/MSSQLPool.java
++++ b/vertx-mssql-client/src/main/java/io/vertx/mssqlclient/MSSQLPool.java
+@@ -2,6 +2,7 @@
+ 
+ import io.vertx.codegen.annotations.GenIgnore;
+ import io.vertx.codegen.annotations.VertxGen;
++import io.vertx.core.impl.ContextInternal;
+ import io.vertx.mssqlclient.impl.MSSQLPoolImpl;
+ import io.vertx.core.AsyncResult;
+ import io.vertx.core.Handler;
+@@ -30,14 +31,14 @@ static MSSQLPool pool(MSSQLConnectOptions connectOptions, PoolOptions poolOption
+     }
+     VertxOptions vertxOptions = new VertxOptions();
+     Vertx vertx = Vertx.vertx(vertxOptions);
+-    return new MSSQLPoolImpl(vertx.getOrCreateContext(), true, connectOptions, poolOptions);
++    return new MSSQLPoolImpl((ContextInternal) vertx.getOrCreateContext(), true, connectOptions, poolOptions);
+   }
+ 
+   /**
+    * Like {@link #pool(MSSQLConnectOptions, PoolOptions)} with a specific {@link Vertx} instance.
+    */
+   static MSSQLPool pool(Vertx vertx, MSSQLConnectOptions connectOptions, PoolOptions poolOptions) {
+-    return new MSSQLPoolImpl(vertx.getOrCreateContext(), false, connectOptions, poolOptions);
++    return new MSSQLPoolImpl((ContextInternal) vertx.getOrCreateContext(), false, connectOptions, poolOptions);
+   }
+ 
+   @Override
+diff --git a/vertx-mssql-client/src/main/java/io/vertx/mssqlclient/impl/MSSQLConnectionFactory.java b/vertx-mssql-client/src/main/java/io/vertx/mssqlclient/impl/MSSQLConnectionFactory.java
+index 32c05d84..647e4e45 100644
+--- a/vertx-mssql-client/src/main/java/io/vertx/mssqlclient/impl/MSSQLConnectionFactory.java
++++ b/vertx-mssql-client/src/main/java/io/vertx/mssqlclient/impl/MSSQLConnectionFactory.java
+@@ -1,5 +1,6 @@
+ package io.vertx.mssqlclient.impl;
+ 
++import io.vertx.core.impl.ContextInternal;
+ import io.vertx.mssqlclient.MSSQLConnectOptions;
+ import io.vertx.core.*;
+ import io.vertx.core.net.impl.NetSocketInternal;
+@@ -12,57 +13,43 @@
+ import java.util.Map;
+ 
+ class MSSQLConnectionFactory {
+-  private final NetClient netClient;
+-  private final Context context;
+-  private final boolean registerCloseHook;
+ 
++  private final NetClient netClient;
+   private final String host;
+   private final int port;
+   private final String username;
+   private final String password;
+   private final String database;
+   private final Map<String, String> properties;
+-  private final Closeable hook;
+ 
+-  public MSSQLConnectionFactory(Context context, boolean registerCloseHook, MSSQLConnectOptions options) {
++  MSSQLConnectionFactory(Vertx vertx, MSSQLConnectOptions options) {
+     NetClientOptions netClientOptions = new NetClientOptions(options);
+ 
+-    this.context = context;
+-    this.registerCloseHook = registerCloseHook;
+-    this.hook = this::close;
+-    if (registerCloseHook) {
+-      context.addCloseHook(hook);
+-    }
+-
+     this.host = options.getHost();
+     this.port = options.getPort();
+     this.username = options.getUser();
+     this.password = options.getPassword();
+     this.database = options.getDatabase();
+     this.properties = new HashMap<>(options.getProperties());
+-
+-    this.netClient = context.owner().createNetClient(netClientOptions);
++    this.netClient = vertx.createNetClient(netClientOptions);
+   }
+ 
+-  public void create(Handler<AsyncResult<Connection>> completionHandler) {
+-    Promise<NetSocket> promise = Promise.promise();
+-    promise.future().setHandler(connect -> {
+-      if (connect.succeeded()) {
+-        NetSocketInternal socket = (NetSocketInternal) connect.result();
+-        MSSQLSocketConnection conn = new MSSQLSocketConnection(socket, false, 0, 0, 1, context);
++  public Future<Connection> create(ContextInternal context) {
++    Future<NetSocket> fut = netClient.connect(port, host);
++    return fut
++      .map(so -> new MSSQLSocketConnection((NetSocketInternal) so, false, 0, 0, 1, context))
++      .flatMap(conn -> {
+         conn.init();
+-        conn.sendPreLoginMessage(false, preLogin -> {
+-          if (preLogin.succeeded()) {
+-            conn.sendLoginMessage(username, password, database, properties, (Handler)completionHandler);
+-          } else {
+-            completionHandler.handle(Future.failedFuture(preLogin.cause()));
+-          }
++        return Future.future(p -> {
++          conn.sendPreLoginMessage(false, preLogin -> {
++            if (preLogin.succeeded()) {
++              conn.sendLoginMessage(username, password, database, properties, p);
++            } else {
++              p.fail(preLogin.cause());
++            }
++          });
+         });
+-      } else {
+-        completionHandler.handle(Future.failedFuture(connect.cause()));
+-      }
+-    });
+-    netClient.connect(port, host, promise);
++      });
+   }
+ 
+   // Called by hook
+@@ -72,9 +59,6 @@ private void close(Handler<AsyncResult<Void>> completionHandler) {
+   }
+ 
+   void close() {
+-    if (registerCloseHook) {
+-      context.removeCloseHook(hook);
+-    }
+     netClient.close();
+   }
+ }
+diff --git a/vertx-mssql-client/src/main/java/io/vertx/mssqlclient/impl/MSSQLConnectionImpl.java b/vertx-mssql-client/src/main/java/io/vertx/mssqlclient/impl/MSSQLConnectionImpl.java
+index 7ef4d89a..f4e8e552 100644
+--- a/vertx-mssql-client/src/main/java/io/vertx/mssqlclient/impl/MSSQLConnectionImpl.java
++++ b/vertx-mssql-client/src/main/java/io/vertx/mssqlclient/impl/MSSQLConnectionImpl.java
+@@ -1,5 +1,6 @@
+ package io.vertx.mssqlclient.impl;
+ 
++import io.vertx.core.impl.ContextInternal;
+ import io.vertx.mssqlclient.MSSQLConnectOptions;
+ import io.vertx.mssqlclient.MSSQLConnection;
+ import io.vertx.core.AsyncResult;
+@@ -13,25 +14,21 @@
+ public class MSSQLConnectionImpl extends SqlConnectionImpl<MSSQLConnectionImpl> implements MSSQLConnection {
+   private final MSSQLConnectionFactory factory;
+ 
+-  public MSSQLConnectionImpl(MSSQLConnectionFactory factory, Context context, Connection conn) {
++  public MSSQLConnectionImpl(MSSQLConnectionFactory factory, ContextInternal context, Connection conn) {
+     super(context, conn);
+     this.factory = factory;
+   }
+ 
+   public static void connect(Vertx vertx, MSSQLConnectOptions options, Handler<AsyncResult<MSSQLConnection>> handler) {
+-    Context ctx = Vertx.currentContext();
++    ContextInternal ctx = (ContextInternal) Vertx.currentContext();
+     if (ctx != null) {
+-      MSSQLConnectionFactory client = new MSSQLConnectionFactory(ctx, false, options);
+-      client.create(ar -> {
+-        if (ar.succeeded()) {
+-          Connection conn = ar.result();
++      MSSQLConnectionFactory client = new MSSQLConnectionFactory(vertx, options);
++      client.create(ctx)
++        .<MSSQLConnection>map(conn -> {
+           MSSQLConnectionImpl c = new MSSQLConnectionImpl(client, ctx, conn);
+           conn.init(c);
+-          handler.handle(Future.succeededFuture(c));
+-        } else {
+-          handler.handle(Future.failedFuture(ar.cause()));
+-        }
+-      });
++          return c;
++        }).setHandler(handler);
+     } else {
+       vertx.runOnContext(v -> {
+         connect(vertx, options, handler);
+diff --git a/vertx-mssql-client/src/main/java/io/vertx/mssqlclient/impl/MSSQLPoolImpl.java b/vertx-mssql-client/src/main/java/io/vertx/mssqlclient/impl/MSSQLPoolImpl.java
+index 491e01be..adbd4178 100644
+--- a/vertx-mssql-client/src/main/java/io/vertx/mssqlclient/impl/MSSQLPoolImpl.java
++++ b/vertx-mssql-client/src/main/java/io/vertx/mssqlclient/impl/MSSQLPoolImpl.java
+@@ -1,5 +1,6 @@
+ package io.vertx.mssqlclient.impl;
+ 
++import io.vertx.core.impl.ContextInternal;
+ import io.vertx.mssqlclient.MSSQLConnectOptions;
+ import io.vertx.mssqlclient.MSSQLPool;
+ import io.vertx.core.AsyncResult;
+@@ -15,18 +16,18 @@
+ public class MSSQLPoolImpl extends PoolBase<MSSQLPoolImpl> implements MSSQLPool {
+   private final MSSQLConnectionFactory connectionFactory;
+ 
+-  public MSSQLPoolImpl(Context context, boolean closeVertx, MSSQLConnectOptions connectOptions, PoolOptions poolOptions) {
++  public MSSQLPoolImpl(ContextInternal context, boolean closeVertx, MSSQLConnectOptions connectOptions, PoolOptions poolOptions) {
+     super(context, closeVertx, poolOptions);
+-    this.connectionFactory = new MSSQLConnectionFactory(context, Vertx.currentContext() != null, connectOptions);
++    this.connectionFactory = new MSSQLConnectionFactory(context.owner(), connectOptions);
+   }
+ 
+   @Override
+-  public void connect(Handler<AsyncResult<Connection>> handler) {
+-    connectionFactory.create(handler);
++  public void connect(ContextInternal context, Handler<AsyncResult<Connection>> completionHandler) {
++    connectionFactory.create(context).setHandler(completionHandler);
+   }
+ 
+   @Override
+-  protected SqlConnectionImpl wrap(Context context, Connection connection) {
++  protected SqlConnectionImpl wrap(ContextInternal context, Connection connection) {
+     return new MSSQLConnectionImpl(connectionFactory, context, connection);
+   }
+ 
+diff --git a/vertx-mssql-client/src/main/java/io/vertx/mssqlclient/impl/MSSQLSocketConnection.java b/vertx-mssql-client/src/main/java/io/vertx/mssqlclient/impl/MSSQLSocketConnection.java
+index 3e9eaacd..61d261c2 100644
+--- a/vertx-mssql-client/src/main/java/io/vertx/mssqlclient/impl/MSSQLSocketConnection.java
++++ b/vertx-mssql-client/src/main/java/io/vertx/mssqlclient/impl/MSSQLSocketConnection.java
+@@ -1,6 +1,8 @@
+ package io.vertx.mssqlclient.impl;
+ 
+ import io.vertx.core.AsyncResult;
++import io.vertx.core.Promise;
++import io.vertx.core.impl.ContextInternal;
+ import io.vertx.mssqlclient.impl.codec.MSSQLCodec;
+ import io.vertx.mssqlclient.impl.command.PreLoginCommand;
+ import io.netty.channel.ChannelPipeline;
+@@ -20,19 +22,23 @@
+                         int preparedStatementCacheSize,
+                         int preparedStatementCacheSqlLimit,
+                         int pipeliningLimit,
+-                        Context context) {
++                        ContextInternal context) {
+     super(socket, cachePreparedStatements, preparedStatementCacheSize, preparedStatementCacheSqlLimit, pipeliningLimit, context);
+   }
+ 
+   // command response should show what capabilities server provides
+   void sendPreLoginMessage(boolean ssl, Handler<AsyncResult<Void>> completionHandler) {
+     PreLoginCommand cmd = new PreLoginCommand(ssl);
+-    schedule(cmd, completionHandler);
++    Promise<Void> promise = Promise.promise();
++    promise.future().setHandler(completionHandler);
++    schedule(cmd, promise);
+   }
+ 
+   void sendLoginMessage(String username, String password, String database, Map<String, String> properties, Handler<AsyncResult<Connection>> completionHandler) {
+     InitCommand cmd = new InitCommand(this, username, password, database, properties);
+-    schedule(cmd, completionHandler);
++    Promise<Connection> promise = Promise.promise();
++    promise.future().setHandler(completionHandler);
++    schedule(cmd, promise);
+   }
+ 
+   @Override
+diff --git a/vertx-mysql-client/src/main/java/io/vertx/mysqlclient/MySQLPool.java b/vertx-mysql-client/src/main/java/io/vertx/mysqlclient/MySQLPool.java
+index bb1671ab..f81d0e8e 100644
+--- a/vertx-mysql-client/src/main/java/io/vertx/mysqlclient/MySQLPool.java
++++ b/vertx-mysql-client/src/main/java/io/vertx/mysqlclient/MySQLPool.java
+@@ -6,6 +6,7 @@
+ import io.vertx.core.Handler;
+ import io.vertx.core.Vertx;
+ import io.vertx.core.VertxOptions;
++import io.vertx.core.impl.ContextInternal;
+ import io.vertx.mysqlclient.impl.MySQLPoolImpl;
+ import io.vertx.sqlclient.PoolOptions;
+ import io.vertx.sqlclient.Pool;
+@@ -66,14 +67,14 @@ static MySQLPool pool(MySQLConnectOptions connectOptions, PoolOptions poolOption
+     }
+     VertxOptions vertxOptions = new VertxOptions();
+     Vertx vertx = Vertx.vertx(vertxOptions);
+-    return new MySQLPoolImpl(vertx.getOrCreateContext(), true, connectOptions, poolOptions);
++    return new MySQLPoolImpl((ContextInternal) vertx.getOrCreateContext(), true, connectOptions, poolOptions);
+   }
+ 
+   /**
+    * Like {@link #pool(MySQLConnectOptions, PoolOptions)} with a specific {@link Vertx} instance.
+    */
+   static MySQLPool pool(Vertx vertx, MySQLConnectOptions connectOptions, PoolOptions poolOptions) {
+-    return new MySQLPoolImpl(vertx.getOrCreateContext(), false, connectOptions, poolOptions);
++    return new MySQLPoolImpl((ContextInternal) vertx.getOrCreateContext(), false, connectOptions, poolOptions);
+   }
+ 
+   @Override
+diff --git a/vertx-mysql-client/src/main/java/io/vertx/mysqlclient/impl/MySQLConnectionFactory.java b/vertx-mysql-client/src/main/java/io/vertx/mysqlclient/impl/MySQLConnectionFactory.java
+index 81f94247..9f77ff61 100644
+--- a/vertx-mysql-client/src/main/java/io/vertx/mysqlclient/impl/MySQLConnectionFactory.java
++++ b/vertx-mysql-client/src/main/java/io/vertx/mysqlclient/impl/MySQLConnectionFactory.java
+@@ -2,6 +2,7 @@
+ 
+ import io.vertx.core.*;
+ import io.vertx.core.buffer.Buffer;
++import io.vertx.core.impl.ContextInternal;
+ import io.vertx.core.net.impl.NetSocketInternal;
+ import io.vertx.core.net.NetClient;
+ import io.vertx.core.net.NetClientOptions;
+@@ -18,8 +19,6 @@
+ 
+ public class MySQLConnectionFactory {
+   private final NetClient netClient;
+-  private final Context context;
+-  private final boolean registerCloseHook;
+   private final String host;
+   private final int port;
+   private final String username;
+@@ -34,18 +33,10 @@
+   private final int preparedStatementCacheSize;
+   private final int preparedStatementCacheSqlLimit;
+   private final int initialCapabilitiesFlags;
+-  private final Closeable hook;
+ 
+-  public MySQLConnectionFactory(Context context, boolean registerCloseHook, MySQLConnectOptions options) {
++  public MySQLConnectionFactory(Vertx vertx, MySQLConnectOptions options) {
+     NetClientOptions netClientOptions = new NetClientOptions(options);
+ 
+-    this.context = context;
+-    this.registerCloseHook = registerCloseHook;
+-    this.hook = this::close;
+-    if (registerCloseHook) {
+-      context.addCloseHook(hook);
+-    }
+-
+     this.host = options.getHost();
+     this.port = options.getPort();
+     this.username = options.getUser();
+@@ -70,7 +61,7 @@ public MySQLConnectionFactory(Context context, boolean registerCloseHook, MySQLC
+       serverRsaPublicKey = options.getServerRsaPublicKeyValue();
+     } else {
+       if (options.getServerRsaPublicKeyPath() != null) {
+-        serverRsaPublicKey = context.owner().fileSystem().readFileBlocking(options.getServerRsaPublicKeyPath());
++        serverRsaPublicKey = vertx.fileSystem().readFileBlocking(options.getServerRsaPublicKeyPath());
+       }
+     }
+     this.serverRsaPublicKey = serverRsaPublicKey;
+@@ -95,7 +86,7 @@ public MySQLConnectionFactory(Context context, boolean registerCloseHook, MySQLC
+     this.preparedStatementCacheSize = options.getPreparedStatementCacheMaxSize();
+     this.preparedStatementCacheSqlLimit = options.getPreparedStatementCacheSqlLimit();
+ 
+-    this.netClient = context.owner().createNetClient(netClientOptions);
++    this.netClient = vertx.createNetClient(netClientOptions);
+   }
+ 
+   // Called by hook
+@@ -105,25 +96,20 @@ private void close(Handler<AsyncResult<Void>> completionHandler) {
+   }
+ 
+   void close() {
+-    if (registerCloseHook) {
+-      context.removeCloseHook(hook);
+-    }
+     netClient.close();
+   }
+ 
+-  public void connect(Handler<AsyncResult<Connection>> handler) {
+-    Promise<NetSocket> promise = Promise.promise();
+-    promise.future().setHandler(ar1 -> {
+-      if (ar1.succeeded()) {
+-        NetSocketInternal socket = (NetSocketInternal) ar1.result();
+-        MySQLSocketConnection conn = new MySQLSocketConnection(socket, cachePreparedStatements, preparedStatementCacheSize, preparedStatementCacheSqlLimit, context);
+-        conn.init();
+-        conn.sendStartupMessage(username, password, database, collation, serverRsaPublicKey, connectionAttributes, sslMode, initialCapabilitiesFlags, handler);
+-      } else {
+-        handler.handle(Future.failedFuture(ar1.cause()));
+-      }
+-    });
+-    netClient.connect(port, host, promise);
++  public Future<Connection> connect(ContextInternal context) {
++    Future<NetSocket> fut = netClient.connect(port, host);
++    return fut
++      .map(so -> {
++        MySQLSocketConnection mySQLSocketConnection = new MySQLSocketConnection((NetSocketInternal) so, cachePreparedStatements, preparedStatementCacheSize, preparedStatementCacheSqlLimit, context);
++        mySQLSocketConnection.init();
++        return mySQLSocketConnection;
++      })
++      .flatMap(conn -> Future.future(p -> {
++        conn.sendStartupMessage(username, password, database, collation, serverRsaPublicKey, connectionAttributes, sslMode, initialCapabilitiesFlags, p);
++      }));
+   }
+ 
+   private int initCapabilitiesFlags() {
+diff --git a/vertx-mysql-client/src/main/java/io/vertx/mysqlclient/impl/MySQLConnectionImpl.java b/vertx-mysql-client/src/main/java/io/vertx/mysqlclient/impl/MySQLConnectionImpl.java
+index a6f7ad4e..fc01d165 100644
+--- a/vertx-mysql-client/src/main/java/io/vertx/mysqlclient/impl/MySQLConnectionImpl.java
++++ b/vertx-mysql-client/src/main/java/io/vertx/mysqlclient/impl/MySQLConnectionImpl.java
+@@ -1,11 +1,11 @@
+ package io.vertx.mysqlclient.impl;
+ 
+ import io.vertx.core.AsyncResult;
+-import io.vertx.core.Context;
+ import io.vertx.core.Future;
+ import io.vertx.core.Handler;
+ import io.vertx.core.Vertx;
+ import io.vertx.core.buffer.Buffer;
++import io.vertx.core.impl.ContextInternal;
+ import io.vertx.mysqlclient.MySQLAuthOptions;
+ import io.vertx.mysqlclient.MySQLConnectOptions;
+ import io.vertx.mysqlclient.MySQLConnection;
+@@ -23,25 +23,22 @@
+ public class MySQLConnectionImpl extends SqlConnectionImpl<MySQLConnectionImpl> implements MySQLConnection {
+ 
+   public static void connect(Vertx vertx, MySQLConnectOptions options, Handler<AsyncResult<MySQLConnection>> handler) {
+-    Context ctx = Vertx.currentContext();
++    ContextInternal ctx = (ContextInternal) Vertx.currentContext();
+     if (ctx != null) {
+       MySQLConnectionFactory client;
+       try {
+-        client = new MySQLConnectionFactory(ctx, false, options);
++        client = new MySQLConnectionFactory(vertx, options);
+       } catch (Exception e) {
+         handler.handle(Future.failedFuture(e));
+         return;
+       }
+-      client.connect(ar-> {
+-        if (ar.succeeded()) {
+-          Connection conn = ar.result();
+-          MySQLConnectionImpl p = new MySQLConnectionImpl(client, ctx, conn);
+-          conn.init(p);
+-          handler.handle(Future.succeededFuture(p));
+-        } else {
+-          handler.handle(Future.failedFuture(ar.cause()));
+-        }
+-      });
++      client.connect(ctx)
++        .map(conn -> {
++          MySQLConnectionImpl mySQLConnection = new MySQLConnectionImpl(client, ctx, conn);
++          conn.init(mySQLConnection);
++          return (MySQLConnection)mySQLConnection;
++        })
++        .setHandler(handler);
+     } else {
+       vertx.runOnContext(v -> {
+         connect(vertx, options, handler);
+@@ -51,7 +48,7 @@ public static void connect(Vertx vertx, MySQLConnectOptions options, Handler<Asy
+ 
+   private final MySQLConnectionFactory factory;
+ 
+-  public MySQLConnectionImpl(MySQLConnectionFactory factory, Context context, Connection conn) {
++  public MySQLConnectionImpl(MySQLConnectionFactory factory, ContextInternal context, Connection conn) {
+     super(context, conn);
+ 
+     this.factory = factory;
+diff --git a/vertx-mysql-client/src/main/java/io/vertx/mysqlclient/impl/MySQLPoolImpl.java b/vertx-mysql-client/src/main/java/io/vertx/mysqlclient/impl/MySQLPoolImpl.java
+index f7ce1c50..4673a1e8 100644
+--- a/vertx-mysql-client/src/main/java/io/vertx/mysqlclient/impl/MySQLPoolImpl.java
++++ b/vertx-mysql-client/src/main/java/io/vertx/mysqlclient/impl/MySQLPoolImpl.java
+@@ -4,6 +4,7 @@
+ import io.vertx.core.Context;
+ import io.vertx.core.Handler;
+ import io.vertx.core.Vertx;
++import io.vertx.core.impl.ContextInternal;
+ import io.vertx.mysqlclient.MySQLConnectOptions;
+ import io.vertx.mysqlclient.MySQLPool;
+ import io.vertx.sqlclient.PoolOptions;
+@@ -15,18 +16,18 @@
+ public class MySQLPoolImpl extends PoolBase<MySQLPoolImpl> implements MySQLPool {
+   private final MySQLConnectionFactory factory;
+ 
+-  public MySQLPoolImpl(Context context, boolean closeVertx, MySQLConnectOptions connectOptions, PoolOptions poolOptions) {
++  public MySQLPoolImpl(ContextInternal context, boolean closeVertx, MySQLConnectOptions connectOptions, PoolOptions poolOptions) {
+     super(context, closeVertx, poolOptions);
+-    this.factory = new MySQLConnectionFactory(context, Vertx.currentContext() != null, connectOptions);
++    this.factory = new MySQLConnectionFactory(context.owner(), connectOptions);
+   }
+ 
+   @Override
+-  public void connect(Handler<AsyncResult<Connection>> completionHandler) {
+-    factory.connect(completionHandler);
++  public void connect(ContextInternal context, Handler<AsyncResult<Connection>> completionHandler) {
++    factory.connect(context).setHandler(completionHandler);
+   }
+ 
+   @Override
+-  protected SqlConnectionImpl wrap(Context context, Connection conn) {
++  protected SqlConnectionImpl wrap(ContextInternal context, Connection conn) {
+     return new MySQLConnectionImpl(factory, context, conn);
+   }
+ 
+diff --git a/vertx-mysql-client/src/main/java/io/vertx/mysqlclient/impl/MySQLSocketConnection.java b/vertx-mysql-client/src/main/java/io/vertx/mysqlclient/impl/MySQLSocketConnection.java
+index 7855dbed..a6b84b85 100644
+--- a/vertx-mysql-client/src/main/java/io/vertx/mysqlclient/impl/MySQLSocketConnection.java
++++ b/vertx-mysql-client/src/main/java/io/vertx/mysqlclient/impl/MySQLSocketConnection.java
+@@ -21,6 +21,7 @@
+ import io.netty.handler.codec.DecoderException;
+ import io.vertx.core.*;
+ import io.vertx.core.buffer.Buffer;
++import io.vertx.core.impl.ContextInternal;
+ import io.vertx.core.net.impl.NetSocketInternal;
+ import io.vertx.mysqlclient.SslMode;
+ import io.vertx.mysqlclient.impl.codec.MySQLCodec;
+@@ -42,7 +43,7 @@ public MySQLSocketConnection(NetSocketInternal socket,
+                                boolean cachePreparedStatements,
+                                int preparedStatementCacheSize,
+                                int preparedStatementCacheSqlLimit,
+-                               Context context) {
++                               ContextInternal context) {
+     super(socket, cachePreparedStatements, preparedStatementCacheSize, preparedStatementCacheSqlLimit, 1, context);
+   }
+ 
+@@ -54,7 +55,7 @@ void sendStartupMessage(String username,
+                           Map<String, String> properties,
+                           SslMode sslMode,
+                           int initialCapabilitiesFlags,
+-                          Handler<AsyncResult<Connection>> completionHandler) {
++                          Promise<Connection> completionHandler) {
+     InitialHandshakeCommand cmd = new InitialHandshakeCommand(this, username, password, database, collation, serverRsaPublicKey, properties, sslMode, initialCapabilitiesFlags);
+     schedule(cmd, completionHandler);
+   }
+diff --git a/vertx-pg-client/src/main/java/io/vertx/pgclient/PgConnection.java b/vertx-pg-client/src/main/java/io/vertx/pgclient/PgConnection.java
+index 9d3518d9..0d916412 100644
+--- a/vertx-pg-client/src/main/java/io/vertx/pgclient/PgConnection.java
++++ b/vertx-pg-client/src/main/java/io/vertx/pgclient/PgConnection.java
+@@ -17,6 +17,7 @@
+ 
+ package io.vertx.pgclient;
+ 
++import io.vertx.core.impl.ContextInternal;
+ import io.vertx.pgclient.impl.PgConnectionImpl;
+ import io.vertx.sqlclient.PreparedQuery;
+ import io.vertx.sqlclient.SqlResult;
+@@ -52,7 +53,7 @@
+    * @param handler the handler called with the connection or the failure
+    */
+   static void connect(Vertx vertx, PgConnectOptions options, Handler<AsyncResult<PgConnection>> handler) {
+-    PgConnectionImpl.connect(vertx, options, handler);
++    PgConnectionImpl.connect((ContextInternal) vertx.getOrCreateContext(), options, handler);
+   }
+ 
+   /**
+diff --git a/vertx-pg-client/src/main/java/io/vertx/pgclient/PgPool.java b/vertx-pg-client/src/main/java/io/vertx/pgclient/PgPool.java
+index b8a13f7f..69f48f86 100644
+--- a/vertx-pg-client/src/main/java/io/vertx/pgclient/PgPool.java
++++ b/vertx-pg-client/src/main/java/io/vertx/pgclient/PgPool.java
+@@ -17,6 +17,7 @@
+ 
+ package io.vertx.pgclient;
+ 
++import io.vertx.core.impl.VertxInternal;
+ import io.vertx.pgclient.impl.PgPoolImpl;
+ import io.vertx.sqlclient.PoolOptions;
+ import io.vertx.sqlclient.SqlResult;
+@@ -105,7 +106,7 @@ static PgPool pool(PgConnectOptions connectOptions, PoolOptions poolOptions) {
+     if (connectOptions.isUsingDomainSocket()) {
+       vertxOptions.setPreferNativeTransport(true);
+     }
+-    Vertx vertx = Vertx.vertx(vertxOptions);
++    VertxInternal vertx = (VertxInternal) Vertx.vertx(vertxOptions);
+     return new PgPoolImpl(vertx.getOrCreateContext(), true, connectOptions, poolOptions);
+   }
+ 
+@@ -113,7 +114,7 @@ static PgPool pool(PgConnectOptions connectOptions, PoolOptions poolOptions) {
+    * Like {@link #pool(PgConnectOptions, PoolOptions)} with a specific {@link Vertx} instance.
+    */
+   static PgPool pool(Vertx vertx, PgConnectOptions connectOptions, PoolOptions poolOptions) {
+-    return new PgPoolImpl(vertx.getOrCreateContext(), false, connectOptions, poolOptions);
++    return new PgPoolImpl(((VertxInternal)vertx).getOrCreateContext(), false, connectOptions, poolOptions);
+   }
+ 
+   PgPool preparedQuery(String sql, Handler<AsyncResult<RowSet<Row>>> handler);
+diff --git a/vertx-pg-client/src/main/java/io/vertx/pgclient/impl/PgConnectionFactory.java b/vertx-pg-client/src/main/java/io/vertx/pgclient/impl/PgConnectionFactory.java
+index 3cf9a60a..fa72f66b 100644
+--- a/vertx-pg-client/src/main/java/io/vertx/pgclient/impl/PgConnectionFactory.java
++++ b/vertx-pg-client/src/main/java/io/vertx/pgclient/impl/PgConnectionFactory.java
+@@ -17,10 +17,11 @@
+ 
+ package io.vertx.pgclient.impl;
+ 
++import io.vertx.core.impl.ContextInternal;
++import io.vertx.core.impl.VertxInternal;
+ import io.vertx.pgclient.PgConnectOptions;
+ import io.vertx.pgclient.SslMode;
+ import io.vertx.sqlclient.impl.Connection;
+-import io.vertx.sqlclient.impl.command.CommandResponse;
+ import io.vertx.core.*;
+ import io.vertx.core.net.impl.NetSocketInternal;
+ import io.vertx.core.net.*;
+@@ -34,8 +35,6 @@
+ class PgConnectionFactory {
+ 
+   private final NetClient client;
+-  private final Context ctx;
+-  private final boolean registerCloseHook;
+   private final String host;
+   private final int port;
+   private final SslMode sslMode;
+@@ -50,19 +49,8 @@
+   private final int preparedStatementCacheSqlLimit;
+   private final int pipeliningLimit;
+   private final boolean isUsingDomainSocket;
+-  private final Closeable hook;
+ 
+-  PgConnectionFactory(Context context,
+-                             boolean registerCloseHook,
+-                             PgConnectOptions options) {
+-
+-    hook = this::close;
+-    this.registerCloseHook = registerCloseHook;
+-
+-    ctx = context;
+-    if (registerCloseHook) {
+-      ctx.addCloseHook(hook);
+-    }
++  PgConnectionFactory(VertxInternal vertx, PgConnectOptions options) {
+ 
+     NetClientOptions netClientOptions = new NetClientOptions(options);
+ 
+@@ -83,80 +71,46 @@
+     this.preparedStatementCacheSize = options.getPreparedStatementCacheMaxSize();
+     this.preparedStatementCacheSqlLimit = options.getPreparedStatementCacheSqlLimit();
+     this.isUsingDomainSocket = options.isUsingDomainSocket();
+-
+-    this.client = context.owner().createNetClient(netClientOptions);
+-  }
+-
+-  // Called by hook
+-  private void close(Handler<AsyncResult<Void>> completionHandler) {
+-    client.close();
+-    completionHandler.handle(Future.succeededFuture());
++    this.client = vertx.createNetClient(netClientOptions);
+   }
+ 
+   void close() {
+-    if (registerCloseHook) {
+-      ctx.removeCloseHook(hook);
+-    }
+     client.close();
+   }
+ 
+-  void connectAndInit(Handler<AsyncResult<Connection>> completionHandler) {
+-    connect(ar -> {
+-      if (ar.succeeded()) {
+-        PgSocketConnection conn = ar.result();
++  Future<Connection> connectAndInit(ContextInternal ctx) {
++    return connect(ctx)
++      .flatMap(conn -> {
+         conn.init();
+-        conn.sendStartupMessage(username, password, database, properties, completionHandler);
+-      } else {
+-        completionHandler.handle(Future.failedFuture(ar.cause()));
+-      }
+-    });
++        return Future.<Connection>future(p -> conn.sendStartupMessage(username, password, database, properties, p))
++          .map(conn);
++      });
+   }
+ 
+-  void connect(Handler<AsyncResult<PgSocketConnection>> handler) {
++  Future<PgSocketConnection> connect(ContextInternal ctx) {
+     switch (sslMode) {
+       case DISABLE:
+-        doConnect(false, handler);
+-        break;
++        return doConnect(ctx, false);
+       case ALLOW:
+-        doConnect(false, ar -> {
+-          if (ar.succeeded()) {
+-            handler.handle(Future.succeededFuture(ar.result()));
+-          } else {
+-            doConnect(true, handler);
+-          }
+-        });
+-        break;
++        return doConnect(ctx, false).recover(err -> doConnect(ctx, true));
+       case PREFER:
+-        doConnect(true, ar -> {
+-          if (ar.succeeded()) {
+-            handler.handle(Future.succeededFuture(ar.result()));
+-          } else {
+-            doConnect(false, handler);
+-          }
+-        });
+-        break;
++        return doConnect(ctx, true).recover(err -> doConnect(ctx, false));
+       case VERIFY_FULL:
+         if (hostnameVerificationAlgorithm == null || hostnameVerificationAlgorithm.isEmpty()) {
+-          handler.handle(Future.failedFuture(new IllegalArgumentException("Host verification algorithm must be specified under verify-full sslmode")));
+-          return;
++          return ctx.failedFuture(new IllegalArgumentException("Host verification algorithm must be specified under verify-full sslmode"));
+         }
+       case VERIFY_CA:
+         if (trustOptions == null) {
+-          handler.handle(Future.failedFuture(new IllegalArgumentException("Trust options must be specified under verify-full or verify-ca sslmode")));
+-          return;
++          return ctx.failedFuture(new IllegalArgumentException("Trust options must be specified under verify-full or verify-ca sslmode"));
+         }
+       case REQUIRE:
+-        doConnect(true, handler);
+-        break;
++        return doConnect(ctx, true);
+       default:
+-        throw new IllegalArgumentException("Unsupported SSL mode");
++        return ctx.failedFuture(new IllegalArgumentException("Unsupported SSL mode"));
+     }
+   }
+ 
+-  private void doConnect(boolean ssl, Handler<AsyncResult<PgSocketConnection>> handler) {
+-    if (Vertx.currentContext() != ctx) {
+-      throw new IllegalStateException();
+-    }
++  private Future<PgSocketConnection> doConnect(ContextInternal ctx, boolean ssl) {
+     SocketAddress socketAddress;
+     if (!isUsingDomainSocket) {
+       socketAddress = SocketAddress.inetSocketAddress(port, host);
+@@ -164,38 +118,31 @@ private void doConnect(boolean ssl, Handler<AsyncResult<PgSocketConnection>> han
+       socketAddress = SocketAddress.domainSocketAddress(host + "/.s.PGSQL." + port);
+     }
+ 
+-    Promise<NetSocket> promise = Promise.promise();
+-    promise.future().setHandler(ar -> {
+-      if (ar.succeeded()) {
+-        NetSocketInternal socket = (NetSocketInternal) ar.result();
+-        PgSocketConnection conn = newSocketConnection(socket);
+-
+-        if (ssl && !isUsingDomainSocket) {
+-          // upgrade connection to SSL if needed
+-          conn.upgradeToSSLConnection(ar2 -> {
+-            if (ar2.succeeded()) {
+-              handler.handle(Future.succeededFuture(conn));
+-            } else {
+-              handler.handle(Future.failedFuture(ar2.cause()));
+-            }
+-          });
+-        } else {
+-          handler.handle(Future.succeededFuture(conn));
+-        }
+-      } else {
+-        handler.handle(Future.failedFuture(ar.cause()));
+-      }
+-    });
+-
++    Future<NetSocket> soFut;
+     try {
+-      client.connect(socketAddress, null, promise);
++      soFut = client.connect(socketAddress, (String) null);
+     } catch (Exception e) {
+       // Client is closed
+-      promise.fail(e);
++      return ctx.failedFuture(e);
++    }
++    Future<PgSocketConnection> connFut = soFut.map(so -> newSocketConnection(ctx, (NetSocketInternal) so));
++    if (ssl && !isUsingDomainSocket) {
++      // upgrade connection to SSL if needed
++      return connFut.flatMap(conn -> Future.future(p -> {
++        conn.upgradeToSSLConnection(ar2 -> {
++          if (ar2.succeeded()) {
++            p.complete(conn);
++          } else {
++            p.fail(ar2.cause());
++          }
++        });
++      }));
++    } else {
++      return connFut;
+     }
+   }
+ 
+-  private PgSocketConnection newSocketConnection(NetSocketInternal socket) {
++  private PgSocketConnection newSocketConnection(ContextInternal ctx, NetSocketInternal socket) {
+     return new PgSocketConnection(socket, cachePreparedStatements, preparedStatementCacheSize, preparedStatementCacheSqlLimit, pipeliningLimit, ctx);
+   }
+ }
+diff --git a/vertx-pg-client/src/main/java/io/vertx/pgclient/impl/PgConnectionImpl.java b/vertx-pg-client/src/main/java/io/vertx/pgclient/impl/PgConnectionImpl.java
+index 82050c7e..c1e0e442 100644
+--- a/vertx-pg-client/src/main/java/io/vertx/pgclient/impl/PgConnectionImpl.java
++++ b/vertx-pg-client/src/main/java/io/vertx/pgclient/impl/PgConnectionImpl.java
+@@ -16,6 +16,7 @@
+  */
+ package io.vertx.pgclient.impl;
+ 
++import io.vertx.core.impl.ContextInternal;
+ import io.vertx.pgclient.PgConnectOptions;
+ import io.vertx.pgclient.PgConnection;
+ import io.vertx.pgclient.PgNotification;
+@@ -29,33 +30,27 @@
+ 
+ public class PgConnectionImpl extends SqlConnectionImpl<PgConnectionImpl> implements PgConnection  {
+ 
+-  public static void connect(Vertx vertx, PgConnectOptions options, Handler<AsyncResult<PgConnection>> handler) {
+-    Context ctx = Vertx.currentContext();
+-    if (ctx != null) {
+-      if (options.isUsingDomainSocket() && !vertx.isNativeTransportEnabled()) {
++  public static void connect(ContextInternal context, PgConnectOptions options, Handler<AsyncResult<PgConnection>> handler) {
++    if (Vertx.currentContext() == context) {
++      if (options.isUsingDomainSocket() && !context.owner().isNativeTransportEnabled()) {
+         handler.handle(Future.failedFuture("Native transport is not available"));
+       } else {
+-        PgConnectionFactory client = new PgConnectionFactory(ctx, false, options);
+-        client.connectAndInit(ar -> {
+-          if (ar.succeeded()) {
+-            Connection conn = ar.result();
+-            PgConnectionImpl p = new PgConnectionImpl(client, ctx, conn);
+-            conn.init(p);
+-            handler.handle(Future.succeededFuture(p));
+-          } else {
+-            handler.handle(Future.failedFuture(ar.cause()));
+-          }
+-        });
++        PgConnectionFactory client = new PgConnectionFactory(context.owner(), options);
++        client.connectAndInit(context).map(conn -> {
++          PgConnectionImpl p = new PgConnectionImpl(client, context, conn);
++          conn.init(p);
++          return (PgConnection)p;
++        }).setHandler(handler);
+       }
+     } else {
+-      vertx.runOnContext(v -> connect(vertx, options, handler));
++      context.runOnContext(v -> connect(context, options, handler));
+     }
+   }
+ 
+   private final PgConnectionFactory factory;
+   private volatile Handler<PgNotification> notificationHandler;
+ 
+-  public PgConnectionImpl(PgConnectionFactory factory, Context context, Connection conn) {
++  PgConnectionImpl(PgConnectionFactory factory, ContextInternal context, Connection conn) {
+     super(context, conn);
+ 
+     this.factory = factory;
+@@ -89,7 +84,7 @@ public int secretKey() {
+   public PgConnection cancelRequest(Handler<AsyncResult<Void>> handler) {
+     Context current = Vertx.currentContext();
+     if (current == context) {
+-      factory.connect(ar -> {
++      factory.connect(context).setHandler(ar -> {
+         if (ar.succeeded()) {
+           PgSocketConnection conn = ar.result();
+           conn.sendCancelRequestMessage(this.processId(), this.secretKey(), handler);
+diff --git a/vertx-pg-client/src/main/java/io/vertx/pgclient/impl/PgPoolImpl.java b/vertx-pg-client/src/main/java/io/vertx/pgclient/impl/PgPoolImpl.java
+index e2bd68d3..db6996e5 100644
+--- a/vertx-pg-client/src/main/java/io/vertx/pgclient/impl/PgPoolImpl.java
++++ b/vertx-pg-client/src/main/java/io/vertx/pgclient/impl/PgPoolImpl.java
+@@ -17,6 +17,7 @@
+ 
+ package io.vertx.pgclient.impl;
+ 
++import io.vertx.core.impl.ContextInternal;
+ import io.vertx.pgclient.*;
+ import io.vertx.sqlclient.PoolOptions;
+ import io.vertx.sqlclient.impl.Connection;
+@@ -36,24 +37,45 @@
+ public class PgPoolImpl extends PoolBase<PgPoolImpl> implements PgPool {
+ 
+   private final PgConnectionFactory factory;
++  private final ContextInternal contextHook;
++  private final Closeable hook;
+ 
+-  public PgPoolImpl(Context context, boolean closeVertx, PgConnectOptions connectOptions, PoolOptions poolOptions) {
++  public PgPoolImpl(ContextInternal context, boolean closeVertx, PgConnectOptions connectOptions, PoolOptions poolOptions) {
+     super(context, closeVertx, poolOptions);
+-    this.factory = new PgConnectionFactory(context, Vertx.currentContext() != null, connectOptions);
++    this.factory = new PgConnectionFactory(context.owner(), connectOptions);
++
++    if (context.deploymentID() != null) {
++      contextHook = context;
++      hook = completion -> {
++        closeInternal();
++        completion.complete();
++      };
++      context.addCloseHook(hook);
++    } else {
++      contextHook = null;
++      hook = null;
++    }
+   }
+ 
+   @Override
+-  public void connect(Handler<AsyncResult<Connection>> completionHandler) {
+-    factory.connectAndInit(completionHandler);
++  public void connect(ContextInternal context, Handler<AsyncResult<Connection>> completionHandler) {
++    factory.connectAndInit(context).setHandler(completionHandler);
+   }
+ 
+   @Override
+-  protected SqlConnectionImpl wrap(Context context, Connection conn) {
++  protected SqlConnectionImpl wrap(ContextInternal context, Connection conn) {
+     return new PgConnectionImpl(factory, context, conn);
+   }
+ 
+   @Override
+   protected void doClose() {
++    if (hook != null) {
++      contextHook.removeCloseHook(hook);
++    }
++    closeInternal();
++  }
++
++  private void closeInternal() {
+     factory.close();
+     super.doClose();
+   }
+diff --git a/vertx-pg-client/src/main/java/io/vertx/pgclient/impl/PgSocketConnection.java b/vertx-pg-client/src/main/java/io/vertx/pgclient/impl/PgSocketConnection.java
+index 4b96db44..8fbc81e4 100644
+--- a/vertx-pg-client/src/main/java/io/vertx/pgclient/impl/PgSocketConnection.java
++++ b/vertx-pg-client/src/main/java/io/vertx/pgclient/impl/PgSocketConnection.java
+@@ -19,10 +19,10 @@
+ 
+ import io.netty.channel.ChannelPipeline;
+ import io.netty.handler.codec.DecoderException;
++import io.vertx.core.impl.ContextInternal;
+ import io.vertx.pgclient.impl.codec.PgCodec;
+ import io.vertx.sqlclient.impl.Connection;
+ import io.vertx.sqlclient.impl.SocketConnectionBase;
+-import io.vertx.sqlclient.impl.command.CommandResponse;
+ import io.vertx.sqlclient.impl.command.InitCommand;
+ import io.vertx.core.*;
+ import io.vertx.core.buffer.Buffer;
+@@ -44,7 +44,7 @@ public PgSocketConnection(NetSocketInternal socket,
+                             int preparedStatementCacheSize,
+                             int preparedStatementCacheSqlLimit,
+                             int pipeliningLimit,
+-                            Context context) {
++                            ContextInternal context) {
+     super(socket, cachePreparedStatements, preparedStatementCacheSize, preparedStatementCacheSqlLimit, pipeliningLimit, context);
+   }
+ 
+@@ -56,7 +56,7 @@ public void init() {
+     super.init();
+   }
+ 
+-  public void sendStartupMessage(String username, String password, String database, Map<String, String> properties, Handler<AsyncResult<Connection>> completionHandler) {
++  void sendStartupMessage(String username, String password, String database, Map<String, String> properties, Promise<Connection> completionHandler) {
+     InitCommand cmd = new InitCommand(this, username, password, database, properties);
+     schedule(cmd, completionHandler);
+   }
+diff --git a/vertx-pg-client/src/test/java/io/vertx/pgclient/ContextTest.java b/vertx-pg-client/src/test/java/io/vertx/pgclient/ContextTest.java
+new file mode 100644
+index 00000000..3bf5ab20
+--- /dev/null
++++ b/vertx-pg-client/src/test/java/io/vertx/pgclient/ContextTest.java
+@@ -0,0 +1,60 @@
++package io.vertx.pgclient;
++
++import io.vertx.core.Context;
++import io.vertx.core.Vertx;
++import io.vertx.ext.unit.Async;
++import io.vertx.ext.unit.TestContext;
++import io.vertx.sqlclient.PoolOptions;
++import org.junit.After;
++import org.junit.Before;
++import org.junit.Test;
++
++public class ContextTest extends PgTestBase {
++
++  private Vertx vertx;
++
++  @Before
++  public void setup() throws Exception {
++    super.setup();
++    vertx = Vertx.vertx();
++  }
++
++  @After
++  public void teardown(TestContext ctx) {
++    vertx.close(ctx.asyncAssertSuccess());
++  }
++
++  @Test
++  public void testConnection(TestContext testCtx) {
++    Async async = testCtx.async();
++    Context connCtx = vertx.getOrCreateContext();
++    connCtx.runOnContext(v1 -> {
++      PgConnection.connect(vertx, options, testCtx.asyncAssertSuccess(conn -> {
++        testCtx.assertEquals(connCtx, Vertx.currentContext());
++        conn.query("SELECT *  FROM (VALUES ('Hello world')) t1 (col1) WHERE 1 = 1", testCtx.asyncAssertSuccess(result -> {
++          testCtx.assertEquals(connCtx, Vertx.currentContext());
++          async.complete();
++        }));
++      }));
++    });
++  }
++
++  @Test
++  public void testPooledConnection(TestContext testCtx) {
++    Context appCtx = vertx.getOrCreateContext();
++    Async async = testCtx.async();
++    Context connCtx = vertx.getOrCreateContext();
++    connCtx.runOnContext(v1 -> {
++      PgPool pool = PgPool.pool(vertx, options, new PoolOptions());
++      appCtx.runOnContext(v -> {
++        pool.getConnection(testCtx.asyncAssertSuccess(conn -> {
++          testCtx.assertEquals(appCtx, Vertx.currentContext());
++          conn.query("SELECT *  FROM (VALUES ('Hello world')) t1 (col1) WHERE 1 = 1", testCtx.asyncAssertSuccess(result -> {
++            testCtx.assertEquals(appCtx, Vertx.currentContext());
++            async.complete();
++          }));
++        }));
++      });
++    });
++  }
++}
+diff --git a/vertx-sql-client/src/main/java/io/vertx/sqlclient/impl/Connection.java b/vertx-sql-client/src/main/java/io/vertx/sqlclient/impl/Connection.java
+index 294bbb65..9e92c43c 100644
+--- a/vertx-sql-client/src/main/java/io/vertx/sqlclient/impl/Connection.java
++++ b/vertx-sql-client/src/main/java/io/vertx/sqlclient/impl/Connection.java
+@@ -17,14 +17,12 @@
+ 
+ package io.vertx.sqlclient.impl;
+ 
+-import io.vertx.core.Handler;
++import io.vertx.core.Promise;
+ import io.vertx.sqlclient.impl.command.CommandBase;
+-import io.vertx.sqlclient.impl.command.CommandResponse;
+-import io.vertx.sqlclient.impl.command.CommandScheduler;
+ 
+-import java.util.function.Function;
++public interface Connection {
+ 
+-public interface Connection extends CommandScheduler {
++  <R> void schedule(CommandBase<R> cmd, Promise<R> handler);
+ 
+   void init(Holder holder);
+ 
+diff --git a/vertx-sql-client/src/main/java/io/vertx/sqlclient/impl/ConnectionPool.java b/vertx-sql-client/src/main/java/io/vertx/sqlclient/impl/ConnectionPool.java
+index 36c6e5e9..6c5067dd 100644
+--- a/vertx-sql-client/src/main/java/io/vertx/sqlclient/impl/ConnectionPool.java
++++ b/vertx-sql-client/src/main/java/io/vertx/sqlclient/impl/ConnectionPool.java
+@@ -20,7 +20,6 @@
+ import io.vertx.sqlclient.PoolOptions;
+ import io.vertx.sqlclient.impl.command.CommandBase;
+ import io.vertx.core.*;
+-import io.vertx.core.impl.NoStackTraceThrowable;
+ 
+ import java.util.ArrayDeque;
+ import java.util.ArrayList;
+@@ -35,7 +34,7 @@
+ 
+   private final Consumer<Handler<AsyncResult<Connection>>> connector;
+   private final int maxSize;
+-  private final ArrayDeque<Promise<Connection>> waiters = new ArrayDeque<>();
++  private final ArrayDeque<Handler<AsyncResult<Connection>>> waiters = new ArrayDeque<>();
+   private final Set<PooledConnection> all = new HashSet<>();
+   private final ArrayDeque<PooledConnection> available = new ArrayDeque<>();
+   private int size;
+@@ -65,13 +64,11 @@ public int size() {
+     return size;
+   }
+ 
+-  public void acquire(Handler<AsyncResult<Connection>> holder) {
++  public void acquire(Handler<AsyncResult<Connection>> waiter) {
+     if (closed) {
+       throw new IllegalStateException("Connection pool closed");
+     }
+-    Promise<Connection> promise = Promise.promise();
+-    promise.future().setHandler(holder);
+-    waiters.add(promise);
++    waiters.add(waiter);
+     check();
+   }
+ 
+@@ -84,7 +81,7 @@ public void close() {
+       pooled.close();
+     }
+     Future<Connection> failure = Future.failedFuture("Connection pool closed");
+-    for (Promise<Connection> pending : waiters) {
++    for (Handler<AsyncResult<Connection>> pending : waiters) {
+       try {
+         pending.handle(failure);
+       } catch (Exception ignore) {
+@@ -107,7 +104,7 @@ public boolean isSsl() {
+     }
+ 
+     @Override
+-    public <R> void schedule(CommandBase<R> cmd, Handler<AsyncResult<R>> handler) {
++    public <R> void schedule(CommandBase<R> cmd, Promise<R> handler) {
+       conn.schedule(cmd, handler);
+     }
+ 
+@@ -192,11 +189,11 @@ private void check() {
+         while (waiters.size() > 0) {
+           if (available.size() > 0) {
+             PooledConnection proxy = available.poll();
+-            Promise<Connection> waiter = waiters.poll();
+-            waiter.complete(proxy);
++            Handler<AsyncResult<Connection>> waiter = waiters.poll();
++            waiter.handle(Future.succeededFuture(proxy));
+           } else {
+             if (size < maxSize) {
+-              Promise<Connection> waiter = waiters.poll();
++              Handler<AsyncResult<Connection>> waiter = waiters.poll();
+               size++;
+               connector.accept(ar -> {
+                 if (ar.succeeded()) {
+@@ -204,10 +201,10 @@ private void check() {
+                   PooledConnection proxy = new PooledConnection(conn);
+                   all.add(proxy);
+                   conn.init(proxy);
+-                  waiter.complete(proxy);
++                  waiter.handle(Future.succeededFuture(proxy));
+                 } else {
+                   size--;
+-                  waiter.fail(ar.cause());
++                  waiter.handle(Future.failedFuture(ar.cause()));
+                   check();
+                 }
+               });
+@@ -216,8 +213,8 @@ private void check() {
+                 int numInProgress = size - all.size();
+                 int numToFail = waiters.size() - (maxWaitQueueSize + numInProgress);
+                 while (numToFail-- > 0) {
+-                  Promise<Connection> waiter = waiters.pollLast();
+-                  waiter.fail(new NoStackTraceThrowable("Max waiter size reached"));
++                  Handler<AsyncResult<Connection>> waiter = waiters.pollLast();
++                  waiter.handle(Future.failedFuture("Max waiter size reached"));
+                 }
+               }
+               break;
+diff --git a/vertx-sql-client/src/main/java/io/vertx/sqlclient/impl/PoolBase.java b/vertx-sql-client/src/main/java/io/vertx/sqlclient/impl/PoolBase.java
+index 26a50d9a..53420baf 100644
+--- a/vertx-sql-client/src/main/java/io/vertx/sqlclient/impl/PoolBase.java
++++ b/vertx-sql-client/src/main/java/io/vertx/sqlclient/impl/PoolBase.java
+@@ -17,19 +17,21 @@
+ 
+ package io.vertx.sqlclient.impl;
+ 
++import io.vertx.core.Promise;
++import io.vertx.core.impl.ContextInternal;
++import io.vertx.core.impl.PromiseInternal;
+ import io.vertx.sqlclient.PoolOptions;
+ import io.vertx.sqlclient.Pool;
+ import io.vertx.sqlclient.SqlConnection;
+ import io.vertx.sqlclient.Transaction;
+ import io.vertx.sqlclient.impl.command.CommandBase;
+-import io.vertx.sqlclient.impl.command.CommandResponse;
+-import io.vertx.sqlclient.impl.command.CommandScheduler;
+ import io.vertx.core.AsyncResult;
+ import io.vertx.core.Context;
+ import io.vertx.core.Future;
+ import io.vertx.core.Handler;
+ import io.vertx.core.Vertx;
+-import io.vertx.core.VertxException;
++
++import java.util.function.Function;
+ 
+ /**
+  * Todo :
+@@ -42,29 +44,36 @@
+  */
+ public abstract class PoolBase<P extends PoolBase<P>> extends SqlClientBase<P> implements Pool {
+ 
+-  private final Context context;
++  private final ContextInternal context;
+   private final ConnectionPool pool;
+   private final boolean closeVertx;
+ 
+-  public PoolBase(Context context, boolean closeVertx, PoolOptions options) {
++  public PoolBase(ContextInternal context, boolean closeVertx, PoolOptions options) {
+     int maxSize = options.getMaxSize();
+     if (maxSize < 1) {
+       throw new IllegalArgumentException("Pool max size must be > 0");
+     }
+     this.context = context;
+-    this.pool = new ConnectionPool(this::connect, maxSize, options.getMaxWaitQueueSize());
++    this.pool = new ConnectionPool(h -> connect(context, h), maxSize, options.getMaxWaitQueueSize());
+     this.closeVertx = closeVertx;
+   }
+ 
+-  public abstract void connect(Handler<AsyncResult<Connection>> completionHandler);
++  /**
++   * Create a connection and connect to the database server.
++   *
++   * @param context the connection context
++   * @param completionHandler the handler completed with the result
++   */
++  public abstract void connect(ContextInternal context, Handler<AsyncResult<Connection>> completionHandler);
+ 
+   @Override
+   public void getConnection(Handler<AsyncResult<SqlConnection>> handler) {
+-    Context current = Vertx.currentContext();
++    ContextInternal current = context.owner().getOrCreateContext();
++    ConnectionWaiter waiter = new ConnectionWaiter(current, handler);
+     if (current == context) {
+-      pool.acquire(new ConnectionWaiter(handler));
++      pool.acquire(waiter.promise);
+     } else {
+-      context.runOnContext(v -> getConnection(handler));
++      context.runOnContext(v -> pool.acquire(waiter.promise));
+     }
+   }
+ 
+@@ -83,24 +92,29 @@ public void begin(Handler<AsyncResult<Transaction>> handler) {
+ 
+   @Override
+   public <R> void schedule(CommandBase<R> cmd, Handler<AsyncResult<R>> handler) {
+-    Context current = Vertx.currentContext();
++    ContextInternal current = context.owner().getOrCreateContext();
++    PromiseInternal<R> promise = current.promise(handler);
+     if (current == context) {
+-      pool.acquire(new CommandWaiter() {
+-        @Override
+-        protected void onSuccess(Connection conn) {
+-          conn.schedule(cmd, handler);
+-          conn.close(this);
+-        }
+-        @Override
+-        protected void onFailure(Throwable cause) {
+-          handler.handle(Future.failedFuture(cause));
+-        }
+-      });
++      schedule(cmd, promise);
+     } else {
+-      context.runOnContext(v -> schedule(cmd, handler));
++      context.runOnContext(v -> schedule(cmd, promise));
+     }
+   }
+ 
++  private <R> void schedule(CommandBase<R> cmd, Promise<R> promise) {
++    pool.acquire(new CommandWaiter() {
++      @Override
++      protected void onSuccess(Connection conn) {
++        conn.schedule(cmd, promise);
++        conn.close(this);
++      }
++      @Override
++      protected void onFailure(Throwable cause) {
++        promise.fail(cause);
++      }
++    });
++  }
++
+   private abstract class CommandWaiter implements Connection.Holder, Handler<AsyncResult<Connection>> {
+ 
+     protected abstract void onSuccess(Connection conn);
+@@ -132,26 +146,28 @@ public void handleException(Throwable err) {
+     }
+   }
+ 
+-  protected abstract SqlConnectionImpl wrap(Context context, Connection conn);
++  protected abstract SqlConnectionImpl wrap(ContextInternal context, Connection conn);
+ 
+-  private class ConnectionWaiter implements Handler<AsyncResult<Connection>> {
++  private class ConnectionWaiter {
+ 
++    private final ContextInternal context;
+     private final Handler<AsyncResult<SqlConnection>> handler;
++    private final Promise<Connection> promise;
+ 
+-    private ConnectionWaiter(Handler<AsyncResult<SqlConnection>> handler) {
++    private ConnectionWaiter(ContextInternal context, Handler<AsyncResult<SqlConnection>> handler) {
++      this.context = context;
+       this.handler = handler;
+-    }
++      this.promise = context.promise();
+ 
+-    @Override
+-    public void handle(AsyncResult<Connection> ar) {
+-      if (ar.succeeded()) {
+-        Connection conn = ar.result();
+-        SqlConnectionImpl holder = wrap(context, conn);
+-        conn.init(holder);
+-        handler.handle(Future.succeededFuture(holder));
+-      } else {
+-        handler.handle(Future.failedFuture(ar.cause()));
+-      }
++      Future<Connection> future = promise.future();
++      future.map(new Function<Connection, SqlConnection>() {
++        @Override
++        public SqlConnection apply(Connection conn) {
++          SqlConnectionImpl wrapper = wrap(context, conn);
++          conn.init(wrapper);
++          return wrapper;
++        }
++      }).setHandler(handler);
+     }
+   }
+ 
+diff --git a/vertx-sql-client/src/main/java/io/vertx/sqlclient/impl/PreparedQueryImpl.java b/vertx-sql-client/src/main/java/io/vertx/sqlclient/impl/PreparedQueryImpl.java
+index 04908602..803adcce 100644
+--- a/vertx-sql-client/src/main/java/io/vertx/sqlclient/impl/PreparedQueryImpl.java
++++ b/vertx-sql-client/src/main/java/io/vertx/sqlclient/impl/PreparedQueryImpl.java
+@@ -17,6 +17,7 @@
+ 
+ package io.vertx.sqlclient.impl;
+ 
++import io.vertx.core.impl.ContextInternal;
+ import io.vertx.sqlclient.impl.command.CloseCursorCommand;
+ import io.vertx.sqlclient.impl.command.CloseStatementCommand;
+ import io.vertx.sqlclient.impl.command.ExtendedBatchQueryCommand;
+@@ -41,11 +42,11 @@
+ class PreparedQueryImpl implements PreparedQuery {
+ 
+   private final Connection conn;
+-  private final Context context;
++  private final ContextInternal context;
+   private final PreparedStatement ps;
+   private final AtomicBoolean closed = new AtomicBoolean();
+ 
+-  PreparedQueryImpl(Connection conn, Context context, PreparedStatement ps) {
++  PreparedQueryImpl(Connection conn, ContextInternal context, PreparedStatement ps) {
+     this.conn = conn;
+     this.context = context;
+     this.ps = ps;
+@@ -91,7 +92,7 @@ public PreparedQuery execute(Tuple args, Handler<AsyncResult<RowSet<Row>>> handl
+           suspended,
+           collector,
+           resultHandler);
+-        conn.schedule(cmd, handler);
++        conn.schedule(cmd, context.promise(handler));
+       }
+     } else {
+       context.runOnContext(v -> execute(args, fetch, cursorId, suspended, collector, resultHandler, handler));
+@@ -141,7 +142,7 @@ public PreparedQuery batch(List<Tuple> argsList, Handler<AsyncResult<RowSet<Row>
+     }
+     SqlResultBuilder<R1, R2, R3> b = new SqlResultBuilder<>(factory, handler);
+     ExtendedBatchQueryCommand<R1> cmd = new ExtendedBatchQueryCommand<>(ps, argsList, collector, b);
+-    conn.schedule(cmd, b);
++    conn.schedule(cmd, context.promise(b));
+     return this;
+   }
+ 
+@@ -154,7 +155,7 @@ public PreparedQuery batch(List<Tuple> argsList, Handler<AsyncResult<RowSet<Row>
+   public void close(Handler<AsyncResult<Void>> completionHandler) {
+     if (closed.compareAndSet(false, true)) {
+       CloseStatementCommand cmd = new CloseStatementCommand(ps);
+-      conn.schedule(cmd, completionHandler);
++      conn.schedule(cmd, context.promise(completionHandler));
+     } else {
+       completionHandler.handle(Future.failedFuture("Already closed"));
+     }
+@@ -162,6 +163,6 @@ public void close(Handler<AsyncResult<Void>> completionHandler) {
+ 
+   void closeCursor(String cursorId, Handler<AsyncResult<Void>> handler) {
+     CloseCursorCommand cmd = new CloseCursorCommand(cursorId, ps);
+-    conn.schedule(cmd, handler);
++    conn.schedule(cmd, context.promise(handler));
+   }
+ }
+diff --git a/vertx-sql-client/src/main/java/io/vertx/sqlclient/impl/PreparedStatementCache.java b/vertx-sql-client/src/main/java/io/vertx/sqlclient/impl/PreparedStatementCache.java
+index 84c11e8f..bcae0d7f 100644
+--- a/vertx-sql-client/src/main/java/io/vertx/sqlclient/impl/PreparedStatementCache.java
++++ b/vertx-sql-client/src/main/java/io/vertx/sqlclient/impl/PreparedStatementCache.java
+@@ -1,5 +1,6 @@
+ package io.vertx.sqlclient.impl;
+ 
++import io.vertx.core.Promise;
+ import io.vertx.sqlclient.impl.SocketConnectionBase.CachedPreparedStatement;
+ import io.vertx.sqlclient.impl.command.CloseStatementCommand;
+ 
+@@ -29,7 +30,7 @@ protected boolean removeEldestEntry(Map.Entry<String, CachedPreparedStatement> e
+         // close the statement after it has been evicted from the cache
+         PreparedStatement statement = cachedPreparedStatementToRemove.resp.result();
+         CloseStatementCommand cmd = new CloseStatementCommand(statement);
+-        conn.schedule(cmd, ar -> {});
++        conn.schedule(cmd, Promise.promise()); // Shall be empty ?
+       }
+       return true;
+     }
+diff --git a/vertx-sql-client/src/main/java/io/vertx/sqlclient/impl/SocketConnectionBase.java b/vertx-sql-client/src/main/java/io/vertx/sqlclient/impl/SocketConnectionBase.java
+index 671dc2be..cb4f0f16 100644
+--- a/vertx-sql-client/src/main/java/io/vertx/sqlclient/impl/SocketConnectionBase.java
++++ b/vertx-sql-client/src/main/java/io/vertx/sqlclient/impl/SocketConnectionBase.java
+@@ -23,8 +23,10 @@
+ import io.vertx.core.Context;
+ import io.vertx.core.Future;
+ import io.vertx.core.Handler;
++import io.vertx.core.Promise;
+ import io.vertx.core.Vertx;
+ import io.vertx.core.VertxException;
++import io.vertx.core.impl.ContextInternal;
+ import io.vertx.core.net.impl.NetSocketInternal;
+ import io.vertx.core.logging.Logger;
+ import io.vertx.core.logging.LoggerFactory;
+@@ -32,7 +34,6 @@
+ 
+ import java.util.ArrayDeque;
+ import java.util.Deque;
+-import java.util.function.Function;
+ 
+ /**
+  * @author <a href="mailto:julien@julienviet.com">Julien Viet</a>
+@@ -51,7 +52,7 @@
+   private final int preparedStatementCacheSqlLimit;
+   private final StringLongSequence psSeq = new StringLongSequence();
+   private final ArrayDeque<CommandBase<?>> pending = new ArrayDeque<>();
+-  private final Context context;
++  private final ContextInternal context;
+   private int inflight;
+   private Holder holder;
+   private final int pipeliningLimit;
+@@ -64,7 +65,7 @@ public SocketConnectionBase(NetSocketInternal socket,
+                               int preparedStatementCacheSize,
+                               int preparedStatementCacheSqlLimit,
+                               int pipeliningLimit,
+-                              Context context) {
++                              ContextInternal context) {
+     this.socket = socket;
+     this.context = context;
+     this.pipeliningLimit = pipeliningLimit;
+@@ -125,12 +126,17 @@ public void close(Holder holder) {
+     }
+   }
+ 
+-  private <R, T> void schedule(BiCommand<T, R> cmd, Handler<AsyncResult<R>> handler) {
+-    schedule(cmd.first, cr -> {
++  @Override
++  public <R> void schedule(CommandBase<R> cmd, Promise<R> promise) {
++    context.dispatch(null, v -> doSchedule(cmd, promise));
++  }
++
++  private <R, T> void doSchedule(BiCommand<T, R> cmd, Handler<AsyncResult<R>> handler) {
++    doSchedule(cmd.first, cr -> {
+       if (cr.succeeded()) {
+         AsyncResult<CommandBase<R>> next = cmd.then.apply(cr.result());
+         if (next.succeeded()) {
+-          schedule(next.result(), handler);
++          doSchedule(next.result(), handler);
+         } else {
+           handler.handle(Future.failedFuture(next.cause()));
+         }
+@@ -140,8 +146,7 @@ public void close(Holder holder) {
+     });
+   }
+ 
+-  @Override
+-  public <R> void schedule(CommandBase<R> cmd, Handler<AsyncResult<R>> handler) {
++  private <R> void doSchedule(CommandBase<R> cmd, Handler<AsyncResult<R>> handler) {
+     if (handler == null) {
+       throw new IllegalArgumentException();
+     }
+@@ -151,7 +156,7 @@ public void close(Holder holder) {
+ 
+     // Special handling for bi commands
+     if (cmd instanceof BiCommand<?, ?>) {
+-      schedule((BiCommand<? ,R>) cmd, handler);
++      doSchedule((BiCommand<? ,R>) cmd, handler);
+       return;
+     }
+ 
+diff --git a/vertx-sql-client/src/main/java/io/vertx/sqlclient/impl/SqlConnectionBase.java b/vertx-sql-client/src/main/java/io/vertx/sqlclient/impl/SqlConnectionBase.java
+index 77087962..55a81c4e 100644
+--- a/vertx-sql-client/src/main/java/io/vertx/sqlclient/impl/SqlConnectionBase.java
++++ b/vertx-sql-client/src/main/java/io/vertx/sqlclient/impl/SqlConnectionBase.java
+@@ -17,6 +17,7 @@
+ 
+ package io.vertx.sqlclient.impl;
+ 
++import io.vertx.core.impl.ContextInternal;
+ import io.vertx.sqlclient.PreparedQuery;
+ import io.vertx.sqlclient.impl.command.PrepareStatementCommand;
+ import io.vertx.core.*;
+@@ -26,10 +27,10 @@
+  */
+ public abstract class SqlConnectionBase<C extends SqlConnectionBase> extends SqlClientBase<C> {
+ 
+-  protected final Context context;
++  protected final ContextInternal context;
+   protected final Connection conn;
+ 
+-  protected SqlConnectionBase(Context context, Connection conn) {
++  protected SqlConnectionBase(ContextInternal context, Connection conn) {
+     this.context = context;
+     this.conn = conn;
+   }
+diff --git a/vertx-sql-client/src/main/java/io/vertx/sqlclient/impl/SqlConnectionImpl.java b/vertx-sql-client/src/main/java/io/vertx/sqlclient/impl/SqlConnectionImpl.java
+index 5c29290e..72b9e768 100644
+--- a/vertx-sql-client/src/main/java/io/vertx/sqlclient/impl/SqlConnectionImpl.java
++++ b/vertx-sql-client/src/main/java/io/vertx/sqlclient/impl/SqlConnectionImpl.java
+@@ -17,6 +17,7 @@
+ 
+ package io.vertx.sqlclient.impl;
+ 
++import io.vertx.core.impl.ContextInternal;
+ import io.vertx.sqlclient.SqlConnection;
+ import io.vertx.sqlclient.impl.command.CommandBase;
+ import io.vertx.sqlclient.Transaction;
+@@ -31,7 +32,7 @@
+   private volatile Handler<Void> closeHandler;
+   private TransactionImpl tx;
+ 
+-  public SqlConnectionImpl(Context context, Connection conn) {
++  public SqlConnectionImpl(ContextInternal context, Connection conn) {
+     super(context, conn);
+   }
+ 
+@@ -45,16 +46,10 @@ public void handleClosed() {
+ 
+   @Override
+   public <R> void schedule(CommandBase<R> cmd, Handler<AsyncResult<R>> handler) {
+-    if (context == Vertx.currentContext()) {
+-      if (tx != null) {
+-        tx.schedule(cmd, handler);
+-      } else {
+-        conn.schedule(cmd, handler);
+-      }
++    if (tx != null) {
++      tx.schedule(cmd, handler);
+     } else {
+-      context.runOnContext(v -> {
+-        schedule(cmd, handler);
+-      });
++      conn.schedule(cmd, context.promise(handler));
+     }
+   }
+ 
+diff --git a/vertx-sql-client/src/main/java/io/vertx/sqlclient/impl/TransactionImpl.java b/vertx-sql-client/src/main/java/io/vertx/sqlclient/impl/TransactionImpl.java
+index b82da25b..fead255b 100644
+--- a/vertx-sql-client/src/main/java/io/vertx/sqlclient/impl/TransactionImpl.java
++++ b/vertx-sql-client/src/main/java/io/vertx/sqlclient/impl/TransactionImpl.java
+@@ -16,6 +16,7 @@
+  */
+ package io.vertx.sqlclient.impl;
+ 
++import io.vertx.core.impl.ContextInternal;
+ import io.vertx.sqlclient.Row;
+ import io.vertx.sqlclient.Transaction;
+ import io.vertx.sqlclient.impl.command.CommandResponse;
+@@ -40,7 +41,7 @@
+   private Handler<Void> failedHandler;
+   private int status = ST_BEGIN;
+ 
+-  public TransactionImpl(Context context, Connection conn, Handler<Void> disposeHandler) {
++  public TransactionImpl(ContextInternal context, Connection conn, Handler<Void> disposeHandler) {
+     super(context, conn);
+     this.disposeHandler = disposeHandler;
+     ScheduledCommand<Boolean> b = doQuery("BEGIN", this::afterBegin);
+@@ -57,11 +58,7 @@ public TransactionImpl(Context context, Connection conn, Handler<Void> disposeHa
+   }
+ 
+   private <R> void doSchedule(CommandBase<R> cmd, Handler<AsyncResult<R>> handler) {
+-    if (context == Vertx.currentContext()) {
+-      conn.schedule(cmd, handler);
+-    } else {
+-      context.runOnContext(v -> conn.schedule(cmd, handler));
+-    }
++    conn.schedule(cmd, context.promise(handler));
+   }
+ 
+   private synchronized void afterBegin(AsyncResult<?> ar) {
+diff --git a/vertx-sql-client/src/test/java/io/vertx/sqlclient/impl/pool/SimpleConnection.java b/vertx-sql-client/src/test/java/io/vertx/sqlclient/impl/pool/SimpleConnection.java
+index 9f01007e..f3a3fb7d 100644
+--- a/vertx-sql-client/src/test/java/io/vertx/sqlclient/impl/pool/SimpleConnection.java
++++ b/vertx-sql-client/src/test/java/io/vertx/sqlclient/impl/pool/SimpleConnection.java
+@@ -19,6 +19,7 @@
+ 
+ import io.vertx.core.AsyncResult;
+ import io.vertx.core.Handler;
++import io.vertx.core.Promise;
+ import io.vertx.sqlclient.impl.command.CommandBase;
+ import io.vertx.sqlclient.impl.Connection;
+ import io.vertx.sqlclient.impl.command.CommandResponse;
+@@ -50,7 +51,7 @@ void close() {
+   }
+ 
+   @Override
+-  public <R> void schedule(CommandBase<R> cmd, Handler<AsyncResult<R>> handler) {
++  public <R> void schedule(CommandBase<R> cmd, Promise<R> handler) {
+     throw new UnsupportedOperationException();
+   }
+ 
