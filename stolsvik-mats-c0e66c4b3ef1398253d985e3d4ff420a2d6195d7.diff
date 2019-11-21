@@ -1,0 +1,48 @@
+diff --git a/build.gradle b/build.gradle
+index 762719d..9a48416 100644
+--- a/build.gradle
++++ b/build.gradle
+@@ -5,13 +5,18 @@ wrapper {
+     setDistributionType(Wrapper.DistributionType.ALL)
+ }
+ 
+-// Used both in mats-test and mats-amq
++// Version of Mats
++allprojects {
++    group = 'com.stolsvik.mats'
++    version = '0.8.3'
++}
++
++// Spring and ActiveMQ versions: Used in several sub projects
+ ext {
+     activeMqVersion = '5.15.+'
+     springVersion = "4.+"
+ }
+ 
+-
+ subprojects {
+     apply plugin: 'java-library'
+     apply plugin: 'maven'
+@@ -22,9 +27,6 @@ subprojects {
+ 
+     project.buildDir = 'build-gradle'
+ 
+-    group = 'com.stolsvik.mats'
+-    version = '0.8.2'
+-
+     sourceCompatibility = JavaVersion.VERSION_1_8
+     targetCompatibility = JavaVersion.VERSION_1_8
+ 
+diff --git a/mats-spring/src/main/java/com/stolsvik/mats/spring/MatsSpringAnnotationRegistration.java b/mats-spring/src/main/java/com/stolsvik/mats/spring/MatsSpringAnnotationRegistration.java
+index e53219e..db57553 100644
+--- a/mats-spring/src/main/java/com/stolsvik/mats/spring/MatsSpringAnnotationRegistration.java
++++ b/mats-spring/src/main/java/com/stolsvik/mats/spring/MatsSpringAnnotationRegistration.java
+@@ -782,7 +782,7 @@ private void processMatsClassMapping(MatsClassMapping matsClassMapping, Object b
+ 
+         // :: Hold on to all non-null fields of the bean - these are what Spring has injected. Make "template".
+ 
+-        // Need to check if the State class sets any fields by itself, i.e. in no-args constructor or default value.
++        // Need to check if the State class sets any fields by itself, i.e. with no-args constructor or initial value.
+         Object instantiatedStateObject = matsFactoryToUse.getFactoryConfig().instantiateNewObject(stateClass);
+ 
+         Field[] processContextField_hack = new Field[1];

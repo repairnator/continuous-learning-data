@@ -1,0 +1,1184 @@
+diff --git a/quarkus.ls/com.redhat.quarkus.ls/src/main/java/com/redhat/quarkus/ls/QuarkusLanguageServer.java b/quarkus.ls/com.redhat.quarkus.ls/src/main/java/com/redhat/quarkus/ls/QuarkusLanguageServer.java
+index 9825a6b..9470927 100644
+--- a/quarkus.ls/com.redhat.quarkus.ls/src/main/java/com/redhat/quarkus/ls/QuarkusLanguageServer.java
++++ b/quarkus.ls/com.redhat.quarkus.ls/src/main/java/com/redhat/quarkus/ls/QuarkusLanguageServer.java
+@@ -15,18 +15,10 @@
+ import java.util.concurrent.CompletableFuture;
+ import java.util.logging.Logger;
+ 
+-import org.eclipse.lsp4j.InitializeParams;
+-import org.eclipse.lsp4j.InitializeResult;
+-import org.eclipse.lsp4j.InitializedParams;
+-import org.eclipse.lsp4j.ServerCapabilities;
+-import org.eclipse.lsp4j.services.LanguageClient;
+-import org.eclipse.lsp4j.services.LanguageServer;
+-import org.eclipse.lsp4j.services.TextDocumentService;
+-import org.eclipse.lsp4j.services.WorkspaceService;
+-
+ import com.redhat.quarkus.commons.QuarkusPropertiesChangeEvent;
+ import com.redhat.quarkus.ls.api.QuarkusLanguageClientAPI;
+ import com.redhat.quarkus.ls.api.QuarkusLanguageServerAPI;
++import com.redhat.quarkus.ls.client.ExtendedClientCapabilities;
+ import com.redhat.quarkus.ls.commons.ParentProcessWatcher.ProcessLanguageServer;
+ import com.redhat.quarkus.services.QuarkusLanguageService;
+ import com.redhat.quarkus.settings.AllQuarkusSettings;
+@@ -35,9 +27,19 @@
+ import com.redhat.quarkus.settings.QuarkusGeneralClientSettings;
+ import com.redhat.quarkus.settings.QuarkusSymbolSettings;
+ import com.redhat.quarkus.settings.QuarkusValidationSettings;
++import com.redhat.quarkus.settings.capabilities.InitializationOptionsExtendedClientCapabilities;
+ import com.redhat.quarkus.settings.capabilities.QuarkusCapabilityManager;
+ import com.redhat.quarkus.settings.capabilities.ServerCapabilitiesInitializer;
+ 
++import org.eclipse.lsp4j.InitializeParams;
++import org.eclipse.lsp4j.InitializeResult;
++import org.eclipse.lsp4j.InitializedParams;
++import org.eclipse.lsp4j.ServerCapabilities;
++import org.eclipse.lsp4j.services.LanguageClient;
++import org.eclipse.lsp4j.services.LanguageServer;
++import org.eclipse.lsp4j.services.TextDocumentService;
++import org.eclipse.lsp4j.services.WorkspaceService;
++
+ /**
+  * Quarkus language server.
+  *
+@@ -66,11 +68,12 @@ public QuarkusLanguageServer() {
+ 
+ 		this.parentProcessId = params.getProcessId();
+ 
+-		capabilityManager.setClientCapabilities(params.getCapabilities());
++		ExtendedClientCapabilities extendedClientCapabilities = InitializationOptionsExtendedClientCapabilities
++				.getExtendedClientCapabilities(params);
++		capabilityManager.setClientCapabilities(params.getCapabilities(), extendedClientCapabilities);
+ 		updateSettings(InitializationOptionsSettings.getSettings(params));
+ 
+-		textDocumentService.updateClientCapabilities(params.getCapabilities());
+-
++		textDocumentService.updateClientCapabilities(params.getCapabilities(), extendedClientCapabilities);
+ 		ServerCapabilities serverCapabilities = ServerCapabilitiesInitializer
+ 				.getNonDynamicServerCapabilities(capabilityManager.getClientCapabilities());
+ 
+diff --git a/quarkus.ls/com.redhat.quarkus.ls/src/main/java/com/redhat/quarkus/ls/QuarkusTextDocumentService.java b/quarkus.ls/com.redhat.quarkus.ls/src/main/java/com/redhat/quarkus/ls/QuarkusTextDocumentService.java
+index ee69c97..48857d8 100644
+--- a/quarkus.ls/com.redhat.quarkus.ls/src/main/java/com/redhat/quarkus/ls/QuarkusTextDocumentService.java
++++ b/quarkus.ls/com.redhat.quarkus.ls/src/main/java/com/redhat/quarkus/ls/QuarkusTextDocumentService.java
+@@ -48,6 +48,7 @@
+ 
+ import com.redhat.quarkus.commons.QuarkusProjectInfoParams;
+ import com.redhat.quarkus.commons.QuarkusPropertiesChangeEvent;
++import com.redhat.quarkus.ls.client.ExtendedClientCapabilities;
+ import com.redhat.quarkus.ls.commons.ModelTextDocument;
+ import com.redhat.quarkus.ls.commons.ModelTextDocuments;
+ import com.redhat.quarkus.model.PropertiesModel;
+@@ -87,8 +88,10 @@ public QuarkusTextDocumentService(QuarkusLanguageServer quarkusLanguageServer) {
+ 	 * Update shared settings from the client capabilities.
+ 	 * 
+ 	 * @param capabilities the client capabilities
++	 * @param extendedClientCapabilities the extended client capabilities
+ 	 */
+-	public void updateClientCapabilities(ClientCapabilities capabilities) {
++	public void updateClientCapabilities(ClientCapabilities capabilities,
++			ExtendedClientCapabilities extendedClientCapabilities) {
+ 		TextDocumentClientCapabilities textDocumentClientCapabilities = capabilities.getTextDocument();
+ 		if (textDocumentClientCapabilities != null) {
+ 			sharedSettings.getCompletionSettings().setCapabilities(textDocumentClientCapabilities.getCompletion());
+@@ -100,6 +103,10 @@ public void updateClientCapabilities(ClientCapabilities capabilities) {
+ 					&& textDocumentClientCapabilities.getDefinition().getLinkSupport() != null
+ 					&& textDocumentClientCapabilities.getDefinition().getLinkSupport();
+ 		}
++
++		if (extendedClientCapabilities != null) {
++			sharedSettings.getCommandCapabilities().setCapabilities(extendedClientCapabilities.getCommands());
++		}
+ 	}
+ 
+ 	@Override
+@@ -232,7 +239,8 @@ public void didSave(DidSaveTextDocumentParams params) {
+ 			return getPropertiesModel(params.getTextDocument(), (cancelChecker, document) -> {
+ 				return getQuarkusLanguageService()
+ 						.doCodeActions(params.getContext(), params.getRange(), document, projectInfo,
+-								sharedSettings.getFormattingSettings()) //
++								sharedSettings.getFormattingSettings(),
++								sharedSettings.getCommandCapabilities()) //
+ 						.stream() //
+ 						.map(ca -> {
+ 							Either<Command, CodeAction> e = Either.forRight(ca);
+diff --git a/quarkus.ls/com.redhat.quarkus.ls/src/main/java/com/redhat/quarkus/ls/api/QuarkusLanguageServerAPI.java b/quarkus.ls/com.redhat.quarkus.ls/src/main/java/com/redhat/quarkus/ls/api/QuarkusLanguageServerAPI.java
+index bed5328..dea3fcc 100644
+--- a/quarkus.ls/com.redhat.quarkus.ls/src/main/java/com/redhat/quarkus/ls/api/QuarkusLanguageServerAPI.java
++++ b/quarkus.ls/com.redhat.quarkus.ls/src/main/java/com/redhat/quarkus/ls/api/QuarkusLanguageServerAPI.java
+@@ -35,4 +35,6 @@
+ 	 */
+ 	@JsonNotification("quarkus/quarkusPropertiesChanged")
+ 	void quarkusPropertiesChanged(QuarkusPropertiesChangeEvent event);
++
++	
+ }
+diff --git a/quarkus.ls/com.redhat.quarkus.ls/src/main/java/com/redhat/quarkus/ls/client/CommandCapabilities.java b/quarkus.ls/com.redhat.quarkus.ls/src/main/java/com/redhat/quarkus/ls/client/CommandCapabilities.java
+new file mode 100644
+index 0000000..ad60a33
+--- /dev/null
++++ b/quarkus.ls/com.redhat.quarkus.ls/src/main/java/com/redhat/quarkus/ls/client/CommandCapabilities.java
+@@ -0,0 +1,101 @@
++/*******************************************************************************
++* Copyright (c) 2019 Red Hat Inc. and others.
++* All rights reserved. This program and the accompanying materials
++* which accompanies this distribution, and is available at
++* http://www.eclipse.org/legal/epl-v20.html
++*
++* Contributors:
++*     Red Hat Inc. - initial API and implementation
++*******************************************************************************/
++package com.redhat.quarkus.ls.client;
++
++import org.eclipse.lsp4j.DynamicRegistrationCapabilities;
++import org.eclipse.xtext.xbase.lib.Pure;
++import org.eclipse.xtext.xbase.lib.util.ToStringBuilder;
++
++/**
++ * Extended capabilities for client commands.
++ * 
++ * @author Angelo ZERR
++ */
++@SuppressWarnings("all")
++public class CommandCapabilities extends DynamicRegistrationCapabilities {
++	/**
++	 * Specific capabilities for the `CommandKind` in the `textDocument/commands`
++	 * request.
++	 */
++	private CommandKindCapabilities commandsKind;
++
++	public CommandCapabilities() {
++	}
++
++	public CommandCapabilities(final Boolean dynamicRegistration) {
++		super(dynamicRegistration);
++	}
++
++	public CommandCapabilities(final CommandKindCapabilities commandsKind) {
++		this.commandsKind = commandsKind;
++	}
++
++	public CommandCapabilities(final CommandKindCapabilities commandsKind,
++			final Boolean dynamicRegistration) {
++		super(dynamicRegistration);
++		this.commandsKind = commandsKind;
++	}
++
++	public boolean isSupported(String command) {
++		return commandsKind.getValueSet().contains(command);
++	}
++
++	/**
++	 * Specific capabilities for the `CommandKind` in the `textDocument/commands`
++	 * request.
++	 */
++	@Pure
++	public CommandKindCapabilities getCommandKind() {
++		return this.commandsKind;
++	}
++
++	/**
++	 * Specific capabilities for the `CommandKind` in the `textDocument/commands`
++	 * request.
++	 */
++	public void setCommandKind(final CommandKindCapabilities commandsKind) {
++		this.commandsKind = commandsKind;
++	}
++
++	@Override
++	@Pure
++	public String toString() {
++		ToStringBuilder b = new ToStringBuilder(this);
++		b.add("commandsKind", this.commandsKind);
++		b.add("dynamicRegistration", getDynamicRegistration());
++		return b.toString();
++	}
++
++	@Override
++	@Pure
++	public boolean equals(final Object obj) {
++		if (this == obj)
++			return true;
++		if (obj == null)
++			return false;
++		if (getClass() != obj.getClass())
++			return false;
++		if (!super.equals(obj))
++			return false;
++		CommandCapabilities other = (CommandCapabilities) obj;
++		if (this.commandsKind == null) {
++			if (other.commandsKind != null)
++				return false;
++		} else if (!this.commandsKind.equals(other.commandsKind))
++			return false;
++		return true;
++	}
++
++	@Override
++	@Pure
++	public int hashCode() {
++		return 31 * super.hashCode() + ((this.commandsKind == null) ? 0 : this.commandsKind.hashCode());
++	}
++}
+\ No newline at end of file
+diff --git a/quarkus.ls/com.redhat.quarkus.ls/src/main/java/com/redhat/quarkus/ls/client/CommandKind.java b/quarkus.ls/com.redhat.quarkus.ls/src/main/java/com/redhat/quarkus/ls/client/CommandKind.java
+new file mode 100644
+index 0000000..337a68f
+--- /dev/null
++++ b/quarkus.ls/com.redhat.quarkus.ls/src/main/java/com/redhat/quarkus/ls/client/CommandKind.java
+@@ -0,0 +1,43 @@
++/*******************************************************************************
++* Copyright (c) 2019 Red Hat Inc. and others.
++* All rights reserved. This program and the accompanying materials
++* which accompanies this distribution, and is available at
++* http://www.eclipse.org/legal/epl-v20.html
++*
++* Contributors:
++*     Red Hat Inc. - initial API and implementation
++*******************************************************************************/
++package com.redhat.quarkus.ls.client;
++
++/**
++ * Commonly used client commands
++ * 
++ * @author Angelo ZERR
++ *
++ */
++public class CommandKind {
++
++	private CommandKind() {
++	}
++
++	/**
++	 * Client command to open references
++	 */
++	public static final String COMMAND_REFERENCES = "quarkus.command.references";
++
++	/**
++	 * Client command to open implementations
++	 */
++	public static final String COMMAND_IMPLEMENTATIONS = "quarkus.command.implementations";
++
++	/**
++	 * Client command to open URI
++	 */
++	public static final String COMMAND_OPEN_URI = "quarkus.command.open.uri";
++
++	/**
++	 * Client command to update client configuration settings
++	 */
++	public static final String COMMAND_CONFIGURATION_UPDATE = "quarkus.command.configuration.update";
++
++}
+\ No newline at end of file
+diff --git a/quarkus.ls/com.redhat.quarkus.ls/src/main/java/com/redhat/quarkus/ls/client/CommandKindCapabilities.java b/quarkus.ls/com.redhat.quarkus.ls/src/main/java/com/redhat/quarkus/ls/client/CommandKindCapabilities.java
+new file mode 100644
+index 0000000..a95731b
+--- /dev/null
++++ b/quarkus.ls/com.redhat.quarkus.ls/src/main/java/com/redhat/quarkus/ls/client/CommandKindCapabilities.java
+@@ -0,0 +1,97 @@
++/*******************************************************************************
++* Copyright (c) 2019 Red Hat Inc. and others.
++* All rights reserved. This program and the accompanying materials
++* which accompanies this distribution, and is available at
++* http://www.eclipse.org/legal/epl-v20.html
++*
++* Contributors:
++*     Red Hat Inc. - initial API and implementation
++*******************************************************************************/
++package com.redhat.quarkus.ls.client;
++
++import java.util.List;
++
++import org.eclipse.xtext.xbase.lib.Pure;
++import org.eclipse.xtext.xbase.lib.util.ToStringBuilder;
++
++/**
++ * Specific capabilities for the `CommandKind`.
++ * 
++ * @see https://github.com/microsoft/language-server-protocol/issues/788
++ */
++@SuppressWarnings("all")
++public class CommandKindCapabilities {
++	/**
++	 * The commands kind values the client supports. When this property exists the
++	 * client also guarantees that it will handle values outside its set gracefully
++	 * and falls back to a default value when unknown.
++	 * 
++	 * If this property is not present the client only supports the commands kinds
++	 * from `File` to `Array` as defined in the initial version of the protocol.
++	 */
++	private List<String> valueSet;
++
++	public CommandKindCapabilities() {
++	}
++
++	public CommandKindCapabilities(final List<String> valueSet) {
++		this.valueSet = valueSet;
++	}
++
++	/**
++	 * The commands kind values the client supports. When this property exists the
++	 * client also guarantees that it will handle values outside its set gracefully
++	 * and falls back to a default value when unknown.
++	 * 
++	 * If this property is not present the client only supports the commands kinds
++	 * from `File` to `Array` as defined in the initial version of the protocol.
++	 */
++	@Pure
++	public List<String> getValueSet() {
++		return this.valueSet;
++	}
++
++	/**
++	 * The commands kind values the client supports. When this property exists the
++	 * client also guarantees that it will handle values outside its set gracefully
++	 * and falls back to a default value when unknown.
++	 * 
++	 * If this property is not present the client only supports the commands kinds
++	 * from `File` to `Array` as defined in the initial version of the protocol.
++	 */
++	public void setValueSet(final List<String> valueSet) {
++		this.valueSet = valueSet;
++	}
++
++	@Override
++	@Pure
++	public String toString() {
++		ToStringBuilder b = new ToStringBuilder(this);
++		b.add("valueSet", this.valueSet);
++		return b.toString();
++	}
++
++	@Override
++	@Pure
++	public boolean equals(final Object obj) {
++		if (this == obj)
++			return true;
++		if (obj == null)
++			return false;
++		if (getClass() != obj.getClass())
++			return false;
++		CommandKindCapabilities other = (CommandKindCapabilities) obj;
++		if (this.valueSet == null) {
++			if (other.valueSet != null)
++				return false;
++		} else if (!this.valueSet.equals(other.valueSet))
++			return false;
++		return true;
++	}
++
++	@Override
++	@Pure
++	public int hashCode() {
++		return 31 * 1 + ((this.valueSet == null) ? 0 : this.valueSet.hashCode());
++	}
++}
+\ No newline at end of file
+diff --git a/quarkus.ls/com.redhat.quarkus.ls/src/main/java/com/redhat/quarkus/ls/client/ExtendedClientCapabilities.java b/quarkus.ls/com.redhat.quarkus.ls/src/main/java/com/redhat/quarkus/ls/client/ExtendedClientCapabilities.java
+new file mode 100644
+index 0000000..7b2dab4
+--- /dev/null
++++ b/quarkus.ls/com.redhat.quarkus.ls/src/main/java/com/redhat/quarkus/ls/client/ExtendedClientCapabilities.java
+@@ -0,0 +1,29 @@
++/*******************************************************************************
++* Copyright (c) 2019 Red Hat Inc. and others.
++* All rights reserved. This program and the accompanying materials
++* which accompanies this distribution, and is available at
++* http://www.eclipse.org/legal/epl-v20.html
++*
++* Contributors:
++*     Red Hat Inc. - initial API and implementation
++*******************************************************************************/
++package com.redhat.quarkus.ls.client;
++
++/**
++ * Extended client capabilities not defined by the LSP.
++ * 
++ * @author Angelo ZERR
++ */
++public class ExtendedClientCapabilities {
++
++	private CommandCapabilities commands;
++
++	public CommandCapabilities getCommands() {
++		return commands;
++	}
++
++	public void setCommands(CommandCapabilities commands) {
++		this.commands = commands;
++	}
++
++}
+\ No newline at end of file
+diff --git a/quarkus.ls/com.redhat.quarkus.ls/src/main/java/com/redhat/quarkus/services/ConfigurationItemEdit.java b/quarkus.ls/com.redhat.quarkus.ls/src/main/java/com/redhat/quarkus/services/ConfigurationItemEdit.java
+new file mode 100644
+index 0000000..3d65d7e
+--- /dev/null
++++ b/quarkus.ls/com.redhat.quarkus.ls/src/main/java/com/redhat/quarkus/services/ConfigurationItemEdit.java
+@@ -0,0 +1,64 @@
++/*******************************************************************************
++* Copyright (c) 2019 Red Hat Inc. and others.
++* All rights reserved. This program and the accompanying materials
++* which accompanies this distribution, and is available at
++* http://www.eclipse.org/legal/epl-v20.html
++*
++* Contributors:
++*     Red Hat Inc. - initial API and implementation
++*******************************************************************************/
++package com.redhat.quarkus.services;
++
++import org.eclipse.lsp4j.ConfigurationItem;
++
++
++/**
++ * Class representing a change to a client's config.
++ */
++public class ConfigurationItemEdit extends ConfigurationItem {
++	private ConfigurationItemEditType editType;
++	private Object value;
++
++	/**
++	 * 
++	 * @param section   config section to change
++	 * @param operation type of change
++	 * @param value     the value for the change
++	 */
++	public ConfigurationItemEdit(String section, ConfigurationItemEditType editType, Object value) {
++		super.setSection(section);
++		this.editType = editType;
++		this.value = value;
++	}
++
++	@Override
++	public boolean equals(Object obj) {
++		if (this == obj)
++			return true;
++		if (!super.equals(obj))
++			return false;
++		if (getClass() != obj.getClass())
++			return false;
++		ConfigurationItemEdit other = (ConfigurationItemEdit) obj;
++		if (editType == null) {
++			if (other.editType != null)
++				return false;
++		} else if (!editType.equals(other.editType))
++			return false;
++		if (value == null) {
++			if (other.value != null)
++				return false;
++		} else if (!value.equals(other.value))
++			return false;
++		return true;
++	}
++	
++	@Override
++	public int hashCode() {
++		final int prime = 31;
++		int result = super.hashCode();
++		result = prime * result + ((editType == null) ? 0 : editType.hashCode());
++		result = prime * result + ((value == null) ? 0 : value.hashCode());
++		return result;
++	}
++}
+\ No newline at end of file
+diff --git a/quarkus.ls/com.redhat.quarkus.ls/src/main/java/com/redhat/quarkus/services/ConfigurationItemEditType.java b/quarkus.ls/com.redhat.quarkus.ls/src/main/java/com/redhat/quarkus/services/ConfigurationItemEditType.java
+new file mode 100644
+index 0000000..6f098e0
+--- /dev/null
++++ b/quarkus.ls/com.redhat.quarkus.ls/src/main/java/com/redhat/quarkus/services/ConfigurationItemEditType.java
+@@ -0,0 +1,20 @@
++/*******************************************************************************
++* Copyright (c) 2019 Red Hat Inc. and others.
++* All rights reserved. This program and the accompanying materials
++* which accompanies this distribution, and is available at
++* http://www.eclipse.org/legal/epl-v20.html
++*
++* Contributors:
++*     Red Hat Inc. - initial API and implementation
++*******************************************************************************/
++package com.redhat.quarkus.services;
++
++/**
++ * Configuration item edit type.
++ * Represents a configuration edit operation
++ */
++public enum ConfigurationItemEditType {
++	add,
++	delete,
++	update
++}
+\ No newline at end of file
+diff --git a/quarkus.ls/com.redhat.quarkus.ls/src/main/java/com/redhat/quarkus/services/QuarkusCodeActions.java b/quarkus.ls/com.redhat.quarkus.ls/src/main/java/com/redhat/quarkus/services/QuarkusCodeActions.java
+index 09de508..2e4f762 100644
+--- a/quarkus.ls/com.redhat.quarkus.ls/src/main/java/com/redhat/quarkus/services/QuarkusCodeActions.java
++++ b/quarkus.ls/com.redhat.quarkus.ls/src/main/java/com/redhat/quarkus/services/QuarkusCodeActions.java
+@@ -10,6 +10,7 @@
+ package com.redhat.quarkus.services;
+ 
+ import java.util.ArrayList;
++import java.util.Arrays;
+ import java.util.Collection;
+ import java.util.List;
+ import java.util.logging.Level;
+@@ -19,6 +20,7 @@
+ import com.redhat.quarkus.commons.EnumItem;
+ import com.redhat.quarkus.commons.ExtendedConfigDescriptionBuildItem;
+ import com.redhat.quarkus.commons.QuarkusProjectInfo;
++import com.redhat.quarkus.ls.client.CommandKind;
+ import com.redhat.quarkus.ls.commons.BadLocationException;
+ import com.redhat.quarkus.ls.commons.CodeActionFactory;
+ import com.redhat.quarkus.ls.commons.TextDocument;
+@@ -27,6 +29,7 @@
+ import com.redhat.quarkus.model.PropertyKey;
+ import com.redhat.quarkus.model.PropertyValue;
+ import com.redhat.quarkus.model.values.ValuesRulesManager;
++import com.redhat.quarkus.settings.QuarkusCommandCapabilities;
+ import com.redhat.quarkus.settings.QuarkusFormattingSettings;
+ import com.redhat.quarkus.utils.PositionUtils;
+ import com.redhat.quarkus.utils.QuarkusPropertiesUtils;
+@@ -34,6 +37,8 @@
+ 
+ import org.eclipse.lsp4j.CodeAction;
+ import org.eclipse.lsp4j.CodeActionContext;
++import org.eclipse.lsp4j.CodeActionKind;
++import org.eclipse.lsp4j.Command;
+ import org.eclipse.lsp4j.Diagnostic;
+ import org.eclipse.lsp4j.Position;
+ import org.eclipse.lsp4j.Range;
+@@ -55,15 +60,17 @@
+ 	 * <code>document</code> by using the given Quarkus properties metadata
+ 	 * <code>projectInfo</code>.
+ 	 * 
+-	 * @param context            the code action context
+-	 * @param range              the range
+-	 * @param document           the properties model.
+-	 * @param projectInfo        the Quarkus properties
+-	 * @param formattingSettings the formatting settings.
++	 * @param context             the code action context
++	 * @param range               the range
++	 * @param document            the properties model.
++	 * @param projectInfo         the Quarkus properties
++	 * @param formattingSettings  the formatting settings.
++	 * @param commandCapabilities the command capabilities
+ 	 * @return the result of the code actions.
+ 	 */
+ 	public List<CodeAction> doCodeActions(CodeActionContext context, Range range, PropertiesModel document,
+-			QuarkusProjectInfo projectInfo, ValuesRulesManager valuesRulesManager, QuarkusFormattingSettings formattingSettings) {
++			QuarkusProjectInfo projectInfo, ValuesRulesManager valuesRulesManager,
++			QuarkusFormattingSettings formattingSettings, QuarkusCommandCapabilities commandCapabilities) {
+ 		List<CodeAction> codeActions = new ArrayList<>();
+ 		if (context.getDiagnostics() != null) {
+ 			doCodeActionForAllRequired(context.getDiagnostics(), document, formattingSettings, codeActions);
+@@ -71,7 +78,7 @@
+ 			for (Diagnostic diagnostic : context.getDiagnostics()) {
+ 				if (ValidationType.unknown.name().equals(diagnostic.getCode())) {
+ 					// Manage code action for unknown
+-					doCodeActionsForUnknown(diagnostic, document, projectInfo, codeActions);
++					doCodeActionsForUnknown(diagnostic, document, projectInfo, commandCapabilities, codeActions);
+ 				} else if (ValidationType.value.name().equals(diagnostic.getCode())) {
+ 					doCodeActionsForUnknownEnumValue(diagnostic, document, projectInfo, valuesRulesManager, codeActions);
+ 				}
+@@ -88,13 +95,15 @@
+ 	 * LIMITATION: mapped property are not supported.
+ 	 * </p>
+ 	 * 
+-	 * @param diagnostic  the diagnostic
+-	 * @param document    the properties model.
+-	 * @param projectInfo the Quarkus properties
+-	 * @param codeActions code actions list to fill.
++	 * @param diagnostic          the diagnostic
++	 * @param document            the properties model.
++	 * @param projectInfo         the Quarkus properties
++	 * @param commandCapabilities the command capabilities
++	 * @param codeActions         code actions list to fill.
+ 	 */
+ 	private void doCodeActionsForUnknown(Diagnostic diagnostic, PropertiesModel document,
+-			QuarkusProjectInfo projectInfo, List<CodeAction> codeActions) {
++			QuarkusProjectInfo projectInfo, QuarkusCommandCapabilities commandCapabilities,
++			List<CodeAction> codeActions) {
+ 		try {
+ 			// Get property name by using the diagnostic range
+ 			PropertyKey propertyKey = (PropertyKey) document.findNodeAt(diagnostic.getRange().getStart());
+@@ -114,6 +123,10 @@ private void doCodeActionsForUnknown(Diagnostic diagnostic, PropertiesModel docu
+ 					}
+ 				}
+ 			}
++
++			if (commandCapabilities.isCommandSupported(CommandKind.COMMAND_CONFIGURATION_UPDATE)) {
++				doCodeActionForIgnoreUnknownValidation(propertyName, diagnostic, codeActions);
++			}
+ 		} catch (BadLocationException e) {
+ 			LOGGER.log(Level.SEVERE, "In QuarkusCodeActions, position error", e);
+ 		}
+@@ -184,37 +197,27 @@ private void doCodeActionsForUnknownEnumValue(Diagnostic diagnostic, PropertiesM
+ 	}
+ 
+ 	/**
+-	 * Returns the <code>Position</code> to insert the missing required code action property into
+-	 * @param textDocument the text document
+-	 * @return the <code>Position</code> to insert the missing required code action property into
+-	 * @throws BadLocationException
++	 * Create a code action that adds <code>propertyName</code> to user's unknown
++	 * validation excluded array
++	 * 
++	 * @param propertyName the property name to add to array for code action
++	 * @param diagnostic   the corresponding unknown property diagnostic
++	 * @param codeActions  the list of code actions
+ 	 */
+-	private Position getPositionForRequiredCodeAction(TextDocument textDocument) throws BadLocationException {
+-		String textDocumentText = textDocument.getText();
+-		
+-		if (!StringUtils.hasText(textDocumentText)) {
+-			return new Position(0, 0);
+-		}
++	private void doCodeActionForIgnoreUnknownValidation(String propertyName, Diagnostic diagnostic,
++			List<CodeAction> codeActions) {
++		CodeAction insertContentAction = new CodeAction(
++				"Exclude '" + propertyName + "' from unknown property validation?");
+ 
+-		for (int i = textDocumentText.length() - 1; i >= 0; i--) {
+-			if (!Character.isWhitespace(textDocumentText.charAt(i))) {
+-				return textDocument.positionAt(i + 1);
+-			}
+-		}
+-
+-		// should never happen
+-		return null;
+-	}
++		ConfigurationItemEdit configItemEdit = new ConfigurationItemEdit("quarkus.tools.validation.unknown.excluded",
++				ConfigurationItemEditType.add, propertyName);
+ 
+-	/**
+-	 * Returns the missing required property name from <code>diagnosticMessage</code>
+-	 * @param diagnosticMessage the diagnostic message containing the property name in single quotes
+-	 * @return the missing required property name from <code>diagnosticMessage</code>
+-	 */
+-	private String getPropertyNameFromRequiredMessage(String diagnosticMessage) {
+-		int start = diagnosticMessage.indexOf('\'') + 1;
+-		int end = diagnosticMessage.indexOf('\'', start);
+-		return diagnosticMessage.substring(start, end);
++		Command command = new Command("Add " + propertyName + " to unknown excluded array",
++				"quarkus/configurationUpdate", Arrays.asList(configItemEdit));
++		insertContentAction.setCommand(command);
++		insertContentAction.setKind(CodeActionKind.QuickFix);
++		insertContentAction.setDiagnostics(Arrays.asList(diagnostic));
++		codeActions.add(insertContentAction);
+ 	}
+ 
+ 	/**
+@@ -267,6 +270,40 @@ private void doCodeActionForAllRequired(List<Diagnostic> diagnostics, Properties
+ 		
+ 	}
+ 
++	/**
++	 * Returns the <code>Position</code> to insert the missing required code action property into
++	 * @param textDocument the text document
++	 * @return the <code>Position</code> to insert the missing required code action property into
++	 * @throws BadLocationException
++	 */
++	private Position getPositionForRequiredCodeAction(TextDocument textDocument) throws BadLocationException {
++		String textDocumentText = textDocument.getText();
++		
++		if (!StringUtils.hasText(textDocumentText)) {
++			return new Position(0, 0);
++		}
++
++		for (int i = textDocumentText.length() - 1; i >= 0; i--) {
++			if (!Character.isWhitespace(textDocumentText.charAt(i))) {
++				return textDocument.positionAt(i + 1);
++			}
++		}
++
++		// should never happen
++		return null;
++	}
++
++	/**
++	 * Returns the missing required property name from <code>diagnosticMessage</code>
++	 * @param diagnosticMessage the diagnostic message containing the property name in single quotes
++	 * @return the missing required property name from <code>diagnosticMessage</code>
++	 */
++	private String getPropertyNameFromRequiredMessage(String diagnosticMessage) {
++		int start = diagnosticMessage.indexOf('\'') + 1;
++		int end = diagnosticMessage.indexOf('\'', start);
++		return diagnosticMessage.substring(start, end);
++	}
++
+ 	private static boolean isSimilarPropertyValue(String reference, String current) {
+ 		return reference.startsWith(current) ? true: isSimilar(reference, current);
+ 	}
+diff --git a/quarkus.ls/com.redhat.quarkus.ls/src/main/java/com/redhat/quarkus/services/QuarkusLanguageService.java b/quarkus.ls/com.redhat.quarkus.ls/src/main/java/com/redhat/quarkus/services/QuarkusLanguageService.java
+index ef2a38b..b15248b 100644
+--- a/quarkus.ls/com.redhat.quarkus.ls/src/main/java/com/redhat/quarkus/services/QuarkusLanguageService.java
++++ b/quarkus.ls/com.redhat.quarkus.ls/src/main/java/com/redhat/quarkus/services/QuarkusLanguageService.java
+@@ -12,6 +12,15 @@
+ import java.util.List;
+ import java.util.concurrent.CompletableFuture;
+ 
++import com.redhat.quarkus.commons.QuarkusProjectInfo;
++import com.redhat.quarkus.ls.api.QuarkusPropertyDefinitionProvider;
++import com.redhat.quarkus.model.PropertiesModel;
++import com.redhat.quarkus.settings.QuarkusCommandCapabilities;
++import com.redhat.quarkus.settings.QuarkusCompletionSettings;
++import com.redhat.quarkus.settings.QuarkusFormattingSettings;
++import com.redhat.quarkus.settings.QuarkusHoverSettings;
++import com.redhat.quarkus.settings.QuarkusValidationSettings;
++
+ import org.eclipse.lsp4j.CodeAction;
+ import org.eclipse.lsp4j.CodeActionContext;
+ import org.eclipse.lsp4j.CompletionList;
+@@ -27,15 +36,7 @@
+ import org.eclipse.lsp4j.jsonrpc.CancelChecker;
+ import org.eclipse.lsp4j.jsonrpc.messages.Either;
+ 
+-import com.redhat.quarkus.commons.QuarkusProjectInfo;
+-import com.redhat.quarkus.ls.api.QuarkusPropertyDefinitionProvider;
+-import com.redhat.quarkus.model.PropertiesModel;
+ import com.redhat.quarkus.model.values.ValuesRulesManager;
+-import com.redhat.quarkus.settings.QuarkusCompletionSettings;
+-import com.redhat.quarkus.settings.QuarkusFormattingSettings;
+-import com.redhat.quarkus.settings.QuarkusHoverSettings;
+-import com.redhat.quarkus.settings.QuarkusValidationSettings;
+-
+ /**
+  * The Quarkus language service.
+  * 
+@@ -189,16 +190,17 @@ public Hover doHover(PropertiesModel document, Position position, QuarkusProject
+ 	 * <code>document</code> by using the given Quarkus properties metadata
+ 	 * <code>projectInfo</code>.
+ 	 * 
+-	 * @param context            the code action context
+-	 * @param range              the range
+-	 * @param document           the properties model.
+-	 * @param projectInfo        the Quarkus properties
+-	 * @param formattingSettings the formatting settings.
++	 * @param context             the code action context
++	 * @param range               the range
++	 * @param document            the properties model.
++	 * @param projectInfo         the Quarkus properties
++	 * @param formattingSettings  the formatting settings.
++	 * @param commandCapabilities the command capabilities
+ 	 * @return the result of the code actions.
+ 	 */
+ 	public List<CodeAction> doCodeActions(CodeActionContext context, Range range, PropertiesModel document,
+-			QuarkusProjectInfo projectInfo, QuarkusFormattingSettings formattingSettings) {
+-		return codeActions.doCodeActions(context, range, document, projectInfo, getValuesRulesManager(), formattingSettings);
++			QuarkusProjectInfo projectInfo, QuarkusFormattingSettings formattingSettings, QuarkusCommandCapabilities commandCapabilities) {
++		return codeActions.doCodeActions(context, range, document, projectInfo, getValuesRulesManager(), formattingSettings, commandCapabilities);
+ 	}
+ 
+ 	/**
+diff --git a/quarkus.ls/com.redhat.quarkus.ls/src/main/java/com/redhat/quarkus/settings/QuarkusCommandCapabilities.java b/quarkus.ls/com.redhat.quarkus.ls/src/main/java/com/redhat/quarkus/settings/QuarkusCommandCapabilities.java
+new file mode 100644
+index 0000000..bb70025
+--- /dev/null
++++ b/quarkus.ls/com.redhat.quarkus.ls/src/main/java/com/redhat/quarkus/settings/QuarkusCommandCapabilities.java
+@@ -0,0 +1,35 @@
++/*******************************************************************************
++* Copyright (c) 2019 Red Hat Inc. and others.
++* All rights reserved. This program and the accompanying materials
++* which accompanies this distribution, and is available at
++* http://www.eclipse.org/legal/epl-v20.html
++*
++* Contributors:
++*     Red Hat Inc. - initial API and implementation
++*******************************************************************************/
++package com.redhat.quarkus.settings;
++
++import com.redhat.quarkus.ls.client.CommandCapabilities;
++
++public class QuarkusCommandCapabilities {
++	private CommandCapabilities capabilities;
++
++	public void setCapabilities(CommandCapabilities capabilities) {
++		this.capabilities = capabilities;
++	}
++
++	public CommandCapabilities getCapabilities() {
++		return capabilities;
++	}
++
++	/**
++	 * Returns <code>true</code> if the client supports the <code>command</code>
++	 * command. Otherwise, returns <code>false</code>
++	 * 
++	 * @return <code>true</code> if the client supports the <code>command</code>
++	 *         command. Otherwise, returns <code>false</code>
++	 */
++	public boolean isCommandSupported(String command) {
++		return capabilities != null && capabilities.isSupported(command);
++	}
++}
+\ No newline at end of file
+diff --git a/quarkus.ls/com.redhat.quarkus.ls/src/main/java/com/redhat/quarkus/settings/SharedSettings.java b/quarkus.ls/com.redhat.quarkus.ls/src/main/java/com/redhat/quarkus/settings/SharedSettings.java
+index e7e9c96..d1db910 100644
+--- a/quarkus.ls/com.redhat.quarkus.ls/src/main/java/com/redhat/quarkus/settings/SharedSettings.java
++++ b/quarkus.ls/com.redhat.quarkus.ls/src/main/java/com/redhat/quarkus/settings/SharedSettings.java
+@@ -22,6 +22,7 @@
+ 	private final QuarkusSymbolSettings symbolSettings;
+ 	private final QuarkusValidationSettings validationSettings;
+ 	private final QuarkusFormattingSettings formattingSettings;
++	private final QuarkusCommandCapabilities commandCapabilities;
+ 
+ 	public SharedSettings() {
+ 		this.completionSettings = new QuarkusCompletionSettings();
+@@ -29,6 +30,7 @@ public SharedSettings() {
+ 		this.symbolSettings = new QuarkusSymbolSettings();
+ 		this.validationSettings = new QuarkusValidationSettings();
+ 		this.formattingSettings = new QuarkusFormattingSettings();
++		this.commandCapabilities = new QuarkusCommandCapabilities();
+ 	}
+ 
+ 	/**
+@@ -75,4 +77,13 @@ public QuarkusValidationSettings getValidationSettings() {
+ 	public QuarkusFormattingSettings getFormattingSettings() {
+ 		return formattingSettings;
+ 	}
++
++	/**
++	 * Returns the command capabilities.
++	 * 
++	 * @return the command capabilities.
++	 */
++	public QuarkusCommandCapabilities getCommandCapabilities() {
++		return commandCapabilities;
++	}
+ }
+diff --git a/quarkus.ls/com.redhat.quarkus.ls/src/main/java/com/redhat/quarkus/settings/capabilities/ClientCapabilitiesWrapper.java b/quarkus.ls/com.redhat.quarkus.ls/src/main/java/com/redhat/quarkus/settings/capabilities/ClientCapabilitiesWrapper.java
+index 238c1d5..0fb470f 100644
+--- a/quarkus.ls/com.redhat.quarkus.ls/src/main/java/com/redhat/quarkus/settings/capabilities/ClientCapabilitiesWrapper.java
++++ b/quarkus.ls/com.redhat.quarkus.ls/src/main/java/com/redhat/quarkus/settings/capabilities/ClientCapabilitiesWrapper.java
+@@ -7,6 +7,8 @@
+  *******************************************************************************/
+ package com.redhat.quarkus.settings.capabilities;
+ 
++import com.redhat.quarkus.ls.client.ExtendedClientCapabilities;
++
+ import org.eclipse.lsp4j.ClientCapabilities;
+ import org.eclipse.lsp4j.DynamicRegistrationCapabilities;
+ import org.eclipse.lsp4j.TextDocumentClientCapabilities;
+@@ -20,13 +22,16 @@
+ 
+ 	private ClientCapabilities capabilities;
+ 
++	private final ExtendedClientCapabilities extendedCapabilities;
++
+ 	public ClientCapabilitiesWrapper() {
+-		this(new ClientCapabilities());
++		this(new ClientCapabilities(), null);
+ 	}
+ 
+-	public ClientCapabilitiesWrapper(ClientCapabilities capabilities) {
++	public ClientCapabilitiesWrapper(ClientCapabilities capabilities, ExtendedClientCapabilities extendedCapabilities) {
+ 		this.capabilities = capabilities;
+ 		this.v3Supported = capabilities != null ? capabilities.getTextDocument() != null : false;
++		this.extendedCapabilities = extendedCapabilities;
+ 	}
+ 
+ 	/**
+@@ -72,4 +77,8 @@ private boolean isDynamicRegistrationSupported(DynamicRegistrationCapabilities c
+ 	public TextDocumentClientCapabilities getTextDocument() {
+ 		return this.capabilities.getTextDocument();
+ 	}
++
++	public ExtendedClientCapabilities getExtendedCapabilities() {
++		return extendedCapabilities;
++	}
+ }
+\ No newline at end of file
+diff --git a/quarkus.ls/com.redhat.quarkus.ls/src/main/java/com/redhat/quarkus/settings/capabilities/InitializationOptionsExtendedClientCapabilities.java b/quarkus.ls/com.redhat.quarkus.ls/src/main/java/com/redhat/quarkus/settings/capabilities/InitializationOptionsExtendedClientCapabilities.java
+new file mode 100644
+index 0000000..9700aa0
+--- /dev/null
++++ b/quarkus.ls/com.redhat.quarkus.ls/src/main/java/com/redhat/quarkus/settings/capabilities/InitializationOptionsExtendedClientCapabilities.java
+@@ -0,0 +1,74 @@
++/**
++ *  Copyright (c) 2018 Angelo ZERR.
++ *  All rights reserved. This program and the accompanying materials
++ *  are made available under the terms of the Eclipse Public License v2.0
++ *  which accompanies this distribution, and is available at
++ *  http://www.eclipse.org/legal/epl-v20.html
++ *
++ *  Contributors:
++ *  Angelo Zerr <angelo.zerr@gmail.com> - initial API and implementation
++ */
++
++package com.redhat.quarkus.settings.capabilities;
++
++import com.redhat.quarkus.ls.client.ExtendedClientCapabilities;
++import com.redhat.quarkus.utils.JSONUtility;
++
++import org.eclipse.lsp4j.InitializeParams;
++
++
++/**
++ * Represents all extended client capabilities sent from the server
++ * 
++ * <pre>
++ * "extendedClientCapabilities": {
++		"commands": {
++			"commandsKind": {
++				"valueSet": [
++					"quarkus.command.configuration.update"
++				]
++			}
++		}
++	}
++ * </pre>
++ */
++public class InitializationOptionsExtendedClientCapabilities {
++
++	private ExtendedClientCapabilities extendedClientCapabilities;
++
++	public ExtendedClientCapabilities getExtendedClientCapabilities() {
++		return extendedClientCapabilities;
++	}
++
++	public void setExtendedClientCapabilities(ExtendedClientCapabilities extendedClientCapabilities) {
++		this.extendedClientCapabilities = extendedClientCapabilities;
++	}
++
++	/**
++	 * Returns the "settings" section of
++	 * {@link InitializeParams#getInitializationOptions()}.
++	 * 
++	 * Here a sample of initializationOptions
++	 * 
++	 * <pre>
++	 * "extendedClientCapabilities": {
++			"commands": {
++				"commandsKind": {
++					"valueSet": [
++						"quarkus.command.configuration.update"
++					]
++				}
++			}
++		}
++	 * </pre>
++	 * 
++	 * @param initializeParams
++	 * @return the "extendedClientCapabilities" section of
++	 *         {@link InitializeParams#getInitializationOptions()}.
++	 */
++	public static ExtendedClientCapabilities getExtendedClientCapabilities(InitializeParams initializeParams) {
++		InitializationOptionsExtendedClientCapabilities root = JSONUtility.toModel(
++				initializeParams.getInitializationOptions(), InitializationOptionsExtendedClientCapabilities.class);
++		return root != null ? root.getExtendedClientCapabilities() : null;
++	}
++}
+diff --git a/quarkus.ls/com.redhat.quarkus.ls/src/main/java/com/redhat/quarkus/settings/capabilities/QuarkusCapabilityManager.java b/quarkus.ls/com.redhat.quarkus.ls/src/main/java/com/redhat/quarkus/settings/capabilities/QuarkusCapabilityManager.java
+index 3182b04..add6085 100644
+--- a/quarkus.ls/com.redhat.quarkus.ls/src/main/java/com/redhat/quarkus/settings/capabilities/QuarkusCapabilityManager.java
++++ b/quarkus.ls/com.redhat.quarkus.ls/src/main/java/com/redhat/quarkus/settings/capabilities/QuarkusCapabilityManager.java
+@@ -27,6 +27,8 @@
+ import java.util.HashSet;
+ import java.util.Set;
+ 
++import com.redhat.quarkus.ls.client.ExtendedClientCapabilities;
++
+ import org.eclipse.lsp4j.ClientCapabilities;
+ import org.eclipse.lsp4j.Registration;
+ import org.eclipse.lsp4j.RegistrationParams;
+@@ -76,8 +78,8 @@ public void initializeCapabilities() {
+ 		}
+ 	}
+ 
+-	public void setClientCapabilities(ClientCapabilities clientCapabilities) {
+-		this.clientWrapper = new ClientCapabilitiesWrapper(clientCapabilities);
++	public void setClientCapabilities(ClientCapabilities clientCapabilities, ExtendedClientCapabilities extendedClientCapabilities) {
++		this.clientWrapper = new ClientCapabilitiesWrapper(clientCapabilities, extendedClientCapabilities);
+ 	}
+ 
+ 	public ClientCapabilitiesWrapper getClientCapabilities() {
+diff --git a/quarkus.ls/com.redhat.quarkus.ls/src/test/java/com/redhat/quarkus/services/ApplicationPropertiesCodeActionsTest.java b/quarkus.ls/com.redhat.quarkus.ls/src/test/java/com/redhat/quarkus/services/ApplicationPropertiesCodeActionsTest.java
+index b5bd91b..17e64fe 100644
+--- a/quarkus.ls/com.redhat.quarkus.ls/src/test/java/com/redhat/quarkus/services/ApplicationPropertiesCodeActionsTest.java
++++ b/quarkus.ls/com.redhat.quarkus.ls/src/test/java/com/redhat/quarkus/services/ApplicationPropertiesCodeActionsTest.java
+@@ -15,12 +15,15 @@
+ import static com.redhat.quarkus.services.QuarkusAssert.testCodeActionsFor;
+ import static com.redhat.quarkus.services.QuarkusAssert.testDiagnosticsFor;
+ 
++import java.util.Arrays;
++
++import com.redhat.quarkus.ls.commons.BadLocationException;
++
++import org.eclipse.lsp4j.Command;
+ import org.eclipse.lsp4j.Diagnostic;
+ import org.eclipse.lsp4j.DiagnosticSeverity;
+ import org.junit.Test;
+ 
+-import com.redhat.quarkus.ls.commons.BadLocationException;
+-
+ /**
+  * Test with code actions in 'application.properties' file.
+  * 
+@@ -38,9 +41,16 @@ public void codeActionsForUnknownProperties() throws BadLocationException {
+ 		Diagnostic d = d(1, 0, 23, "Unknown property 'quarkus.application.nme'", DiagnosticSeverity.Warning,
+ 				ValidationType.unknown);
+ 
++		ConfigurationItemEdit configItemEdit = new ConfigurationItemEdit("quarkus.tools.validation.unknown.excluded",
++				ConfigurationItemEditType.add, "quarkus.application.nme");
++
++		Command command = new Command("Add quarkus.application.nme to unknown excluded array",
++				"quarkus/configurationUpdate", Arrays.asList(configItemEdit));
++
+ 		testDiagnosticsFor(value, d);
+ 		testCodeActionsFor(value, d,
+-				ca("Did you mean 'quarkus.application.name' ?", te(1, 0, 1, 23, "quarkus.application.name"), d));
++				ca("Did you mean 'quarkus.application.name' ?", te(1, 0, 1, 23, "quarkus.application.name"), d),
++				ca("Exclude 'quarkus.application.nme' from unknown property validation?", command, d));
+ 	};
+ 
+ 	@Test
+diff --git a/quarkus.ls/com.redhat.quarkus.ls/src/test/java/com/redhat/quarkus/services/ApplicationPropertiesRequiredCodeActionTest.java b/quarkus.ls/com.redhat.quarkus.ls/src/test/java/com/redhat/quarkus/services/ApplicationPropertiesRequiredCodeActionTest.java
+index 29a1b41..6a398c2 100644
+--- a/quarkus.ls/com.redhat.quarkus.ls/src/test/java/com/redhat/quarkus/services/ApplicationPropertiesRequiredCodeActionTest.java
++++ b/quarkus.ls/com.redhat.quarkus.ls/src/test/java/com/redhat/quarkus/services/ApplicationPropertiesRequiredCodeActionTest.java
+@@ -115,7 +115,7 @@ public void testMissingPropertyCodeAction() throws BadLocationException {
+ 
+ 		testDiagnosticsFor(value, projectInfo, validationSettings, d1, d2);
+ 		testCodeActionsFor(value, d, d.get(0).getRange(), projectInfo,
+-				ca("Add all missing required properties?", te(1, 37, 1, 37, "\nquarkus.required.property=\nquarkus.second.required.property="), d));
++				ca("Add all missing required properties?", te(1, 37, 1, 37, "\nquarkus.required.property=\nquarkus.second.required.property="), d1, d2));
+ 	}
+ 
+ 	@Test
+diff --git a/quarkus.ls/com.redhat.quarkus.ls/src/test/java/com/redhat/quarkus/services/QuarkusAssert.java b/quarkus.ls/com.redhat.quarkus.ls/src/test/java/com/redhat/quarkus/services/QuarkusAssert.java
+index 3c66a0d..4bbc4a2 100644
+--- a/quarkus.ls/com.redhat.quarkus.ls/src/test/java/com/redhat/quarkus/services/QuarkusAssert.java
++++ b/quarkus.ls/com.redhat.quarkus.ls/src/test/java/com/redhat/quarkus/services/QuarkusAssert.java
+@@ -17,8 +17,27 @@
+ import java.util.concurrent.ExecutionException;
+ import java.util.stream.Collectors;
+ 
++import com.google.gson.Gson;
++import com.redhat.quarkus.commons.QuarkusProjectInfo;
++import com.redhat.quarkus.ls.MockQuarkusPropertyDefinitionProvider;
++import com.redhat.quarkus.ls.api.QuarkusPropertyDefinitionProvider;
++import com.redhat.quarkus.ls.client.CommandCapabilities;
++import com.redhat.quarkus.ls.client.CommandKind;
++import com.redhat.quarkus.ls.client.CommandKindCapabilities;
++import com.redhat.quarkus.ls.commons.BadLocationException;
++import com.redhat.quarkus.ls.commons.TextDocument;
++import com.redhat.quarkus.model.PropertiesModel;
++import com.redhat.quarkus.settings.QuarkusCommandCapabilities;
++import com.redhat.quarkus.settings.QuarkusCompletionSettings;
++import com.redhat.quarkus.settings.QuarkusFormattingSettings;
++import com.redhat.quarkus.settings.QuarkusHoverSettings;
++import com.redhat.quarkus.settings.QuarkusValidationSettings;
++import com.redhat.quarkus.utils.DocumentationUtils;
++import com.redhat.quarkus.utils.PositionUtils;
++
+ import org.eclipse.lsp4j.CodeAction;
+ import org.eclipse.lsp4j.CodeActionContext;
++import org.eclipse.lsp4j.Command;
+ import org.eclipse.lsp4j.CompletionCapabilities;
+ import org.eclipse.lsp4j.CompletionItem;
+ import org.eclipse.lsp4j.CompletionItemCapabilities;
+@@ -44,20 +63,6 @@
+ import org.eclipse.lsp4j.jsonrpc.messages.Either;
+ import org.junit.Assert;
+ 
+-import com.google.gson.Gson;
+-import com.redhat.quarkus.commons.QuarkusProjectInfo;
+-import com.redhat.quarkus.ls.MockQuarkusPropertyDefinitionProvider;
+-import com.redhat.quarkus.ls.api.QuarkusPropertyDefinitionProvider;
+-import com.redhat.quarkus.ls.commons.BadLocationException;
+-import com.redhat.quarkus.ls.commons.TextDocument;
+-import com.redhat.quarkus.model.PropertiesModel;
+-import com.redhat.quarkus.settings.QuarkusCompletionSettings;
+-import com.redhat.quarkus.settings.QuarkusFormattingSettings;
+-import com.redhat.quarkus.settings.QuarkusHoverSettings;
+-import com.redhat.quarkus.settings.QuarkusValidationSettings;
+-import com.redhat.quarkus.utils.DocumentationUtils;
+-import com.redhat.quarkus.utils.PositionUtils;
+-
+ /**
+  * Quarkus assert
+  * 
+@@ -441,15 +446,23 @@ public static void testCodeActionsFor(String value, List<Diagnostic> diagnostics
+ 		CodeActionContext context = new CodeActionContext();
+ 		context.setDiagnostics(diagnostics);
+ 
++		QuarkusCommandCapabilities quarkusCommandCapabilities = new QuarkusCommandCapabilities();
++
++
++		List<String> valueSet = Arrays.asList(CommandKind.COMMAND_CONFIGURATION_UPDATE);
++		CommandKindCapabilities commandKindCapabilities = new CommandKindCapabilities(valueSet);
++		CommandCapabilities commandCapabilities = new CommandCapabilities(commandKindCapabilities);
++
++		quarkusCommandCapabilities.setCapabilities(commandCapabilities);
++
+ 		List<CodeAction> actual = languageService.doCodeActions(context, range, model, projectInfo,
+-				formattingSettings);
++				formattingSettings, quarkusCommandCapabilities);
+ 		assertCodeActions(actual, expected);
+ 	}
+ 
+ 	public static void assertCodeActions(List<CodeAction> actual, CodeAction... expected) {
+ 		actual.stream().forEach(ca -> {
+ 			// we don't want to compare title, etc
+-			ca.setCommand(null);
+ 			ca.setKind(null);
+ 			if (ca.getDiagnostics() != null) {
+ 				ca.getDiagnostics().forEach(d -> {
+@@ -465,25 +478,36 @@ public static void assertCodeActions(List<CodeAction> actual, CodeAction... expe
+ 	}
+ 
+ 	public static CodeAction ca(String title, TextEdit te, Diagnostic... d) {
++		return ca(title, te, null, d);
++	}
++
++	public static CodeAction ca(String title, Command command, Diagnostic... d) {
++		return ca(title, null, command, d);
++	}
++
++	public static CodeAction ca(String title, TextEdit te, Command command, Diagnostic... d) {
+ 		List<Diagnostic> diagnostics = new ArrayList<>();
+ 		for (int i = 0; i < d.length; i++) {
+ 			diagnostics.add(d[i]);
+ 		}
+-		return ca(title, te, diagnostics);
++		return ca(title, te, command, diagnostics);
+ 	}
+ 
+-	public static CodeAction ca(String title, TextEdit te, List<Diagnostic> diagnostics) {
++	public static CodeAction ca(String title, TextEdit te, Command command, List<Diagnostic> diagnostics) {
+ 		CodeAction codeAction = new CodeAction();
+ 		codeAction.setTitle(title);
+ 		codeAction.setDiagnostics(diagnostics);
++		codeAction.setCommand(command);
+ 
+-		VersionedTextDocumentIdentifier versionedTextDocumentIdentifier = new VersionedTextDocumentIdentifier(
++		if (te != null) {
++			VersionedTextDocumentIdentifier versionedTextDocumentIdentifier = new VersionedTextDocumentIdentifier(
+ 				"application.properties", 0);
+-
+-		TextDocumentEdit textDocumentEdit = new TextDocumentEdit(versionedTextDocumentIdentifier,
+-				Collections.singletonList(te));
+-		WorkspaceEdit workspaceEdit = new WorkspaceEdit(Collections.singletonList(Either.forLeft(textDocumentEdit)));
+-		codeAction.setEdit(workspaceEdit);
++			TextDocumentEdit textDocumentEdit = new TextDocumentEdit(versionedTextDocumentIdentifier,
++			Collections.singletonList(te));
++			WorkspaceEdit workspaceEdit = new WorkspaceEdit(Collections.singletonList(Either.forLeft(textDocumentEdit)));
++			codeAction.setEdit(workspaceEdit);
++		}
++	
+ 		return codeAction;
+ 	}
+ 
+diff --git a/quarkus.ls/com.redhat.quarkus.ls/src/test/java/com/redhat/quarkus/settings/capabilities/QuarkusCapabilitiesTest.java b/quarkus.ls/com.redhat.quarkus.ls/src/test/java/com/redhat/quarkus/settings/capabilities/QuarkusCapabilitiesTest.java
+index 747193c..7204c1d 100644
+--- a/quarkus.ls/com.redhat.quarkus.ls/src/test/java/com/redhat/quarkus/settings/capabilities/QuarkusCapabilitiesTest.java
++++ b/quarkus.ls/com.redhat.quarkus.ls/src/test/java/com/redhat/quarkus/settings/capabilities/QuarkusCapabilitiesTest.java
+@@ -120,7 +120,7 @@ private void setAllCapabilities(boolean areAllDynamic) {
+ 	private void setAndInitializeCapabilities() {
+ 		clientCapabilities.setTextDocument(textDocument);
+ 		clientCapabilities.setWorkspace(workspace);
+-		manager.setClientCapabilities(clientCapabilities);
++		manager.setClientCapabilities(clientCapabilities, null);
+ 		manager.initializeCapabilities();
+ 		capabilityIDs = manager.getRegisteredCapabilities();
+ 	}

@@ -1,0 +1,35 @@
+diff --git a/src/main/java/com/miquido/validoctor/rule/Rules.java b/src/main/java/com/miquido/validoctor/rule/Rules.java
+index 1787404..cb6fc2d 100644
+--- a/src/main/java/com/miquido/validoctor/rule/Rules.java
++++ b/src/main/java/com/miquido/validoctor/rule/Rules.java
+@@ -261,7 +261,7 @@ private Rules() {
+    * To use valueIn with dynamic, nullable allowed value use {@code valueIn(listOf<TYPE>(null))} or
+    * {@code valueIn(Arrays.asList(null))}.
+    */
+-  public static <T> Rule<T> valueIn(List<T> allowedValues) {
++  public static <T> Rule<T> valueIn(Collection<T> allowedValues) {
+     Map<String, Object> params = new HashMap<>();
+     params.put(ALLOWED_VALUES, allowedValues);
+     return new SimpleRule<>("VALUE_IN", params, allowedValues::contains);
+diff --git a/src/test/java/com/miquido/validoctor/rule/SimpleRuleTest.kt b/src/test/java/com/miquido/validoctor/rule/SimpleRuleTest.kt
+index b4ce280..cc9afbf 100644
+--- a/src/test/java/com/miquido/validoctor/rule/SimpleRuleTest.kt
++++ b/src/test/java/com/miquido/validoctor/rule/SimpleRuleTest.kt
+@@ -229,14 +229,16 @@ class SimpleRuleTest {
+   }
+ 
+   @Test
+-  fun predefinedRule_valueIn_list() {
++  fun predefinedRule_valueIn_collection() {
+     assertOk(validoctor.examine("a", valueIn(listOf("a", "b", "c"))))
++    assertOk(validoctor.examine("a", valueIn(setOf("a", "b", "c"))))
+     assertOk(validoctor.examine(null, valueIn(listOf(null, "a", "b", "c"))))
+     assertOk(validoctor.examine(765, valueIn(listOf(5, 23, 765, 43))))
+     assertOk(validoctor.examine(TestPatient(1, "a", "1", true),
+         valueIn(listOf(TestPatient(2, "b", "2", false), TestPatient(1, "a", "1", true)))))
+     assertOk(validoctor.examine(null, valueIn(listOf<String?>(null))))
+     assertError(validoctor.examine("a", valueIn(listOf("b", "c", "d"))))
++    assertError(validoctor.examine("a", valueIn(setOf("b", "c", "d"))))
+     assertError(validoctor.examine(null, valueIn(emptyList())))
+     assertError(validoctor.examine("a", valueIn(listOf<String?>(null))))
+     assertError(validoctor.examine(TestPatient(1, "a", "1", true),

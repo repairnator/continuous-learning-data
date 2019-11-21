@@ -1,0 +1,1370 @@
+diff --git a/src/main/java/fiuba/algo3/tp2/Jugador.java b/src/main/java/fiuba/algo3/tp2/Jugador.java
+index 842fcc0..c676ede 100644
+--- a/src/main/java/fiuba/algo3/tp2/Jugador.java
++++ b/src/main/java/fiuba/algo3/tp2/Jugador.java
+@@ -3,7 +3,10 @@
+ import fiuba.algo3.tp2.colores.Color;
+ import fiuba.algo3.tp2.movimiento.Direccion;
+ import fiuba.algo3.tp2.movimiento.Posicion;
++import fiuba.algo3.tp2.piezas.Danina;
+ import fiuba.algo3.tp2.piezas.Pieza;
++import fiuba.algo3.tp2.piezas.Saludable;
++
+ import java.util.ArrayList;
+ 
+ public class Jugador {
+@@ -29,7 +32,7 @@ public void borrarPieza(Tablero tablero, int posicionFila, int posicionColumna)
+         tablero.borrarPieza(posicionFila, posicionColumna);
+     }
+ 
+-    public void atacarCon(Pieza pieza, int posicionFila, int posicionColumna, Tablero tablero) {
++    public void atacarCon(Danina pieza, int posicionFila, int posicionColumna, Tablero tablero) {
+ 
+         Pieza receptor = tablero.obtenerPieza(posicionFila,posicionColumna);
+         Posicion posReceptor = new Posicion(posicionFila,posicionColumna);
+@@ -38,6 +41,15 @@ public void atacarCon(Pieza pieza, int posicionFila, int posicionColumna, Tabler
+         pieza.atacar(receptor, distanciaEntrePiezas, contiguas);
+     }
+ 
++
++    public void curarCon(Saludable pieza, int posicionFila, int posicionColumna, Tablero tablero){
++
++        Pieza receptor = tablero.obtenerPieza(posicionFila,posicionColumna);
++        Posicion posReceptor = new Posicion(posicionFila,posicionColumna);
++        int distanciaEntrePiezas = pieza.calcularDistancia(posReceptor);
++        pieza.curar(receptor, distanciaEntrePiezas);
++    }
++
+     public boolean sigueEnJuego() {
+ 
+         return administradorDePiezas.sigueEnJuego();
+diff --git a/src/main/java/fiuba/algo3/tp2/PuntosDeAtaque.java b/src/main/java/fiuba/algo3/tp2/PuntosDeAtaque.java
+deleted file mode 100644
+index 67d2317..0000000
+--- a/src/main/java/fiuba/algo3/tp2/PuntosDeAtaque.java
++++ /dev/null
+@@ -1,23 +0,0 @@
+-package fiuba.algo3.tp2;
+-
+-import fiuba.algo3.tp2.piezas.Catapulta;
+-import fiuba.algo3.tp2.piezas.Jinete;
+-import fiuba.algo3.tp2.piezas.SoldadoDeInfanteria;
+-
+-public class PuntosDeAtaque {
+-    private int poderAtaque;
+-
+-    public PuntosDeAtaque(SoldadoDeInfanteria soldado){
+-        poderAtaque = 10;
+-    }
+-    public PuntosDeAtaque(Jinete jinete){
+-        poderAtaque = 5;
+-    }
+-    public PuntosDeAtaque(Catapulta catapulta){
+-        poderAtaque = 20;
+-    }
+-
+-    public int getDanioDelAtaque() {
+-        return poderAtaque;
+-    }
+-}
+diff --git a/src/main/java/fiuba/algo3/tp2/PuntosDeCuracion.java b/src/main/java/fiuba/algo3/tp2/PuntosDeCuracion.java
+deleted file mode 100644
+index 2f56209..0000000
+--- a/src/main/java/fiuba/algo3/tp2/PuntosDeCuracion.java
++++ /dev/null
+@@ -1,15 +0,0 @@
+-package fiuba.algo3.tp2;
+-
+-import fiuba.algo3.tp2.piezas.Curandero;
+-
+-public class PuntosDeCuracion {
+-    private int poderCuracion;
+-
+-    public PuntosDeCuracion(Curandero curandero){
+-        poderCuracion = 15;
+-    }
+-
+-    public int getPuntosCuracion() {
+-        return poderCuracion;
+-    }
+-}
+diff --git a/src/main/java/fiuba/algo3/tp2/excepciones/CasilleroNoTienePiezaException.java b/src/main/java/fiuba/algo3/tp2/excepciones/CasilleroNoTienePiezaException.java
+deleted file mode 100644
+index ecd77e5..0000000
+--- a/src/main/java/fiuba/algo3/tp2/excepciones/CasilleroNoTienePiezaException.java
++++ /dev/null
+@@ -1,4 +0,0 @@
+-package fiuba.algo3.tp2.excepciones;
+-
+-public class CasilleroNoTienePiezaException extends RuntimeException {
+-}
+diff --git a/src/main/java/fiuba/algo3/tp2/piezas/Ataque.java b/src/main/java/fiuba/algo3/tp2/piezas/Ataque.java
+index 558c534..57e1666 100644
+--- a/src/main/java/fiuba/algo3/tp2/piezas/Ataque.java
++++ b/src/main/java/fiuba/algo3/tp2/piezas/Ataque.java
+@@ -4,32 +4,26 @@
+ 
+ public class Ataque {
+ 
+-    TipoDeAtaque tipoDeAtaque;
+ 
+-    public void setTipoDeAtaque(TipoDeAtaque tipoDeAtaque) {
++    public void atacar(SoldadoDeInfanteria soldado, Pieza receptor, int danio, RangoDeAlcance rangoDeAlcance) {
+ 
+-        this.tipoDeAtaque = tipoDeAtaque;
++        rangoDeAlcance.atacar(soldado, receptor, danio);
+     }
+ 
+-    public void atacar(SoldadoDeInfanteria soldado, Pieza receptor, int danio) {
++    public void atacar(Jinete jinete, Pieza receptor, int danio, RangoDeAlcance rangoDeAlcance) {
+ 
+-        tipoDeAtaque.atacar(soldado, receptor, danio);
+-    }
+-
+-    public void atacar(Jinete jinete, Pieza receptor, int danio) {
+-
+-        tipoDeAtaque.atacar(jinete,receptor, danio);
++        rangoDeAlcance.atacar(jinete,receptor, danio);
+ 
+     }
+ 
+-    public void atacar(Catapulta catapulta, Pieza receptor,ArrayList<Pieza> contiguas) {
++    public void atacar(Catapulta catapulta, Pieza receptor,ArrayList<Pieza> contiguas, RangoDeAlcance rangoDeAlcance) {
+ 
+-        tipoDeAtaque.atacar(catapulta,receptor,contiguas);
++        rangoDeAlcance.atacar(catapulta,receptor,contiguas);
+ 
+     }
+ 
+-    public void atacar(Curandero curandero, Pieza pieza) {
++    public void curar(Curandero curandero, Pieza pieza, RangoDeAlcance rangoDeAlcance) {
+ 
+-        tipoDeAtaque.atacar(curandero,pieza);
++        rangoDeAlcance.curar(curandero,pieza);
+     }
+ }
+diff --git a/src/main/java/fiuba/algo3/tp2/piezas/Catapulta.java b/src/main/java/fiuba/algo3/tp2/piezas/Catapulta.java
+index 36a5e2b..8d032e5 100644
+--- a/src/main/java/fiuba/algo3/tp2/piezas/Catapulta.java
++++ b/src/main/java/fiuba/algo3/tp2/piezas/Catapulta.java
+@@ -1,16 +1,15 @@
+ package fiuba.algo3.tp2.piezas;
+ 
+-import fiuba.algo3.tp2.PiezasContiguas;
+ import fiuba.algo3.tp2.PuntosDeVida;
+ import fiuba.algo3.tp2.colores.Color;
+ import fiuba.algo3.tp2.movimiento.Posicion;
+ 
+ import java.util.ArrayList;
+ 
+-public class Catapulta extends Pieza {
++public class Catapulta extends Danina {
+ 
+     private static final int PRECIO = 5;
+-    private static final int DANIO = 20;
++    private static final int DANIO_CATAPULTA = 20;
+ 
+     public Catapulta(Color color) {
+ 
+@@ -23,8 +22,8 @@ public Catapulta(Color color) {
+     @Override
+     public void atacar(Pieza pieza, int distanciaConPieza, ArrayList<Pieza> contiguas) {
+ 
+-        this.setAtaque(distanciaConPieza);
+-        ataque.atacar(this, pieza,contiguas);
++        this.setRangoDeAlcance(distanciaConPieza);
++        ataque.atacar(this, pieza,contiguas, this.rangoDeAlcance);
+     }
+ 
+     @Override
+@@ -47,8 +46,7 @@ public boolean esSoldado() {
+         return false;
+     }
+ 
+-    public void atacarPieza(Pieza pieza) {
+-
+-        pieza.perderVida(DANIO);
++    public static int getDanioCatapulta() {
++        return DANIO_CATAPULTA;
+     }
+ }
+diff --git a/src/main/java/fiuba/algo3/tp2/piezas/Curandero.java b/src/main/java/fiuba/algo3/tp2/piezas/Curandero.java
+index 8906cd0..a95ed75 100644
+--- a/src/main/java/fiuba/algo3/tp2/piezas/Curandero.java
++++ b/src/main/java/fiuba/algo3/tp2/piezas/Curandero.java
+@@ -1,19 +1,19 @@
+ package fiuba.algo3.tp2.piezas;
+ 
+-import fiuba.algo3.tp2.PiezasContiguas;
+ import fiuba.algo3.tp2.PuntosDeVida;
+ import fiuba.algo3.tp2.colores.Color;
+ import fiuba.algo3.tp2.excepciones.NoPuedeCurarPiezaDelOtroEquipo;
+ 
+ import java.util.ArrayList;
+ 
+-public class Curandero extends Pieza {
++public class Curandero extends Saludable {
+ 
+     private static final int PRECIO = 2;
+     private static final int CURACION = 15;
+ 
+     public Curandero(Color color) {
+ 
++        this.curacion = new Ataque();
+         this.precio = PRECIO;
+         this.color = color;
+         this.puntosDeVida = new PuntosDeVida(this);
+@@ -28,10 +28,10 @@ public void curarPieza(Pieza pieza) {
+     }
+ 
+     @Override
+-    public void atacar(Pieza pieza, int distanciaConPieza, ArrayList<Pieza> contiguas) {
++    public void curar(Pieza pieza, int distanciaConPieza) {
+ 
+-        this.setAtaque(distanciaConPieza);
+-        ataque.atacar(this, pieza);
++        this.setRangoDeAlcance(distanciaConPieza);
++        curacion.curar(this, pieza, this.rangoDeAlcance);
+ 
+     }
+ 
+diff --git a/src/main/java/fiuba/algo3/tp2/piezas/Danina.java b/src/main/java/fiuba/algo3/tp2/piezas/Danina.java
+index 4e92240..c6f163e 100644
+--- a/src/main/java/fiuba/algo3/tp2/piezas/Danina.java
++++ b/src/main/java/fiuba/algo3/tp2/piezas/Danina.java
+@@ -1,17 +1,13 @@
+ package fiuba.algo3.tp2.piezas;
+ 
+-import fiuba.algo3.tp2.PuntosDeAtaque;
+ import fiuba.algo3.tp2.excepciones.NoPuedeAtacarPiezaDelMismoEquipo;
+ 
+-public abstract class Danina extends Pieza {
++import java.util.ArrayList;
+ 
+-    protected PuntosDeAtaque puntosDeAtaque;
++public abstract class Danina extends Pieza {
+ 
+-    public void atacarPieza(Pieza pieza) {
++    protected Ataque ataque;
+ 
+-        if(this.esDeMiEquipo(pieza))
+-            throw new NoPuedeAtacarPiezaDelMismoEquipo();
+ 
+-        pieza.perderVida(puntosDeAtaque.getDanioDelAtaque());
+-    }
++    public abstract void atacar(Pieza pieza, int distanciaConPieza, ArrayList<Pieza> contiguas);
+ }
+diff --git a/src/main/java/fiuba/algo3/tp2/piezas/Jinete.java b/src/main/java/fiuba/algo3/tp2/piezas/Jinete.java
+index 8aec7bf..8ee9b6e 100644
+--- a/src/main/java/fiuba/algo3/tp2/piezas/Jinete.java
++++ b/src/main/java/fiuba/algo3/tp2/piezas/Jinete.java
+@@ -8,23 +8,15 @@
+ 
+ import java.util.ArrayList;
+ 
+-public class Jinete extends Pieza {
++public class Jinete extends Danina {
+ 
+     private static final int PRECIO = 3;
+-    private int danio;
++    private static final int DANIO_JINETE = 5;
+ 
+     public Jinete(Color color) {
+         this.precio = PRECIO;
+         this.color = color;
+         this.puntosDeVida = new PuntosDeVida(this);
+-        danio = 5;
+-    }
+-    public void atacarPieza(Pieza pieza) {
+-
+-        if(this.esDeMiEquipo(pieza))
+-            throw new NoPuedeAtacarPiezaDelMismoEquipo();
+-
+-        pieza.perderVida(danio);
+     }
+ 
+ 
+@@ -32,6 +24,12 @@ public void atacarPieza(Pieza pieza) {
+     public void atacar(Pieza pieza, int distanciaConPieza, ArrayList<Pieza> contiguas) {
+ 
+         // depende las que la rodean. meter strategy
++
++
++        if(this.esDeMiEquipo(pieza))
++            throw new NoPuedeAtacarPiezaDelMismoEquipo();
++
++        pieza.perderVida(DANIO_JINETE);
+     }
+ 
+     @Override
+diff --git a/src/main/java/fiuba/algo3/tp2/piezas/Pieza.java b/src/main/java/fiuba/algo3/tp2/piezas/Pieza.java
+index 1c1dcc3..823a417 100644
+--- a/src/main/java/fiuba/algo3/tp2/piezas/Pieza.java
++++ b/src/main/java/fiuba/algo3/tp2/piezas/Pieza.java
+@@ -8,41 +8,52 @@
+ 
+ public abstract class Pieza {
+ 
+-   private final static int LIMITE_DISTANCIA_CERCA = 2;
+-   private final static int LIMITE_DISTANCIA_MEDIA = 5;
++   protected final static int LIMITE_DISTANCIA_CERCA = 2;
++   protected final static int LIMITE_DISTANCIA_MEDIA = 5;
+ 
+     protected PuntosDeVida puntosDeVida;
+     protected Color color;
+-
++    protected RangoDeAlcance rangoDeAlcance;
+     protected int precio;
+ 
+     protected Posicion posicion;
+-    protected Ataque ataque;
+ 
+ 
+-    public abstract void atacar(Pieza pieza, int distanciaConPieza, ArrayList<Pieza> contiguas);
+ 
+-    public void setAtaque(int distanciaConPieza) {
++
++    public void setRangoDeAlcance(int distanciaConPieza) {
+ 
+         if(distanciaConPieza <= LIMITE_DISTANCIA_CERCA) {
+ 
+-            ataque.setTipoDeAtaque(new TipoDeAtaqueCercano());
++            rangoDeAlcance = new RangoDeAlcanceCercano();
+ 
+-            } else if(distanciaConPieza <= LIMITE_DISTANCIA_MEDIA) {
++        } else if(distanciaConPieza <= LIMITE_DISTANCIA_MEDIA) {
+ 
+-                ataque.setTipoDeAtaque(new TipoDeAtaqueMediaDistancia());
++            rangoDeAlcance = new RangoDeAlcanceMediaDistancia();
+ 
+-              } else {
++        } else {
+ 
+-                ataque.setTipoDeAtaque(new TipoDeAtaqueLejano());
++            rangoDeAlcance = new RangoDeAlcanceLejano();
+         }
+     }
+ 
+-    public void perderVida(int danioRecibido) {
+ 
++    public void perderVida(int danioRecibido) {
++        danioRecibido = this.aplicarBonificacionesAlDanioRecibido(danioRecibido);
+         puntosDeVida.quitarVida(danioRecibido);
+     }
+ 
++    protected int aplicarBonificacionesAlDanioRecibido(int danioRecibido){
++        if ( this.estoyDelLadoEnemigo())
++            danioRecibido += danioRecibido * 0.05;
++
++        return danioRecibido;
++    }
++
++    protected boolean estoyDelLadoEnemigo(){
++        return this.posicion.estoyDelLadoEnemigo(this.color);
++    }
++
+     public void recibirVida(int vidaRecibida) {
+ 
+         puntosDeVida.aumentarVida(vidaRecibida);
+diff --git a/src/main/java/fiuba/algo3/tp2/piezas/RangoDeAlcance.java b/src/main/java/fiuba/algo3/tp2/piezas/RangoDeAlcance.java
+new file mode 100644
+index 0000000..464a834
+--- /dev/null
++++ b/src/main/java/fiuba/algo3/tp2/piezas/RangoDeAlcance.java
+@@ -0,0 +1,14 @@
++package fiuba.algo3.tp2.piezas;
++
++import java.util.ArrayList;
++
++public interface RangoDeAlcance {
++
++    void atacar(SoldadoDeInfanteria soldado, Pieza receptor, int danio);
++
++    void atacar(Jinete jinete, Pieza receptor, int danio);
++
++    void atacar(Catapulta catapulta, Pieza receptor, ArrayList<Pieza> contiguas);
++
++    void curar(Curandero curandero, Pieza pieza);
++}
+diff --git a/src/main/java/fiuba/algo3/tp2/piezas/TipoDeAtaqueCercano.java b/src/main/java/fiuba/algo3/tp2/piezas/RangoDeAlcanceCercano.java
+similarity index 81%
+rename from src/main/java/fiuba/algo3/tp2/piezas/TipoDeAtaqueCercano.java
+rename to src/main/java/fiuba/algo3/tp2/piezas/RangoDeAlcanceCercano.java
+index a9cc632..36c7eba 100644
+--- a/src/main/java/fiuba/algo3/tp2/piezas/TipoDeAtaqueCercano.java
++++ b/src/main/java/fiuba/algo3/tp2/piezas/RangoDeAlcanceCercano.java
+@@ -2,7 +2,7 @@
+ 
+ import java.util.ArrayList;
+ 
+-public class TipoDeAtaqueCercano implements TipoDeAtaque {
++public class RangoDeAlcanceCercano implements RangoDeAlcance {
+ 
+ 
+     @Override
+@@ -26,7 +26,7 @@ public void atacar(Catapulta catapulta, Pieza receptor, ArrayList<Pieza> contigu
+     }
+ 
+     @Override
+-    public void atacar(Curandero curandero, Pieza pieza) {
++    public void curar(Curandero curandero, Pieza pieza) {
+ 
+         curandero.curarPieza(pieza);
+     }
+diff --git a/src/main/java/fiuba/algo3/tp2/piezas/TipoDeAtaqueLejano.java b/src/main/java/fiuba/algo3/tp2/piezas/RangoDeAlcanceLejano.java
+similarity index 70%
+rename from src/main/java/fiuba/algo3/tp2/piezas/TipoDeAtaqueLejano.java
+rename to src/main/java/fiuba/algo3/tp2/piezas/RangoDeAlcanceLejano.java
+index e5f55cd..936ebf6 100644
+--- a/src/main/java/fiuba/algo3/tp2/piezas/TipoDeAtaqueLejano.java
++++ b/src/main/java/fiuba/algo3/tp2/piezas/RangoDeAlcanceLejano.java
+@@ -2,7 +2,7 @@
+ 
+ import java.util.ArrayList;
+ 
+-public class TipoDeAtaqueLejano implements TipoDeAtaque {
++public class RangoDeAlcanceLejano implements RangoDeAlcance {
+ 
+     @Override
+     public void atacar(SoldadoDeInfanteria soldado, Pieza receptor, int danio) {
+@@ -19,17 +19,16 @@ public void atacar(Jinete jinete, Pieza receptor, int danio) {
+     @Override
+     public void atacar(Catapulta catapulta, Pieza receptor, ArrayList<Pieza> contiguas) {
+ 
+-        int i = 0;
+-        while(i < contiguas.size()) {
++
++        for(int i=0; i < contiguas.size(); i++) {
+ 
+             Pieza pieza = contiguas.get(i);
+-            catapulta.atacarPieza(pieza);
+-            i++;
++            pieza.perderVida(catapulta.getDanioCatapulta());
+         }
+     }
+ 
+     @Override
+-    public void atacar(Curandero curandero, Pieza pieza) {
++    public void curar(Curandero curandero, Pieza pieza) {
+ 
+         // no cura distancia lejos
+     }
+diff --git a/src/main/java/fiuba/algo3/tp2/piezas/TipoDeAtaqueMediaDistancia.java b/src/main/java/fiuba/algo3/tp2/piezas/RangoDeAlcanceMediaDistancia.java
+similarity index 81%
+rename from src/main/java/fiuba/algo3/tp2/piezas/TipoDeAtaqueMediaDistancia.java
+rename to src/main/java/fiuba/algo3/tp2/piezas/RangoDeAlcanceMediaDistancia.java
+index 5af0a33..ab71ddc 100644
+--- a/src/main/java/fiuba/algo3/tp2/piezas/TipoDeAtaqueMediaDistancia.java
++++ b/src/main/java/fiuba/algo3/tp2/piezas/RangoDeAlcanceMediaDistancia.java
+@@ -2,7 +2,7 @@
+ 
+ import java.util.ArrayList;
+ 
+-public class TipoDeAtaqueMediaDistancia implements TipoDeAtaque {
++public class RangoDeAlcanceMediaDistancia implements RangoDeAlcance {
+ 
+ 
+     @Override
+@@ -26,7 +26,7 @@ public void atacar(Catapulta catapulta, Pieza receptor, ArrayList<Pieza> contigu
+ 
+ 
+     @Override
+-    public void atacar(Curandero curandero, Pieza pieza) {
++    public void curar(Curandero curandero, Pieza pieza) {
+ 
+         // no cura en distancia media
+     }
+diff --git a/src/main/java/fiuba/algo3/tp2/piezas/Saludable.java b/src/main/java/fiuba/algo3/tp2/piezas/Saludable.java
+index 74cacf2..3ab4b99 100644
+--- a/src/main/java/fiuba/algo3/tp2/piezas/Saludable.java
++++ b/src/main/java/fiuba/algo3/tp2/piezas/Saludable.java
+@@ -1,17 +1,12 @@
+ package fiuba.algo3.tp2.piezas;
+ 
+-import fiuba.algo3.tp2.PuntosDeCuracion;
+ import fiuba.algo3.tp2.excepciones.NoPuedeCurarPiezaDelOtroEquipo;
+ 
+ public abstract class Saludable extends Pieza {
+ 
+-    protected PuntosDeCuracion puntosDeCuracion;
++    protected Ataque curacion;
+ 
+-    public void curarPieza(Pieza pieza) {
++    public abstract void curar(Pieza pieza, int distanciaConPieza);
+ 
+-        if(!this.esDeMiEquipo(pieza))
+-            throw new NoPuedeCurarPiezaDelOtroEquipo();
+ 
+-        pieza.recibirVida(puntosDeCuracion.getPuntosCuracion());
+-    }
+ }
+diff --git a/src/main/java/fiuba/algo3/tp2/piezas/SoldadoDeInfanteria.java b/src/main/java/fiuba/algo3/tp2/piezas/SoldadoDeInfanteria.java
+index bd9a1f6..527c8da 100644
+--- a/src/main/java/fiuba/algo3/tp2/piezas/SoldadoDeInfanteria.java
++++ b/src/main/java/fiuba/algo3/tp2/piezas/SoldadoDeInfanteria.java
+@@ -1,13 +1,12 @@
+ package fiuba.algo3.tp2.piezas;
+ 
+-import fiuba.algo3.tp2.PiezasContiguas;
+ import fiuba.algo3.tp2.PuntosDeVida;
+ import fiuba.algo3.tp2.colores.Color;
+ import fiuba.algo3.tp2.excepciones.NoPuedeAtacarPiezaDelMismoEquipo;
+ 
+ import java.util.ArrayList;
+ 
+-public class SoldadoDeInfanteria extends Pieza {
++public class SoldadoDeInfanteria extends Danina {
+ 
+     private static final int PRECIO = 1;
+     private static final int DANIO_SOLDADO = 10;
+@@ -22,12 +21,12 @@ public SoldadoDeInfanteria(Color color) {
+ 
+     public void atacar(Pieza pieza, int distanciaConPieza, ArrayList<Pieza> contiguas) {
+ 
+-        this.setAtaque(distanciaConPieza);
++        this.setRangoDeAlcance(distanciaConPieza);
+ 
+         if (this.esDeMiEquipo(pieza))
+             throw new NoPuedeAtacarPiezaDelMismoEquipo();
+ 
+-        ataque.atacar(this, pieza, DANIO_SOLDADO);
++        ataque.atacar(this, pieza, DANIO_SOLDADO, this.rangoDeAlcance);
+ 
+     }
+ 
+diff --git a/src/main/java/fiuba/algo3/tp2/piezas/TipoDeAtaque.java b/src/main/java/fiuba/algo3/tp2/piezas/TipoDeAtaque.java
+deleted file mode 100644
+index a3f2ff4..0000000
+--- a/src/main/java/fiuba/algo3/tp2/piezas/TipoDeAtaque.java
++++ /dev/null
+@@ -1,14 +0,0 @@
+-package fiuba.algo3.tp2.piezas;
+-
+-import java.util.ArrayList;
+-
+-public interface TipoDeAtaque {
+-
+-    public void atacar(SoldadoDeInfanteria soldado, Pieza receptor, int danio);
+-
+-    public void atacar(Jinete jinete, Pieza receptor, int danio);
+-
+-    public void atacar(Catapulta catapulta, Pieza receptor, ArrayList<Pieza> contiguas);
+-
+-    public void atacar(Curandero curandero, Pieza pieza);
+-}
+diff --git a/src/test/java/fiuba/algo3/tp2/AtaquesConCatapultaTest.java b/src/test/java/fiuba/algo3/tp2/AtaquesConCatapultaTest.java
+new file mode 100644
+index 0000000..eb76619
+--- /dev/null
++++ b/src/test/java/fiuba/algo3/tp2/AtaquesConCatapultaTest.java
+@@ -0,0 +1,266 @@
++package fiuba.algo3.tp2;
++
++import fiuba.algo3.tp2.colores.Blanco;
++import fiuba.algo3.tp2.colores.Color;
++import fiuba.algo3.tp2.colores.Negro;
++import fiuba.algo3.tp2.excepciones.PiezaEstaMuertaException;
++import fiuba.algo3.tp2.piezas.Catapulta;
++import fiuba.algo3.tp2.piezas.Curandero;
++import fiuba.algo3.tp2.piezas.Jinete;
++import fiuba.algo3.tp2.piezas.SoldadoDeInfanteria;
++import org.junit.Test;
++import static org.junit.Assert.assertEquals;
++import static org.junit.jupiter.api.Assertions.assertThrows;
++
++public class AtaquesConCatapultaTest {
++
++    @Test
++    public void test01CatapultaAtacaJineteYLeQuita20PuntosDeVida() {
++
++        Color blanco = new Blanco();
++        Color negro = new Negro();
++        Jugador jugadorBlanco = new Jugador(blanco);
++        Jugador jugadorNegro = new Jugador(negro);
++        Tablero tablero = new Tablero();
++
++        Catapulta catapulta = new Catapulta(blanco);
++        Jinete jineteEnemigo = new Jinete(negro);
++
++        jugadorBlanco.insertarPiezaEnPosicion(catapulta,9,9,tablero);
++        jugadorNegro.insertarPiezaEnPosicion(jineteEnemigo,19,19,tablero);
++
++        jugadorBlanco.atacarCon(catapulta,19,19,tablero);
++
++        assertEquals(80,jineteEnemigo.getPuntosDeVida());
++    }
++    @Test
++    public void test02CatapultaAtacaCatapultaYLeQuita20PuntosDeVida() {
++
++        Color blanco = new Blanco();
++        Color negro = new Negro();
++        Jugador jugadorBlanco = new Jugador(blanco);
++        Jugador jugadorNegro = new Jugador(negro);
++        Tablero tablero = new Tablero();
++
++        Catapulta catapulta = new Catapulta(blanco);
++        Catapulta catapultaEnemiga = new Catapulta(negro);
++
++        jugadorBlanco.insertarPiezaEnPosicion(catapulta,9,9,tablero);
++        jugadorNegro.insertarPiezaEnPosicion(catapultaEnemiga,19,19,tablero);
++
++        jugadorBlanco.atacarCon(catapulta,19,19,tablero);
++
++        assertEquals(30, catapultaEnemiga.getPuntosDeVida());
++    }
++
++    @Test
++    public void test03CatapultaAtacaSoldadoDeInfanteriaYLeQuita20PuntosDeVida() {
++
++        Color blanco = new Blanco();
++        Color negro = new Negro();
++        Jugador jugadorBlanco = new Jugador(blanco);
++        Jugador jugadorNegro = new Jugador(negro);
++        Tablero tablero = new Tablero();
++
++        Catapulta catapulta = new Catapulta(blanco);
++        SoldadoDeInfanteria soldadoEnemigo = new SoldadoDeInfanteria(negro);
++
++        jugadorBlanco.insertarPiezaEnPosicion(catapulta,9,9,tablero);
++        jugadorNegro.insertarPiezaEnPosicion(soldadoEnemigo,19,19,tablero);
++
++        jugadorBlanco.atacarCon(catapulta,19,19,tablero);
++
++        assertEquals(80, soldadoEnemigo.getPuntosDeVida());
++    }
++
++    @Test
++    public void test04CatapultaAtacaCuranderoYLeQuita20PuntosDeVida() {
++
++        Color blanco = new Blanco();
++        Color negro = new Negro();
++        Jugador jugadorBlanco = new Jugador(blanco);
++        Jugador jugadorNegro = new Jugador(negro);
++        Tablero tablero = new Tablero();
++
++        Catapulta catapulta = new Catapulta(blanco);
++        Curandero curanderoEnemigo = new Curandero(negro);
++
++        jugadorBlanco.insertarPiezaEnPosicion(catapulta,9,9,tablero);
++        jugadorNegro.insertarPiezaEnPosicion(curanderoEnemigo,19,19,tablero);
++
++        jugadorBlanco.atacarCon(catapulta,19,19,tablero);
++
++        assertEquals(55, curanderoEnemigo.getPuntosDeVida());
++    }
++
++    @Test
++    public void test05CatapultaPuedeAtacarUnidadAliada() {
++
++        Color blanco = new Blanco();
++        Color negro = new Negro();
++        Jugador jugadorBlanco = new Jugador(blanco);
++        Tablero tablero = new Tablero();
++
++        Catapulta catapulta = new Catapulta(blanco);
++        Jinete jineteAliado = new Jinete(blanco);
++
++        jugadorBlanco.insertarPiezaEnPosicion(catapulta,9,9,tablero);
++        jugadorBlanco.insertarPiezaEnPosicion(jineteAliado,1,1,tablero);
++
++        jugadorBlanco.atacarCon(catapulta,1,1,tablero);
++
++        assertEquals(80, jineteAliado.getPuntosDeVida());
++
++    }
++
++    @Test
++    public void test06CatapultaNoPuedeAtacarPiezaMuerta() {
++
++        Color blanco = new Blanco();
++        Color negro = new Negro();
++        Jugador jugadorBlanco = new Jugador(blanco);
++        Jugador jugadorNegro = new Jugador(negro);
++        Tablero tablero = new Tablero();
++
++        Catapulta catapulta = new Catapulta(blanco);
++        Jinete jineteEnemigo = new Jinete(negro);
++
++        jugadorBlanco.insertarPiezaEnPosicion(catapulta,9,9,tablero);
++        jugadorNegro.insertarPiezaEnPosicion(jineteEnemigo,19,19,tablero);
++
++        jugadorBlanco.atacarCon(catapulta,19,19,tablero);
++        jugadorBlanco.atacarCon(catapulta,19,19,tablero);
++        jugadorBlanco.atacarCon(catapulta,19,19,tablero);
++        jugadorBlanco.atacarCon(catapulta,19,19,tablero);
++        jugadorBlanco.atacarCon(catapulta,19,19,tablero);
++
++        assertThrows(PiezaEstaMuertaException.class,
++                ()->{
++                    jugadorBlanco.atacarCon(catapulta,19,19,tablero);
++                });
++    }
++
++    @Test
++    public void test07CatapultaNoPuedeAtacarPiezaADistanciaMedia() {
++
++        Color blanco = new Blanco();
++        Color negro = new Negro();
++        Jugador jugadorBlanco = new Jugador(blanco);
++        Jugador jugadorNegro = new Jugador(negro);
++        Tablero tablero = new Tablero();
++
++        Catapulta catapulta = new Catapulta(blanco);
++        jugadorBlanco.insertarPiezaEnPosicion(catapulta,9,9,tablero);
++
++        Jinete jinete = new Jinete(negro);
++        jugadorNegro.insertarPiezaEnPosicion(jinete,13,9, tablero);
++
++        jugadorBlanco.atacarCon(catapulta,13,9,tablero);
++        assertEquals(100, jinete.getPuntosDeVida());
++    }
++
++    @Test
++    public  void test08CatapultaNoPuedeAtacarPiezaDistanciaCorta() {
++
++        Color blanco = new Blanco();
++        Color negro = new Negro();
++        Jugador jugadorBlanco = new Jugador(blanco);
++        Jugador jugadorNegro = new Jugador(negro);
++        Tablero tablero = new Tablero();
++
++        Catapulta catapulta = new Catapulta(blanco);
++        jugadorBlanco.insertarPiezaEnPosicion(catapulta,9,9,tablero);
++
++        Jinete jinete = new Jinete(negro);
++        jugadorNegro.insertarPiezaEnPosicion(jinete,10,9, tablero);
++
++        jugadorBlanco.atacarCon(catapulta,10,9,tablero);
++        assertEquals(100, jinete.getPuntosDeVida());
++
++    }
++
++
++
++
++
++    @Test
++    public void test09CatapultaAtacaPiezaYDaniaALaSiguientePiezaContigua() {
++
++        Color blanco = new Blanco();
++        Color negro = new Negro();
++        Jugador jugadorBlanco = new Jugador(blanco);
++        Jugador jugadorNegro = new Jugador(negro);
++        Tablero tablero = new Tablero();
++
++        Catapulta catapulta = new Catapulta(blanco);
++        jugadorBlanco.insertarPiezaEnPosicion(catapulta,1,1,tablero);
++
++        Jinete jinete = new Jinete(negro);
++        jugadorNegro.insertarPiezaEnPosicion(jinete,18,18,tablero);
++        Jinete jinete2 = new Jinete(negro);
++        jugadorNegro.insertarPiezaEnPosicion(jinete2,18,19,tablero);
++
++        jugadorBlanco.atacarCon(catapulta,18,18,tablero);
++
++        assertEquals(80,jinete.getPuntosDeVida());
++        assertEquals(80,jinete2.getPuntosDeVida());
++    }
++
++
++    @Test
++    public void test10CatapultaAtacaPiezaYDaniaALasSiguientes4PiezasContiguas() {
++
++        Color blanco = new Blanco();
++        Color negro = new Negro();
++        Jugador jugadorBlanco = new Jugador(blanco);
++        Jugador jugadorNegro = new Jugador(negro);
++        Tablero tablero = new Tablero();
++
++        Catapulta catapulta = new Catapulta(blanco);
++        jugadorBlanco.insertarPiezaEnPosicion(catapulta,1,1,tablero);
++
++        Jinete jinete = new Jinete(negro);
++        jugadorNegro.insertarPiezaEnPosicion(jinete,11,11,tablero);
++        Jinete jinete2 = new Jinete(negro);
++        jugadorNegro.insertarPiezaEnPosicion(jinete2,11,12,tablero);
++        Jinete jinete3= new Jinete(negro);
++        jugadorNegro.insertarPiezaEnPosicion(jinete3,11,13,tablero);
++        Jinete jinete4 = new Jinete(negro);
++        jugadorNegro.insertarPiezaEnPosicion(jinete4,12,12,tablero);
++        Jinete jinete5 = new Jinete(negro);
++        jugadorNegro.insertarPiezaEnPosicion(jinete5,12,11,tablero);
++
++
++        jugadorBlanco.atacarCon(catapulta,11,11,tablero);
++
++        assertEquals(80,jinete.getPuntosDeVida());
++        assertEquals(80,jinete2.getPuntosDeVida());
++        assertEquals(80,jinete3.getPuntosDeVida());
++        assertEquals(80,jinete4.getPuntosDeVida());
++        assertEquals(80,jinete5.getPuntosDeVida());
++    }
++
++    @Test
++    public void test11CatapultaAtacaPiezaEnemigaYDaniaAliadoContiguo() {
++
++        Color blanco = new Blanco();
++        Color negro = new Negro();
++        Jugador jugadorBlanco = new Jugador(blanco);
++        Jugador jugadorNegro = new Jugador(negro);
++        Tablero tablero = new Tablero();
++
++        Catapulta catapulta = new Catapulta(blanco);
++        jugadorBlanco.insertarPiezaEnPosicion(catapulta,1,1,tablero);
++
++        Jinete jineteAliado = new Jinete(blanco);
++        jugadorBlanco.insertarPiezaEnPosicion(jineteAliado,9,5,tablero);
++
++        SoldadoDeInfanteria soldado = new SoldadoDeInfanteria(negro);
++        jugadorNegro.insertarPiezaEnPosicion(soldado, 10,5,tablero);
++
++        jugadorBlanco.atacarCon(catapulta,10,5,tablero);
++
++        assertEquals(80,jineteAliado.getPuntosDeVida());
++        assertEquals(80,soldado.getPuntosDeVida());
++    }
++}
+diff --git a/src/test/java/fiuba/algo3/tp2/TipoDeAtaqueDeJineteTest.java b/src/test/java/fiuba/algo3/tp2/AtaquesConJineteTest.java
+similarity index 53%
+rename from src/test/java/fiuba/algo3/tp2/TipoDeAtaqueDeJineteTest.java
+rename to src/test/java/fiuba/algo3/tp2/AtaquesConJineteTest.java
+index 3806d57..462e870 100644
+--- a/src/test/java/fiuba/algo3/tp2/TipoDeAtaqueDeJineteTest.java
++++ b/src/test/java/fiuba/algo3/tp2/AtaquesConJineteTest.java
+@@ -15,18 +15,24 @@
+ import static org.junit.Assert.assertTrue;
+ import static org.junit.jupiter.api.Assertions.assertThrows;
+ 
+-public class TipoDeAtaqueDeJineteTest {
++public class AtaquesConJineteTest {
+ 
+     @Test
+     public void test01JineteAtacaOtroJineteYLeQuita5PuntosDeVida() {
+ 
+         Color blanco = new Blanco();
+         Color negro = new Negro();
++        Jugador jugadorBlanco = new Jugador(blanco);
++        Jugador jugadorNegro = new Jugador(negro);
++        Tablero tablero = new Tablero();
++
+         Jinete jinete = new Jinete(blanco);
+         Jinete jineteEnemigo = new Jinete(negro);
+ 
+-        /** jinete ataca a jinete enemigo con 5 puntos de danio. */
+-        jinete.atacarPieza(jineteEnemigo);
++        jugadorBlanco.insertarPiezaEnPosicion(jinete,9,9,tablero);
++        jugadorNegro.insertarPiezaEnPosicion(jineteEnemigo,10,9,tablero);
++
++        jugadorBlanco.atacarCon(jinete,10,9,tablero);
+ 
+         /**jinete enemigo pasa de tener 100 puntos de vida a tener 95. */
+         assertEquals(95, jineteEnemigo.getPuntosDeVida());
+@@ -37,10 +43,17 @@ public void test02JineteAtacaCatapultaYLeQuita5PuntosDeVida() {
+ 
+         Color blanco = new Blanco();
+         Color negro = new Negro();
++        Jugador jugadorBlanco = new Jugador(blanco);
++        Jugador jugadorNegro = new Jugador(negro);
++        Tablero tablero = new Tablero();
++
+         Jinete jinete = new Jinete(blanco);
+         Catapulta catapultaEnemiga = new Catapulta(negro);
+ 
+-        jinete.atacarPieza(catapultaEnemiga);
++        jugadorBlanco.insertarPiezaEnPosicion(jinete,9,9,tablero);
++        jugadorNegro.insertarPiezaEnPosicion(catapultaEnemiga,10,9,tablero);
++
++        jugadorBlanco.atacarCon(jinete,10,9,tablero);
+ 
+         assertEquals(45, catapultaEnemiga.getPuntosDeVida());
+     }
+@@ -50,12 +63,19 @@ public void test03JineteAtacaSoldadoDeInfanteriaYLeQuita5PuntosDeVida() {
+ 
+         Color blanco = new Blanco();
+         Color negro = new Negro();
++        Jugador jugadorBlanco = new Jugador(blanco);
++        Jugador jugadorNegro = new Jugador(negro);
++        Tablero tablero = new Tablero();
++
+         Jinete jinete = new Jinete(blanco);
+-        SoldadoDeInfanteria soldado = new SoldadoDeInfanteria(negro);
++        Jinete soldadoEnemigo = new Jinete(negro);
++
++        jugadorBlanco.insertarPiezaEnPosicion(jinete,9,9,tablero);
++        jugadorNegro.insertarPiezaEnPosicion(soldadoEnemigo,10,9,tablero);
+ 
+-        jinete.atacarPieza(soldado);
++        jugadorBlanco.atacarCon(jinete,10,9,tablero);
+ 
+-        assertEquals(95, soldado.getPuntosDeVida());
++        assertEquals(95, soldadoEnemigo.getPuntosDeVida());
+     }
+ 
+     @Test
+@@ -63,10 +83,17 @@ public void test04JineteAtacaCuranderoYLeQuita5PuntosDeVida() {
+ 
+         Color blanco = new Blanco();
+         Color negro = new Negro();
++        Jugador jugadorBlanco = new Jugador(blanco);
++        Jugador jugadorNegro = new Jugador(negro);
++        Tablero tablero = new Tablero();
++
+         Jinete jinete = new Jinete(blanco);
+         Curandero curanderoEnemigo = new Curandero(negro);
+ 
+-        jinete.atacarPieza(curanderoEnemigo);
++        jugadorBlanco.insertarPiezaEnPosicion(jinete,9,9,tablero);
++        jugadorNegro.insertarPiezaEnPosicion(curanderoEnemigo,10,9,tablero);
++
++        jugadorBlanco.atacarCon(jinete,10,9,tablero);
+ 
+         assertEquals(70, curanderoEnemigo.getPuntosDeVida());
+     }
+@@ -76,18 +103,26 @@ public void test05JineteNoPuedeAtacarPiezaMuerta() {
+ 
+         Color blanco = new Blanco();
+         Color negro = new Negro();
++        Jugador jugadorBlanco = new Jugador(blanco);
++        Jugador jugadorNegro = new Jugador(negro);
++        Tablero tablero = new Tablero();
++
+         Jinete jinete = new Jinete(blanco);
+         Catapulta catapultaEnemiga = new Catapulta(negro);
+ 
++        jugadorBlanco.insertarPiezaEnPosicion(jinete,9,9,tablero);
++        jugadorNegro.insertarPiezaEnPosicion(catapultaEnemiga,10,9,tablero);
++
++
+         /** ataca 10 veces y la deja en 0 de vida */
+         for(int i = 0; i < 10; i++) {
+-            jinete.atacarPieza(catapultaEnemiga);
++            jugadorBlanco.atacarCon(jinete, 10, 9, tablero);
+         }
+ 
+         /** falla atacar devuelta porque ya esta muerta */
+         assertThrows(PiezaEstaMuertaException.class,
+                 ()->{
+-                    jinete.atacarPieza(catapultaEnemiga);
++                    jugadorBlanco.atacarCon(jinete, 10, 9, tablero);
+                 });
+     }
+ 
+@@ -95,13 +130,17 @@ public void test05JineteNoPuedeAtacarPiezaMuerta() {
+     public void test06JineteNoPuedeAtacarUnidadAliada() {
+ 
+         Color blanco = new Blanco();
+-        Color negro = new Negro();
+         Jinete jinete = new Jinete(blanco);
+-        Jinete jineteAliado = new Jinete(blanco);
++        SoldadoDeInfanteria soldadoAliado = new SoldadoDeInfanteria(blanco);
++        Jugador jugadorBlanco = new Jugador(blanco);
++        Tablero tablero = new Tablero();
++
++        jugadorBlanco.insertarPiezaEnPosicion(jinete,9,9,tablero);
++        jugadorBlanco.insertarPiezaEnPosicion(soldadoAliado,8,9,tablero);
+ 
+         assertThrows(NoPuedeAtacarPiezaDelMismoEquipo.class,
+                 ()->{
+-                    jinete.atacarPieza(jineteAliado);
++                    jugadorBlanco.atacarCon(jinete,8,9,tablero);
+                 });
+     }
+ }
+diff --git a/src/test/java/fiuba/algo3/tp2/TipoDeAtaqueDeSoldadoDeInfanteriaTest.java b/src/test/java/fiuba/algo3/tp2/AtaquesConSoldadoDeInfanteriaTest.java
+similarity index 98%
+rename from src/test/java/fiuba/algo3/tp2/TipoDeAtaqueDeSoldadoDeInfanteriaTest.java
+rename to src/test/java/fiuba/algo3/tp2/AtaquesConSoldadoDeInfanteriaTest.java
+index 3182063..22e0c70 100644
+--- a/src/test/java/fiuba/algo3/tp2/TipoDeAtaqueDeSoldadoDeInfanteriaTest.java
++++ b/src/test/java/fiuba/algo3/tp2/AtaquesConSoldadoDeInfanteriaTest.java
+@@ -15,7 +15,7 @@
+ import static org.junit.Assert.assertEquals;
+ import static org.junit.jupiter.api.Assertions.assertThrows;
+ 
+-public class TipoDeAtaqueDeSoldadoDeInfanteriaTest {
++public class AtaquesConSoldadoDeInfanteriaTest {
+     @Test
+     public void test01SoldadoDeInfanteriaAtacaJineteYLeQuita10PuntosDeVida() {
+ 
+@@ -162,7 +162,7 @@ public void test07SoldadoDeLadoEnemigoRecive5PorcientoMasDeAtaque() {
+ 
+         jugadorNegro.atacarCon(catapultaEnemiga,11,9,tablero);
+ 
+-        assertEquals(80, soldado.getPuntosDeVida());
++        assertEquals(79, soldado.getPuntosDeVida());
+     }
+ 
+     @Test
+diff --git a/src/test/java/fiuba/algo3/tp2/CuracionDeCuranderoTest.java b/src/test/java/fiuba/algo3/tp2/CuracionDeCuranderoTest.java
+index fa93d61..47a59d9 100644
+--- a/src/test/java/fiuba/algo3/tp2/CuracionDeCuranderoTest.java
++++ b/src/test/java/fiuba/algo3/tp2/CuracionDeCuranderoTest.java
+@@ -21,15 +21,22 @@ public void test01CuranderoCuraJineteAliadoAtacadoPorCatapulta() {
+ 
+         Color blanco = new Blanco();
+         Color negro = new Negro();
++        Jugador jugadorBlanco = new Jugador(blanco);
++        Jugador jugadorNegro = new Jugador(negro);
++        Tablero tablero = new Tablero();
+ 
+-        Jinete jinete = new Jinete(blanco);
+         Curandero curandero = new Curandero(blanco);
+-        Catapulta catapulta = new Catapulta(negro);
++        Jinete jineteAliado = new Jinete(blanco);
++        Catapulta catapultaEnemiga = new Catapulta(negro);
+ 
+-        catapulta.atacarPieza(jinete);
++        jugadorBlanco.insertarPiezaEnPosicion(jineteAliado,1,1,tablero);
++        jugadorBlanco.insertarPiezaEnPosicion(curandero,2,2,tablero);
++        jugadorNegro.insertarPiezaEnPosicion(catapultaEnemiga,19,19,tablero);
+ 
+-        curandero.curarPieza(jinete);
+-        assertEquals(jinete.getPuntosDeVida(), 95);
++        jugadorNegro.atacarCon(catapultaEnemiga,1,1,tablero);
++
++        jugadorBlanco.curarCon(curandero, 1, 1, tablero);
++        assertEquals(jineteAliado.getPuntosDeVida(), 95);
+     }
+ 
+     @Test
+@@ -37,12 +44,20 @@ public void test02CuranderoNoPuedeCurarUnidadEnemiga() {
+ 
+         Color blanco = new Blanco();
+         Color negro = new Negro();
++        Jugador jugadorBlanco = new Jugador(blanco);
++        Jugador jugadorNegro = new Jugador(negro);
++        Tablero tablero = new Tablero();
++
+         Curandero curandero = new Curandero(blanco);
+-        Jinete jinete = new Jinete(negro);
++        Jinete jineteEnemigo = new Jinete(negro);
++
++        jugadorBlanco.insertarPiezaEnPosicion(curandero,9,9,tablero);
++        jugadorNegro.insertarPiezaEnPosicion(jineteEnemigo,10,9,tablero);
++
+ 
+         assertThrows(NoPuedeCurarPiezaDelOtroEquipo.class,
+                 ()->{
+-                    curandero.curarPieza(jinete);
++                    jugadorBlanco.curarCon(curandero, 10, 9, tablero);
+                 });
+     }
+ 
+@@ -51,20 +66,28 @@ public void test03CuranderoNoPuedeCurarUnidadMuerta() {
+ 
+         Color blanco = new Blanco();
+         Color negro = new Negro();
+-        Jinete jinete = new Jinete(blanco);
++        Jugador jugadorBlanco = new Jugador(blanco);
++        Jugador jugadorNegro = new Jugador(negro);
++        Tablero tablero = new Tablero();
++
+         Curandero curandero = new Curandero(blanco);
+-        Catapulta catapulta = new Catapulta(negro);
++        Jinete jineteAliado = new Jinete(blanco);
++        Catapulta catapultaEnemiga = new Catapulta(negro);
++
++        jugadorBlanco.insertarPiezaEnPosicion(jineteAliado,1,1,tablero);
++        jugadorBlanco.insertarPiezaEnPosicion(curandero,2,2,tablero);
++        jugadorNegro.insertarPiezaEnPosicion(catapultaEnemiga,19,19,tablero);
++
++        jugadorNegro.atacarCon(catapultaEnemiga,1,1,tablero);
++        jugadorNegro.atacarCon(catapultaEnemiga,1,1,tablero);
++        jugadorNegro.atacarCon(catapultaEnemiga,1,1,tablero);
++        jugadorNegro.atacarCon(catapultaEnemiga,1,1,tablero);
++        jugadorNegro.atacarCon(catapultaEnemiga,1,1,tablero);
+ 
+-        catapulta.atacarPieza(jinete);
+-        catapulta.atacarPieza(jinete);
+-        catapulta.atacarPieza(jinete);
+-        catapulta.atacarPieza(jinete);
+-        /** mata al jinete */
+-        catapulta.atacarPieza(jinete);
+ 
+         assertThrows(PiezaEstaMuertaException.class,
+                 ()->{
+-                    curandero.curarPieza(jinete);
++                    jugadorBlanco.curarCon(curandero, 1, 1, tablero);
+                 });
+     }
+ 
+@@ -72,12 +95,26 @@ public void test03CuranderoNoPuedeCurarUnidadMuerta() {
+     public void test04CuranderoNoPuedeCurarCatapulta() {
+ 
+         Color blanco = new Blanco();
++        Color negro = new Negro();
++        Jugador jugadorBlanco = new Jugador(blanco);
++        Jugador jugadorNegro = new Jugador(negro);
++        Tablero tablero = new Tablero();
+ 
+         Curandero curandero = new Curandero(blanco);
+-        Catapulta catapulta = new Catapulta(blanco);
++        Catapulta catapultaAliada = new Catapulta(blanco);
++        Catapulta catapultaEnemiga = new Catapulta(negro);
++
++        jugadorBlanco.insertarPiezaEnPosicion(catapultaAliada,1,1,tablero);
++        jugadorBlanco.insertarPiezaEnPosicion(curandero,5,5,tablero);
++        jugadorNegro.insertarPiezaEnPosicion(catapultaEnemiga,19,19,tablero);
++
++        jugadorNegro.atacarCon(catapultaEnemiga,1,1,tablero);
++
+ 
+-        curandero.curarPieza(catapulta);
+         /** Los puntos de vida de la catapulta no cambian */
+-        assertEquals(50, catapulta.getPuntosDeVida());
++        jugadorBlanco.curarCon(curandero, 1, 1, tablero);
++
++
++        assertEquals(30, catapultaAliada.getPuntosDeVida());
+     }
+ }
+\ No newline at end of file
+diff --git a/src/test/java/fiuba/algo3/tp2/TipoDeAtaqueContiguoCatapultaTest.java b/src/test/java/fiuba/algo3/tp2/TipoDeAtaqueContiguoCatapultaTest.java
+deleted file mode 100644
+index 7d22e07..0000000
+--- a/src/test/java/fiuba/algo3/tp2/TipoDeAtaqueContiguoCatapultaTest.java
++++ /dev/null
+@@ -1,94 +0,0 @@
+-package fiuba.algo3.tp2;
+-
+-import fiuba.algo3.tp2.colores.Blanco;
+-import fiuba.algo3.tp2.colores.Color;
+-import fiuba.algo3.tp2.colores.Negro;
+-import fiuba.algo3.tp2.piezas.Catapulta;
+-import fiuba.algo3.tp2.piezas.Jinete;
+-import fiuba.algo3.tp2.piezas.SoldadoDeInfanteria;
+-import org.junit.Test;
+-import static org.junit.Assert.assertEquals;
+-
+-public class TipoDeAtaqueContiguoCatapultaTest {
+-
+-    @Test
+-    public void test01CatapultaAtacaPiezaYDaniaALaSiguientePiezaContigua() {
+-
+-        Color blanco = new Blanco();
+-        Color negro = new Negro();
+-        Jugador jugadorBlanco = new Jugador(blanco);
+-        Jugador jugadorNegro = new Jugador(negro);
+-        Tablero tablero = new Tablero();
+-
+-        Catapulta catapulta = new Catapulta(blanco);
+-        jugadorBlanco.insertarPiezaEnPosicion(catapulta,1,1,tablero);
+-
+-        Jinete jinete = new Jinete(negro);
+-        jugadorNegro.insertarPiezaEnPosicion(jinete,11,11,tablero);
+-        Jinete jinete2 = new Jinete(negro);
+-        jugadorNegro.insertarPiezaEnPosicion(jinete2,11,12,tablero);
+-
+-        jugadorBlanco.atacarCon(catapulta,11,11,tablero);
+-
+-        assertEquals(80,jinete.getPuntosDeVida());
+-        assertEquals(80,jinete2.getPuntosDeVida());
+-    }
+-
+-
+-    @Test
+-    public void test02CatapultaAtacaPiezaYDaniaALasSiguientes4PiezasContiguas() {
+-
+-        Color blanco = new Blanco();
+-        Color negro = new Negro();
+-        Jugador jugadorBlanco = new Jugador(blanco);
+-        Jugador jugadorNegro = new Jugador(negro);
+-        Tablero tablero = new Tablero();
+-
+-        Catapulta catapulta = new Catapulta(blanco);
+-        jugadorBlanco.insertarPiezaEnPosicion(catapulta,1,1,tablero);
+-
+-        Jinete jinete = new Jinete(negro);
+-        jugadorNegro.insertarPiezaEnPosicion(jinete,11,11,tablero);
+-        Jinete jinete2 = new Jinete(negro);
+-        jugadorNegro.insertarPiezaEnPosicion(jinete2,11,12,tablero);
+-        Jinete jinete3= new Jinete(negro);
+-        jugadorNegro.insertarPiezaEnPosicion(jinete3,11,13,tablero);
+-        Jinete jinete4 = new Jinete(negro);
+-        jugadorNegro.insertarPiezaEnPosicion(jinete4,12,12,tablero);
+-        Jinete jinete5 = new Jinete(negro);
+-        jugadorNegro.insertarPiezaEnPosicion(jinete5,12,11,tablero);
+-
+-
+-        jugadorBlanco.atacarCon(catapulta,11,11,tablero);
+-
+-        assertEquals(80,jinete.getPuntosDeVida());
+-        assertEquals(80,jinete2.getPuntosDeVida());
+-        assertEquals(80,jinete3.getPuntosDeVida());
+-        assertEquals(80,jinete4.getPuntosDeVida());
+-        assertEquals(80,jinete5.getPuntosDeVida());
+-    }
+-
+-    @Test
+-    public void test03CatapultaAtacaPiezaEnemigaYDaniaAliadoContiguo() {
+-
+-        Color blanco = new Blanco();
+-        Color negro = new Negro();
+-        Jugador jugadorBlanco = new Jugador(blanco);
+-        Jugador jugadorNegro = new Jugador(negro);
+-        Tablero tablero = new Tablero();
+-
+-        Catapulta catapulta = new Catapulta(blanco);
+-        jugadorBlanco.insertarPiezaEnPosicion(catapulta,1,1,tablero);
+-
+-        Jinete jineteAliado = new Jinete(blanco);
+-        jugadorBlanco.insertarPiezaEnPosicion(jineteAliado,9,5,tablero);
+-
+-        SoldadoDeInfanteria soldado = new SoldadoDeInfanteria(negro);
+-        jugadorNegro.insertarPiezaEnPosicion(soldado, 10,5,tablero);
+-
+-        jugadorBlanco.atacarCon(catapulta,10,5,tablero);
+-
+-        assertEquals(80,jineteAliado.getPuntosDeVida());
+-        assertEquals(80,soldado.getPuntosDeVida());
+-    }
+-}
+diff --git a/src/test/java/fiuba/algo3/tp2/TipoDeAtaqueDeCatapultaTest.java b/src/test/java/fiuba/algo3/tp2/TipoDeAtaqueDeCatapultaTest.java
+deleted file mode 100644
+index 2d19e7a..0000000
+--- a/src/test/java/fiuba/algo3/tp2/TipoDeAtaqueDeCatapultaTest.java
++++ /dev/null
+@@ -1,143 +0,0 @@
+-package fiuba.algo3.tp2;
+-
+-import fiuba.algo3.tp2.colores.Blanco;
+-import fiuba.algo3.tp2.colores.Color;
+-import fiuba.algo3.tp2.colores.Negro;
+-import fiuba.algo3.tp2.excepciones.PiezaEstaMuertaException;
+-import fiuba.algo3.tp2.excepciones.NoPuedeAtacarPiezaDelMismoEquipo;
+-import fiuba.algo3.tp2.piezas.Catapulta;
+-import fiuba.algo3.tp2.piezas.Curandero;
+-import fiuba.algo3.tp2.piezas.Jinete;
+-import fiuba.algo3.tp2.piezas.SoldadoDeInfanteria;
+-import org.junit.Test;
+-
+-import static org.junit.Assert.assertEquals;
+-import static org.junit.Assert.assertTrue;
+-import static org.junit.jupiter.api.Assertions.assertThrows;
+-
+-public class TipoDeAtaqueDeCatapultaTest {
+-
+-
+-    @Test
+-    public void test01CatapultaAtacaJineteYLeQuita20PuntosDeVida() {
+-
+-        Color blanco = new Blanco();
+-        Color negro = new Negro();
+-        Catapulta catapulta = new Catapulta(blanco);
+-        Jinete jineteEnemigo = new Jinete(negro);
+-
+-        catapulta.atacarPieza(jineteEnemigo);
+-
+-        assertEquals(80,jineteEnemigo.getPuntosDeVida());
+-    }
+-    @Test
+-    public void test02CatapultaAtacaCatapultaYLeQuita20PuntosDeVida() {
+-
+-        Color blanco = new Blanco();
+-        Color negro = new Negro();
+-        Catapulta catapulta = new Catapulta(blanco);
+-        Catapulta catapultaEnemiga = new Catapulta(negro);
+-
+-        catapulta.atacarPieza(catapultaEnemiga);
+-
+-        assertEquals(30, catapultaEnemiga.getPuntosDeVida());
+-    }
+-
+-    @Test
+-    public void test03CatapultaAtacaSoldadoDeInfanteriaYLeQuita20PuntosDeVida() {
+-
+-        Color blanco = new Blanco();
+-        Color negro = new Negro();
+-        Catapulta catapulta = new Catapulta(blanco);
+-        SoldadoDeInfanteria soldado = new SoldadoDeInfanteria(negro);
+-
+-        catapulta.atacarPieza(soldado);
+-
+-        assertEquals(80, soldado.getPuntosDeVida());
+-    }
+-
+-    @Test
+-    public void test04CatapultaAtacaCuranderoYLeQuita20PuntosDeVida() {
+-
+-        Color blanco = new Blanco();
+-        Color negro = new Negro();
+-        Catapulta catapulta = new Catapulta(blanco);
+-        Curandero curanderoEnemigo = new Curandero(negro);
+-
+-        catapulta.atacarPieza(curanderoEnemigo);
+-
+-        assertEquals(55, curanderoEnemigo.getPuntosDeVida());
+-    }
+-
+-    @Test
+-    public void test05CatapultaPuedeAtacarUnidadAliada() {
+-
+-        Color blanco = new Blanco();
+-        Catapulta catapulta = new Catapulta(blanco);
+-        Jinete jineteAliado = new Jinete(blanco);
+-
+-        catapulta.atacarPieza(jineteAliado);
+-
+-        assertEquals(80, jineteAliado.getPuntosDeVida());
+-
+-    }
+-
+-    @Test
+-    public void test06CatapultaNoPuedeAtacarPiezaMuerta() {
+-
+-        Color blanco = new Blanco();
+-        Color negro = new Negro();
+-        Catapulta catapulta = new Catapulta(blanco);
+-        Jinete jinete = new Jinete(negro);
+-
+-        catapulta.atacarPieza(jinete);
+-        catapulta.atacarPieza(jinete);
+-        catapulta.atacarPieza(jinete);
+-        catapulta.atacarPieza(jinete);
+-        catapulta.atacarPieza(jinete);
+-
+-        assertThrows(PiezaEstaMuertaException.class,
+-                ()->{
+-                    catapulta.atacarPieza(jinete);
+-                });
+-    }
+-
+-    @Test
+-    public void test07CatapultaNoPuedeAtacarPiezaADistanciaMedia() {
+-
+-        Color blanco = new Blanco();
+-        Color negro = new Negro();
+-        Jugador jugadorBlanco = new Jugador(blanco);
+-        Jugador jugadorNegro = new Jugador(negro);
+-        Tablero tablero = new Tablero();
+-
+-        Catapulta catapulta = new Catapulta(blanco);
+-        jugadorBlanco.insertarPiezaEnPosicion(catapulta,9,9,tablero);
+-
+-        Jinete jinete = new Jinete(negro);
+-        jugadorNegro.insertarPiezaEnPosicion(jinete,13,9, tablero);
+-
+-        jugadorBlanco.atacarCon(catapulta,13,9,tablero);
+-        assertEquals(100, jinete.getPuntosDeVida());
+-    }
+-
+-    @Test
+-    public  void test08CatapultaNoPuedeAtacarPiezaDistanciaCorta() {
+-
+-        Color blanco = new Blanco();
+-        Color negro = new Negro();
+-        Jugador jugadorBlanco = new Jugador(blanco);
+-        Jugador jugadorNegro = new Jugador(negro);
+-        Tablero tablero = new Tablero();
+-
+-        Catapulta catapulta = new Catapulta(blanco);
+-        jugadorBlanco.insertarPiezaEnPosicion(catapulta,9,9,tablero);
+-
+-        Jinete jinete = new Jinete(negro);
+-        jugadorNegro.insertarPiezaEnPosicion(jinete,10,9, tablero);
+-
+-        jugadorBlanco.atacarCon(catapulta,10,9,tablero);
+-        assertEquals(100, jinete.getPuntosDeVida());
+-
+-    }
+-}
