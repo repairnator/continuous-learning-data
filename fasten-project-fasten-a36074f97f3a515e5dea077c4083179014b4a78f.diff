@@ -1,0 +1,62 @@
+diff --git a/core/src/main/java/eu/fasten/core/data/KnowledgeBase.java b/core/src/main/java/eu/fasten/core/data/KnowledgeBase.java
+index b84b53a..9bb96fd 100644
+--- a/core/src/main/java/eu/fasten/core/data/KnowledgeBase.java
++++ b/core/src/main/java/eu/fasten/core/data/KnowledgeBase.java
+@@ -287,7 +287,7 @@ protected CallGraph(final RevisionCallGraph g, final long index) throws IOExcept
+ 			// Compress, load and serialize transpose graph
+ 			BVGraph.store(Transform.transpose(mutableGraph.immutableView()), f.toString());
+             propertyFile = new FileInputStream(f + BVGraph.PROPERTIES_EXTENSION);
+-            graphProperties.load(propertyFile);
++            transposeProperties.load(propertyFile);
+             propertyFile.close();
+ 
+ 			kryo.writeObject(bbo, BVGraph.load(f.toString()));
+diff --git a/core/src/main/java/eu/fasten/core/index/KBStats.java b/core/src/main/java/eu/fasten/core/index/KBStats.java
+index 1d521fe..eeda5b7 100644
+--- a/core/src/main/java/eu/fasten/core/index/KBStats.java
++++ b/core/src/main/java/eu/fasten/core/index/KBStats.java
+@@ -2,6 +2,7 @@
+ 
+ import java.io.File;
+ import java.io.IOException;
++import java.util.Properties;
+ 
+ import org.rocksdb.RocksDBException;
+ 
+@@ -37,7 +38,8 @@
+ 
+ public class KBStats {
+ 
+-	private static ImmutableGraph[] graphs;
++	private static ImmutableGraph[] graph;
++	private static Properties[] property;
+ 
+ 	public static void main(final String[] args) throws JSAPException, ClassNotFoundException, RocksDBException, IOException {
+ 		final SimpleJSAP jsap = new SimpleJSAP( Indexer.class.getName(),
+@@ -55,16 +57,23 @@ public static void main(final String[] args) throws JSAPException, ClassNotFound
+ 
+ 		final StatsAccumulator nodes = new StatsAccumulator();
+ 		final StatsAccumulator arcs = new StatsAccumulator();
++		final StatsAccumulator bitsPerLink = new StatsAccumulator();
++		final StatsAccumulator bitsPerLinkt = new StatsAccumulator();
+ 		for(final CallGraph callGraph: kb.callGraphs.values()) {
+-			graphs = callGraph.graphs();
+-			nodes.add(graphs[0].numNodes());
+-			arcs.add(graphs[0].numArcs());
++			graph = callGraph.graphs();
++			nodes.add(graph[0].numNodes());
++			arcs.add(graph[0].numArcs());
++			property = callGraph.graphProperties();
++			bitsPerLink.add(Double.parseDouble((String)(property[0].getProperty("bitsperlink"))));
++			bitsPerLinkt.add(Double.parseDouble((String)(property[1].getProperty("bitsperlink"))));
+ 		}
+ 
+ 		kb.close();
+ 
+ 		System.out.println(nodes.snapshot());
+ 		System.out.println(arcs.snapshot());
++		System.out.println(bitsPerLink.snapshot());
++		System.out.println(bitsPerLinkt.snapshot());
+ 	}
+ 
+ }
