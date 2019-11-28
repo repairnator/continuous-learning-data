@@ -1,0 +1,1103 @@
+diff --git a/src/main/java/org/rumbledb/api/SequenceOfItems.java b/src/main/java/org/rumbledb/api/SequenceOfItems.java
+index 92d205d3..b7593319 100644
+--- a/src/main/java/org/rumbledb/api/SequenceOfItems.java
++++ b/src/main/java/org/rumbledb/api/SequenceOfItems.java
+@@ -83,7 +83,7 @@ public Item next() {
+      * @return true if it is available as an RDD of Items.
+      */
+     public boolean availableAsRDD() {
+-        return _iterator.isRDD();
++        return _iterator.isRDD(new DynamicContext());
+     }
+ 
+     /**
+diff --git a/src/main/java/org/rumbledb/cli/JsoniqQueryExecutor.java b/src/main/java/org/rumbledb/cli/JsoniqQueryExecutor.java
+index 6432035c..99dcf271 100644
+--- a/src/main/java/org/rumbledb/cli/JsoniqQueryExecutor.java
++++ b/src/main/java/org/rumbledb/cli/JsoniqQueryExecutor.java
+@@ -89,22 +89,23 @@ public void runLocal(String queryFile, String outputPath) throws IOException {
+         CharStream charStream = CharStreams.fromFileName(queryFile);
+         long startTime = System.currentTimeMillis();
+         JsoniqExpressionTreeVisitor visitor = this.parse(new JsoniqLexer(charStream));
+-        // generate static context
+         generateStaticContext(visitor.getMainModule());
+-        // generate iterators
+         RuntimeIterator result = generateRuntimeIterators(visitor.getMainModule());
++
+         if (_configuration.isPrintIteratorTree()) {
+             StringBuffer sb = new StringBuffer();
+             result.print(sb, 0);
+             System.out.println(sb);
+             return;
+         }
+-        if (result.isRDD() && outputPath != null) {
+-            JavaRDD<Item> rdd = result.getRDD(new DynamicContext());
++
++        DynamicContext context = new DynamicContext();
++        if (result.isRDD(context) && outputPath != null) {
++            JavaRDD<Item> rdd = result.getRDD(context);
+             JavaRDD<String> output = rdd.map(o -> o.serialize());
+             output.saveAsTextFile(outputPath);
+         } else {
+-            String output = runIterators(result);
++            String output = getLocalExecutionResults(result, context);
+             if (outputPath != null) {
+                 List<String> lines = Arrays.asList(output);
+                 org.apache.commons.io.FileUtils.writeLines(outputFile, "UTF-8", lines);
+@@ -123,24 +124,22 @@ public void run(String queryFile, String outputPath) throws IOException {
+         JsoniqLexer lexer = getInputSource(queryFile);
+         long startTime = System.currentTimeMillis();
+         JsoniqExpressionTreeVisitor visitor = this.parse(lexer);
+-        // generate static context
+         generateStaticContext(visitor.getMainModule());
+-        // generate iterators
+         RuntimeIterator result = generateRuntimeIterators(visitor.getMainModule());
+-        // collect output in memory and write to filesystem from java
+-        if (_useLocalOutputLog) {
+-            String output = runIterators(result);
++        DynamicContext context = new DynamicContext();
++
++        if (_useLocalOutputLog) { // collect output in memory and write to filesystem from java
++            String output = getLocalExecutionResults(result, context);
+             org.apache.hadoop.fs.FileSystem fileSystem = org.apache.hadoop.fs.FileSystem
+                 .get(SparkSessionManager.getInstance().getJavaSparkContext().hadoopConfiguration());
+             FSDataOutputStream fsDataOutputStream = fileSystem.create(new Path(outputPath));
+             BufferedOutputStream stream = new BufferedOutputStream(fsDataOutputStream);
+             stream.write(output.getBytes());
+             stream.close();
+-            // else write from Spark RDD
+-        } else {
+-            if (!result.isRDD())
++        } else { // else write from Spark RDD
++            if (!result.isRDD(context))
+                 throw new SparksoniqRuntimeException("Could not find any RDD iterators in executor");
+-            JavaRDD<Item> rdd = result.getRDD(new DynamicContext());
++            JavaRDD<Item> rdd = result.getRDD(context);
+             JavaRDD<String> output = rdd.map(o -> o.serialize());
+             output.saveAsTextFile(outputPath);
+         }
+@@ -175,20 +174,16 @@ private void writeTimeLog(long totalTime) throws IOException {
+     }
+ 
+     public String runInteractive(java.nio.file.Path queryFile) throws IOException {
+-        // create temp file
+         JsoniqLexer lexer = getInputSource(queryFile.toString());
+         JsoniqExpressionTreeVisitor visitor = this.parse(lexer);
+-        // generate static context
+         generateStaticContext(visitor.getMainModule());
+-        // generate iterators
+         RuntimeIterator runtimeIterator = generateRuntimeIterators(visitor.getMainModule());
+-        // execute locally for simple expressions
+-        if (!runtimeIterator.isRDD()) {
+-            String localOutput = this.runIterators(runtimeIterator);
+-            return localOutput;
++        DynamicContext context = new DynamicContext();
++
++        if (!runtimeIterator.isRDD(context)) {
++            return this.getLocalExecutionResults(runtimeIterator, context);
+         }
+-        String rddOutput = this.getRDDResults(runtimeIterator);
+-        return rddOutput;
++        return this.getRDDResults(runtimeIterator, context);
+     }
+ 
+     private JsoniqLexer getInputSource(String arg) throws IOException {
+@@ -242,17 +237,11 @@ private void generateStaticContext(Expression expression) {
+     }
+ 
+     private RuntimeIterator generateRuntimeIterators(Expression expression) {
+-        RuntimeIterator result = new RuntimeIteratorVisitor().visit(expression, null);
+-        return result;
+-    }
+-
+-    protected String runIterators(RuntimeIterator iterator) {
+-        String actualOutput = getIteratorOutput(iterator);
+-        return actualOutput;
++        return new RuntimeIteratorVisitor().visit(expression, null);
+     }
+ 
+-    private String getIteratorOutput(RuntimeIterator iterator) {
+-        iterator.open(new DynamicContext());
++    protected String getLocalExecutionResults(RuntimeIterator iterator, DynamicContext context) {
++        iterator.open(context);
+         Item result = null;
+         if (iterator.hasNext()) {
+             result = iterator.next();
+@@ -284,8 +273,8 @@ private String getIteratorOutput(RuntimeIterator iterator) {
+         }
+     }
+ 
+-    private String getRDDResults(RuntimeIterator result) {
+-        JavaRDD<Item> rdd = result.getRDD(new DynamicContext());
++    private String getRDDResults(RuntimeIterator result, DynamicContext context) {
++        JavaRDD<Item> rdd = result.getRDD(context);
+         JavaRDD<String> output = rdd.map(o -> o.serialize());
+         long resultCount = output.count();
+         if (resultCount == 0) {
+diff --git a/src/main/java/sparksoniq/jsoniq/runtime/iterator/HybridRuntimeIterator.java b/src/main/java/sparksoniq/jsoniq/runtime/iterator/HybridRuntimeIterator.java
+index e50a25e7..c60245be 100644
+--- a/src/main/java/sparksoniq/jsoniq/runtime/iterator/HybridRuntimeIterator.java
++++ b/src/main/java/sparksoniq/jsoniq/runtime/iterator/HybridRuntimeIterator.java
+@@ -24,8 +24,6 @@
+ import org.apache.spark.sql.Dataset;
+ import org.apache.spark.sql.Row;
+ import org.rumbledb.api.Item;
+-import org.rumbledb.cli.Main;
+-
+ import sparksoniq.exceptions.IteratorFlowException;
+ import sparksoniq.exceptions.SparkRuntimeException;
+ import sparksoniq.io.json.JiqsItemParser;
+@@ -51,23 +49,23 @@ protected HybridRuntimeIterator(List<RuntimeIterator> children, IteratorMetadata
+     }
+ 
+     @Override
+-    public boolean isRDD() {
++    public boolean isRDD(DynamicContext context) {
+         if (!isRDDInitialized) {
+-            _isRDD = initIsRDD();
++            _isRDD = initIsRDD(context);
+             isRDDInitialized = true;
+         }
+         return _isRDD;
+     }
+ 
+     @Override
+-    public boolean isDataFrame() {
++    public boolean isDataFrame(DynamicContext context) {
+         return false;
+     }
+ 
+     @Override
+     public void open(DynamicContext context) {
+         super.open(context);
+-        if (!isRDD()) {
++        if (!isRDD(context)) {
+             openLocal();
+         }
+     }
+@@ -111,16 +109,19 @@ public Item next() {
+         if (!_isRDD) {
+             return nextLocal();
+         }
+-        if (!this._isOpen)
++        if (!this._isOpen) {
+             throw new IteratorFlowException("Runtime iterator is not open", getMetadata());
++        }
+ 
+-        if (!(currentResultIndex <= result.size() - 1))
++        if (!(currentResultIndex <= result.size() - 1)) {
+             throw new IteratorFlowException(
+                     RuntimeIterator.FLOW_EXCEPTION_MESSAGE + this.getClass().getSimpleName(),
+                     getMetadata()
+             );
+-        if (currentResultIndex == result.size() - 1)
++        }
++        if (currentResultIndex == result.size() - 1) {
+             this._hasNext = false;
++        }
+ 
+         Item item = result.get(currentResultIndex);
+         currentResultIndex++;
+@@ -130,7 +131,7 @@ public Item next() {
+ 
+     @Override
+     public JavaRDD<Item> getRDD(DynamicContext context) {
+-        if (isDataFrame()) {
++        if (isDataFrame(context)) {
+             Dataset<Row> df = this.getDataFrame(context);
+             JavaRDD<Row> rowRDD = df.javaRDD();
+             return rowRDD.map(new RowToItemMapper(getMetadata()));
+@@ -146,7 +147,7 @@ public Item next() {
+ 
+     protected abstract JavaRDD<Item> getRDDAux(DynamicContext context);
+ 
+-    protected abstract boolean initIsRDD();
++    protected abstract boolean initIsRDD(DynamicContext context);
+ 
+     protected abstract void openLocal();
+ 
+diff --git a/src/main/java/sparksoniq/jsoniq/runtime/iterator/LocalRuntimeIterator.java b/src/main/java/sparksoniq/jsoniq/runtime/iterator/LocalRuntimeIterator.java
+index 5d127541..6c42d708 100644
+--- a/src/main/java/sparksoniq/jsoniq/runtime/iterator/LocalRuntimeIterator.java
++++ b/src/main/java/sparksoniq/jsoniq/runtime/iterator/LocalRuntimeIterator.java
+@@ -39,12 +39,12 @@ protected LocalRuntimeIterator(List<RuntimeIterator> children, IteratorMetadata
+     }
+ 
+     @Override
+-    public boolean isRDD() {
++    public boolean isRDD(DynamicContext context) {
+         return false;
+     }
+ 
+     @Override
+-    public boolean isDataFrame() {
++    public boolean isDataFrame(DynamicContext context) {
+         return false;
+     }
+ 
+diff --git a/src/main/java/sparksoniq/jsoniq/runtime/iterator/RDDRuntimeIterator.java b/src/main/java/sparksoniq/jsoniq/runtime/iterator/RDDRuntimeIterator.java
+index c3e4c8a0..b1a58c67 100644
+--- a/src/main/java/sparksoniq/jsoniq/runtime/iterator/RDDRuntimeIterator.java
++++ b/src/main/java/sparksoniq/jsoniq/runtime/iterator/RDDRuntimeIterator.java
+@@ -39,7 +39,7 @@ protected RDDRuntimeIterator(List<RuntimeIterator> children, IteratorMetadata it
+     }
+ 
+     @Override
+-    protected boolean initIsRDD() {
++    protected boolean initIsRDD(DynamicContext context) {
+         return true;
+     }
+ 
+diff --git a/src/main/java/sparksoniq/jsoniq/runtime/iterator/RuntimeIterator.java b/src/main/java/sparksoniq/jsoniq/runtime/iterator/RuntimeIterator.java
+index eccee678..e2fe2142 100644
+--- a/src/main/java/sparksoniq/jsoniq/runtime/iterator/RuntimeIterator.java
++++ b/src/main/java/sparksoniq/jsoniq/runtime/iterator/RuntimeIterator.java
+@@ -59,8 +59,9 @@ protected RuntimeIterator(List<RuntimeIterator> children, IteratorMetadata metad
+         this.metadata = metadata;
+         this._isOpen = false;
+         this._children = new ArrayList<>();
+-        if (children != null && !children.isEmpty())
++        if (children != null && !children.isEmpty()) {
+             this._children.addAll(children);
++        }
+     }
+ 
+     /**
+@@ -77,29 +78,29 @@ public static boolean getEffectiveBooleanValue(RuntimeIterator iterator) {
+         if (iterator.hasNext()) {
+             Item item = iterator.next();
+             boolean result;
+-            if (item.isBoolean())
++            if (item.isBoolean()) {
+                 result = item.getBooleanValue();
+-            else if (item.isNumeric()) {
+-                if (item.isInteger())
++            } else if (item.isNumeric()) {
++                if (item.isInteger()) {
+                     result = item.getIntegerValue() != 0;
+-                else if (item.isDouble())
++                } else if (item.isDouble()) {
+                     result = item.getDoubleValue() != 0;
+-                else if (item.isDecimal())
++                } else if (item.isDecimal()) {
+                     result = !item.getDecimalValue().equals(BigDecimal.ZERO);
+-                else {
++                } else {
+                     throw new SparksoniqRuntimeException(
+                             "Unexpected numeric type found while calculating effective boolean value."
+                     );
+                 }
+-            } else if (item.isNull())
++            } else if (item.isNull()) {
+                 result = false;
+-            else if (item.isString())
++            } else if (item.isString()) {
+                 result = !item.getStringValue().isEmpty();
+-            else if (item.isObject())
++            } else if (item.isObject()) {
+                 return true;
+-            else if (item.isArray())
++            } else if (item.isArray()) {
+                 return true;
+-            else {
++            } else {
+                 throw new InvalidArgumentTypeException(
+                         "Effective boolean value not defined for items of type "
+                             +
+@@ -126,8 +127,9 @@ else if (item.isArray())
+     }
+ 
+     public void open(DynamicContext context) {
+-        if (this._isOpen)
++        if (this._isOpen) {
+             throw new IteratorFlowException("Runtime iterator cannot be opened twice", getMetadata());
++        }
+         this._isOpen = true;
+         this._hasNext = true;
+         this._currentDynamicContext = context;
+@@ -170,11 +172,11 @@ public IteratorMetadata getMetadata() {
+         return metadata;
+     }
+ 
+-    public abstract boolean isRDD();
++    public abstract boolean isRDD(DynamicContext context);
+ 
+     public abstract JavaRDD<Item> getRDD(DynamicContext context);
+ 
+-    public abstract boolean isDataFrame();
++    public abstract boolean isDataFrame(DynamicContext context);
+ 
+     public abstract Dataset<Row> getDataFrame(DynamicContext context);
+ 
+@@ -184,8 +186,9 @@ public IteratorMetadata getMetadata() {
+         List<Item> values = new ArrayList<>();
+         for (RuntimeIterator iterator : this._children) {
+             iterator.open(context);
+-            while (iterator.hasNext())
++            while (iterator.hasNext()) {
+                 values.add(iterator.next());
++            }
+             iterator.close();
+         }
+         return values;
+@@ -194,8 +197,9 @@ public IteratorMetadata getMetadata() {
+     protected List<Item> getItemsFromIteratorWithCurrentContext(RuntimeIterator iterator) {
+         List<Item> result = new ArrayList<>();
+         iterator.open(_currentDynamicContext);
+-        while (iterator.hasNext())
++        while (iterator.hasNext()) {
+             result.add(iterator.next());
++        }
+         iterator.close();
+         return result;
+     }
+@@ -225,8 +229,9 @@ public IteratorMetadata getMetadata() {
+             }
+         }
+         iterator.close();
+-        if (result != null && !(type.isInstance(result)))
++        if (result != null && !(type.isInstance(result))) {
+             throw new UnexpectedTypeException("Invalid item type returned by iterator", iterator.getMetadata());
++        }
+         return (T) result;
+     }
+ 
+diff --git a/src/main/java/sparksoniq/jsoniq/runtime/iterator/SparkRuntimeIterator.java b/src/main/java/sparksoniq/jsoniq/runtime/iterator/SparkRuntimeIterator.java
+deleted file mode 100644
+index f3cad31f..00000000
+--- a/src/main/java/sparksoniq/jsoniq/runtime/iterator/SparkRuntimeIterator.java
++++ /dev/null
+@@ -1,121 +0,0 @@
+-/*
+- * Licensed to the Apache Software Foundation (ASF) under one or more
+- * contributor license agreements. See the NOTICE file distributed with
+- * this work for additional information regarding copyright ownership.
+- * The ASF licenses this file to You under the Apache License, Version 2.0
+- * (the "License"); you may not use this file except in compliance with
+- * the License. You may obtain a copy of the License at
+- *
+- * http://www.apache.org/licenses/LICENSE-2.0
+- *
+- * Unless required by applicable law or agreed to in writing, software
+- * distributed under the License is distributed on an "AS IS" BASIS,
+- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+- * See the License for the specific language governing permissions and
+- * limitations under the License.
+- *
+- * Authors: Stefan Irimescu, Can Berker Cikis
+- *
+- */
+-
+-package sparksoniq.jsoniq.runtime.iterator;
+-
+-import org.apache.spark.api.java.JavaRDD;
+-import org.apache.spark.sql.Dataset;
+-import org.apache.spark.sql.Row;
+-import org.rumbledb.api.Item;
+-import org.rumbledb.cli.Main;
+-
+-import sparksoniq.exceptions.IteratorFlowException;
+-import sparksoniq.exceptions.SparkRuntimeException;
+-import sparksoniq.io.json.JiqsItemParser;
+-import sparksoniq.io.json.RowToItemMapper;
+-import sparksoniq.jsoniq.runtime.metadata.IteratorMetadata;
+-import sparksoniq.semantics.DynamicContext;
+-import sparksoniq.spark.SparkSessionManager;
+-
+-import java.util.List;
+-
+-public abstract class SparkRuntimeIterator extends RuntimeIterator {
+-
+-
+-    private static final long serialVersionUID = 1L;
+-    protected JiqsItemParser parser;
+-    protected JavaRDD<Item> _rdd;
+-    protected List<Item> result = null;
+-    protected int currentResultIndex = 0;
+-
+-    protected SparkRuntimeIterator(List<RuntimeIterator> children, IteratorMetadata iteratorMetadata) {
+-        super(children, iteratorMetadata);
+-        this.parser = new JiqsItemParser();
+-    }
+-
+-    @Override
+-    public boolean isRDD() {
+-        return true;
+-    }
+-
+-    @Override
+-    public boolean isDataFrame() {
+-        return false;
+-    }
+-
+-    @Override
+-    public void reset(DynamicContext context) {
+-        super.reset(context);
+-        result = null;
+-    }
+-
+-    @Override
+-    public void close() {
+-        super.close();
+-        result = null;
+-    }
+-
+-    @Override
+-    public boolean hasNext() {
+-        if (result == null) {
+-            currentResultIndex = 0;
+-            _rdd = this.getRDD(_currentDynamicContext);
+-            result = SparkSessionManager.collectRDDwithLimit(_rdd);
+-            _hasNext = !result.isEmpty();
+-        }
+-        return _hasNext;
+-    }
+-
+-    @Override
+-    public Item next() {
+-        if (!this._isOpen)
+-            throw new IteratorFlowException("Runtime iterator is not open", getMetadata());
+-
+-        if (!(currentResultIndex <= result.size() - 1))
+-            throw new IteratorFlowException(
+-                    RuntimeIterator.FLOW_EXCEPTION_MESSAGE + this.getClass().getSimpleName(),
+-                    getMetadata()
+-            );
+-        if (currentResultIndex == result.size() - 1)
+-            this._hasNext = false;
+-
+-        Item item = result.get(currentResultIndex);
+-        currentResultIndex++;
+-        return item;
+-    }
+-
+-    @Override
+-    public JavaRDD<Item> getRDD(DynamicContext context) {
+-        if (isDataFrame()) {
+-            Dataset<Row> df = this.getDataFrame(context);
+-            JavaRDD<Row> rowRDD = df.javaRDD();
+-            return rowRDD.map(new RowToItemMapper(getMetadata()));
+-        } else {
+-            return getRDDAux(context);
+-        }
+-    }
+-
+-    @Override
+-    public Dataset<Row> getDataFrame(DynamicContext context) {
+-        throw new SparkRuntimeException("DataFrames are not implemented for the iterator", getMetadata());
+-    }
+-
+-    protected abstract JavaRDD<Item> getRDDAux(DynamicContext context);
+-}
+diff --git a/src/main/java/sparksoniq/jsoniq/runtime/iterator/functions/DynamicFunctionCallIterator.java b/src/main/java/sparksoniq/jsoniq/runtime/iterator/functions/DynamicFunctionCallIterator.java
+index 71003034..c2da3fbd 100644
+--- a/src/main/java/sparksoniq/jsoniq/runtime/iterator/functions/DynamicFunctionCallIterator.java
++++ b/src/main/java/sparksoniq/jsoniq/runtime/iterator/functions/DynamicFunctionCallIterator.java
+@@ -129,9 +129,10 @@ public void setNextResult() {
+     }
+ 
+     @Override
+-    public boolean initIsRDD() {
++    public boolean initIsRDD(DynamicContext context) {
++        _currentDynamicContext = context;
+         setFunctionItemAndIteratorWithCurrentContext();
+-        return _functionCallIterator.isRDD();
++        return _functionCallIterator.isRDD(_currentDynamicContext);
+     }
+ 
+     private void setFunctionItemAndIteratorWithCurrentContext() {
+diff --git a/src/main/java/sparksoniq/jsoniq/runtime/iterator/functions/FunctionItemCallIterator.java b/src/main/java/sparksoniq/jsoniq/runtime/iterator/functions/FunctionItemCallIterator.java
+index 40ade334..6f2ef9f0 100644
+--- a/src/main/java/sparksoniq/jsoniq/runtime/iterator/functions/FunctionItemCallIterator.java
++++ b/src/main/java/sparksoniq/jsoniq/runtime/iterator/functions/FunctionItemCallIterator.java
+@@ -205,11 +205,11 @@ public void setNextResult() {
+     }
+ 
+     @Override
+-    public boolean initIsRDD() {
++    public boolean initIsRDD(DynamicContext context) {
+         if (_isPartialApplication) {
+             return false;
+         }
+         _functionBodyIterator = _functionItem.getBodyIterator();
+-        return _functionBodyIterator.isRDD();
++        return _functionBodyIterator.isRDD(context);
+     }
+ }
+diff --git a/src/main/java/sparksoniq/jsoniq/runtime/iterator/functions/StaticUserDefinedFunctionCallIterator.java b/src/main/java/sparksoniq/jsoniq/runtime/iterator/functions/StaticUserDefinedFunctionCallIterator.java
+index d2937bd3..d9109638 100644
+--- a/src/main/java/sparksoniq/jsoniq/runtime/iterator/functions/StaticUserDefinedFunctionCallIterator.java
++++ b/src/main/java/sparksoniq/jsoniq/runtime/iterator/functions/StaticUserDefinedFunctionCallIterator.java
+@@ -117,13 +117,13 @@ public void setNextResult() {
+     }
+ 
+     @Override
+-    public boolean initIsRDD() {
++    public boolean initIsRDD(DynamicContext context) {
+         _userDefinedFunctionCallIterator = Functions.getUserDefinedFunctionCallIterator(
+             _functionIdentifier,
+             getMetadata(),
+             _functionArguments
+         );
+-        return _userDefinedFunctionCallIterator.isRDD();
++        return _userDefinedFunctionCallIterator.isRDD(context);
+     }
+ 
+     public Map<String, DynamicContext.VariableDependency> getVariableDependencies() {
+diff --git a/src/main/java/sparksoniq/jsoniq/runtime/iterator/functions/object/ObjectKeysFunctionIterator.java b/src/main/java/sparksoniq/jsoniq/runtime/iterator/functions/object/ObjectKeysFunctionIterator.java
+index 81abee21..52308699 100644
+--- a/src/main/java/sparksoniq/jsoniq/runtime/iterator/functions/object/ObjectKeysFunctionIterator.java
++++ b/src/main/java/sparksoniq/jsoniq/runtime/iterator/functions/object/ObjectKeysFunctionIterator.java
+@@ -126,7 +126,7 @@ public void setNextResult() {
+     }
+ 
+     @Override
+-    public boolean initIsRDD() {
+-        return _iterator.isRDD();
++    public boolean initIsRDD(DynamicContext context) {
++        return _iterator.isRDD(context);
+     }
+ }
+diff --git a/src/main/java/sparksoniq/jsoniq/runtime/iterator/functions/object/ObjectValuesFunctionIterator.java b/src/main/java/sparksoniq/jsoniq/runtime/iterator/functions/object/ObjectValuesFunctionIterator.java
+index 225c57dc..049bb760 100644
+--- a/src/main/java/sparksoniq/jsoniq/runtime/iterator/functions/object/ObjectValuesFunctionIterator.java
++++ b/src/main/java/sparksoniq/jsoniq/runtime/iterator/functions/object/ObjectValuesFunctionIterator.java
+@@ -112,7 +112,7 @@ public void setNextResult() {
+     }
+ 
+     @Override
+-    public boolean initIsRDD() {
+-        return _iterator.isRDD();
++    public boolean initIsRDD(DynamicContext context) {
++        return _iterator.isRDD(context);
+     }
+ }
+diff --git a/src/main/java/sparksoniq/jsoniq/runtime/iterator/functions/sequences/aggregate/CountFunctionIterator.java b/src/main/java/sparksoniq/jsoniq/runtime/iterator/functions/sequences/aggregate/CountFunctionIterator.java
+index efb44bf5..8662830d 100644
+--- a/src/main/java/sparksoniq/jsoniq/runtime/iterator/functions/sequences/aggregate/CountFunctionIterator.java
++++ b/src/main/java/sparksoniq/jsoniq/runtime/iterator/functions/sequences/aggregate/CountFunctionIterator.java
+@@ -58,7 +58,7 @@ public Item next() {
+                 return _currentDynamicContext.getVariableCount(expr.getVariableName());
+             }
+ 
+-            if (!iterator.isRDD()) {
++            if (!iterator.isRDD(_currentDynamicContext)) {
+                 List<Item> results = getItemsFromIteratorWithCurrentContext(iterator);
+                 this._hasNext = false;
+                 return ItemFactory.getInstance().createIntegerItem(results.size());
+diff --git a/src/main/java/sparksoniq/jsoniq/runtime/iterator/functions/sequences/aggregate/MaxFunctionIterator.java b/src/main/java/sparksoniq/jsoniq/runtime/iterator/functions/sequences/aggregate/MaxFunctionIterator.java
+index c11a03db..82efc4b4 100644
+--- a/src/main/java/sparksoniq/jsoniq/runtime/iterator/functions/sequences/aggregate/MaxFunctionIterator.java
++++ b/src/main/java/sparksoniq/jsoniq/runtime/iterator/functions/sequences/aggregate/MaxFunctionIterator.java
+@@ -66,7 +66,7 @@ public Item next() {
+         if (this._hasNext) {
+             this._hasNext = false;
+             ItemComparatorForSequences comparator = new ItemComparatorForSequences();
+-            if (!_iterator.isRDD()) {
++            if (!_iterator.isRDD(_currentDynamicContext)) {
+                 List<Item> results = getItemsFromIteratorWithCurrentContext(_iterator);
+ 
+                 try {
+diff --git a/src/main/java/sparksoniq/jsoniq/runtime/iterator/functions/sequences/aggregate/MinFunctionIterator.java b/src/main/java/sparksoniq/jsoniq/runtime/iterator/functions/sequences/aggregate/MinFunctionIterator.java
+index 45ebc095..932430e4 100644
+--- a/src/main/java/sparksoniq/jsoniq/runtime/iterator/functions/sequences/aggregate/MinFunctionIterator.java
++++ b/src/main/java/sparksoniq/jsoniq/runtime/iterator/functions/sequences/aggregate/MinFunctionIterator.java
+@@ -66,7 +66,7 @@ public Item next() {
+         if (this._hasNext) {
+             this._hasNext = false;
+             ItemComparatorForSequences comparator = new ItemComparatorForSequences();
+-            if (!_iterator.isRDD()) {
++            if (!_iterator.isRDD(_currentDynamicContext)) {
+                 List<Item> results = getItemsFromIteratorWithCurrentContext(_iterator);
+ 
+                 try {
+diff --git a/src/main/java/sparksoniq/jsoniq/runtime/iterator/functions/sequences/cardinality/ExactlyOneIterator.java b/src/main/java/sparksoniq/jsoniq/runtime/iterator/functions/sequences/cardinality/ExactlyOneIterator.java
+index 676b09be..d1e3af77 100644
+--- a/src/main/java/sparksoniq/jsoniq/runtime/iterator/functions/sequences/cardinality/ExactlyOneIterator.java
++++ b/src/main/java/sparksoniq/jsoniq/runtime/iterator/functions/sequences/cardinality/ExactlyOneIterator.java
+@@ -59,8 +59,8 @@ public void open(DynamicContext context) {
+ 
+         RuntimeIterator sequenceIterator = this._children.get(0);
+ 
+-        if (!sequenceIterator.isRDD()) {
+-            sequenceIterator.open(context);
++        if (!sequenceIterator.isRDD(_currentDynamicContext)) {
++            sequenceIterator.open(_currentDynamicContext);
+             if (!sequenceIterator.hasNext()) {
+                 throw new SequenceExceptionExactlyOne(
+                         "fn:exactly-one() called with a sequence that doesn't contain exactly one item",
+diff --git a/src/main/java/sparksoniq/jsoniq/runtime/iterator/functions/sequences/cardinality/ZeroOrOneIterator.java b/src/main/java/sparksoniq/jsoniq/runtime/iterator/functions/sequences/cardinality/ZeroOrOneIterator.java
+index 47a8166b..3625a310 100644
+--- a/src/main/java/sparksoniq/jsoniq/runtime/iterator/functions/sequences/cardinality/ZeroOrOneIterator.java
++++ b/src/main/java/sparksoniq/jsoniq/runtime/iterator/functions/sequences/cardinality/ZeroOrOneIterator.java
+@@ -59,8 +59,8 @@ public void open(DynamicContext context) {
+ 
+         RuntimeIterator sequenceIterator = this._children.get(0);
+ 
+-        if (!sequenceIterator.isRDD()) {
+-            sequenceIterator.open(context);
++        if (!sequenceIterator.isRDD(_currentDynamicContext)) {
++            sequenceIterator.open(_currentDynamicContext);
+             if (!sequenceIterator.hasNext()) {
+                 this._hasNext = false;
+             } else {
+diff --git a/src/main/java/sparksoniq/jsoniq/runtime/iterator/functions/sequences/general/EmptyFunctionIterator.java b/src/main/java/sparksoniq/jsoniq/runtime/iterator/functions/sequences/general/EmptyFunctionIterator.java
+index 632dfca8..5068352e 100644
+--- a/src/main/java/sparksoniq/jsoniq/runtime/iterator/functions/sequences/general/EmptyFunctionIterator.java
++++ b/src/main/java/sparksoniq/jsoniq/runtime/iterator/functions/sequences/general/EmptyFunctionIterator.java
+@@ -46,7 +46,7 @@ public EmptyFunctionIterator(List<RuntimeIterator> parameters, IteratorMetadata
+     public Item next() {
+         if (this.hasNext()) {
+             this._hasNext = false;
+-            if (_sequenceIterator.isRDD()) {
++            if (_sequenceIterator.isRDD(_currentDynamicContext)) {
+                 List<Item> i = _sequenceIterator.getRDD(_currentDynamicContext).take(1);
+                 return new BooleanItem(i.isEmpty());
+             }
+diff --git a/src/main/java/sparksoniq/jsoniq/runtime/iterator/functions/sequences/general/ExistsFunctionIterator.java b/src/main/java/sparksoniq/jsoniq/runtime/iterator/functions/sequences/general/ExistsFunctionIterator.java
+index 34a393d8..a5271f5e 100644
+--- a/src/main/java/sparksoniq/jsoniq/runtime/iterator/functions/sequences/general/ExistsFunctionIterator.java
++++ b/src/main/java/sparksoniq/jsoniq/runtime/iterator/functions/sequences/general/ExistsFunctionIterator.java
+@@ -45,7 +45,7 @@ public ExistsFunctionIterator(List<RuntimeIterator> parameters, IteratorMetadata
+     public Item next() {
+         if (this.hasNext()) {
+             this._hasNext = false;
+-            if (_sequenceIterator.isRDD()) {
++            if (_sequenceIterator.isRDD(_currentDynamicContext)) {
+                 List<Item> i = _sequenceIterator.getRDD(_currentDynamicContext).take(1);
+                 return new BooleanItem(!i.isEmpty());
+             }
+diff --git a/src/main/java/sparksoniq/jsoniq/runtime/iterator/functions/sequences/general/HeadFunctionIterator.java b/src/main/java/sparksoniq/jsoniq/runtime/iterator/functions/sequences/general/HeadFunctionIterator.java
+index 9810929b..7a6fe8b9 100644
+--- a/src/main/java/sparksoniq/jsoniq/runtime/iterator/functions/sequences/general/HeadFunctionIterator.java
++++ b/src/main/java/sparksoniq/jsoniq/runtime/iterator/functions/sequences/general/HeadFunctionIterator.java
+@@ -64,7 +64,7 @@ public void reset(DynamicContext context) {
+     }
+ 
+     public void setResult() {
+-        if (_iterator.isRDD()) {
++        if (_iterator.isRDD(_currentDynamicContext)) {
+             List<Item> i = _iterator.getRDD(_currentDynamicContext).take(1);
+             if (i.isEmpty()) {
+                 this._hasNext = false;
+diff --git a/src/main/java/sparksoniq/jsoniq/runtime/iterator/functions/sequences/value/DistinctValuesFunctionIterator.java b/src/main/java/sparksoniq/jsoniq/runtime/iterator/functions/sequences/value/DistinctValuesFunctionIterator.java
+index 01b2400c..e83a9448 100644
+--- a/src/main/java/sparksoniq/jsoniq/runtime/iterator/functions/sequences/value/DistinctValuesFunctionIterator.java
++++ b/src/main/java/sparksoniq/jsoniq/runtime/iterator/functions/sequences/value/DistinctValuesFunctionIterator.java
+@@ -120,7 +120,7 @@ public void setNextResult() {
+     }
+ 
+     @Override
+-    public boolean initIsRDD() {
+-        return _sequenceIterator.isRDD();
++    public boolean initIsRDD(DynamicContext context) {
++        return _sequenceIterator.isRDD(context);
+     }
+ }
+diff --git a/src/main/java/sparksoniq/jsoniq/runtime/iterator/operational/InstanceOfIterator.java b/src/main/java/sparksoniq/jsoniq/runtime/iterator/operational/InstanceOfIterator.java
+index be7c051b..3edc7f45 100644
+--- a/src/main/java/sparksoniq/jsoniq/runtime/iterator/operational/InstanceOfIterator.java
++++ b/src/main/java/sparksoniq/jsoniq/runtime/iterator/operational/InstanceOfIterator.java
+@@ -51,7 +51,7 @@ public InstanceOfIterator(RuntimeIterator iterator, SequenceType sequenceType, I
+     @Override
+     public Item next() {
+         if (this._hasNext) {
+-            if (!_child.isRDD()) {
++            if (!_child.isRDD(_currentDynamicContext)) {
+                 List<Item> items = new ArrayList<>();
+                 _child.open(_currentDynamicContext);
+                 while (_child.hasNext())
+diff --git a/src/main/java/sparksoniq/jsoniq/runtime/iterator/operational/TreatIterator.java b/src/main/java/sparksoniq/jsoniq/runtime/iterator/operational/TreatIterator.java
+index a4c35771..bda3ed80 100644
+--- a/src/main/java/sparksoniq/jsoniq/runtime/iterator/operational/TreatIterator.java
++++ b/src/main/java/sparksoniq/jsoniq/runtime/iterator/operational/TreatIterator.java
+@@ -152,8 +152,8 @@ private void checkItemsSize(long size) {
+     }
+ 
+     @Override
+-    public boolean initIsRDD() {
+-        return _iterator.isRDD();
++    public boolean initIsRDD(DynamicContext context) {
++        return _iterator.isRDD(context);
+     }
+ }
+ 
+diff --git a/src/main/java/sparksoniq/jsoniq/runtime/iterator/postfix/ArrayLookupIterator.java b/src/main/java/sparksoniq/jsoniq/runtime/iterator/postfix/ArrayLookupIterator.java
+index 9039ee52..a080262b 100644
+--- a/src/main/java/sparksoniq/jsoniq/runtime/iterator/postfix/ArrayLookupIterator.java
++++ b/src/main/java/sparksoniq/jsoniq/runtime/iterator/postfix/ArrayLookupIterator.java
+@@ -146,8 +146,8 @@ public void setNextResult() {
+     }
+ 
+     @Override
+-    public boolean initIsRDD() {
+-        return _iterator.isRDD();
++    public boolean initIsRDD(DynamicContext context) {
++        return _iterator.isRDD(context);
+     }
+ 
+ }
+diff --git a/src/main/java/sparksoniq/jsoniq/runtime/iterator/postfix/ArrayUnboxingIterator.java b/src/main/java/sparksoniq/jsoniq/runtime/iterator/postfix/ArrayUnboxingIterator.java
+index 87d9747c..92465259 100644
+--- a/src/main/java/sparksoniq/jsoniq/runtime/iterator/postfix/ArrayUnboxingIterator.java
++++ b/src/main/java/sparksoniq/jsoniq/runtime/iterator/postfix/ArrayUnboxingIterator.java
+@@ -112,7 +112,7 @@ private void setNextResult() {
+     }
+ 
+     @Override
+-    public boolean initIsRDD() {
+-        return _iterator.isRDD();
++    public boolean initIsRDD(DynamicContext context) {
++        return _iterator.isRDD(context);
+     }
+ }
+diff --git a/src/main/java/sparksoniq/jsoniq/runtime/iterator/postfix/ObjectLookupIterator.java b/src/main/java/sparksoniq/jsoniq/runtime/iterator/postfix/ObjectLookupIterator.java
+index 054775c5..3dbb6acc 100644
+--- a/src/main/java/sparksoniq/jsoniq/runtime/iterator/postfix/ObjectLookupIterator.java
++++ b/src/main/java/sparksoniq/jsoniq/runtime/iterator/postfix/ObjectLookupIterator.java
+@@ -192,7 +192,7 @@ public void setNextResult() {
+     }
+ 
+     @Override
+-    public boolean initIsRDD() {
+-        return _iterator.isRDD();
++    public boolean initIsRDD(DynamicContext context) {
++        return _iterator.isRDD(context);
+     }
+ }
+diff --git a/src/main/java/sparksoniq/jsoniq/runtime/iterator/postfix/PredicateIterator.java b/src/main/java/sparksoniq/jsoniq/runtime/iterator/postfix/PredicateIterator.java
+index 68c1a9d8..da497c9f 100644
+--- a/src/main/java/sparksoniq/jsoniq/runtime/iterator/postfix/PredicateIterator.java
++++ b/src/main/java/sparksoniq/jsoniq/runtime/iterator/postfix/PredicateIterator.java
+@@ -209,8 +209,8 @@ private void setNextResult() {
+     }
+ 
+     @Override
+-    protected boolean initIsRDD() {
+-        return this._iterator.isRDD();
++    protected boolean initIsRDD(DynamicContext context) {
++        return this._iterator.isRDD(context);
+     }
+ 
+     public Map<String, DynamicContext.VariableDependency> getVariableDependencies() {
+diff --git a/src/main/java/sparksoniq/jsoniq/runtime/iterator/primary/VariableReferenceIterator.java b/src/main/java/sparksoniq/jsoniq/runtime/iterator/primary/VariableReferenceIterator.java
+index 905d8c1b..79deb17a 100644
+--- a/src/main/java/sparksoniq/jsoniq/runtime/iterator/primary/VariableReferenceIterator.java
++++ b/src/main/java/sparksoniq/jsoniq/runtime/iterator/primary/VariableReferenceIterator.java
+@@ -51,7 +51,7 @@ public VariableReferenceIterator(String variableName, SequenceType seq, Iterator
+     }
+ 
+     @Override
+-    protected boolean initIsRDD() {
++    protected boolean initIsRDD(DynamicContext context) {
+         // TODO: figure out how to set isRDD for varRefIter.
+         // return _currentDynamicContext.isRDD(_variableName, getMetadata());
+         return false;
+diff --git a/src/main/java/sparksoniq/jsoniq/runtime/tupleiterator/RuntimeTupleIterator.java b/src/main/java/sparksoniq/jsoniq/runtime/tupleiterator/RuntimeTupleIterator.java
+index 0e49d597..cfce0101 100644
+--- a/src/main/java/sparksoniq/jsoniq/runtime/tupleiterator/RuntimeTupleIterator.java
++++ b/src/main/java/sparksoniq/jsoniq/runtime/tupleiterator/RuntimeTupleIterator.java
+@@ -38,8 +38,8 @@
+ 
+ public abstract class RuntimeTupleIterator implements RuntimeTupleIteratorInterface, KryoSerializable {
+ 
+-    private static final long serialVersionUID = 1L;
+     protected static final String FLOW_EXCEPTION_MESSAGE = "Invalid next() call; ";
++    private static final long serialVersionUID = 1L;
+     private final IteratorMetadata metadata;
+     protected boolean _hasNext;
+     protected boolean _isOpen;
+@@ -53,11 +53,12 @@ protected RuntimeTupleIterator(RuntimeTupleIterator child, IteratorMetadata meta
+     }
+ 
+     public void open(DynamicContext context) {
+-        if (this._isOpen)
++        if (this._isOpen) {
+             throw new IteratorFlowException(
+                     "Runtime tuple iterator cannot be opened twice" + ", this: " + this.toString(),
+                     getMetadata()
+             );
++        }
+         this._isOpen = true;
+         this._hasNext = true;
+         this._currentDynamicContext = context;
+@@ -104,7 +105,7 @@ public IteratorMetadata getMetadata() {
+         return metadata;
+     }
+ 
+-    public abstract boolean isDataFrame();
++    public abstract boolean isDataFrame(DynamicContext context);
+ 
+     /**
+      * Obtains the dataframe from the child clause.
+@@ -124,9 +125,9 @@ public IteratorMetadata getMetadata() {
+      * Builds the DataFrame projection that this clause needs to receive from its child clause.
+      * The intent is that the result of this method is forwarded to the child clause in getDataFrame() so it can
+      * optimize some values away.
+-     * 
+-     * @parentProjection the projection needed by the parent clause.
++     *
+      * @return the projection needed by this clause.
++     * @parentProjection the projection needed by the parent clause.
+      */
+     public abstract Map<String, DynamicContext.VariableDependency> getProjection(
+             Map<String, DynamicContext.VariableDependency> parentProjection
+@@ -135,7 +136,7 @@ public IteratorMetadata getMetadata() {
+     /**
+      * Variable dependencies are variables that MUST be provided by the parent clause in the dynamic context
+      * for successful execution of this clause.
+-     * 
++     * <p>
+      * These variables are:
+      * 1. All variables that the expression of the clause depends on (recursive call of getVariableDependencies on the
+      * expression)
+@@ -143,7 +144,7 @@ public IteratorMetadata getMetadata() {
+      * getVariablesBoundInCurrentFLWORExpression), because those are provided in the Tuples
+      * 3. Plus (recursively calling getVariableDependencies) all the Variable Dependencies of the child clause if it
+      * exists.
+-     * 
++     *
+      * @return a map of variable names to dependencies (FULL, COUNT, ...) that this clause needs to obtain from the
+      *         dynamic context.
+      */
+@@ -158,7 +159,7 @@ public IteratorMetadata getMetadata() {
+      * Returns the variables bound in descendant (previous) clauses of the current FLWOR.
+      * These variables can be removed from the dependencies of expressions in ascendent (subsequent) clauses,
+      * because their values are provided in the tuples rather than the dynamic context object.
+-     * 
++     *
+      * @return the set of variable names that are bound by descendant clauses.
+      */
+     public Set<String> getVariablesBoundInCurrentFLWORExpression() {
+diff --git a/src/main/java/sparksoniq/spark/iterator/flowr/CountClauseSparkIterator.java b/src/main/java/sparksoniq/spark/iterator/flowr/CountClauseSparkIterator.java
+index fd408ebe..0f6991ed 100644
+--- a/src/main/java/sparksoniq/spark/iterator/flowr/CountClauseSparkIterator.java
++++ b/src/main/java/sparksoniq/spark/iterator/flowr/CountClauseSparkIterator.java
+@@ -63,8 +63,8 @@ public CountClauseSparkIterator(
+     }
+ 
+     @Override
+-    public boolean isDataFrame() {
+-        return _child.isDataFrame();
++    public boolean isDataFrame(DynamicContext context) {
++        return _child.isDataFrame(context);
+     }
+ 
+     @Override
+diff --git a/src/main/java/sparksoniq/spark/iterator/flowr/ForClauseSparkIterator.java b/src/main/java/sparksoniq/spark/iterator/flowr/ForClauseSparkIterator.java
+index 7beecdfc..9805c510 100644
+--- a/src/main/java/sparksoniq/spark/iterator/flowr/ForClauseSparkIterator.java
++++ b/src/main/java/sparksoniq/spark/iterator/flowr/ForClauseSparkIterator.java
+@@ -72,8 +72,8 @@ public ForClauseSparkIterator(
+     }
+ 
+     @Override
+-    public boolean isDataFrame() {
+-        return (_expression.isRDD() || (_child != null && _child.isDataFrame()));
++    public boolean isDataFrame(DynamicContext context) {
++        return (_expression.isRDD(context) || (_child != null && _child.isDataFrame(context)));
+     }
+ 
+ 
+@@ -184,7 +184,7 @@ public void close() {
+             return SparkSessionManager.getInstance().getOrCreateSession().createDataFrame(rowRDD, schema);
+         }
+ 
+-        if (_child.isDataFrame()) {
++        if (_child.isDataFrame(context)) {
+             Dataset<Row> df = this._child.getDataFrame(context, getProjection(parentProjection));
+ 
+             StructType inputSchema = df.schema();
+diff --git a/src/main/java/sparksoniq/spark/iterator/flowr/GroupByClauseSparkIterator.java b/src/main/java/sparksoniq/spark/iterator/flowr/GroupByClauseSparkIterator.java
+index cb87c24f..6dcc46c0 100644
+--- a/src/main/java/sparksoniq/spark/iterator/flowr/GroupByClauseSparkIterator.java
++++ b/src/main/java/sparksoniq/spark/iterator/flowr/GroupByClauseSparkIterator.java
+@@ -80,8 +80,8 @@ public GroupByClauseSparkIterator(
+     }
+ 
+     @Override
+-    public boolean isDataFrame() {
+-        return _child.isDataFrame();
++    public boolean isDataFrame(DynamicContext context) {
++        return _child.isDataFrame(context);
+     }
+ 
+     @Override
+diff --git a/src/main/java/sparksoniq/spark/iterator/flowr/LetClauseSparkIterator.java b/src/main/java/sparksoniq/spark/iterator/flowr/LetClauseSparkIterator.java
+index a3f0d019..9e81ed5e 100644
+--- a/src/main/java/sparksoniq/spark/iterator/flowr/LetClauseSparkIterator.java
++++ b/src/main/java/sparksoniq/spark/iterator/flowr/LetClauseSparkIterator.java
+@@ -67,11 +67,11 @@ public LetClauseSparkIterator(
+     }
+ 
+     @Override
+-    public boolean isDataFrame() {
++    public boolean isDataFrame(DynamicContext context) {
+         if (this._child == null) {
+             return false;
+         } else {
+-            return _child.isDataFrame();
++            return _child.isDataFrame(context);
+         }
+     }
+ 
+@@ -114,10 +114,10 @@ private FlworTuple generateTupleFromExpressionWithContext(FlworTuple inputTuple,
+         } else {
+             resultTuple = new FlworTuple(inputTuple);
+         }
+-        if (_expression.isDataFrame()) {
++        if (_expression.isDataFrame(context)) {
+             Dataset<Row> df = _expression.getDataFrame(context);
+             resultTuple.putValue(_variableName, df);
+-        } else if (_expression.isRDD()) {
++        } else if (_expression.isRDD(context)) {
+             JavaRDD<Item> itemRDD = _expression.getRDD(context);
+             resultTuple.putValue(_variableName, itemRDD);
+         } else {
+diff --git a/src/main/java/sparksoniq/spark/iterator/flowr/OrderByClauseSparkIterator.java b/src/main/java/sparksoniq/spark/iterator/flowr/OrderByClauseSparkIterator.java
+index a697b6ce..96d48d4b 100644
+--- a/src/main/java/sparksoniq/spark/iterator/flowr/OrderByClauseSparkIterator.java
++++ b/src/main/java/sparksoniq/spark/iterator/flowr/OrderByClauseSparkIterator.java
+@@ -77,8 +77,8 @@ public OrderByClauseSparkIterator(
+     }
+ 
+     @Override
+-    public boolean isDataFrame() {
+-        return _child.isDataFrame();
++    public boolean isDataFrame(DynamicContext context) {
++        return _child.isDataFrame(context);
+     }
+ 
+     @Override
+diff --git a/src/main/java/sparksoniq/spark/iterator/flowr/ReturnClauseSparkIterator.java b/src/main/java/sparksoniq/spark/iterator/flowr/ReturnClauseSparkIterator.java
+index 8996e0ee..9867c06f 100644
+--- a/src/main/java/sparksoniq/spark/iterator/flowr/ReturnClauseSparkIterator.java
++++ b/src/main/java/sparksoniq/spark/iterator/flowr/ReturnClauseSparkIterator.java
+@@ -57,8 +57,8 @@ public ReturnClauseSparkIterator(
+     }
+ 
+     @Override
+-    protected boolean initIsRDD() {
+-        return _child.isDataFrame();
++    protected boolean initIsRDD(DynamicContext context) {
++        return _child.isDataFrame(context);
+     }
+ 
+     @Override
+diff --git a/src/main/java/sparksoniq/spark/iterator/flowr/WhereClauseSparkIterator.java b/src/main/java/sparksoniq/spark/iterator/flowr/WhereClauseSparkIterator.java
+index 8ad2a1a8..0b9ad2df 100644
+--- a/src/main/java/sparksoniq/spark/iterator/flowr/WhereClauseSparkIterator.java
++++ b/src/main/java/sparksoniq/spark/iterator/flowr/WhereClauseSparkIterator.java
+@@ -60,8 +60,8 @@ public WhereClauseSparkIterator(
+     }
+ 
+     @Override
+-    public boolean isDataFrame() {
+-        return _child.isDataFrame();
++    public boolean isDataFrame(DynamicContext context) {
++        return _child.isDataFrame(context);
+     }
+ 
+     @Override
+diff --git a/src/main/java/sparksoniq/spark/iterator/function/ParquetFileFunctionIterator.java b/src/main/java/sparksoniq/spark/iterator/function/ParquetFileFunctionIterator.java
+index 15194745..e80a44c1 100644
+--- a/src/main/java/sparksoniq/spark/iterator/function/ParquetFileFunctionIterator.java
++++ b/src/main/java/sparksoniq/spark/iterator/function/ParquetFileFunctionIterator.java
+@@ -39,7 +39,7 @@ public ParquetFileFunctionIterator(List<RuntimeIterator> arguments, IteratorMeta
+     }
+ 
+     @Override
+-    public boolean isDataFrame() {
++    public boolean isDataFrame(DynamicContext context) {
+         return true;
+     }
+ 
+diff --git a/src/main/java/sparksoniq/spark/iterator/function/StructuredJsonFileFunctionIterator.java b/src/main/java/sparksoniq/spark/iterator/function/StructuredJsonFileFunctionIterator.java
+index 8ec92c6b..730160cb 100644
+--- a/src/main/java/sparksoniq/spark/iterator/function/StructuredJsonFileFunctionIterator.java
++++ b/src/main/java/sparksoniq/spark/iterator/function/StructuredJsonFileFunctionIterator.java
+@@ -20,7 +20,6 @@
+ 
+ package sparksoniq.spark.iterator.function;
+ 
+-import org.apache.spark.SparkException;
+ import org.apache.spark.sql.Dataset;
+ import org.apache.spark.sql.Row;
+ import sparksoniq.exceptions.SparksoniqRuntimeException;
+@@ -41,7 +40,7 @@ public StructuredJsonFileFunctionIterator(List<RuntimeIterator> arguments, Itera
+     }
+ 
+     @Override
+-    public boolean isDataFrame() {
++    public boolean isDataFrame(DynamicContext context) {
+         return true;
+     }
+ 
+diff --git a/src/test/java/iq/RuntimeTests.java b/src/test/java/iq/RuntimeTests.java
+index c306575c..ca097c1d 100644
+--- a/src/test/java/iq/RuntimeTests.java
++++ b/src/test/java/iq/RuntimeTests.java
+@@ -95,10 +95,11 @@ public void testRuntimeIterators() throws Throwable {
+     @Override
+     protected void checkExpectedOutput(String expectedOutput, RuntimeIterator runtimeIterator) {
+         String actualOutput;
+-        if (!runtimeIterator.isRDD()) {
+-            actualOutput = runIterators(runtimeIterator);
++        DynamicContext context = new DynamicContext();
++        if (!runtimeIterator.isRDD(context)) {
++            actualOutput = getLocalExecutionResults(runtimeIterator, context);
+         } else {
+-            actualOutput = getRDDResults(runtimeIterator);
++            actualOutput = getRDDResults(runtimeIterator, context);
+         }
+         Assert.assertTrue(
+             "Expected output: " + expectedOutput + " Actual result: " + actualOutput,
+@@ -107,13 +108,8 @@ protected void checkExpectedOutput(String expectedOutput, RuntimeIterator runtim
+         // unorderedItemSequenceStringsAreEqual(expectedOutput, actualOutput));
+     }
+ 
+-    protected String runIterators(RuntimeIterator iterator) {
+-        String actualOutput = getIteratorOutput(iterator);
+-        return actualOutput;
+-    }
+-
+-    protected String getIteratorOutput(RuntimeIterator iterator) {
+-        iterator.open(new DynamicContext());
++    protected String getLocalExecutionResults(RuntimeIterator iterator, DynamicContext context) {
++        iterator.open(context);
+         Item result = null;
+         if (iterator.hasNext()) {
+             result = iterator.next();
+@@ -138,8 +134,8 @@ protected String getIteratorOutput(RuntimeIterator iterator) {
+         }
+     }
+ 
+-    private String getRDDResults(RuntimeIterator runtimeIterator) {
+-        JavaRDD<Item> rdd = runtimeIterator.getRDD(new DynamicContext());
++    private String getRDDResults(RuntimeIterator runtimeIterator, DynamicContext context) {
++        JavaRDD<Item> rdd = runtimeIterator.getRDD(context);
+         JavaRDD<String> output = rdd.map(o -> o.serialize());
+         long resultCount = output.count();
+         if (resultCount == 0) {
+diff --git a/src/test/java/iq/SparkRuntimeTests.java b/src/test/java/iq/SparkRuntimeTests.java
+index 66c4a4f3..c115791d 100644
+--- a/src/test/java/iq/SparkRuntimeTests.java
++++ b/src/test/java/iq/SparkRuntimeTests.java
+@@ -24,6 +24,7 @@
+ import org.junit.runner.RunWith;
+ import org.junit.runners.Parameterized;
+ import sparksoniq.jsoniq.runtime.iterator.RuntimeIterator;
++import sparksoniq.semantics.DynamicContext;
+ 
+ import java.io.File;
+ import java.util.ArrayList;
+@@ -54,7 +55,8 @@ public SparkRuntimeTests(File testFile) {
+ 
+     @Override
+     protected void checkExpectedOutput(String expectedOutput, RuntimeIterator runtimeIterator) {
+-        String actualOutput = runIterators(runtimeIterator);
++        DynamicContext context = new DynamicContext();
++        String actualOutput = getLocalExecutionResults(runtimeIterator, context);
+         Assert.assertTrue(
+             "Expected output: " + expectedOutput + " Actual result: " + actualOutput,
+             expectedOutput.equals(actualOutput)

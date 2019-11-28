@@ -1,0 +1,165 @@
+diff --git a/movie-service/movie-api/src/main/java/com/garret/movies/service/api/MovieService.java b/movie-service/movie-api/src/main/java/com/garret/movies/service/api/MovieService.java
+index 818c9c0..c573f6a 100644
+--- a/movie-service/movie-api/src/main/java/com/garret/movies/service/api/MovieService.java
++++ b/movie-service/movie-api/src/main/java/com/garret/movies/service/api/MovieService.java
+@@ -1,11 +1,11 @@
+ package com.garret.movies.service.api;
+ 
++import com.garret.movies.service.dto.criteria.MovieCriteria;
+ import com.garret.movies.service.dto.response.MovieDto;
+ import com.garret.movies.service.dto.response.SimpleMoviesResponse;
+ import org.springframework.data.domain.Pageable;
+ 
+ import java.util.List;
+-import java.util.Map;
+ import java.util.Optional;
+ 
+ public interface MovieService {
+@@ -18,7 +18,7 @@
+ 
+     SimpleMoviesResponse getAll(Pageable pageable);
+ 
+-    List<MovieDto> getByRequestParams(Map<String, String> params);
++    List<MovieDto> getByRequestParams(MovieCriteria movieCriteria);
+ 
+     Optional<MovieDto> getByImdbId(String imdbId);
+ 
+diff --git a/movie-service/movie-api/src/main/java/com/garret/movies/service/dto/criteria/MovieCriteria.java b/movie-service/movie-api/src/main/java/com/garret/movies/service/dto/criteria/MovieCriteria.java
+new file mode 100644
+index 0000000..1251a28
+--- /dev/null
++++ b/movie-service/movie-api/src/main/java/com/garret/movies/service/dto/criteria/MovieCriteria.java
+@@ -0,0 +1,14 @@
++package com.garret.movies.service.dto.criteria;
++
++import lombok.Data;
++
++@Data
++public class MovieCriteria {
++
++    private int year;
++    private String genre;
++    private String language;
++    private String actor;
++    private String country;
++    private String order;
++}
+diff --git a/movie-service/movie-impl/src/main/java/com/garret/movies/service/impl/MovieServiceImpl.java b/movie-service/movie-impl/src/main/java/com/garret/movies/service/impl/MovieServiceImpl.java
+index 3023ba3..7c2e7f6 100644
+--- a/movie-service/movie-impl/src/main/java/com/garret/movies/service/impl/MovieServiceImpl.java
++++ b/movie-service/movie-impl/src/main/java/com/garret/movies/service/impl/MovieServiceImpl.java
+@@ -7,6 +7,7 @@
+ import com.garret.movies.dao.entity.Movie;
+ import com.garret.movies.dao.repository.MovieRepository;
+ import com.garret.movies.service.api.MovieService;
++import com.garret.movies.service.dto.criteria.MovieCriteria;
+ import com.garret.movies.service.dto.response.MovieDto;
+ import com.garret.movies.service.dto.response.SimpleMoviesResponse;
+ import com.garret.movies.service.exception.IncorrectDateException;
+@@ -88,7 +89,7 @@ public SimpleMoviesResponse getAll(Pageable pageable) {
+ 
+     @Override
+     @Transactional(readOnly = true)
+-    public List<MovieDto> getByRequestParams(Map<String, String> params) {
++    public List<MovieDto> getByRequestParams(MovieCriteria movieCriteria) {
+         SelectConditionStep<Record> query = jooq.select()
+                 .from(MOVIE)
+                 .leftJoin(MOVIE_ACTORS).on(MOVIE.ID.eq(MOVIE_ACTORS.MOVIE_ID))
+@@ -100,10 +101,10 @@ public SimpleMoviesResponse getAll(Pageable pageable) {
+                 .leftJoin(MOVIE_LANGUAGES).on(MOVIE.ID.eq(MOVIE_LANGUAGES.MOVIE_ID))
+                 .leftJoin(LANGUAGE).on(MOVIE_LANGUAGES.LANGUAGES_ID.eq(LANGUAGE.ID))
+                 .where();
+-        getMovieIdSetByParams(params).forEach(movieId -> query.or(MOVIE.ID.eq(movieId)));
++        getMovieIdSetByParams(movieCriteria).forEach(movieId -> query.or(MOVIE.ID.eq(movieId)));
+ 
+-        if (params.containsKey("top")) {
+-            String order = params.get("top");
++        if (movieCriteria.getOrder() != null) {
++            String order = movieCriteria.getOrder();
+             if (order.equalsIgnoreCase("votes")) {
+                 query.orderBy(MOVIE.IMDB_VOTES.desc());
+             } else if (order.equalsIgnoreCase("rating")) {
+@@ -115,7 +116,7 @@ public SimpleMoviesResponse getAll(Pageable pageable) {
+         return modelMapper.map(movieList, MOVIE_DTO_LIST_TYPE);
+     }
+ 
+-    private Set<Long> getMovieIdSetByParams(Map<String, String> params) {
++    private Set<Long> getMovieIdSetByParams(MovieCriteria movieCriteria) {
+         SelectFinalStep<?> finalStep = jooq.select(MOVIE.ID)
+                 .from(MOVIE)
+                 .leftJoin(MOVIE_ACTORS).on(MOVIE.ID.eq(MOVIE_ACTORS.MOVIE_ID))
+@@ -127,28 +128,28 @@ public SimpleMoviesResponse getAll(Pageable pageable) {
+                 .leftJoin(MOVIE_LANGUAGES).on(MOVIE.ID.eq(MOVIE_LANGUAGES.MOVIE_ID))
+                 .leftJoin(LANGUAGE).on(MOVIE_LANGUAGES.LANGUAGES_ID.eq(LANGUAGE.ID));
+         SelectQuery<?> query = finalStep.getQuery();
+-        if (params.containsKey("genre")) {
+-            query.addConditions(GENRE.NAME.contains(params.get("genre")));
++        if (movieCriteria.getGenre() != null) {
++            query.addConditions(GENRE.NAME.contains(movieCriteria.getGenre()));
+         }
+-        if (params.containsKey("language")) {
+-            query.addConditions(LANGUAGE.NAME.contains(params.get("language")));
++        if (movieCriteria.getLanguage() != null) {
++            query.addConditions(LANGUAGE.NAME.contains(movieCriteria.getLanguage()));
+         }
+-        if (params.containsKey("actor")) {
+-            query.addConditions(ACTOR.FULL_NAME.contains(params.get("actor")));
++        if (movieCriteria.getActor() != null) {
++            query.addConditions(ACTOR.FULL_NAME.contains(movieCriteria.getActor()));
+         }
+-        if (params.containsKey("year")) {
+-            Map<String, Date> dates = convertYearToStartEndYearMap(params.get("year"));
++        if (movieCriteria.getYear() != 0) {
++            Map<String, Date> dates = convertYearToStartEndYearMap(movieCriteria.getYear());
+             java.sql.Date start = new java.sql.Date(dates.get("start").getTime());
+             java.sql.Date end = new java.sql.Date(dates.get("end").getTime());
+             query.addConditions(MOVIE.RELEASED.between(start, end));
+         }
+-        if (params.containsKey("country")) {
+-            query.addConditions(COUNTRY.NAME.contains(params.get("country")));
++        if (movieCriteria.getCountry() != null) {
++            query.addConditions(COUNTRY.NAME.contains(movieCriteria.getCountry()));
+         }
+         return query.fetch().intoSet(MOVIE.ID);
+     }
+ 
+-    private Map<String, Date> convertYearToStartEndYearMap(String year) {
++    private Map<String, Date> convertYearToStartEndYearMap(int year) {
+         Map<String, Date> resultMap = new HashMap<>();
+         String start = year + "-01-01";
+         String end = year + "-12-31";
+diff --git a/web/src/main/java/com/garret/movies/controller/MovieDatabaseController.java b/web/src/main/java/com/garret/movies/controller/MovieDatabaseController.java
+index 3e71533..2e769ed 100644
+--- a/web/src/main/java/com/garret/movies/controller/MovieDatabaseController.java
++++ b/web/src/main/java/com/garret/movies/controller/MovieDatabaseController.java
+@@ -1,6 +1,7 @@
+ package com.garret.movies.controller;
+ 
+ import com.garret.movies.service.api.MovieService;
++import com.garret.movies.service.dto.criteria.MovieCriteria;
+ import com.garret.movies.service.dto.response.MovieDto;
+ import com.garret.movies.service.dto.response.SimpleMoviesResponse;
+ import lombok.RequiredArgsConstructor;
+@@ -11,11 +12,9 @@
+ import org.springframework.web.bind.annotation.GetMapping;
+ import org.springframework.web.bind.annotation.PathVariable;
+ import org.springframework.web.bind.annotation.RequestMapping;
+-import org.springframework.web.bind.annotation.RequestParam;
+ import org.springframework.web.bind.annotation.RestController;
+ 
+ import java.util.List;
+-import java.util.Map;
+ 
+ @RestController
+ @RequiredArgsConstructor
+@@ -36,8 +35,8 @@ public SimpleMoviesResponse findAll(
+     }
+ 
+     @GetMapping("/by")
+-    public List<MovieDto> findByRequestParams(@RequestParam Map<String, String> params) {
+-        return movieService.getByRequestParams(params);
++    public List<MovieDto> findByRequestParams(MovieCriteria movieCriteria) {
++        return movieService.getByRequestParams(movieCriteria);
+     }
+ 
+     @DeleteMapping

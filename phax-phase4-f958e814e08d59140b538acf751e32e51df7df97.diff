@@ -1,0 +1,229 @@
+diff --git a/README.md b/README.md
+index 19ae16b0..4b1e17d3 100644
+--- a/README.md
++++ b/README.md
+@@ -107,6 +107,7 @@ Just write me an email - see pom.xml for my email address
+ 
+ * v0.9.6 - work in progress
+     * Removed the "ExceptionCallback" from `Phase4PeppolSender`
++    * Changed the data types of "ResponseConsumer" and "SignalMsgConsumer" from `Phase4PeppolSender` to be able to throw exception 
+ * v0.9.5 - 2019-11-27
+     * Enforcing the usage of `Phase4PeppolSender.builder()` by making the main sending method private
+     * Updated to peppol-commons 7.0.4 (moved classes `PeppolCerticateChecker` and `EPeppolCertificateCheckResult` there) (incompatible change)
+diff --git a/phase4-peppol-client/src/main/java/com/helger/phase4/peppol/IPhase4PeppolCertificateCheckResultHandler.java b/phase4-peppol-client/src/main/java/com/helger/phase4/peppol/IPhase4PeppolCertificateCheckResultHandler.java
+index 6a43b139..ee06a9c4 100644
+--- a/phase4-peppol-client/src/main/java/com/helger/phase4/peppol/IPhase4PeppolCertificateCheckResultHandler.java
++++ b/phase4-peppol-client/src/main/java/com/helger/phase4/peppol/IPhase4PeppolCertificateCheckResultHandler.java
+@@ -1,5 +1,5 @@
+ /**
+- * Copyright (C) 2014-2019 Philip Helger (www.helger.com)
++ * Copyright (C) 2015-2019 Philip Helger (www.helger.com)
+  * philip[at]helger[dot]com
+  *
+  * Licensed under the Apache License, Version 2.0 (the "License");
+diff --git a/phase4-peppol-client/src/main/java/com/helger/phase4/peppol/IPhase4PeppolResponseConsumer.java b/phase4-peppol-client/src/main/java/com/helger/phase4/peppol/IPhase4PeppolResponseConsumer.java
+new file mode 100644
+index 00000000..ce94ea01
+--- /dev/null
++++ b/phase4-peppol-client/src/main/java/com/helger/phase4/peppol/IPhase4PeppolResponseConsumer.java
+@@ -0,0 +1,42 @@
++/**
++ * Copyright (C) 2015-2019 Philip Helger (www.helger.com)
++ * philip[at]helger[dot]com
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *         http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package com.helger.phase4.peppol;
++
++import java.io.Serializable;
++
++import javax.annotation.Nonnull;
++
++import com.helger.phase4.client.AS4ClientSentMessage;
++
++/**
++ * Specialized interface for the HTTP response consumer.
++ *
++ * @author Philip Helger
++ */
++@FunctionalInterface
++public interface IPhase4PeppolResponseConsumer extends Serializable
++{
++  /**
++   * Handling a HTTP response
++   *
++   * @param aResponseMsg
++   *        The response message in relation to the source message
++   * @throws Phase4PeppolException
++   *         In case of error.
++   */
++  void handleResponse (@Nonnull AS4ClientSentMessage <byte []> aResponseMsg) throws Phase4PeppolException;
++}
+diff --git a/phase4-peppol-client/src/main/java/com/helger/phase4/peppol/IPhase4PeppolSignalMessageConsumer.java b/phase4-peppol-client/src/main/java/com/helger/phase4/peppol/IPhase4PeppolSignalMessageConsumer.java
+new file mode 100644
+index 00000000..a27736c2
+--- /dev/null
++++ b/phase4-peppol-client/src/main/java/com/helger/phase4/peppol/IPhase4PeppolSignalMessageConsumer.java
+@@ -0,0 +1,42 @@
++/**
++ * Copyright (C) 2015-2019 Philip Helger (www.helger.com)
++ * philip[at]helger[dot]com
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *         http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package com.helger.phase4.peppol;
++
++import java.io.Serializable;
++
++import javax.annotation.Nonnull;
++
++import com.helger.phase4.ebms3header.Ebms3SignalMessage;
++
++/**
++ * Specialized interface for the EBMS 3 Signal Message consumer.
++ *
++ * @author Philip Helger
++ */
++@FunctionalInterface
++public interface IPhase4PeppolSignalMessageConsumer extends Serializable
++{
++  /**
++   * Handling an EBMS 3 Signal Message
++   *
++   * @param aSignalMsg
++   *        The Signal Message domain object. Never <code>null</code>.
++   * @throws Phase4PeppolException
++   *         in case of error
++   */
++  void handleSignalMessage (@Nonnull Ebms3SignalMessage aSignalMsg) throws Phase4PeppolException;
++}
+diff --git a/phase4-peppol-client/src/main/java/com/helger/phase4/peppol/Phase4PeppolSender.java b/phase4-peppol-client/src/main/java/com/helger/phase4/peppol/Phase4PeppolSender.java
+index 02b11f52..e8012bca 100644
+--- a/phase4-peppol-client/src/main/java/com/helger/phase4/peppol/Phase4PeppolSender.java
++++ b/phase4-peppol-client/src/main/java/com/helger/phase4/peppol/Phase4PeppolSender.java
+@@ -20,7 +20,6 @@
+ import java.time.LocalDateTime;
+ import java.util.Locale;
+ import java.util.UUID;
+-import java.util.function.Consumer;
+ 
+ import javax.annotation.Nonnull;
+ import javax.annotation.Nullable;
+@@ -156,8 +155,8 @@ public static Ebms3SignalMessage parseSignalMessage (@Nonnull @WillNotClose fina
+   private static void _sendHttp (@Nonnull final AS4ClientUserMessage aClient,
+                                  @Nonnull final String sURL,
+                                  @Nullable final IAS4ClientBuildMessageCallback aCallback,
+-                                 @Nullable final Consumer <AS4ClientSentMessage <byte []>> aResponseConsumer,
+-                                 @Nullable final Consumer <Ebms3SignalMessage> aSignalMsgConsumer) throws Exception
++                                 @Nullable final IPhase4PeppolResponseConsumer aResponseConsumer,
++                                 @Nullable final IPhase4PeppolSignalMessageConsumer aSignalMsgConsumer) throws Exception
+   {
+     if (LOGGER.isInfoEnabled ())
+       LOGGER.info ("Sending AS4 message to '" + sURL + "' with max. " + aClient.getMaxRetries () + " retries");
+@@ -199,7 +198,7 @@ private static void _sendHttp (@Nonnull final AS4ClientUserMessage aClient,
+                    "'");
+ 
+     if (aResponseConsumer != null)
+-      aResponseConsumer.accept (aResponseEntity);
++      aResponseConsumer.handleResponse (aResponseEntity);
+ 
+     if (aSignalMsgConsumer != null)
+     {
+@@ -210,7 +209,7 @@ private static void _sendHttp (@Nonnull final AS4ClientUserMessage aClient,
+         final Ebms3SignalMessage aSignalMessage = parseSignalMessage (aClient.getAS4ResourceHelper (),
+                                                                       aResponseEntity.getResponse ());
+         if (aSignalMessage != null)
+-          aSignalMsgConsumer.accept (aSignalMessage);
++          aSignalMsgConsumer.handleSignalMessage (aSignalMessage);
+       }
+       else
+         LOGGER.info ("AS4 ResponseEntity is empty");
+@@ -327,8 +326,8 @@ private static void _sendAS4Message (@Nonnull final HttpClientFactory aHttpClien
+                                        @Nullable final IPhase4PeppolCertificateCheckResultHandler aCertificateConsumer,
+                                        @Nullable final VESID aVESID,
+                                        @Nullable final IPhase4PeppolValidatonResultHandler aValidationResultHandler,
+-                                       @Nullable final Consumer <AS4ClientSentMessage <byte []>> aResponseConsumer,
+-                                       @Nullable final Consumer <Ebms3SignalMessage> aSignalMsgConsumer) throws Phase4PeppolException
++                                       @Nullable final IPhase4PeppolResponseConsumer aResponseConsumer,
++                                       @Nullable final IPhase4PeppolSignalMessageConsumer aSignalMsgConsumer) throws Phase4PeppolException
+   {
+     ValueEnforcer.notNull (aHttpClientFactory, "HttpClientFactory");
+     ValueEnforcer.notNull (aSrcPMode, "SrcPMode");
+@@ -526,8 +525,8 @@ public static Builder builder ()
+     private IPhase4PeppolCertificateCheckResultHandler m_aCertificateConsumer;
+     private VESID m_aVESID;
+     private IPhase4PeppolValidatonResultHandler m_aValidationResultHandler;
+-    private Consumer <AS4ClientSentMessage <byte []>> m_aResponseConsumer;
+-    private Consumer <Ebms3SignalMessage> m_aSignalMsgConsumer;
++    private IPhase4PeppolResponseConsumer m_aResponseConsumer;
++    private IPhase4PeppolSignalMessageConsumer m_aSignalMsgConsumer;
+ 
+     /**
+      * Create a new builder, with the following fields already set:<br>
+@@ -858,7 +857,7 @@ public Builder setValidationConfiguration (@Nullable final VESID aVESID,
+      * @return this for chaining
+      */
+     @Nonnull
+-    public Builder setResponseConsumer (@Nullable final Consumer <AS4ClientSentMessage <byte []>> aResponseConsumer)
++    public Builder setResponseConsumer (@Nullable final IPhase4PeppolResponseConsumer aResponseConsumer)
+     {
+       m_aResponseConsumer = aResponseConsumer;
+       return this;
+@@ -874,7 +873,7 @@ public Builder setResponseConsumer (@Nullable final Consumer <AS4ClientSentMessa
+      * @return this for chaining
+      */
+     @Nonnull
+-    public Builder setSignalMsgConsumer (@Nullable final Consumer <Ebms3SignalMessage> aSignalMsgConsumer)
++    public Builder setSignalMsgConsumer (@Nullable final IPhase4PeppolSignalMessageConsumer aSignalMsgConsumer)
+     {
+       m_aSignalMsgConsumer = aSignalMsgConsumer;
+       return this;
+diff --git a/phase4-peppol-client/src/test/java/com/helger/phase4/peppol/MainPhase4PeppolSender.java b/phase4-peppol-client/src/test/java/com/helger/phase4/peppol/MainPhase4PeppolSender.java
+index 5dcd5ff7..1010d268 100644
+--- a/phase4-peppol-client/src/test/java/com/helger/phase4/peppol/MainPhase4PeppolSender.java
++++ b/phase4-peppol-client/src/test/java/com/helger/phase4/peppol/MainPhase4PeppolSender.java
+@@ -17,7 +17,6 @@
+ package com.helger.phase4.peppol;
+ 
+ import java.io.File;
+-import java.util.function.Consumer;
+ 
+ import org.slf4j.Logger;
+ import org.slf4j.LoggerFactory;
+@@ -34,7 +33,6 @@
+ import com.helger.peppol.sml.ESML;
+ import com.helger.peppol.smpclient.SMPClientReadOnly;
+ import com.helger.peppolid.IParticipantIdentifier;
+-import com.helger.phase4.client.AS4ClientSentMessage;
+ import com.helger.phase4.dump.AS4DumpManager;
+ import com.helger.phase4.servlet.dump.AS4IncomingDumperFileBased;
+ import com.helger.phase4.servlet.dump.AS4OutgoingDumperFileBased;
+@@ -79,7 +77,7 @@ public static void main (final String [] args)
+       // Start configuring here
+       IParticipantIdentifier aReceiverID = Phase4PeppolSender.IF.createParticipantIdentifierWithDefaultScheme ("9958:peppol-development-governikus-01");
+       aReceiverID = Phase4PeppolSender.IF.createParticipantIdentifierWithDefaultScheme ("0088:5050689000018as4");
+-      final Consumer <AS4ClientSentMessage <byte []>> aResponseConsumer = aResponseEntity -> {
++      final IPhase4PeppolResponseConsumer aResponseConsumer = aResponseEntity -> {
+         if (aResponseEntity.hasResponse () && aResponseEntity.getResponse ().length > 0)
+         {
+           final String sMessageID = aResponseEntity.getMessageID ();

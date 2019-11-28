@@ -1,0 +1,45 @@
+diff --git a/pantheon-bundle/src/main/java/com/redhat/pantheon/conf/GlobalConfig.java b/pantheon-bundle/src/main/java/com/redhat/pantheon/conf/GlobalConfig.java
+index 04a340fe..7099a448 100644
+--- a/pantheon-bundle/src/main/java/com/redhat/pantheon/conf/GlobalConfig.java
++++ b/pantheon-bundle/src/main/java/com/redhat/pantheon/conf/GlobalConfig.java
+@@ -37,7 +37,7 @@
+ 
+     public static final Locale DEFAULT_MODULE_LOCALE = Locale.US;
+ 
+-    public static final String CONTENT_TYPE = "documentation";
++    public static final String CONTENT_TYPE = "module";
+ 
+     public static final String IMAGE_PATH_PREFIX = "/imageassets";
+ 
+diff --git a/pantheon-bundle/src/main/java/com/redhat/pantheon/servlet/ModuleJsonServlet.java b/pantheon-bundle/src/main/java/com/redhat/pantheon/servlet/ModuleJsonServlet.java
+index c659ae5d..ccf27e46 100644
+--- a/pantheon-bundle/src/main/java/com/redhat/pantheon/servlet/ModuleJsonServlet.java
++++ b/pantheon-bundle/src/main/java/com/redhat/pantheon/servlet/ModuleJsonServlet.java
+@@ -98,6 +98,7 @@ protected boolean isValidResource(@Nonnull Resource resource) {
+         moduleMap.put("description", releasedMetadata.get().description().get());
+         moduleMap.put("content_type", CONTENT_TYPE);
+         moduleMap.put("date_published", releasedMetadata.get().getValueMap().containsKey("pant:datePublished") ? releasedMetadata.get().datePublished().get().toInstant().toString() : "");
++        moduleMap.put("status", "published");
+ 
+         // Assume the path is something like: /content/<something>/my/resource/path
+         moduleMap.put("module_url_fragment", resourcePath.substring("/content/repositories/".length(), resourcePath.length()));
+@@ -135,6 +136,7 @@ protected boolean isValidResource(@Nonnull Resource resource) {
+         if (!urlFragment.isEmpty()) {
+             moduleMap.put("vanity_url_fragment", urlFragment);
+         }
++
+         // remove unnecessary fields from the map
+         moduleMap.remove("jcr:lastModified");
+         moduleMap.remove("jcr:lastModifiedBy");
+diff --git a/pantheon-bundle/src/test/java/com/redhat/pantheon/servlet/ModuleJsonServletTest.java b/pantheon-bundle/src/test/java/com/redhat/pantheon/servlet/ModuleJsonServletTest.java
+index 22474c81..9ca7f8dc 100644
+--- a/pantheon-bundle/src/test/java/com/redhat/pantheon/servlet/ModuleJsonServletTest.java
++++ b/pantheon-bundle/src/test/java/com/redhat/pantheon/servlet/ModuleJsonServletTest.java
+@@ -104,6 +104,7 @@ void resourceToMap() throws Exception {
+         assertTrue(moduleMap.containsKey("content_type"));
+         assertTrue(moduleMap.containsKey("date_modified"));
+         assertTrue(moduleMap.containsKey("date_published"));
++        assertTrue(moduleMap.containsKey("status"));
+         assertTrue(moduleMap.containsKey("context_id"));
+         assertTrue(moduleMap.containsKey("headline"));
+         assertTrue(moduleMap.containsKey("module_url_fragment"));

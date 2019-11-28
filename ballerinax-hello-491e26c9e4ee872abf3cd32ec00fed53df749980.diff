@@ -1,0 +1,1239 @@
+diff --git a/.gitignore b/.gitignore
+index 0f2c169..0004de4 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -4,12 +4,6 @@
+ # Log file
+ *.log
+ 
+-# BlueJ files
+-*.ctxt
+-
+-# Mobile Tools for Java (J2ME)
+-.mtj.tmp/
+-
+ # Package Files #
+ *.jar
+ *.war
+@@ -22,7 +16,6 @@
+ hs_err_pid*
+ 
+ target
+-dependency-reduced-pom.xml
+ 
+ # IDEA Files
+ .idea/
+@@ -33,7 +26,12 @@ dependency-reduced-pom.xml
+ # MacOS
+ *.DS_Store
+ 
+-#Ballerina
+-*.balx
++sample/*.txt
++
++.gradle
++build/
++gradle-app.setting
++!gradle-wrapper.jar
++.gradletasknamecache
+ 
+-sample/*.txt
+\ No newline at end of file
++*.lock
+diff --git a/.travis.yml b/.travis.yml
+index 167e58f..9121c67 100644
+--- a/.travis.yml
++++ b/.travis.yml
+@@ -20,4 +20,10 @@ jdk:
+ 
+ cache:
+   directories:
+-  - $HOME/.m2
++  - $HOME/.gradle/caches/
++  - $HOME/.gradle/wrapper/
++
++script:
++    - pushd hello-extension
++    - ./gradlew build
++    - popd
+diff --git a/assembly/balo.xml b/assembly/balo.xml
+deleted file mode 100644
+index 04fec44..0000000
+--- a/assembly/balo.xml
++++ /dev/null
+@@ -1,35 +0,0 @@
+-<!--
+-  ~ /*
+-  ~ * Copyright (c) 2018, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
+-  ~ *
+-  ~ * Licensed under the Apache License, Version 2.0 (the "License");
+-  ~ * you may not use this file except in compliance with the License.
+-  ~ * You may obtain a copy of the License at
+-  ~ *
+-  ~ * http://www.apache.org/licenses/LICENSE-2.0
+-  ~ *
+-  ~ * Unless required by applicable law or agreed to in writing, software
+-  ~ * distributed under the License is distributed on an "AS IS" BASIS,
+-  ~ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-  ~ * See the License for the specific language governing permissions and
+-  ~ * limitations under the License.
+-  ~ */
+-  -->
+-<assembly>
+-    <includeBaseDirectory>true</includeBaseDirectory>
+-    <baseDirectory>/</baseDirectory>
+-    <id>ballerina-binary-repo</id>
+-    <formats>
+-        <format>zip</format>
+-    </formats>
+-
+-    <fileSets>
+-        <fileSet>
+-            <directory>${project.build.directory}/generated-balo</directory>
+-            <outputDirectory>/</outputDirectory>
+-            <includes>
+-                <include>**</include>
+-            </includes>
+-        </fileSet>
+-    </fileSets>
+-</assembly>
+diff --git a/assembly/source.xml b/assembly/source.xml
+deleted file mode 100644
+index 687bedf..0000000
+--- a/assembly/source.xml
++++ /dev/null
+@@ -1,35 +0,0 @@
+-<!--
+-  ~ /*
+-  ~ * Copyright (c) 2018, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
+-  ~ *
+-  ~ * Licensed under the Apache License, Version 2.0 (the "License");
+-  ~ * you may not use this file except in compliance with the License.
+-  ~ * You may obtain a copy of the License at
+-  ~ *
+-  ~ * http://www.apache.org/licenses/LICENSE-2.0
+-  ~ *
+-  ~ * Unless required by applicable law or agreed to in writing, software
+-  ~ * distributed under the License is distributed on an "AS IS" BASIS,
+-  ~ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-  ~ * See the License for the specific language governing permissions and
+-  ~ * limitations under the License.
+-  ~ */
+-  -->
+-<assembly>
+-    <includeBaseDirectory>true</includeBaseDirectory>
+-    <baseDirectory>ballerina</baseDirectory>
+-    <id>ballerina-sources</id>
+-    <formats>
+-        <format>zip</format>
+-    </formats>
+-
+-    <fileSets>
+-        <fileSet>
+-            <directory>src/main/ballerina</directory>
+-            <outputDirectory>/</outputDirectory>
+-            <includes>
+-                <include>**</include>
+-            </includes>
+-        </fileSet>
+-    </fileSets>
+-</assembly>
+diff --git a/hello-annotation/Ballerina.toml b/hello-annotation/Ballerina.toml
+new file mode 100644
+index 0000000..52438f0
+--- /dev/null
++++ b/hello-annotation/Ballerina.toml
+@@ -0,0 +1,3 @@
++[project]
++org-name= "foo"
++version= "0.1.0"
+diff --git a/hello-annotation/src/hello/annotation.bal b/hello-annotation/src/hello/annotation.bal
+new file mode 100644
+index 0000000..65408c7
+--- /dev/null
++++ b/hello-annotation/src/hello/annotation.bal
+@@ -0,0 +1,10 @@
++# This record defines the fields of the @hello:Greeting annotation. 
++#
++# + salutation - The greeting message
++public type HelloConfiguration record {|
++    string salutation = "Hello!";
++|};
++
++# Define an annotation named `Greeting`. Its type is `HelloConfiguration` and it can be
++# attached to functions.
++public annotation HelloConfiguration Greeting on function;
+diff --git a/hello-extension/build.gradle b/hello-extension/build.gradle
+new file mode 100644
+index 0000000..a5db300
+--- /dev/null
++++ b/hello-extension/build.gradle
+@@ -0,0 +1,18 @@
++plugins {
++    id 'java'
++}
++
++group 'xyz.foo'
++version '1.0-SNAPSHOT'
++
++sourceCompatibility = 1.8
++
++repositories {
++    maven {
++        url "http://maven.wso2.org/nexus/content/repositories/releases/"
++    }
++}
++
++dependencies {
++    implementation group: 'org.ballerinalang', name: 'ballerina-lang', version: '1.0.0'
++}
+diff --git a/hello-extension/gradle/wrapper/gradle-wrapper.jar b/hello-extension/gradle/wrapper/gradle-wrapper.jar
+new file mode 100644
+index 0000000..87b738c
+Binary files /dev/null and b/hello-extension/gradle/wrapper/gradle-wrapper.jar differ
+diff --git a/hello-extension/gradle/wrapper/gradle-wrapper.properties b/hello-extension/gradle/wrapper/gradle-wrapper.properties
+new file mode 100644
+index 0000000..44e7c4d
+--- /dev/null
++++ b/hello-extension/gradle/wrapper/gradle-wrapper.properties
+@@ -0,0 +1,5 @@
++distributionBase=GRADLE_USER_HOME
++distributionPath=wrapper/dists
++distributionUrl=https\://services.gradle.org/distributions/gradle-5.2.1-bin.zip
++zipStoreBase=GRADLE_USER_HOME
++zipStorePath=wrapper/dists
+diff --git a/hello-extension/gradlew b/hello-extension/gradlew
+new file mode 100755
+index 0000000..af6708f
+--- /dev/null
++++ b/hello-extension/gradlew
+@@ -0,0 +1,172 @@
++#!/usr/bin/env sh
++
++##############################################################################
++##
++##  Gradle start up script for UN*X
++##
++##############################################################################
++
++# Attempt to set APP_HOME
++# Resolve links: $0 may be a link
++PRG="$0"
++# Need this for relative symlinks.
++while [ -h "$PRG" ] ; do
++    ls=`ls -ld "$PRG"`
++    link=`expr "$ls" : '.*-> \(.*\)$'`
++    if expr "$link" : '/.*' > /dev/null; then
++        PRG="$link"
++    else
++        PRG=`dirname "$PRG"`"/$link"
++    fi
++done
++SAVED="`pwd`"
++cd "`dirname \"$PRG\"`/" >/dev/null
++APP_HOME="`pwd -P`"
++cd "$SAVED" >/dev/null
++
++APP_NAME="Gradle"
++APP_BASE_NAME=`basename "$0"`
++
++# Add default JVM options here. You can also use JAVA_OPTS and GRADLE_OPTS to pass JVM options to this script.
++DEFAULT_JVM_OPTS='"-Xmx64m"'
++
++# Use the maximum available, or set MAX_FD != -1 to use that value.
++MAX_FD="maximum"
++
++warn () {
++    echo "$*"
++}
++
++die () {
++    echo
++    echo "$*"
++    echo
++    exit 1
++}
++
++# OS specific support (must be 'true' or 'false').
++cygwin=false
++msys=false
++darwin=false
++nonstop=false
++case "`uname`" in
++  CYGWIN* )
++    cygwin=true
++    ;;
++  Darwin* )
++    darwin=true
++    ;;
++  MINGW* )
++    msys=true
++    ;;
++  NONSTOP* )
++    nonstop=true
++    ;;
++esac
++
++CLASSPATH=$APP_HOME/gradle/wrapper/gradle-wrapper.jar
++
++# Determine the Java command to use to start the JVM.
++if [ -n "$JAVA_HOME" ] ; then
++    if [ -x "$JAVA_HOME/jre/sh/java" ] ; then
++        # IBM's JDK on AIX uses strange locations for the executables
++        JAVACMD="$JAVA_HOME/jre/sh/java"
++    else
++        JAVACMD="$JAVA_HOME/bin/java"
++    fi
++    if [ ! -x "$JAVACMD" ] ; then
++        die "ERROR: JAVA_HOME is set to an invalid directory: $JAVA_HOME
++
++Please set the JAVA_HOME variable in your environment to match the
++location of your Java installation."
++    fi
++else
++    JAVACMD="java"
++    which java >/dev/null 2>&1 || die "ERROR: JAVA_HOME is not set and no 'java' command could be found in your PATH.
++
++Please set the JAVA_HOME variable in your environment to match the
++location of your Java installation."
++fi
++
++# Increase the maximum file descriptors if we can.
++if [ "$cygwin" = "false" -a "$darwin" = "false" -a "$nonstop" = "false" ] ; then
++    MAX_FD_LIMIT=`ulimit -H -n`
++    if [ $? -eq 0 ] ; then
++        if [ "$MAX_FD" = "maximum" -o "$MAX_FD" = "max" ] ; then
++            MAX_FD="$MAX_FD_LIMIT"
++        fi
++        ulimit -n $MAX_FD
++        if [ $? -ne 0 ] ; then
++            warn "Could not set maximum file descriptor limit: $MAX_FD"
++        fi
++    else
++        warn "Could not query maximum file descriptor limit: $MAX_FD_LIMIT"
++    fi
++fi
++
++# For Darwin, add options to specify how the application appears in the dock
++if $darwin; then
++    GRADLE_OPTS="$GRADLE_OPTS \"-Xdock:name=$APP_NAME\" \"-Xdock:icon=$APP_HOME/media/gradle.icns\""
++fi
++
++# For Cygwin, switch paths to Windows format before running java
++if $cygwin ; then
++    APP_HOME=`cygpath --path --mixed "$APP_HOME"`
++    CLASSPATH=`cygpath --path --mixed "$CLASSPATH"`
++    JAVACMD=`cygpath --unix "$JAVACMD"`
++
++    # We build the pattern for arguments to be converted via cygpath
++    ROOTDIRSRAW=`find -L / -maxdepth 1 -mindepth 1 -type d 2>/dev/null`
++    SEP=""
++    for dir in $ROOTDIRSRAW ; do
++        ROOTDIRS="$ROOTDIRS$SEP$dir"
++        SEP="|"
++    done
++    OURCYGPATTERN="(^($ROOTDIRS))"
++    # Add a user-defined pattern to the cygpath arguments
++    if [ "$GRADLE_CYGPATTERN" != "" ] ; then
++        OURCYGPATTERN="$OURCYGPATTERN|($GRADLE_CYGPATTERN)"
++    fi
++    # Now convert the arguments - kludge to limit ourselves to /bin/sh
++    i=0
++    for arg in "$@" ; do
++        CHECK=`echo "$arg"|egrep -c "$OURCYGPATTERN" -`
++        CHECK2=`echo "$arg"|egrep -c "^-"`                                 ### Determine if an option
++
++        if [ $CHECK -ne 0 ] && [ $CHECK2 -eq 0 ] ; then                    ### Added a condition
++            eval `echo args$i`=`cygpath --path --ignore --mixed "$arg"`
++        else
++            eval `echo args$i`="\"$arg\""
++        fi
++        i=$((i+1))
++    done
++    case $i in
++        (0) set -- ;;
++        (1) set -- "$args0" ;;
++        (2) set -- "$args0" "$args1" ;;
++        (3) set -- "$args0" "$args1" "$args2" ;;
++        (4) set -- "$args0" "$args1" "$args2" "$args3" ;;
++        (5) set -- "$args0" "$args1" "$args2" "$args3" "$args4" ;;
++        (6) set -- "$args0" "$args1" "$args2" "$args3" "$args4" "$args5" ;;
++        (7) set -- "$args0" "$args1" "$args2" "$args3" "$args4" "$args5" "$args6" ;;
++        (8) set -- "$args0" "$args1" "$args2" "$args3" "$args4" "$args5" "$args6" "$args7" ;;
++        (9) set -- "$args0" "$args1" "$args2" "$args3" "$args4" "$args5" "$args6" "$args7" "$args8" ;;
++    esac
++fi
++
++# Escape application args
++save () {
++    for i do printf %s\\n "$i" | sed "s/'/'\\\\''/g;1s/^/'/;\$s/\$/' \\\\/" ; done
++    echo " "
++}
++APP_ARGS=$(save "$@")
++
++# Collect all arguments for the java command, following the shell quoting and substitution rules
++eval set -- $DEFAULT_JVM_OPTS $JAVA_OPTS $GRADLE_OPTS "\"-Dorg.gradle.appname=$APP_BASE_NAME\"" -classpath "\"$CLASSPATH\"" org.gradle.wrapper.GradleWrapperMain "$APP_ARGS"
++
++# by default we should be in the correct project dir, but when run from Finder on Mac, the cwd is wrong
++if [ "$(uname)" = "Darwin" ] && [ "$HOME" = "$PWD" ]; then
++  cd "$(dirname "$0")"
++fi
++
++exec "$JAVACMD" "$@"
+diff --git a/hello-extension/gradlew.bat b/hello-extension/gradlew.bat
+new file mode 100644
+index 0000000..0f8d593
+--- /dev/null
++++ b/hello-extension/gradlew.bat
+@@ -0,0 +1,84 @@
++@if "%DEBUG%" == "" @echo off
++@rem ##########################################################################
++@rem
++@rem  Gradle startup script for Windows
++@rem
++@rem ##########################################################################
++
++@rem Set local scope for the variables with windows NT shell
++if "%OS%"=="Windows_NT" setlocal
++
++set DIRNAME=%~dp0
++if "%DIRNAME%" == "" set DIRNAME=.
++set APP_BASE_NAME=%~n0
++set APP_HOME=%DIRNAME%
++
++@rem Add default JVM options here. You can also use JAVA_OPTS and GRADLE_OPTS to pass JVM options to this script.
++set DEFAULT_JVM_OPTS="-Xmx64m"
++
++@rem Find java.exe
++if defined JAVA_HOME goto findJavaFromJavaHome
++
++set JAVA_EXE=java.exe
++%JAVA_EXE% -version >NUL 2>&1
++if "%ERRORLEVEL%" == "0" goto init
++
++echo.
++echo ERROR: JAVA_HOME is not set and no 'java' command could be found in your PATH.
++echo.
++echo Please set the JAVA_HOME variable in your environment to match the
++echo location of your Java installation.
++
++goto fail
++
++:findJavaFromJavaHome
++set JAVA_HOME=%JAVA_HOME:"=%
++set JAVA_EXE=%JAVA_HOME%/bin/java.exe
++
++if exist "%JAVA_EXE%" goto init
++
++echo.
++echo ERROR: JAVA_HOME is set to an invalid directory: %JAVA_HOME%
++echo.
++echo Please set the JAVA_HOME variable in your environment to match the
++echo location of your Java installation.
++
++goto fail
++
++:init
++@rem Get command-line arguments, handling Windows variants
++
++if not "%OS%" == "Windows_NT" goto win9xME_args
++
++:win9xME_args
++@rem Slurp the command line arguments.
++set CMD_LINE_ARGS=
++set _SKIP=2
++
++:win9xME_args_slurp
++if "x%~1" == "x" goto execute
++
++set CMD_LINE_ARGS=%*
++
++:execute
++@rem Setup the command line
++
++set CLASSPATH=%APP_HOME%\gradle\wrapper\gradle-wrapper.jar
++
++@rem Execute Gradle
++"%JAVA_EXE%" %DEFAULT_JVM_OPTS% %JAVA_OPTS% %GRADLE_OPTS% "-Dorg.gradle.appname=%APP_BASE_NAME%" -classpath "%CLASSPATH%" org.gradle.wrapper.GradleWrapperMain %CMD_LINE_ARGS%
++
++:end
++@rem End local scope for the variables with windows NT shell
++if "%ERRORLEVEL%"=="0" goto mainEnd
++
++:fail
++rem Set variable GRADLE_EXIT_CONSOLE if you need the _script_ return code instead of
++rem the _cmd.exe /c_ return code!
++if  not "" == "%GRADLE_EXIT_CONSOLE%" exit 1
++exit /b 1
++
++:mainEnd
++if "%OS%"=="Windows_NT" endlocal
++
++:omega
+diff --git a/hello-extension/settings.gradle b/hello-extension/settings.gradle
+new file mode 100644
+index 0000000..c3ef289
+--- /dev/null
++++ b/hello-extension/settings.gradle
+@@ -0,0 +1,2 @@
++rootProject.name = 'hello-extension'
++
+diff --git a/src/main/java/org/ballerinax/hello/HelloModel.java b/hello-extension/src/main/java/xyz/foo/hello/HelloModel.java
+similarity index 58%
+rename from src/main/java/org/ballerinax/hello/HelloModel.java
+rename to hello-extension/src/main/java/xyz/foo/hello/HelloModel.java
+index 75e068c..aff827e 100644
+--- a/src/main/java/org/ballerinax/hello/HelloModel.java
++++ b/hello-extension/src/main/java/xyz/foo/hello/HelloModel.java
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright (c) 2018, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
++ * Copyright (c) 2019, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
+  *
+  * WSO2 Inc. licenses this file to you under the Apache License,
+  * Version 2.0 (the "License"); you may not use this file except
+@@ -16,34 +16,28 @@
+  * under the License.
+  */
+ 
+-package org.ballerinax.hello;
++package xyz.foo.hello;
+ 
+ /**
+- * Model class to store greeting value.
++ * Model class to store the greeting.
+  */
+-public class HelloModel {
+-    private static HelloModel instance;
++class HelloModel {
++
++    private static HelloModel instance = new HelloModel();
+     private String greeting;
+ 
+     private HelloModel() {
+-        // Initialize with the default greeting.
+-        greeting = "Hello!";
+     }
+ 
+-    public static HelloModel getInstance() {
+-        synchronized (HelloModel.class) {
+-            if (instance == null) {
+-                instance = new HelloModel();
+-            }
+-        }
++    static HelloModel getInstance() {
+         return instance;
+     }
+ 
+-    public String getGreeting() {
++    String getGreetings() {
+         return greeting;
+     }
+ 
+-    public void setGreeting(String greeting) {
++    void setGreeting(String greeting) {
+         this.greeting = greeting;
+     }
+ }
+diff --git a/hello-extension/src/main/java/xyz/foo/hello/HelloPlugin.java b/hello-extension/src/main/java/xyz/foo/hello/HelloPlugin.java
+new file mode 100644
+index 0000000..60ebf89
+--- /dev/null
++++ b/hello-extension/src/main/java/xyz/foo/hello/HelloPlugin.java
+@@ -0,0 +1,112 @@
++/*
++ * Copyright (c) 2019, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
++ *
++ * WSO2 Inc. licenses this file to you under the Apache License,
++ * Version 2.0 (the "License"); you may not use this file except
++ * in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ * http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing,
++ * software distributed under the License is distributed on an
++ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
++ * KIND, either express or implied.  See the License for the
++ * specific language governing permissions and limitations
++ * under the License.
++ */
++
++package xyz.foo.hello;
++
++import org.ballerinalang.compiler.plugins.AbstractCompilerPlugin;
++import org.ballerinalang.compiler.plugins.SupportedAnnotationPackages;
++import org.ballerinalang.model.elements.PackageID;
++import org.ballerinalang.model.tree.AnnotationAttachmentNode;
++import org.ballerinalang.model.tree.FunctionNode;
++import org.ballerinalang.util.diagnostic.Diagnostic;
++import org.ballerinalang.util.diagnostic.DiagnosticLog;
++import org.wso2.ballerinalang.compiler.tree.BLangAnnotationAttachment;
++import org.wso2.ballerinalang.compiler.tree.expressions.BLangLiteral;
++import org.wso2.ballerinalang.compiler.tree.expressions.BLangRecordLiteral;
++import org.wso2.ballerinalang.compiler.tree.expressions.BLangRecordLiteral.BLangRecordKeyValue;
++
++import java.io.File;
++import java.io.IOException;
++import java.nio.charset.StandardCharsets;
++import java.nio.file.Files;
++import java.nio.file.Path;
++import java.nio.file.Paths;
++import java.nio.file.StandardOpenOption;
++import java.util.List;
++
++/**
++ * Compiler extension to generate greetings.
++ */
++// This annotation specifies that this compiler extension should only be enabled when the mentioned module is used.
++@SupportedAnnotationPackages(
++        value = "foo/hello:0.1.0"
++)
++public class HelloPlugin extends AbstractCompilerPlugin {
++
++    private DiagnosticLog dlog;
++
++    @Override
++    public void init(DiagnosticLog diagnosticLog) {
++        this.dlog = diagnosticLog;
++    }
++
++    // Our annotation is attached to functions. Therefore, we override the process() method for functions.
++    @Override
++    public void process(FunctionNode functionNode, List<AnnotationAttachmentNode> annotations) {
++        // Iterate through the annotations attached to the service
++        for (AnnotationAttachmentNode annotation : annotations) {
++            // The `annotations` list contains all the annotations attached to the service.
++            // Since we are only interested in our annotation, we'll just skip the other annotations.
++            if (!"Greeting".equals(annotation.getAnnotationName().getValue())) {
++                continue;
++            }
++
++            // Retrieve the fields of the annotation value.
++            List<BLangRecordKeyValue> annotFields =
++                    ((BLangRecordLiteral) ((BLangAnnotationAttachment) annotation).expr).getKeyValuePairs();
++
++            // In this particular case, there is no need to iterate through the list since our annotation only has
++            // one field. So let's just take the first element of the fields list.
++            BLangRecordKeyValue salutationField = annotFields.get(0);
++            String annotFieldValue = ((BLangLiteral) salutationField.getValue()).getValue().toString();
++            String greeting = String.format("%s from %s()\n", annotFieldValue, functionNode.getName().getValue());
++            HelloModel.getInstance().setGreeting(greeting);
++        }
++    }
++
++    // The codeGenerated() method gets invoked once the executable is built. We write the greeting to a text file
++    // with the same name as the executable and in the same directory as the executable.
++    @Override
++    public void codeGenerated(PackageID packageID, Path binaryPath) {
++        String fileName = binaryPath.getFileName().toString().replace(".jar", ".txt");
++        Path greetingsPath = Paths.get("target", "greetings", fileName);
++        String greeting = HelloModel.getInstance().getGreetings();
++        try {
++            System.out.println("\nGenerating greetings");
++            System.out.println("\t" + greetingsPath.toString());
++            writeToFile(greeting, greetingsPath);
++        } catch (IOException e) {
++            dlog.logDiagnostic(Diagnostic.Kind.ERROR, null, e.getMessage());
++        }
++    }
++
++    private void writeToFile(String greetings, Path targetFilePath) throws IOException {
++        File newFile = targetFilePath.toFile();
++
++        if (newFile.exists()) {
++            Files.write(targetFilePath, greetings.getBytes(StandardCharsets.UTF_8), StandardOpenOption.APPEND);
++            return;
++        }
++
++        if (newFile.getParentFile().mkdirs()) {
++            Files.write(targetFilePath, greetings.getBytes(StandardCharsets.UTF_8));
++            return;
++        }
++        Files.write(targetFilePath, greetings.getBytes(StandardCharsets.UTF_8));
++    }
++}
+diff --git a/hello-extension/src/main/resources/META-INF/services/org.ballerinalang.compiler.plugins.CompilerPlugin b/hello-extension/src/main/resources/META-INF/services/org.ballerinalang.compiler.plugins.CompilerPlugin
+new file mode 100644
+index 0000000..6de4b86
+--- /dev/null
++++ b/hello-extension/src/main/resources/META-INF/services/org.ballerinalang.compiler.plugins.CompilerPlugin
+@@ -0,0 +1 @@
++xyz.foo.hello.HelloPlugin
+\ No newline at end of file
+diff --git a/hello-world/Ballerina.toml b/hello-world/Ballerina.toml
+new file mode 100644
+index 0000000..edca1e6
+--- /dev/null
++++ b/hello-world/Ballerina.toml
+@@ -0,0 +1,6 @@
++[project]
++org-name= "bar"
++version= "0.1.0"
++
++[dependencies]
++"foo/hello" = {path = "../hello-annotation/target/balo/hello-2019r3-any-0.1.0.balo"}
+diff --git a/hello-world/src/greet/greeting.bal b/hello-world/src/greet/greeting.bal
+new file mode 100644
+index 0000000..ce3f3eb
+--- /dev/null
++++ b/hello-world/src/greet/greeting.bal
+@@ -0,0 +1,12 @@
++import foo/hello;
++
++@hello:Greeting {
++    salutation: "Guten Tag!"
++}
++function add(int x, int y) returns int {
++    return x + y;
++}
++
++public function main() {
++    var sum = add(10, 20);
++}
+diff --git a/pom.xml b/pom.xml
+deleted file mode 100644
+index 78403c1..0000000
+--- a/pom.xml
++++ /dev/null
+@@ -1,264 +0,0 @@
+-<!--
+-  ~ Copyright (c) 2018, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
+-  ~
+-  ~ WSO2 Inc. licenses this file to you under the Apache License,
+-  ~ Version 2.0 (the "License"); you may not use this file except
+-  ~ in compliance with the License.
+-  ~ You may obtain a copy of the License at
+-  ~
+-  ~ http://www.apache.org/licenses/LICENSE-2.0
+-  ~
+-  ~ Unless required by applicable law or agreed to in writing,
+-  ~ software distributed under the License is distributed on an
+-  ~ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+-  ~ KIND, either express or implied.  See the License for the
+-  ~ specific language governing permissions and limitations
+-  ~ under the License.
+-  -->
+-
+-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+-    <parent>
+-        <groupId>io.ballerina</groupId>
+-        <artifactId>ballerina</artifactId>
+-        <version>1</version>
+-    </parent>
+-
+-    <groupId>org.ballerainax.hello</groupId>
+-    <version>1.0.0</version>
+-    <modelVersion>4.0.0</modelVersion>
+-    <artifactId>hello-extension</artifactId>
+-    <packaging>jar</packaging>
+-    <name>Ballerina Hello Extension</name>
+-    <url>http://ballerinalang.org</url>
+-
+-    <dependencies>
+-        <dependency>
+-            <groupId>org.ballerinalang</groupId>
+-            <artifactId>ballerina-lang</artifactId>
+-            <version>${ballerina.lang.version}</version>
+-        </dependency>
+-        <dependency>
+-            <groupId>org.ballerinalang</groupId>
+-            <version>${ballerina.lang.version}</version>
+-            <artifactId>lib-creator</artifactId>
+-        </dependency>
+-        <dependency>
+-            <groupId>org.ballerinalang</groupId>
+-            <artifactId>ballerina-builtin</artifactId>
+-            <version>${ballerina.lang.version}</version>
+-            <type>zip</type>
+-            <classifier>ballerina-binary-repo</classifier>
+-        </dependency>
+-    </dependencies>
+-
+-    <repositories>
+-        <repository>
+-            <id>wso2.releases</id>
+-            <name>WSO2 Releases Repository</name>
+-            <url>http://maven.wso2.org/nexus/content/repositories/releases/</url>
+-            <releases>
+-                <enabled>true</enabled>
+-                <updatePolicy>daily</updatePolicy>
+-                <checksumPolicy>ignore</checksumPolicy>
+-            </releases>
+-        </repository>
+-        <repository>
+-            <id>wso2.snapshots</id>
+-            <name>WSO2 Snapshot Repository</name>
+-            <url>http://maven.wso2.org/nexus/content/repositories/snapshots/</url>
+-            <snapshots>
+-                <enabled>true</enabled>
+-                <updatePolicy>daily</updatePolicy>
+-            </snapshots>
+-            <releases>
+-                <enabled>false</enabled>
+-            </releases>
+-        </repository>
+-    </repositories>
+-
+-    <build>
+-        <resources>
+-            <resource>
+-                <directory>src/main/resources</directory>
+-                <excludes>
+-                    <exclude>ballerina/**</exclude>
+-                </excludes>
+-            </resource>
+-
+-            <!-- copy ballerina annotation sources to the jar -->
+-            <resource>
+-                <directory>${ballerina.source.directory}</directory>
+-                <targetPath>META-INF/</targetPath>
+-            </resource>
+-        </resources>
+-
+-        <plugins>
+-            <plugin>
+-                <groupId>org.apache.maven.plugins</groupId>
+-                <artifactId>maven-compiler-plugin</artifactId>
+-                <version>3.7.0</version>
+-                <configuration>
+-                    <source>1.8</source>
+-                    <target>1.8</target>
+-                </configuration>
+-            </plugin>
+-
+-            <!-- For ballerina annotation processing -->
+-            <plugin>
+-                <groupId>org.bsc.maven</groupId>
+-                <artifactId>maven-processor-plugin</artifactId>
+-                <version>${mvn.processor.plugin.version}</version>
+-                <configuration>
+-                    <processors>
+-                        <processor>org.ballerinalang.codegen.BallerinaAnnotationProcessor</processor>
+-                    </processors>
+-                    <options>
+-                        <nativeEntityProviderPackage>org.ballerinalang.net.generated.providers
+-                        </nativeEntityProviderPackage>
+-                        <nativeEntityProviderClass>StandardNativeElementProvider</nativeEntityProviderClass>
+-                    </options>
+-                </configuration>
+-                <executions>
+-                    <execution>
+-                        <id>process</id>
+-                        <goals>
+-                            <goal>process</goal>
+-                        </goals>
+-                        <phase>generate-sources</phase>
+-                    </execution>
+-                </executions>
+-            </plugin>
+-            <plugin>
+-                <artifactId>maven-shade-plugin</artifactId>
+-                <version>2.4.3</version>
+-                <executions>
+-                    <execution>
+-                        <phase>package</phase>
+-                        <goals>
+-                            <goal>shade</goal>
+-                        </goals>
+-                        <configuration>
+-                            <createDependencyReducedPom>true</createDependencyReducedPom>
+-                            <minimizeJar>true</minimizeJar>
+-                            <artifactSet>
+-                                <excludes>
+-                                    <exclude>org.slf4j:slf4j-api</exclude>
+-                                    <exclude>org.slf4j:slf4j-jdk14</exclude>
+-                                    <exclude>com.fasterxml.jackson.dataformat:jackson-dataformat-yaml</exclude>
+-                                    <exclude>com.fasterxml.jackson.core:jackson-databind</exclude>
+-                                    <exclude>com.fasterxml.jackson.core:jackson-annotations</exclude>
+-                                    <exclude>com.fasterxml.jackson.core:jackson-core</exclude>
+-                                    <exclude>commons-lang:commons-lang</exclude>
+-                                    <exclude>org.yaml:snakeyaml</exclude>
+-                                    <exclude>org.ballerinalang:ballerina-lang</exclude>
+-                                    <exclude>org.ballerinalang:ballerina-launcher</exclude>
+-                                    <exclude>org.ballerinalang:ballerina-builtin</exclude>
+-                                    <exclude>org.ballerinalang:ballerina-core</exclude>
+-                                    <exclude>org.ballerinalang:ballerina-mime</exclude>
+-                                    <exclude>org.ballerinalang:ballerina-logging</exclude>
+-                                    <exclude>org.ballerinalang:ballerina-http</exclude>
+-                                    <exclude>org.bsc.maven:maven-processor-plugin</exclude>
+-                                </excludes>
+-                            </artifactSet>
+-                            <filters>
+-                                <filter>
+-                                    <artifact>*:*</artifact>
+-                                    <excludes>
+-                                        <exclude>META-INF/*.SF</exclude>
+-                                        <exclude>META-INF/*.DSA</exclude>
+-                                        <exclude>META-INF/*.RSA</exclude>
+-                                    </excludes>
+-                                </filter>
+-                            </filters>
+-                        </configuration>
+-                    </execution>
+-                </executions>
+-            </plugin>
+-
+-            <plugin>
+-                <groupId>org.codehaus.mojo</groupId>
+-                <artifactId>exec-maven-plugin</artifactId>
+-                <version>1.6.0</version>
+-                <executions>
+-                    <execution>
+-                        <id>gen-balo</id>
+-                        <goals>
+-                            <goal>java</goal>
+-                        </goals>
+-                        <phase>compile</phase>
+-                        <configuration>
+-                            <systemProperties>
+-                                <systemProperty>
+-                                    <key>BALLERINA_DEV_MODE_COMPILE</key>
+-                                    <value>true</value>
+-                                </systemProperty>
+-                            </systemProperties>
+-                            <arguments>
+-                                <!--is built in pkg loaded from source-->
+-                                <argument>false</argument>
+-                                <!--source project dir-->
+-                                <argument>${basedir}/src/main/ballerina/ballerinax</argument>
+-                                <!--balo destination-->
+-                                <argument>${project.build.directory}/generated-balo/repo/ballerinax</argument>
+-                                <!--ballerina home-->
+-                                <argument>${project.build.directory}</argument>
+-                                <!--not used-->
+-                                <argument>${project.version}</argument>
+-                            </arguments>
+-                        </configuration>
+-                    </execution>
+-                </executions>
+-                <configuration>
+-                    <mainClass>org.ballerinalang.stdlib.utils.GenerateBalo</mainClass>
+-                </configuration>
+-            </plugin>
+-
+-            <plugin>
+-                <groupId>org.apache.maven.plugins</groupId>
+-                <artifactId>maven-dependency-plugin</artifactId>
+-                <executions>
+-                    <execution>
+-                        <id>unpack-dependencies</id>
+-                        <phase>generate-resources</phase>
+-                        <goals>
+-                            <goal>unpack-dependencies</goal>
+-                        </goals>
+-                        <configuration>
+-                            <includeClassifiers>ballerina-binary-repo</includeClassifiers>
+-                            <outputDirectory>${project.build.directory}/lib</outputDirectory>
+-                        </configuration>
+-                    </execution>
+-                </executions>
+-            </plugin>
+-
+-            <plugin>
+-                <groupId>org.apache.maven.plugins</groupId>
+-                <artifactId>maven-assembly-plugin</artifactId>
+-                <version>2.5.2</version>
+-                <executions>
+-                    <execution>
+-                        <id>distribution</id>
+-                        <phase>package</phase>
+-                        <goals>
+-                            <goal>attached</goal>
+-                        </goals>
+-                        <configuration>
+-                            <descriptorSourceDirectory>assembly</descriptorSourceDirectory>
+-                        </configuration>
+-                    </execution>
+-                </executions>
+-            </plugin>
+-
+-
+-        </plugins>
+-    </build>
+-
+-
+-    <properties>
+-        <mvn.processor.plugin.version>2.2.4</mvn.processor.plugin.version>
+-        <junit.version>4.12</junit.version>
+-        <ballerina.lang.version>0.991.0</ballerina.lang.version>
+-        <ballerina.source.directory>${project.build.directory}/../src/main/ballerina</ballerina.source.directory>
+-    </properties>
+-</project>
+diff --git a/sample/README.md b/sample/README.md
+deleted file mode 100644
+index 63689c2..0000000
+--- a/sample/README.md
++++ /dev/null
+@@ -1,32 +0,0 @@
+-## Sample: hello_world.bal  
+-
+-- This sample runs simple ballerina hello world service with [@hello:Greeting{salutation : "Guten Tag!"}](hello_world.bal) annotation.
+-- Compiling the ballerina file will create a text file with salutation value.
+-- Following files will be generated by this sample.
+-    ``` bash
+-    $> tree
+-    ├── hello_world.bal
+-    ├── hello_world.balx
+-    └── hello_world.txt
+-    ```
+-### How to run:
+-
+-1. Compile the  hello_world.bal.bal file. 
+-```bash
+-$> ballerina build hello_world.bal
+-```
+-
+-2. hello_world.balx and hello_world.txt files will be created. 
+-```bash
+-$> tree
+-   ├── hello_world.balx
+-   └── hello_world.txt
+-
+-```
+-
+-3. Verify the greeting is printed on hello_world.txt file:
+-```bash
+-$> cat hello_world.txt
+-Guten Tag!
+-```
+-
+diff --git a/sample/hello_world.bal b/sample/hello_world.bal
+deleted file mode 100644
+index bb69be9..0000000
+--- a/sample/hello_world.bal
++++ /dev/null
+@@ -1,14 +0,0 @@
+-import ballerina/http;
+-import ballerinax/hello;
+-
+-@hello:Greeting { salutation: "Guten Tag!" }
+-@http:ServiceConfig {
+-    basePath: "/helloWorld"
+-}
+-service helloWorld on new http:Listener(9091) {
+-    resource function sayHello(http:Caller outboundEP, http:Request request) {
+-        http:Response response = new;
+-        response.setTextPayload("Hello, World from service helloWorld ! \n");
+-        _ = outboundEP -> respond(response);
+-    }
+-}
+diff --git a/spotbugs-exclude.xml b/spotbugs-exclude.xml
+deleted file mode 100644
+index 2ba1c1c..0000000
+--- a/spotbugs-exclude.xml
++++ /dev/null
+@@ -1,20 +0,0 @@
+-<?xml version="1.0" encoding="UTF-8"?>
+-<!--
+-  ~ Copyright (c) 2018, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
+-  ~
+-  ~ WSO2 Inc. licenses this file to you under the Apache License,
+-  ~ Version 2.0 (the "License"); you may not use this file except
+-  ~ in compliance with the License.
+-  ~ You may obtain a copy of the License at
+-  ~
+-  ~ http://www.apache.org/licenses/LICENSE-2.0
+-  ~
+-  ~ Unless required by applicable law or agreed to in writing,
+-  ~ software distributed under the License is distributed on an
+-  ~ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+-  ~ KIND, either express or implied.  See the License for the
+-  ~ specific language governing permissions and limitations
+-  ~ under the License.
+-  -->
+-<FindBugsFilter>
+-</FindBugsFilter>
+\ No newline at end of file
+diff --git a/src/main/ballerina/ballerinax/Ballerina.toml b/src/main/ballerina/ballerinax/Ballerina.toml
+deleted file mode 100644
+index e564cd1..0000000
+--- a/src/main/ballerina/ballerinax/Ballerina.toml
++++ /dev/null
+@@ -1,3 +0,0 @@
+-[project]
+-org-name = "ballerinax"
+-version = "0.0.0"
+diff --git a/src/main/ballerina/ballerinax/hello/annotation.bal b/src/main/ballerina/ballerinax/hello/annotation.bal
+deleted file mode 100644
+index 81924da..0000000
+--- a/src/main/ballerina/ballerinax/hello/annotation.bal
++++ /dev/null
+@@ -1,9 +0,0 @@
+-# Hello annotation configuration
+-#
+-# + salutation - Greeting
+-public type HelloConfiguration record {|
+-    string salutation = "Hello!";
+-|};
+-
+-# @hello:Greeting annotation configuration
+-public annotation <service> Greeting HelloConfiguration;
+diff --git a/src/main/java/org/ballerinax/hello/HelloExtensionProvider.java b/src/main/java/org/ballerinax/hello/HelloExtensionProvider.java
+deleted file mode 100644
+index 7c7f061..0000000
+--- a/src/main/java/org/ballerinax/hello/HelloExtensionProvider.java
++++ /dev/null
+@@ -1,37 +0,0 @@
+-/*
+- * Copyright (c) 2018, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
+- *
+- * WSO2 Inc. licenses this file to you under the Apache License,
+- * Version 2.0 (the "License"); you may not use this file except
+- * in compliance with the License.
+- * You may obtain a copy of the License at
+- *
+- * http://www.apache.org/licenses/LICENSE-2.0
+- *
+- * Unless required by applicable law or agreed to in writing,
+- * software distributed under the License is distributed on an
+- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+- * KIND, either express or implied.  See the License for the
+- * specific language governing permissions and limitations
+- * under the License.
+- */
+-
+-package org.ballerinax.hello;
+-
+-import org.ballerinalang.annotation.JavaSPIService;
+-import org.ballerinalang.spi.SystemPackageRepositoryProvider;
+-import org.wso2.ballerinalang.compiler.packaging.repo.JarRepo;
+-import org.wso2.ballerinalang.compiler.packaging.repo.Repo;
+-
+-/**
+- * This represents the Ballerina Hello extension package repository provider.
+- */
+-@JavaSPIService("org.ballerinalang.spi.SystemPackageRepositoryProvider")
+-public class HelloExtensionProvider implements SystemPackageRepositoryProvider {
+-
+-    @Override
+-    public Repo loadRepository() {
+-        return new JarRepo(SystemPackageRepositoryProvider.getClassUri(this));
+-    }
+-
+-}
+diff --git a/src/main/java/org/ballerinax/hello/HelloPlugin.java b/src/main/java/org/ballerinax/hello/HelloPlugin.java
+deleted file mode 100644
+index a6bdaf2..0000000
+--- a/src/main/java/org/ballerinax/hello/HelloPlugin.java
++++ /dev/null
+@@ -1,110 +0,0 @@
+-/*
+- * Copyright (c) 2018, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
+- *
+- * WSO2 Inc. licenses this file to you under the Apache License,
+- * Version 2.0 (the "License"); you may not use this file except
+- * in compliance with the License.
+- * You may obtain a copy of the License at
+- *
+- * http://www.apache.org/licenses/LICENSE-2.0
+- *
+- * Unless required by applicable law or agreed to in writing,
+- * software distributed under the License is distributed on an
+- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+- * KIND, either express or implied.  See the License for the
+- * specific language governing permissions and limitations
+- * under the License.
+- */
+-
+-package org.ballerinax.hello;
+-
+-import org.ballerinalang.compiler.plugins.AbstractCompilerPlugin;
+-import org.ballerinalang.compiler.plugins.SupportedAnnotationPackages;
+-import org.ballerinalang.model.elements.PackageID;
+-import org.ballerinalang.model.tree.AnnotationAttachmentNode;
+-import org.ballerinalang.model.tree.ServiceNode;
+-import org.ballerinalang.util.diagnostic.Diagnostic;
+-import org.ballerinalang.util.diagnostic.DiagnosticLog;
+-import org.wso2.ballerinalang.compiler.tree.BLangAnnotationAttachment;
+-import org.wso2.ballerinalang.compiler.tree.expressions.BLangRecordLiteral;
+-
+-import java.io.File;
+-import java.io.IOException;
+-import java.nio.charset.StandardCharsets;
+-import java.nio.file.Files;
+-import java.nio.file.Path;
+-import java.nio.file.Paths;
+-import java.nio.file.StandardOpenOption;
+-import java.util.List;
+-
+-/**
+- * Compiler plugin to generate greetings.
+- */
+-@SupportedAnnotationPackages(
+-        // Tell compiler we are only interested in ballerinax.hello annotations.
+-        value = "ballerinax.hello"
+-)
+-public class HelloPlugin extends AbstractCompilerPlugin {
+-    private DiagnosticLog dlog;
+-
+-
+-    @Override
+-    public void init(DiagnosticLog diagnosticLog) {
+-        // Initialize the logger.
+-        this.dlog = diagnosticLog;
+-    }
+-
+-    // Our annotation is attached to service<> objects.
+-    @Override
+-    public void process(ServiceNode serviceNode, List<AnnotationAttachmentNode> annotations) {
+-        //Iterate through the annotation Attachment Nodes
+-        for (AnnotationAttachmentNode attachmentNode : annotations) {
+-            List<BLangRecordLiteral.BLangRecordKeyValue> keyValues =
+-                    ((BLangRecordLiteral) ((BLangAnnotationAttachment) attachmentNode).expr).getKeyValuePairs();
+-            //Iterate through the annotations
+-            for (BLangRecordLiteral.BLangRecordKeyValue keyValue : keyValues) {
+-                String annotationValue = keyValue.getValue().toString();
+-                //Match annotation key and assign the value
+-                String s = keyValue.getKey().toString();
+-                if ("salutation".equals(s)) {
+-                    HelloModel.getInstance().setGreeting(annotationValue);
+-                }
+-            }
+-        }
+-    }
+-
+-    @Override
+-    public void codeGenerated(PackageID packageID, Path binaryPath) {
+-        //extract file name.
+-        String filePath = binaryPath.toAbsolutePath().toString().replace(".balx", ".txt");
+-        String greeting = HelloModel.getInstance().getGreeting();
+-        try {
+-            writeToFile(greeting, filePath);
+-        } catch (IOException e) {
+-            dlog.logDiagnostic(Diagnostic.Kind.ERROR, null, e.getMessage());
+-        }
+-    }
+-
+-    /**
+-     * Write content to a File. Create the required directories if they don't not exists.
+-     *
+-     * @param context        context of the file
+-     * @param targetFilePath target file path
+-     * @throws IOException If an error occurs when writing to a file
+-     */
+-    public void writeToFile(String context, String targetFilePath) throws IOException {
+-        File newFile = new File(targetFilePath);
+-        // append if file exists
+-        if (newFile.exists()) {
+-            Files.write(Paths.get(targetFilePath), context.getBytes(StandardCharsets.UTF_8),
+-                    StandardOpenOption.APPEND);
+-            return;
+-        }
+-        //create required directories
+-        if (newFile.getParentFile().mkdirs()) {
+-            Files.write(Paths.get(targetFilePath), context.getBytes(StandardCharsets.UTF_8));
+-            return;
+-        }
+-        Files.write(Paths.get(targetFilePath), context.getBytes(StandardCharsets.UTF_8));
+-    }
+-}
+diff --git a/src/main/resources/META-INF/services/org.ballerinalang.compiler.plugins.CompilerPlugin b/src/main/resources/META-INF/services/org.ballerinalang.compiler.plugins.CompilerPlugin
+deleted file mode 100644
+index 97bfd9e..0000000
+--- a/src/main/resources/META-INF/services/org.ballerinalang.compiler.plugins.CompilerPlugin
++++ /dev/null
+@@ -1 +0,0 @@
+-org.ballerinax.hello.HelloPlugin
+\ No newline at end of file
