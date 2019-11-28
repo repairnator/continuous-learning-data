@@ -1,0 +1,691 @@
+diff --git a/src/main/java/org/jabref/gui/collab/ChangeScanner.java b/src/main/java/org/jabref/gui/collab/ChangeScanner.java
+index 021a941c87..65316188db 100644
+--- a/src/main/java/org/jabref/gui/collab/ChangeScanner.java
++++ b/src/main/java/org/jabref/gui/collab/ChangeScanner.java
+@@ -1,58 +1,48 @@
+ package org.jabref.gui.collab;
+ 
+-import java.nio.file.Path;
++import java.io.IOException;
+ import java.util.ArrayList;
+-import java.util.Comparator;
++import java.util.Collections;
+ import java.util.List;
+-import java.util.Optional;
+ 
+ import org.jabref.Globals;
+-import org.jabref.logic.bibtex.DuplicateCheck;
+ import org.jabref.logic.bibtex.comparator.BibDatabaseDiff;
+ import org.jabref.logic.bibtex.comparator.BibEntryDiff;
+ import org.jabref.logic.bibtex.comparator.BibStringDiff;
+ import org.jabref.logic.importer.ImportFormatPreferences;
+-import org.jabref.logic.importer.OpenDatabase;
+ import org.jabref.logic.importer.ParserResult;
++import org.jabref.logic.importer.fileformat.BibtexImporter;
+ import org.jabref.model.database.BibDatabaseContext;
+-import org.jabref.model.entry.BibEntry;
+-import org.jabref.model.entry.BibtexString;
++import org.jabref.model.util.DummyFileUpdateMonitor;
++
++import org.slf4j.Logger;
++import org.slf4j.LoggerFactory;
+ 
+ public class ChangeScanner {
+ 
+-    private final Path referenceFile;
++    private static final Logger LOGGER = LoggerFactory.getLogger(ChangeScanner.class);
+     private final BibDatabaseContext database;
+-    private final List<DatabaseChangeViewModel> changes = new ArrayList<>();
+-    private BibDatabaseContext referenceDatabase;
+ 
+-    public ChangeScanner(BibDatabaseContext database, Path referenceFile) {
++    public ChangeScanner(BibDatabaseContext database) {
+         this.database = database;
+-        this.referenceFile = referenceFile;
+-    }
+-
+-    /**
+-     * Finds the entry in the list best fitting the specified entry. Even if no entries get a score above zero, an entry
+-     * is still returned.
+-     */
+-    private static BibEntry bestFit(BibEntry targetEntry, List<BibEntry> entries) {
+-        return entries.stream()
+-                      .max(Comparator.comparingDouble(candidate -> DuplicateCheck.compareEntriesStrictly(targetEntry, candidate)))
+-                      .orElse(null);
+     }
+ 
+     public List<DatabaseChangeViewModel> scanForChanges() {
+-        database.getDatabasePath().ifPresent(diskdb -> {
+-            // Parse the temporary file.
+-            ImportFormatPreferences importFormatPreferences = Globals.prefs.getImportFormatPreferences();
+-            ParserResult result = OpenDatabase.loadDatabase(referenceFile.toAbsolutePath().toString(), importFormatPreferences, Globals.getFileUpdateMonitor());
+-            referenceDatabase = result.getDatabaseContext();
++        if (database.getDatabasePath().isEmpty()) {
++            return Collections.emptyList();
++        }
++
++        try {
++            List<DatabaseChangeViewModel> changes = new ArrayList<>();
+ 
+-            // Parse the modified file.
+-            result = OpenDatabase.loadDatabase(diskdb.toAbsolutePath().toString(), importFormatPreferences, Globals.getFileUpdateMonitor());
++            // Parse the modified file
++            ImportFormatPreferences importFormatPreferences = Globals.prefs.getImportFormatPreferences();
++            ParserResult result = new BibtexImporter(importFormatPreferences, new DummyFileUpdateMonitor())
++                    .importDatabase(database.getDatabasePath().get(), importFormatPreferences.getEncoding());
+             BibDatabaseContext databaseOnDisk = result.getDatabaseContext();
+ 
+             // Start looking at changes.
+-            BibDatabaseDiff differences = BibDatabaseDiff.compare(referenceDatabase, databaseOnDisk);
++            BibDatabaseDiff differences = BibDatabaseDiff.compare(database, databaseOnDisk);
+             differences.getMetaDataDifferences().ifPresent(diff -> {
+                 changes.add(new MetaDataChangeViewModel(diff));
+                 diff.getGroupDifferences().ifPresent(groupDiff -> changes.add(new GroupChangeViewModel(groupDiff)));
+@@ -60,8 +50,11 @@ private static BibEntry bestFit(BibEntry targetEntry, List<BibEntry> entries) {
+             differences.getPreambleDifferences().ifPresent(diff -> changes.add(new PreambleChangeViewModel(diff)));
+             differences.getBibStringDifferences().forEach(diff -> changes.add(createBibStringDiff(diff)));
+             differences.getEntryDifferences().forEach(diff -> changes.add(createBibEntryDiff(diff)));
+-        });
+-        return changes;
++            return changes;
++        } catch (IOException e) {
++            LOGGER.warn("Error while parsing changed file.", e);
++            return Collections.emptyList();
++        }
+     }
+ 
+     private DatabaseChangeViewModel createBibStringDiff(BibStringDiff diff) {
+@@ -70,17 +63,14 @@ private DatabaseChangeViewModel createBibStringDiff(BibStringDiff diff) {
+         }
+ 
+         if (diff.getNewString() == null) {
+-            Optional<BibtexString> current = database.getDatabase().getStringByName(diff.getOriginalString().getName());
+-            return new StringRemoveChangeViewModel(diff.getOriginalString(), current.orElse(null));
++            return new StringRemoveChangeViewModel(diff.getOriginalString());
+         }
+ 
+         if (diff.getOriginalString().getName().equals(diff.getNewString().getName())) {
+-            Optional<BibtexString> current = database.getDatabase().getStringByName(diff.getOriginalString().getName());
+-            return new StringChangeViewModel(current.orElse(null), diff.getOriginalString(), diff.getNewString().getContent());
++            return new StringChangeViewModel(diff.getOriginalString(), diff.getNewString());
+         }
+ 
+-        Optional<BibtexString> current = database.getDatabase().getStringByName(diff.getOriginalString().getName());
+-        return new StringNameChangeViewModel(current.orElse(null), diff.getOriginalString(), current.map(BibtexString::getName).orElse(""), diff.getNewString().getName());
++        return new StringNameChangeViewModel(diff.getOriginalString(), diff.getNewString());
+     }
+ 
+     private DatabaseChangeViewModel createBibEntryDiff(BibEntryDiff diff) {
+@@ -89,9 +79,9 @@ private DatabaseChangeViewModel createBibEntryDiff(BibEntryDiff diff) {
+         }
+ 
+         if (diff.getNewEntry() == null) {
+-            return new EntryDeleteChangeViewModel(bestFit(diff.getOriginalEntry(), database.getEntries()), diff.getOriginalEntry());
++            return new EntryDeleteChangeViewModel(diff.getOriginalEntry());
+         }
+ 
+-        return new EntryChangeViewModel(bestFit(diff.getOriginalEntry(), database.getEntries()), diff.getOriginalEntry(), diff.getNewEntry());
++        return new EntryChangeViewModel(diff.getOriginalEntry(), diff.getNewEntry());
+     }
+ }
+diff --git a/src/main/java/org/jabref/gui/collab/DatabaseChangeMonitor.java b/src/main/java/org/jabref/gui/collab/DatabaseChangeMonitor.java
+index 2bf20a9b69..0db0316af7 100644
+--- a/src/main/java/org/jabref/gui/collab/DatabaseChangeMonitor.java
++++ b/src/main/java/org/jabref/gui/collab/DatabaseChangeMonitor.java
+@@ -46,7 +46,7 @@ public DatabaseChangeMonitor(BibDatabaseContext database, FileUpdateMonitor file
+     @Override
+     public void fileUpdated() {
+         // File on disk has changed, thus look for notable changes and notify listeners in case there are such changes
+-        ChangeScanner scanner = new ChangeScanner(database, referenceFile);
++        ChangeScanner scanner = new ChangeScanner(database);
+         BackgroundTask.wrap(scanner::scanForChanges)
+                       .onSuccess(changes -> {
+                           if (!changes.isEmpty()) {
+diff --git a/src/main/java/org/jabref/gui/collab/EntryChangeViewModel.java b/src/main/java/org/jabref/gui/collab/EntryChangeViewModel.java
+index 68b6452a1c..65631c0a26 100644
+--- a/src/main/java/org/jabref/gui/collab/EntryChangeViewModel.java
++++ b/src/main/java/org/jabref/gui/collab/EntryChangeViewModel.java
+@@ -13,11 +13,12 @@
+ 
+ import org.jabref.gui.undo.NamedCompound;
+ import org.jabref.gui.undo.UndoableFieldChange;
+-import org.jabref.logic.bibtex.DuplicateCheck;
+ import org.jabref.logic.l10n.Localization;
++import org.jabref.model.FieldChange;
+ import org.jabref.model.database.BibDatabaseContext;
+ import org.jabref.model.entry.BibEntry;
+ import org.jabref.model.entry.field.Field;
++import org.jabref.model.strings.StringUtil;
+ 
+ import org.slf4j.Logger;
+ import org.slf4j.LoggerFactory;
+@@ -28,43 +29,28 @@
+ 
+     private final List<FieldChangeViewModel> fieldChanges = new ArrayList<>();
+ 
+-    public EntryChangeViewModel(BibEntry memEntry, BibEntry tmpEntry, BibEntry diskEntry) {
++    public EntryChangeViewModel(BibEntry entry, BibEntry newEntry) {
+         super();
+-        name = tmpEntry.getCiteKeyOptional()
+-                       .map(key -> Localization.lang("Modified entry") + ": '" + key + '\'')
+-                       .orElse(Localization.lang("Modified entry"));
+-
+-        // We know that tmpEntry is not equal to diskEntry. Check if it has been modified
+-        // locally as well, since last tempfile was saved.
+-        boolean isModifiedLocally = (DuplicateCheck.compareEntriesStrictly(memEntry, tmpEntry) <= 1);
+-
+-        // Another (unlikely?) possibility is that both disk and mem version has been modified
+-        // in the same way. Check for this, too.
+-        boolean modificationsAgree = (DuplicateCheck.compareEntriesStrictly(memEntry, diskEntry) > 1);
+-
+-        LOGGER.debug("Modified entry: " + memEntry.getCiteKeyOptional().orElse("<no BibTeX key set>")
+-                + "\n Modified locally: " + isModifiedLocally + " Modifications agree: " + modificationsAgree);
++        name = entry.getCiteKeyOptional()
++                    .map(key -> Localization.lang("Modified entry") + ": '" + key + '\'')
++                    .orElse(Localization.lang("Modified entry"));
+ 
+         Set<Field> allFields = new TreeSet<>(Comparator.comparing(Field::getName));
+-        allFields.addAll(memEntry.getFields());
+-        allFields.addAll(tmpEntry.getFields());
+-        allFields.addAll(diskEntry.getFields());
++        allFields.addAll(entry.getFields());
++        allFields.addAll(newEntry.getFields());
+ 
+         for (Field field : allFields) {
+-            Optional<String> mem = memEntry.getField(field);
+-            Optional<String> tmp = tmpEntry.getField(field);
+-            Optional<String> disk = diskEntry.getField(field);
++            Optional<String> value = entry.getField(field);
++            Optional<String> newValue = newEntry.getField(field);
+ 
+-            if ((tmp.isPresent()) && (disk.isPresent())) {
+-                if (!tmp.equals(disk)) {
++            if (value.isPresent() && newValue.isPresent()) {
++                if (!value.equals(newValue)) {
+                     // Modified externally.
+-                    fieldChanges.add(new FieldChangeViewModel(field, memEntry, tmpEntry, mem.orElse(null), tmp.get(), disk.get()));
++                    fieldChanges.add(new FieldChangeViewModel(entry, field, value.get(), newValue.get()));
+                 }
+-            } else if (((!tmp.isPresent()) && (disk.isPresent()) && !disk.get().isEmpty())
+-                    || ((!disk.isPresent()) && (tmp.isPresent()) && !tmp.get().isEmpty()
+-                            && (mem.isPresent()) && !mem.get().isEmpty())) {
+-                // Added externally.
+-                fieldChanges.add(new FieldChangeViewModel(field, memEntry, tmpEntry, mem.orElse(null), tmp.orElse(null), disk.orElse(null)));
++            } else {
++                // Added/removed externally.
++                fieldChanges.add(new FieldChangeViewModel(entry, field, value.orElse(null), newValue.orElse(null)));
+             }
+         }
+     }
+@@ -80,7 +66,7 @@ public void makeChange(BibDatabaseContext database, NamedCompound undoEdit) {
+ 
+     @Override
+     public Node description() {
+-        VBox container = new VBox();
++        VBox container = new VBox(10);
+         Label header = new Label(name);
+         header.getStyleClass().add("sectionHeader");
+         container.getChildren().add(header);
+@@ -95,49 +81,42 @@ public Node description() {
+     static class FieldChangeViewModel extends DatabaseChangeViewModel {
+ 
+         private final BibEntry entry;
+-        private final BibEntry tmpEntry;
+         private final Field field;
+-        private final String inMem;
+-        private final String onTmp;
+-        private final String onDisk;
++        private final String value;
++        private final String newValue;
+ 
+-        public FieldChangeViewModel(Field field, BibEntry memEntry, BibEntry tmpEntry, String inMem, String onTmp, String onDisk) {
++        public FieldChangeViewModel(BibEntry entry, Field field, String value, String newValue) {
+             super(field.getName());
+-            entry = memEntry;
+-            this.tmpEntry = tmpEntry;
++            this.entry = entry;
+             this.field = field;
+-            this.inMem = inMem;
+-            this.onTmp = onTmp;
+-            this.onDisk = onDisk;
++            this.value = value;
++            this.newValue = newValue;
+         }
+ 
+         @Override
+         public void makeChange(BibDatabaseContext database, NamedCompound undoEdit) {
+-            if (onDisk == null) {
+-                entry.clearField(field);
++            Optional<FieldChange> change;
++            if (StringUtil.isBlank(newValue)) {
++                change = entry.clearField(field);
+             } else {
+-                entry.setField(field, onDisk);
++                change = entry.setField(field, newValue);
+             }
+-            undoEdit.addEdit(new UndoableFieldChange(entry, field, inMem, onDisk));
++
++            change.map(UndoableFieldChange::new).ifPresent(undoEdit::addEdit);
+         }
+ 
+         @Override
+         public Node description() {
+             VBox container = new VBox();
+-            container.getChildren().add(new Label(Localization.lang("Modification of field") + " " + field));
++            container.getChildren().add(new Label(Localization.lang("Modification of field") + " " + field.getDisplayName()));
+ 
+-            if ((onDisk != null) && !onDisk.isEmpty()) {
+-                container.getChildren().add(new Label(Localization.lang("Value set externally") + ": " + onDisk));
++            if (StringUtil.isNotBlank(newValue)) {
++                container.getChildren().add(new Label(Localization.lang("Value set externally") + ": " + newValue));
+             } else {
+                 container.getChildren().add(new Label(Localization.lang("Value cleared externally")));
+             }
+ 
+-            if ((inMem != null) && !inMem.isEmpty()) {
+-                container.getChildren().add(new Label(Localization.lang("Current value") + ": " + inMem));
+-            }
+-            if ((onTmp != null) && !onTmp.isEmpty()) {
+-                container.getChildren().add(new Label(Localization.lang("Current tmp value") + ": " + onTmp));
+-            }
++            container.getChildren().add(new Label(Localization.lang("Current value") + ": " + value));
+ 
+             return container;
+         }
+diff --git a/src/main/java/org/jabref/gui/collab/EntryDeleteChangeViewModel.java b/src/main/java/org/jabref/gui/collab/EntryDeleteChangeViewModel.java
+index 22e7b0f4dc..6f36948a78 100644
+--- a/src/main/java/org/jabref/gui/collab/EntryDeleteChangeViewModel.java
++++ b/src/main/java/org/jabref/gui/collab/EntryDeleteChangeViewModel.java
+@@ -7,7 +7,6 @@
+ import org.jabref.gui.preview.PreviewViewer;
+ import org.jabref.gui.undo.NamedCompound;
+ import org.jabref.gui.undo.UndoableRemoveEntries;
+-import org.jabref.logic.bibtex.DuplicateCheck;
+ import org.jabref.logic.l10n.Localization;
+ import org.jabref.model.database.BibDatabaseContext;
+ import org.jabref.model.entry.BibEntry;
+@@ -18,35 +17,23 @@
+ class EntryDeleteChangeViewModel extends DatabaseChangeViewModel {
+ 
+     private static final Logger LOGGER = LoggerFactory.getLogger(EntryDeleteChangeViewModel.class);
+-    private final BibEntry memEntry;
+-    private final BibEntry tmpEntry;
++    private final BibEntry entry;
+ 
+-    public EntryDeleteChangeViewModel(BibEntry memEntry, BibEntry tmpEntry) {
++    public EntryDeleteChangeViewModel(BibEntry entry) {
+         super(Localization.lang("Deleted entry"));
+-        this.memEntry = memEntry;
+-        this.tmpEntry = tmpEntry;
+-
+-        // Compare the deleted entry in memory with the one in the tmpfile. The
+-        // entry could have been removed in memory.
+-        double matchWithTmp = DuplicateCheck.compareEntriesStrictly(memEntry, tmpEntry);
+-
+-        // Check if it has been modified locally, since last tempfile was saved.
+-        boolean isModifiedLocally = (matchWithTmp <= 1);
+-
+-        LOGGER.debug("Modified entry: " + memEntry.getCiteKeyOptional().orElse("<no BibTeX key set>")
+-                + "\n Modified locally: " + isModifiedLocally);
++        this.entry = entry;
+     }
+ 
+     @Override
+     public void makeChange(BibDatabaseContext database, NamedCompound undoEdit) {
+-        database.getDatabase().removeEntry(memEntry);
+-        undoEdit.addEdit(new UndoableRemoveEntries(database.getDatabase(), memEntry));
++        database.getDatabase().removeEntry(entry);
++        undoEdit.addEdit(new UndoableRemoveEntries(database.getDatabase(), entry));
+     }
+ 
+     @Override
+     public Node description() {
+         PreviewViewer previewViewer = new PreviewViewer(new BibDatabaseContext(), JabRefGUI.getMainFrame().getDialogService(), Globals.stateManager);
+-        previewViewer.setEntry(memEntry);
++        previewViewer.setEntry(entry);
+         return previewViewer;
+     }
+ }
+diff --git a/src/main/java/org/jabref/gui/collab/StringChangeViewModel.java b/src/main/java/org/jabref/gui/collab/StringChangeViewModel.java
+index 278715f4b4..b81df8244e 100644
+--- a/src/main/java/org/jabref/gui/collab/StringChangeViewModel.java
++++ b/src/main/java/org/jabref/gui/collab/StringChangeViewModel.java
+@@ -1,15 +1,15 @@
+ package org.jabref.gui.collab;
+ 
++import java.util.Objects;
++
+ import javafx.scene.Node;
+ import javafx.scene.control.Label;
+ import javafx.scene.layout.VBox;
+ 
+ import org.jabref.gui.undo.NamedCompound;
+-import org.jabref.gui.undo.UndoableInsertString;
+ import org.jabref.gui.undo.UndoableStringChange;
+ import org.jabref.logic.l10n.Localization;
+ import org.jabref.model.database.BibDatabaseContext;
+-import org.jabref.model.database.KeyCollisionException;
+ import org.jabref.model.entry.BibtexString;
+ 
+ import org.slf4j.Logger;
+@@ -19,32 +19,20 @@
+ 
+     private static final Logger LOGGER = LoggerFactory.getLogger(StringChangeViewModel.class);
+     private final BibtexString string;
+-    private final String disk;
+-    private final String label;
++    private final BibtexString newString;
+ 
+-    public StringChangeViewModel(BibtexString string, BibtexString tmpString, String disk) {
+-        super(Localization.lang("Modified string") + ": '" + tmpString.getName() + '\'');
+-        this.string = string;
+-        this.label = tmpString.getName();
+-        this.disk = disk;
++    public StringChangeViewModel(BibtexString string, BibtexString newString) {
++        super(Localization.lang("Modified string") + ": '" + string.getName() + '\'');
++        this.string = Objects.requireNonNull(string);
++        this.newString = Objects.requireNonNull(newString);
+     }
+ 
+     @Override
+     public void makeChange(BibDatabaseContext database, NamedCompound undoEdit) {
+-        if (string == null) {
+-            // The string was removed or renamed locally. We guess that it was removed.
+-            BibtexString bs = new BibtexString(label, disk);
+-            try {
+-                database.getDatabase().addString(bs);
+-                undoEdit.addEdit(new UndoableInsertString(database.getDatabase(), bs));
+-            } catch (KeyCollisionException ex) {
+-                LOGGER.warn("Error: could not add string '" + bs.getName() + "': " + ex.getMessage(), ex);
+-            }
+-        } else {
+-            String mem = string.getContent();
+-            string.setContent(disk);
+-            undoEdit.addEdit(new UndoableStringChange(string, false, mem, disk));
+-        }
++        String currentValue = string.getContent();
++        String newValue = newString.getContent();
++        string.setContent(newValue);
++        undoEdit.addEdit(new UndoableStringChange(string, false, currentValue, newValue));
+     }
+ 
+     @Override
+@@ -54,15 +42,11 @@ public Node description() {
+         header.getStyleClass().add("sectionHeader");
+         container.getChildren().addAll(
+                 header,
+-                new Label(Localization.lang("Label") + ": " + label),
+-                new Label(Localization.lang("Content") + ": " + disk)
++                new Label(Localization.lang("Label") + ": " + newString.getName()),
++                new Label(Localization.lang("Content") + ": " + newString.getContent())
+         );
+ 
+-        if (string == null) {
+-            container.getChildren().add(new Label(Localization.lang("Cannot merge this change") + ": " + Localization.lang("The string has been removed locally")));
+-        } else {
+-            container.getChildren().add(new Label(Localization.lang("Current content") + ": " + string.getContent()));
+-        }
++        container.getChildren().add(new Label(Localization.lang("Current content") + ": " + string.getContent()));
+ 
+         return container;
+     }
+diff --git a/src/main/java/org/jabref/gui/collab/StringNameChangeViewModel.java b/src/main/java/org/jabref/gui/collab/StringNameChangeViewModel.java
+index 77aebba89e..e70315cd44 100644
+--- a/src/main/java/org/jabref/gui/collab/StringNameChangeViewModel.java
++++ b/src/main/java/org/jabref/gui/collab/StringNameChangeViewModel.java
+@@ -1,14 +1,14 @@
+ package org.jabref.gui.collab;
+ 
++import java.util.Objects;
++
+ import javafx.scene.Node;
+ import javafx.scene.control.Label;
+ 
+ import org.jabref.gui.undo.NamedCompound;
+-import org.jabref.gui.undo.UndoableInsertString;
+ import org.jabref.gui.undo.UndoableStringChange;
+ import org.jabref.logic.l10n.Localization;
+ import org.jabref.model.database.BibDatabaseContext;
+-import org.jabref.model.database.KeyCollisionException;
+ import org.jabref.model.entry.BibtexString;
+ 
+ import org.slf4j.Logger;
+@@ -18,44 +18,31 @@
+ 
+     private static final Logger LOGGER = LoggerFactory.getLogger(StringNameChangeViewModel.class);
+     private final BibtexString string;
+-    private final String mem;
+-    private final String disk;
+-    private final String content;
+-
+-    public StringNameChangeViewModel(BibtexString string, BibtexString tmpString, String mem, String disk) {
+-        super(Localization.lang("Renamed string") + ": '" + tmpString.getName() + '\'');
+-        this.string = string;
+-        this.content = tmpString.getContent();
+-        this.mem = mem;
+-        this.disk = disk;
++    private final BibtexString newString;
++
++    public StringNameChangeViewModel(BibtexString string, BibtexString newString) {
++        super(Localization.lang("Renamed string") + ": '" + string.getName() + '\'');
++        this.string = Objects.requireNonNull(string);
++        this.newString = Objects.requireNonNull(newString);
+     }
+ 
+     @Override
+     public void makeChange(BibDatabaseContext database, NamedCompound undoEdit) {
+-        if (database.getDatabase().hasStringLabel(disk)) {
++        if (database.getDatabase().hasStringByName(newString.getName())) {
+             // The name to change to is already in the database, so we can't comply.
+-            LOGGER.info("Cannot rename string '" + mem + "' to '" + disk + "' because the name "
++            LOGGER.info("Cannot rename string '" + string.getName() + "' to '" + newString.getName() + "' because the name "
+                     + "is already in use.");
+         }
+ 
+-        if (string == null) {
+-            // The string was removed or renamed locally. We guess that it was removed.
+-            BibtexString bs = new BibtexString(disk, content);
+-            try {
+-                database.getDatabase().addString(bs);
+-                undoEdit.addEdit(new UndoableInsertString(database.getDatabase(), bs));
+-            } catch (KeyCollisionException ex) {
+-                LOGGER.info("Error: could not add string '" + bs.getName() + "': " + ex.getMessage(), ex);
+-            }
+-        } else {
+-            string.setName(disk);
+-            undoEdit.addEdit(new UndoableStringChange(string, true, mem, disk));
+-        }
++        String currentName = string.getName();
++        String newName = newString.getName();
++        string.setName(newName);
++        undoEdit.addEdit(new UndoableStringChange(string, true, currentName, newName));
+     }
+ 
+     @Override
+     public Node description() {
+-        return new Label(disk + " : " + content);
++        return new Label(newString.getName() + " : " + string.getContent());
+     }
+ 
+ }
+diff --git a/src/main/java/org/jabref/gui/collab/StringRemoveChangeViewModel.java b/src/main/java/org/jabref/gui/collab/StringRemoveChangeViewModel.java
+index ba1b8066af..71629a3438 100644
+--- a/src/main/java/org/jabref/gui/collab/StringRemoveChangeViewModel.java
++++ b/src/main/java/org/jabref/gui/collab/StringRemoveChangeViewModel.java
+@@ -17,18 +17,15 @@
+     private static final Logger LOGGER = LoggerFactory.getLogger(StringRemoveChangeViewModel.class);
+     private final BibtexString string;
+ 
+-    private final BibtexString inMem;
+-
+-    public StringRemoveChangeViewModel(BibtexString string, BibtexString inMem) {
++    public StringRemoveChangeViewModel(BibtexString string) {
+         super(Localization.lang("Removed string") + ": '" + string.getName() + '\'');
+         this.string = string;
+-        this.inMem = inMem; // Holds the version in memory. Check if it has been modified...?
+     }
+ 
+     @Override
+     public void makeChange(BibDatabaseContext database, NamedCompound undoEdit) {
+         try {
+-            database.getDatabase().removeString(inMem.getId());
++            database.getDatabase().removeString(string.getId());
+             undoEdit.addEdit(new UndoableRemoveString(database.getDatabase(), string));
+         } catch (Exception ex) {
+             LOGGER.warn("Error: could not add string '" + string.getName() + "': " + ex.getMessage(), ex);
+diff --git a/src/main/java/org/jabref/gui/importer/actions/AppendDatabaseAction.java b/src/main/java/org/jabref/gui/importer/actions/AppendDatabaseAction.java
+index a5f190f5de..5e9d0fa323 100644
+--- a/src/main/java/org/jabref/gui/importer/actions/AppendDatabaseAction.java
++++ b/src/main/java/org/jabref/gui/importer/actions/AppendDatabaseAction.java
+@@ -83,7 +83,7 @@ private static void mergeFromBibtex(BasePanel panel, ParserResult parserResult,
+ 
+         if (importStrings) {
+             for (BibtexString bs : fromDatabase.getStringValues()) {
+-                if (!database.hasStringLabel(bs.getName())) {
++                if (!database.hasStringByName(bs.getName())) {
+                     database.addString(bs);
+                     ce.addEdit(new UndoableInsertString(database, bs));
+                 }
+@@ -170,7 +170,7 @@ public void action() {
+                               .onFailure(exception -> {
+                                   LOGGER.warn("Could not open database", exception);
+                                   dialogService.showErrorDialogAndWait(Localization.lang("Open library"), exception);})
+-                              .executeWith(Globals.TASK_EXECUTOR);;
++                              .executeWith(Globals.TASK_EXECUTOR);
+             }
+         }
+     }
+diff --git a/src/main/java/org/jabref/logic/importer/OpenDatabase.java b/src/main/java/org/jabref/logic/importer/OpenDatabase.java
+index a47ab79be7..331245da77 100644
+--- a/src/main/java/org/jabref/logic/importer/OpenDatabase.java
++++ b/src/main/java/org/jabref/logic/importer/OpenDatabase.java
+@@ -19,7 +19,7 @@
+ 
+ public class OpenDatabase {
+ 
+-    public static final Logger LOGGER = LoggerFactory.getLogger(OpenDatabase.class);
++    private static final Logger LOGGER = LoggerFactory.getLogger(OpenDatabase.class);
+ 
+     private OpenDatabase() {
+     }
+diff --git a/src/main/java/org/jabref/model/database/BibDatabase.java b/src/main/java/org/jabref/model/database/BibDatabase.java
+index be123c26c4..8559561a31 100644
+--- a/src/main/java/org/jabref/model/database/BibDatabase.java
++++ b/src/main/java/org/jabref/model/database/BibDatabase.java
+@@ -309,7 +309,7 @@ public synchronized void setPreamble(String preamble) {
+      * Inserts a Bibtex String.
+      */
+     public synchronized void addString(BibtexString string) throws KeyCollisionException {
+-        if (hasStringLabel(string.getName())) {
++        if (hasStringByName(string.getName())) {
+             throw new KeyCollisionException("A string with that label already exists");
+         }
+ 
+@@ -393,7 +393,7 @@ public void copyPreamble(BibDatabase database) {
+     /**
+      * Returns true if a string with the given label already exists.
+      */
+-    public synchronized boolean hasStringLabel(String label) {
++    public synchronized boolean hasStringByName(String label) {
+         return bibtexStrings.values().stream().anyMatch(value -> value.getName().equals(label));
+     }
+ 
+diff --git a/src/main/resources/l10n/JabRef_en.properties b/src/main/resources/l10n/JabRef_en.properties
+index 086fdc698d..a2fa21fc2a 100644
+--- a/src/main/resources/l10n/JabRef_en.properties
++++ b/src/main/resources/l10n/JabRef_en.properties
+@@ -111,8 +111,6 @@ Cannot\ create\ group=Cannot create group
+ 
+ Cannot\ create\ group.\ Please\ create\ a\ library\ first.=Cannot create group. Please create a library first.
+ 
+-Cannot\ merge\ this\ change=Cannot merge this change
+-
+ case\ insensitive=case insensitive
+ 
+ case\ sensitive=case sensitive
+@@ -882,8 +880,6 @@ The\ search\ is\ case\ insensitive.=The search is case insensitive.
+ 
+ The\ search\ is\ case\ sensitive.=The search is case sensitive.
+ 
+-The\ string\ has\ been\ removed\ locally=The string has been removed locally
+-
+ There\ are\ possible\ duplicates\ (marked\ with\ an\ icon)\ that\ haven't\ been\ resolved.\ Continue?=There are possible duplicates (marked with an icon) that haven't been resolved. Continue?
+ 
+ This\ group\ contains\ entries\ based\ on\ manual\ assignment.\ Entries\ can\ be\ assigned\ to\ this\ group\ by\ selecting\ them\ then\ using\ either\ drag\ and\ drop\ or\ the\ context\ menu.\ Entries\ can\ be\ removed\ from\ this\ group\ by\ selecting\ them\ then\ using\ the\ context\ menu.=This group contains entries based on manual assignment. Entries can be assigned to this group by selecting them then using either drag and drop or the context menu. Entries can be removed from this group by selecting them then using the context menu.
+@@ -1028,7 +1024,6 @@ Error\ opening\ file\ '%0'.=Error opening file '%0'.
+ Formatter\ not\ found\:\ %0=Formatter not found: %0
+ 
+ Could\ not\ save,\ file\ locked\ by\ another\ JabRef\ instance.=Could not save, file locked by another JabRef instance.
+-Current\ tmp\ value=Current tmp value
+ Metadata\ change=Metadata change
+ Changes\ have\ been\ made\ to\ the\ following\ metadata\ elements=Changes have been made to the following metadata elements
+ 
+diff --git a/src/test/java/org/jabref/logic/bibtex/comparator/BibDatabaseDiffTest.java b/src/test/java/org/jabref/logic/bibtex/comparator/BibDatabaseDiffTest.java
+index 3061f64895..7bb8ae3028 100644
+--- a/src/test/java/org/jabref/logic/bibtex/comparator/BibDatabaseDiffTest.java
++++ b/src/test/java/org/jabref/logic/bibtex/comparator/BibDatabaseDiffTest.java
+@@ -3,20 +3,47 @@
+ import java.util.Collections;
+ import java.util.Optional;
+ 
++import org.jabref.model.database.BibDatabase;
+ import org.jabref.model.database.BibDatabaseContext;
++import org.jabref.model.entry.BibEntry;
++import org.jabref.model.entry.field.StandardField;
+ 
+ import org.junit.jupiter.api.Test;
+ 
+ import static org.junit.jupiter.api.Assertions.assertEquals;
+ 
+-public class BibDatabaseDiffTest {
++class BibDatabaseDiffTest {
+ 
+     @Test
+-    public void compareOfEmptyDatabasesReportsNoDifferences() throws Exception {
++    void compareOfEmptyDatabasesReportsNoDifferences() throws Exception {
+         BibDatabaseDiff diff = BibDatabaseDiff.compare(new BibDatabaseContext(), new BibDatabaseContext());
++
+         assertEquals(Optional.empty(), diff.getPreambleDifferences());
+         assertEquals(Optional.empty(), diff.getMetaDataDifferences());
+         assertEquals(Collections.emptyList(), diff.getBibStringDifferences());
+         assertEquals(Collections.emptyList(), diff.getEntryDifferences());
+     }
++
++    @Test
++    void compareOfSameEntryReportsNoDifferences() throws Exception {
++        BibEntry entry = new BibEntry(BibEntry.DEFAULT_TYPE).withField(StandardField.TITLE, "test");
++        BibDatabaseContext databaseOne = new BibDatabaseContext(new BibDatabase(Collections.singletonList(entry)));
++        BibDatabaseContext databaseTwo = new BibDatabaseContext(new BibDatabase(Collections.singletonList(entry)));
++
++        BibDatabaseDiff diff = BibDatabaseDiff.compare(databaseOne, databaseTwo);
++
++        assertEquals(Collections.emptyList(), diff.getEntryDifferences());
++    }
++
++    @Test
++    void compareOfDifferentEntriesWithSameDataReportsNoDifferences() throws Exception {
++        BibEntry entryOne = new BibEntry(BibEntry.DEFAULT_TYPE).withField(StandardField.TITLE, "test");
++        BibEntry entryTwo = new BibEntry(BibEntry.DEFAULT_TYPE).withField(StandardField.TITLE, "test");
++        BibDatabaseContext databaseOne = new BibDatabaseContext(new BibDatabase(Collections.singletonList(entryOne)));
++        BibDatabaseContext databaseTwo = new BibDatabaseContext(new BibDatabase(Collections.singletonList(entryTwo)));
++
++        BibDatabaseDiff diff = BibDatabaseDiff.compare(databaseOne, databaseTwo);
++
++        assertEquals(Collections.emptyList(), diff.getEntryDifferences());
++    }
+ }
+diff --git a/src/test/java/org/jabref/model/database/BibDatabaseTest.java b/src/test/java/org/jabref/model/database/BibDatabaseTest.java
+index 727436bcac..df1f53e077 100644
+--- a/src/test/java/org/jabref/model/database/BibDatabaseTest.java
++++ b/src/test/java/org/jabref/model/database/BibDatabaseTest.java
+@@ -149,8 +149,8 @@ public void removeStringUpdatesStringList() {
+     public void hasStringLabelFindsString() {
+         BibtexString string = new BibtexString("DSP", "Digital Signal Processing");
+         database.addString(string);
+-        assertTrue(database.hasStringLabel("DSP"));
+-        assertFalse(database.hasStringLabel("VLSI"));
++        assertTrue(database.hasStringByName("DSP"));
++        assertFalse(database.hasStringByName("VLSI"));
+     }
+ 
+     @Test

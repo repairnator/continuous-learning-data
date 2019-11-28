@@ -1,0 +1,1734 @@
+diff --git a/src/main/java/com/rebuild/server/Application.java b/src/main/java/com/rebuild/server/Application.java
+index d5f68716..ab65c40f 100644
+--- a/src/main/java/com/rebuild/server/Application.java
++++ b/src/main/java/com/rebuild/server/Application.java
+@@ -126,7 +126,7 @@ protected void init(long startAt) throws Exception {
+ 		((DynamicMetadataFactory) APPLICATION_CTX.getBean(PersistManagerFactory.class).getMetadataFactory()).refresh(false);
+ 
+ 		// 实体对应的服务类
+-		SSS = new HashMap<>();
++		SSS = new HashMap<>(16);
+ 		for (Map.Entry<String, ServiceSpec> e : APPLICATION_CTX.getBeansOfType(ServiceSpec.class).entrySet()) {
+ 			ServiceSpec ss = e.getValue();
+ 			if (ss.getEntityCode() > 0) {
+diff --git a/src/main/java/com/rebuild/server/ServerListener.java b/src/main/java/com/rebuild/server/ServerListener.java
+index ed6fadf5..f46d6299 100644
+--- a/src/main/java/com/rebuild/server/ServerListener.java
++++ b/src/main/java/com/rebuild/server/ServerListener.java
+@@ -49,8 +49,12 @@
+ 
+ 	@Override
+ 	public void contextInitialized(ServletContextEvent event) {
+-	    if (event == null) event = eventHold;
+-	    if (event == null) throw new IllegalStateException();
++	    if (event == null) {
++            event = eventHold;
++        }
++	    if (event == null) {
++            throw new IllegalStateException();
++        }
+ 
+ 		long at = System.currentTimeMillis();
+ 		LOG.info("Rebuild Booting (" + Application.VER + ") ...");
+diff --git a/src/main/java/com/rebuild/server/ServerStatus.java b/src/main/java/com/rebuild/server/ServerStatus.java
+index 9a227276..eb4ebb9d 100644
+--- a/src/main/java/com/rebuild/server/ServerStatus.java
++++ b/src/main/java/com/rebuild/server/ServerStatus.java
+@@ -168,8 +168,11 @@ protected static Status checkCacheService() {
+ 		final public String error;
+ 		@Override
+ 		public String toString() {
+-			if (success) return String.format("%s : [ OK ]", name);
+-			else return String.format("%s : [ ERROR ] %s", name, error);
++			if (success) {
++                return String.format("%s : [ OK ]", name);
++            } else {
++                return String.format("%s : [ ERROR ] %s", name, error);
++            }
+ 		}
+ 		public JSON toJson() {
+ 			return JSONUtils.toJSONObject(name, success ? true : error);
+diff --git a/src/main/java/com/rebuild/server/business/approval/FlowNode.java b/src/main/java/com/rebuild/server/business/approval/FlowNode.java
+index e410906c..7785ef92 100644
+--- a/src/main/java/com/rebuild/server/business/approval/FlowNode.java
++++ b/src/main/java/com/rebuild/server/business/approval/FlowNode.java
+@@ -163,7 +163,17 @@ public String toString() {
+ 		}
+ 		return string;
+ 	}
+-	
++
++	@Override
++	public int hashCode() {
++		return this.nodeId.hashCode();
++	}
++
++	@Override
++	public boolean equals(Object obj) {
++		return obj.hashCode() == this.hashCode();
++	}
++
+ 	// --
+ 
+ 	/**
+diff --git a/src/main/java/com/rebuild/server/business/charts/builtin/ApprovalList.java b/src/main/java/com/rebuild/server/business/charts/builtin/ApprovalList.java
+index cf9f011c..938e75c6 100644
+--- a/src/main/java/com/rebuild/server/business/charts/builtin/ApprovalList.java
++++ b/src/main/java/com/rebuild/server/business/charts/builtin/ApprovalList.java
+@@ -123,7 +123,9 @@ public JSON build() {
+             for (Object[] o : stats) {
+                 if ((Integer) o[0] == viewState) {
+                     o[1] = ObjectUtils.toInt(o[1]) - deleted;
+-                    if ((Integer) o[1] < 0) o[1] = 0;
++                    if ((Integer) o[1] < 0) {
++                        o[1] = 0;
++                    }
+                 }
+             }
+         }
+diff --git a/src/main/java/com/rebuild/server/business/feeds/FeedsHelper.java b/src/main/java/com/rebuild/server/business/feeds/FeedsHelper.java
+index 1d3f6e27..5aa39d7c 100644
+--- a/src/main/java/com/rebuild/server/business/feeds/FeedsHelper.java
++++ b/src/main/java/com/rebuild/server/business/feeds/FeedsHelper.java
+@@ -105,7 +105,9 @@ public static boolean isMyLike(ID source, ID my) {
+     public static Map<String, ID> findMentionsMap(String content) {
+         Map<String, ID> found = new HashMap<>();
+         for (String ats : content.split("@")) {
+-            if (StringUtils.isBlank(ats)) continue;
++            if (StringUtils.isBlank(ats)) {
++                continue;
++            }
+             String[] atss = ats.split(" ");
+ 
+             String fullName = atss[0];
+@@ -147,8 +149,12 @@ public static boolean checkReadable(ID feedsOrComment, ID user) {
+         }
+ 
+         Object[] o = Application.createQueryNoFilter(sql).setParameter(1, feedsOrComment).unique();
+-        if (o == null) return false;
+-        if (o[1].equals(user) || o[0].equals(FeedsScope.ALL.name())) return true;  // 自己 & 公开
++        if (o == null) {
++            return false;
++        }
++        if (o[1].equals(user) || o[0].equals(FeedsScope.ALL.name())) {
++            return true;  // 自己 & 公开
++        }
+ 
+         // 团队
+         if (ID.isId(o[0])) {
+diff --git a/src/main/java/com/rebuild/server/business/feeds/FeedsScope.java b/src/main/java/com/rebuild/server/business/feeds/FeedsScope.java
+index 40e251b4..459989b7 100644
+--- a/src/main/java/com/rebuild/server/business/feeds/FeedsScope.java
++++ b/src/main/java/com/rebuild/server/business/feeds/FeedsScope.java
+@@ -52,9 +52,13 @@ public String getName() {
+      * @return
+      */
+     public static FeedsScope parse(String any) {
+-        if (ID.isId(any)) return GROUP;
++        if (ID.isId(any)) {
++            return GROUP;
++        }
+         for (FeedsScope s : values()) {
+-            if (any.equalsIgnoreCase(s.name())) return s;
++            if (any.equalsIgnoreCase(s.name())) {
++                return s;
++            }
+         }
+         throw new IllegalArgumentException("Unknow scope : " + any);
+     }
+diff --git a/src/main/java/com/rebuild/server/business/feeds/FeedsType.java b/src/main/java/com/rebuild/server/business/feeds/FeedsType.java
+index 4d44d77a..d2141a4d 100644
+--- a/src/main/java/com/rebuild/server/business/feeds/FeedsType.java
++++ b/src/main/java/com/rebuild/server/business/feeds/FeedsType.java
+@@ -59,7 +59,9 @@ public String getName() {
+      */
+     public static FeedsType parse(int typeMask) {
+         for (FeedsType t : values()) {
+-            if (t.getMask() == typeMask) return t;
++            if (t.getMask() == typeMask) {
++                return t;
++            }
+         }
+         throw new IllegalArgumentException("Unknow mask : " + typeMask);
+     }
+diff --git a/src/main/java/com/rebuild/server/business/rbstore/MetaSchemaGenerator.java b/src/main/java/com/rebuild/server/business/rbstore/MetaSchemaGenerator.java
+index b419ee07..13a7976f 100644
+--- a/src/main/java/com/rebuild/server/business/rbstore/MetaSchemaGenerator.java
++++ b/src/main/java/com/rebuild/server/business/rbstore/MetaSchemaGenerator.java
+@@ -105,7 +105,7 @@ private JSON performEntity(Entity entity, boolean isSlave) {
+ 
+ 		// 布局相关（仅管理员）
+ 		JSONObject putLayouts = new JSONObject();
+-		Object layouts[][] = Application.createQueryNoFilter(
++		Object[][] layouts = Application.createQueryNoFilter(
+ 				"select applyType,config from LayoutConfig where belongEntity = ? and createdBy = ?")
+ 				.setParameter(1, entity.getName())
+ 				.setParameter(2, UserService.ADMIN_USER)
+@@ -120,7 +120,7 @@ private JSON performEntity(Entity entity, boolean isSlave) {
+ 		schemaEntity.put("layouts", putLayouts);
+ 		
+ 		// 过滤器（仅管理员）
+-		Object filters[][] = Application.createQueryNoFilter(
++		Object[][] filters = Application.createQueryNoFilter(
+ 				"select filterName,config from FilterConfig where belongEntity = ? and createdBy = ?")
+ 				.setParameter(1, entity.getName())
+ 				.setParameter(2, UserService.ADMIN_USER)
+@@ -181,7 +181,7 @@ private JSON performField(Field field) {
+ 	 * @return
+ 	 */
+ 	private JSON performPickList(Field field) {
+-		ConfigEntry entries[] = PickListManager.instance.getPickListRaw(
++		ConfigEntry[] entries = PickListManager.instance.getPickListRaw(
+ 				field.getOwnEntity().getName(), field.getName(), false);
+ 		JSONArray items = new JSONArray();
+ 		for (ConfigEntry e : entries) {
+diff --git a/src/main/java/com/rebuild/server/business/series/IncreasingVar.java b/src/main/java/com/rebuild/server/business/series/IncreasingVar.java
+index b2c683e9..bb77e844 100644
+--- a/src/main/java/com/rebuild/server/business/series/IncreasingVar.java
++++ b/src/main/java/com/rebuild/server/business/series/IncreasingVar.java
+@@ -93,7 +93,9 @@ public String generate() {
+ 	 * 清空序号缓存
+ 	 */
+ 	protected void clean() {
+-		if (this.field == null) return;
++		if (this.field == null) {
++            return;
++        }
+ 
+ 		final String nameKey = String.format("Series-%s.%s", field.getOwnEntity().getName(), field.getName());
+ 		Object keyLock = null;
+diff --git a/src/main/java/com/rebuild/server/business/series/SeriesGenerator.java b/src/main/java/com/rebuild/server/business/series/SeriesGenerator.java
+index e50770b3..9051ad36 100644
+--- a/src/main/java/com/rebuild/server/business/series/SeriesGenerator.java
++++ b/src/main/java/com/rebuild/server/business/series/SeriesGenerator.java
+@@ -72,18 +72,19 @@ public String generate() {
+ 		}
+ 		return seriesFormat;
+ 	}
+-	
++
++	private static final Pattern VAR_PATTERN = Pattern.compile("\\{(\\w+)\\}");
+ 	/**
+ 	 * @param format
+ 	 * @return
+ 	 */
+ 	protected List<SeriesVar> explainVars(String format) {
+ 		List<SeriesVar> vars = new ArrayList<>();
+-		Pattern varPattern = Pattern.compile("\\{(\\w+)\\}");
+-		Matcher varMatcher = varPattern.matcher(format);
++
++		Matcher varMatcher = VAR_PATTERN.matcher(format);
+ 		while (varMatcher.find()) {
+ 			String s = varMatcher.group(1);
+-			if (s.substring(0, 1).equals("0")) {
++			if ("0".equals(s.substring(0, 1))) {
+ 				vars.add(new IncreasingVar(s, field, config.getString("seriesZero")));
+ 			} else {
+ 				vars.add(new TimeVar(s));
+diff --git a/src/main/java/com/rebuild/server/business/trigger/RobotTriggerObserver.java b/src/main/java/com/rebuild/server/business/trigger/RobotTriggerObserver.java
+index 87e12561..317ac029 100644
+--- a/src/main/java/com/rebuild/server/business/trigger/RobotTriggerObserver.java
++++ b/src/main/java/com/rebuild/server/business/trigger/RobotTriggerObserver.java
+@@ -73,10 +73,9 @@ protected void execAction(OperatingContext context, TriggerWhen when) {
+             return;
+         }
+ 
+-        boolean cleanSource = true;
+-        if (getTriggerSource() != null) {
+-            cleanSource = false;
+-        } else {
++        final boolean cleanSource = getTriggerSource() == null;
++        // 设置原始触发源
++        if (cleanSource) {
+             setTriggerSource(context);
+         }
+ 
+@@ -117,6 +116,10 @@ protected void execAction(OperatingContext context, TriggerWhen when) {
+                         throw ex;
+                     } catch (Exception ex) {
+                         LOG.error("Failed Trigger : " + action + " << " + context, ex);
++                    } finally {
++                        if (cleanSource) {
++                            action.clean();
++                        }
+                     }
+ 
+                 }
+@@ -196,7 +199,7 @@ private static void setTriggerSource(OperatingContext source) {
+     }
+ 
+     /**
+-     * 获取当前（线程）触发源（如有）
++     * 获取当前（线程）触发源（如有），即原始触发记录
+      *
+      * @return
+      */
+diff --git a/src/main/java/com/rebuild/server/business/trigger/TriggerAction.java b/src/main/java/com/rebuild/server/business/trigger/TriggerAction.java
+index c3b29e76..17c27906 100644
+--- a/src/main/java/com/rebuild/server/business/trigger/TriggerAction.java
++++ b/src/main/java/com/rebuild/server/business/trigger/TriggerAction.java
+@@ -61,7 +61,7 @@
+ 	void prepare(OperatingContext operatingContext) throws TriggerException;
+ 
+ 	/**
+-	 * 异步执行（异步执行会开启新事物）
++	 * 异步执行（异步执行会开启新事物）。一般耗时较长的任务可以设为异步
+ 	 *
+ 	 * @return
+ 	 * @see #useNewTransaction()
+@@ -78,4 +78,9 @@ default boolean useAsync() {
+ 	default boolean useNewTransaction() {
+ 		return false;
+ 	}
++
++	/**
++	 * 执行后进行清理工作。注意：只有同步任务并且不是用新事物的任务才会触发
++	 */
++	default void clean() {}
+ }
+diff --git a/src/main/java/com/rebuild/server/business/trigger/impl/FieldAggregation.java b/src/main/java/com/rebuild/server/business/trigger/impl/FieldAggregation.java
+index c6a32aee..59411d9d 100644
+--- a/src/main/java/com/rebuild/server/business/trigger/impl/FieldAggregation.java
++++ b/src/main/java/com/rebuild/server/business/trigger/impl/FieldAggregation.java
+@@ -94,10 +94,10 @@ public boolean isUsableSourceEntity(int entityCode) {
+ 	public void execute(OperatingContext operatingContext) throws TriggerException {
+ 		Integer depth = CALL_CHAIN_DEPTH.get();
+ 		if (depth == null) {
+-			depth = 0;
++			depth = 1;
+ 		}
+-		if (depth >= MAX_DEPTH) {
+-			throw new TriggerException("Too many call-chain with triggers");
++		if (depth > MAX_DEPTH) {
++			throw new TriggerException("Too many call-chain with triggers : " + depth);
+ 		}
+ 		
+ 		this.prepare(operatingContext);
+@@ -160,8 +160,9 @@ public void execute(OperatingContext operatingContext) throws TriggerException {
+ 				PrivilegesGuardInterceptor.setNoPermissionPassOnce(targetRecordId);
+ 			}
+ 
+-			Application.getEntityService(targetEntity.getEntityCode()).update(targetRecord);
++			// 会关联触发下一触发器（如有）
+ 			CALL_CHAIN_DEPTH.set(depth + 1);
++			Application.getEntityService(targetEntity.getEntityCode()).update(targetRecord);
+ 		}
+ 	}
+ 
+@@ -192,4 +193,9 @@ public void prepare(OperatingContext operatingContext) throws TriggerException {
+ 			this.targetRecordId = (ID) o[0];
+ 		}
+ 	}
++
++	@Override
++	public void clean() {
++		CALL_CHAIN_DEPTH.remove();
++	}
+ }
+diff --git a/src/main/java/com/rebuild/server/configuration/RobotTriggerManager.java b/src/main/java/com/rebuild/server/configuration/RobotTriggerManager.java
+index 57369e2a..a7e817cc 100644
+--- a/src/main/java/com/rebuild/server/configuration/RobotTriggerManager.java
++++ b/src/main/java/com/rebuild/server/configuration/RobotTriggerManager.java
+@@ -202,7 +202,9 @@ public void clean(Entity cacheKey) {
+         CaseInsensitiveMap<String, Set<String>> fieldsMap = new CaseInsensitiveMap<>();
+         for (Object[] o : array) {
+             JSONObject content = JSON.parseObject((String) o[0]);
+-            if (content == null || !content.getBooleanValue("readonlyFields")) continue;
++            if (content == null || !content.getBooleanValue("readonlyFields")) {
++                continue;
++            }
+ 
+             String targetEntity = content.getString("targetEntity");
+             targetEntity = targetEntity.split("\\.")[1];  // Field.Entity
+diff --git a/src/main/java/com/rebuild/server/configuration/portals/AdvFilterManager.java b/src/main/java/com/rebuild/server/configuration/portals/AdvFilterManager.java
+index 655a5f3e..5d9c8399 100644
+--- a/src/main/java/com/rebuild/server/configuration/portals/AdvFilterManager.java
++++ b/src/main/java/com/rebuild/server/configuration/portals/AdvFilterManager.java
+@@ -88,7 +88,9 @@ public ConfigEntry getAdvFilter(ID cfgid) {
+ 
+ 		Object[][] cached = getAllConfig((String) o[0], null);
+ 		for (Object[] c : cached) {
+-			if (!c[0].equals(cfgid)) continue;
++			if (!c[0].equals(cfgid)) {
++                continue;
++            }
+ 			return new ConfigEntry()
+ 					.set("id", c[0])
+ 					.set("shareTo", c[1])
+diff --git a/src/main/java/com/rebuild/server/configuration/portals/BaseLayoutManager.java b/src/main/java/com/rebuild/server/configuration/portals/BaseLayoutManager.java
+index b23ebcf8..8a621927 100644
+--- a/src/main/java/com/rebuild/server/configuration/portals/BaseLayoutManager.java
++++ b/src/main/java/com/rebuild/server/configuration/portals/BaseLayoutManager.java
+@@ -79,7 +79,9 @@ public ConfigEntry getLayoutOfDatalist(ID user, String entity) {
+ 	 */
+ 	public ConfigEntry getWidgetOfCharts(ID user, String entity) {
+ 		ConfigEntry e = getLayout(user, entity, TYPE_WCHARTS);
+-		if (e == null) return null;
++		if (e == null) {
++            return null;
++        }
+ 
+ 		// 补充图表信息
+ 		JSONArray charts = (JSONArray) e.getJSON("config");
+@@ -110,7 +112,9 @@ public ConfigEntry getLayout(ID user, String belongEntity, String applyType) {
+ 
+ 		Object[][] cached = getAllConfig(belongEntity, applyType);
+ 		for (Object[] c : cached) {
+-			if (!c[0].equals(detected)) continue;
++			if (!c[0].equals(detected)) {
++                continue;
++            }
+ 			return new ConfigEntry()
+ 					.set("id", c[0])
+ 					.set("shareTo", c[1])
+@@ -134,7 +138,9 @@ public ConfigEntry getLayoutById(ID cfgid) {
+ 
+ 		Object[][] cached = getAllConfig((String) o[0], (String) o[1]);
+ 		for (Object[] c : cached) {
+-			if (!c[0].equals(cfgid)) continue;
++			if (!c[0].equals(cfgid)) {
++                continue;
++            }
+ 			return new ConfigEntry()
+ 					.set("id", c[0])
+ 					.set("shareTo", c[1])
+diff --git a/src/main/java/com/rebuild/server/configuration/portals/DataListManager.java b/src/main/java/com/rebuild/server/configuration/portals/DataListManager.java
+index 7c233b0f..9023043d 100644
+--- a/src/main/java/com/rebuild/server/configuration/portals/DataListManager.java
++++ b/src/main/java/com/rebuild/server/configuration/portals/DataListManager.java
+@@ -101,7 +101,7 @@ public JSON formatFieldsLayout(String entity, ID user, boolean filter, ConfigEnt
+ 					continue;
+ 				}
+ 				
+-				String fieldPath[] = field.split("\\.");
++				String[] fieldPath = field.split("\\.");
+ 				Map<String, Object> formatted = null;
+ 				if (fieldPath.length == 1) {
+ 					formatted = formatField(lastField);
+diff --git a/src/main/java/com/rebuild/server/configuration/portals/FormsBuilder.java b/src/main/java/com/rebuild/server/configuration/portals/FormsBuilder.java
+index db239c9e..6a9b026f 100644
+--- a/src/main/java/com/rebuild/server/configuration/portals/FormsBuilder.java
++++ b/src/main/java/com/rebuild/server/configuration/portals/FormsBuilder.java
+@@ -206,7 +206,9 @@ else if (viewMode) {
+ 			
+ 			if (fieldName.equalsIgnoreCase(DIVIDER_LINE)) {
+ 				// NOTE 分割线表单页暂不支持
+-				if (!viewMode) iter.remove();
++				if (!viewMode) {
++                    iter.remove();
++                }
+ 				continue;
+ 			}
+ 
+@@ -491,7 +493,11 @@ else if (fieldValue instanceof ID) {
+ 	 * @param masterId
+ 	 */
+ 	public static void setCurrentMasterId(ID masterId) {
+-		MASTERID4NEWSLAVE.set(masterId);
++		if (masterId == null) {
++			MASTERID4NEWSLAVE.remove();
++		} else {
++			MASTERID4NEWSLAVE.set(masterId);
++		}
+ 	}
+ 
+ 
+diff --git a/src/main/java/com/rebuild/server/configuration/portals/MultiSelectManager.java b/src/main/java/com/rebuild/server/configuration/portals/MultiSelectManager.java
+index 9c4464f6..3bc00156 100644
+--- a/src/main/java/com/rebuild/server/configuration/portals/MultiSelectManager.java
++++ b/src/main/java/com/rebuild/server/configuration/portals/MultiSelectManager.java
+@@ -44,7 +44,7 @@ protected MultiSelectManager() { }
+      * @return
+      */
+     public JSONArray getSelectList(Field field) {
+-        ConfigEntry entries[] = getPickListRaw(field, false);
++        ConfigEntry[] entries = getPickListRaw(field, false);
+         for (ConfigEntry e : entries) {
+             e.set("hide", null);
+             e.set("id", null);
+@@ -63,7 +63,7 @@ public JSONArray getSelectList(Field field) {
+         }
+ 
+         List<String> labels = new ArrayList<>();
+-        ConfigEntry entries[] = getPickListRaw(field, false);
++        ConfigEntry[] entries = getPickListRaw(field, false);
+         for (ConfigEntry e : entries) {
+             long m = e.get("mask", Long.class);
+             if ((maskValue & m) != 0) {
+diff --git a/src/main/java/com/rebuild/server/configuration/portals/PickListManager.java b/src/main/java/com/rebuild/server/configuration/portals/PickListManager.java
+index 13f1e96d..f0d91951 100644
+--- a/src/main/java/com/rebuild/server/configuration/portals/PickListManager.java
++++ b/src/main/java/com/rebuild/server/configuration/portals/PickListManager.java
+@@ -45,7 +45,7 @@ protected PickListManager() { }
+ 	 * @return
+ 	 */
+ 	public JSONArray getPickList(Field field) {
+-		ConfigEntry entries[] = getPickListRaw(field, false);
++		ConfigEntry[] entries = getPickListRaw(field, false);
+ 		for (ConfigEntry e : entries) {
+ 			e.set("hide", null);
+ 			e.set("mask", null);
+@@ -59,7 +59,7 @@ public JSONArray getPickList(Field field) {
+ 	 * @return
+ 	 */
+ 	public JSONArray getPickList(Field field, boolean includeHide) {
+-		ConfigEntry entries[] = getPickListRaw(field, includeHide);
++		ConfigEntry[] entries = getPickListRaw(field, includeHide);
+ 		return JSONUtils.toJSONArray(entries);
+ 	}
+ 
+diff --git a/src/main/java/com/rebuild/server/configuration/portals/ShareToManager.java b/src/main/java/com/rebuild/server/configuration/portals/ShareToManager.java
+index 70504542..20104456 100644
+--- a/src/main/java/com/rebuild/server/configuration/portals/ShareToManager.java
++++ b/src/main/java/com/rebuild/server/configuration/portals/ShareToManager.java
+@@ -225,7 +225,9 @@ public static boolean isSelf(ID user, ID configOrUser) {
+             configOrUser = getCreatedBy(configOrUser);
+         }
+         boolean s = user.equals(configOrUser);
+-        if (s) return true;
++        if (s) {
++            return true;
++        }
+         return UserHelper.isAdmin(user) && UserHelper.isAdmin(configOrUser);
+     }
+ 
+diff --git a/src/main/java/com/rebuild/server/configuration/portals/ViewAddonsManager.java b/src/main/java/com/rebuild/server/configuration/portals/ViewAddonsManager.java
+index 8cb5004d..d2f7be03 100644
+--- a/src/main/java/com/rebuild/server/configuration/portals/ViewAddonsManager.java
++++ b/src/main/java/com/rebuild/server/configuration/portals/ViewAddonsManager.java
+@@ -58,7 +58,7 @@ public JSON getViewTab(String entity, ID user) {
+ 		// 添加明细实体到第一个（如有）
+ 		Entity entityMeta = MetadataHelper.getEntity(entity);
+ 		if (entityMeta.getSlaveEntity() != null) {
+-			String show[] = EasyMeta.getEntityShow(entityMeta.getSlaveEntity());
++			String[] show = EasyMeta.getEntityShow(entityMeta.getSlaveEntity());
+ 			JSON allTabs = (JSON) JSON.toJSON(new String[][] { show });
+ 			((JSONArray) allTabs).fluentAddAll((Collection<?>) tabs);
+ 			tabs = allTabs;
+diff --git a/src/main/java/com/rebuild/server/helper/QiniuCloud.java b/src/main/java/com/rebuild/server/helper/QiniuCloud.java
+index 04081886..c4bcf531 100644
+--- a/src/main/java/com/rebuild/server/helper/QiniuCloud.java
++++ b/src/main/java/com/rebuild/server/helper/QiniuCloud.java
+@@ -199,10 +199,10 @@ public static String formatFileKey(String fileName) {
+ 	 */
+ 	public static String formatFileKey(String fileName, boolean keepName) {
+ 		if (!keepName) {
+-			String fileName_s[] = fileName.split("\\.");
++			String[] fileNameSplit = fileName.split("\\.");
+ 			fileName = UUID.randomUUID().toString().replace("-", "");
+-			if (fileName_s.length > 1 && StringUtils.isNotBlank(fileName_s[fileName_s.length - 1])) {
+-				fileName += "." + fileName_s[fileName_s.length - 1];
++			if (fileNameSplit.length > 1 && StringUtils.isNotBlank(fileNameSplit[fileNameSplit.length - 1])) {
++				fileName += "." + fileNameSplit[fileNameSplit.length - 1];
+ 			}
+ 		} else {
+ 			while (fileName.contains("__")) {
+@@ -235,8 +235,8 @@ public static String formatFileKey(String fileName, boolean keepName) {
+ 	 * @see #formatFileKey(String)
+ 	 */
+ 	public static String parseFileName(String filePath) {
+-		String filePath_s[] = filePath.split("/");
+-		String fileName = filePath_s[filePath_s.length - 1];
++		String[] filePathSplit = filePath.split("/");
++		String fileName = filePathSplit[filePathSplit.length - 1];
+ 		if (fileName.contains("__")) {
+ 			fileName = fileName.substring(fileName.indexOf("__") + 2);
+ 		}
+@@ -254,15 +254,15 @@ public static String encodeUrl(String url) {
+ 			return url;
+ 		}
+ 		
+-		String url_s[] = url.split("/");
+-		for (int i = 0; i < url_s.length; i++) {
+-			String e = CodecUtils.urlEncode(url_s[i]);
++		String[] urlSplit = url.split("/");
++		for (int i = 0; i < urlSplit.length; i++) {
++			String e = CodecUtils.urlEncode(urlSplit[i]);
+ 			if (e.contains("+")) {
+ 				e = e.replace("+", "%20");
+ 			}
+-			url_s[i] = e;
++			urlSplit[i] = e;
+ 		}
+-		return StringUtils.join(url_s, "/");
++		return StringUtils.join(urlSplit, "/");
+ 	}
+ 	
+ 	private static final QiniuCloud INSTANCE = new QiniuCloud();
+diff --git a/src/main/java/com/rebuild/server/helper/SMSender.java b/src/main/java/com/rebuild/server/helper/SMSender.java
+index fb45f01b..616fdc1e 100644
+--- a/src/main/java/com/rebuild/server/helper/SMSender.java
++++ b/src/main/java/com/rebuild/server/helper/SMSender.java
+@@ -79,7 +79,7 @@ public static void sendMailAsync(String to, String subject, String content) {
+ 	 * @throws ConfigurationException If mail-account unset
+ 	 */
+ 	public static String sendMail(String to, String subject, String content, boolean useTemplate) throws ConfigurationException {
+-		String account[] = SysConfiguration.getMailAccount();
++		String[] account = SysConfiguration.getMailAccount();
+ 		Assert.notNull(account, "邮箱账户未配置");
+ 		
+ 		Map<String, Object> params = new HashMap<>();
+@@ -150,7 +150,7 @@ protected static Element getMailTemplate() throws IOException {
+ 	 * @throws ConfigurationException If sms-account unset
+ 	 */
+ 	public static String sendSMS(String to, String content) throws ConfigurationException {
+-		String account[] = SysConfiguration.getSmsAccount();
++		String[] account = SysConfiguration.getSmsAccount();
+ 		Assert.notNull(account, "短信账户未配置");
+ 		
+ 		Map<String, Object> params = new HashMap<>();
+diff --git a/src/main/java/com/rebuild/server/helper/SysConfiguration.java b/src/main/java/com/rebuild/server/helper/SysConfiguration.java
+index c842daa7..eb7f1401 100644
+--- a/src/main/java/com/rebuild/server/helper/SysConfiguration.java
++++ b/src/main/java/com/rebuild/server/helper/SysConfiguration.java
+@@ -166,7 +166,9 @@ public static String getHomeUrl(String...path) {
+ 		}
+ 
+ 		if (path.length > 0) {
+-			if (path[0].startsWith("/")) path[0] = path[0].substring(1);
++			if (path[0].startsWith("/")) {
++                path[0] = path[0].substring(1);
++            }
+ 			return homeUrl + path[0];
+ 		}
+ 		return homeUrl;
+diff --git a/src/main/java/com/rebuild/server/helper/cache/JedisCacheTemplate.java b/src/main/java/com/rebuild/server/helper/cache/JedisCacheTemplate.java
+index 3349dbbf..038b0f76 100644
+--- a/src/main/java/com/rebuild/server/helper/cache/JedisCacheTemplate.java
++++ b/src/main/java/com/rebuild/server/helper/cache/JedisCacheTemplate.java
+@@ -42,7 +42,8 @@ protected JedisCacheTemplate(JedisPool jedisPool, String keyPrefix) {
+ 		this.keyPrefix = keyPrefix == null ? "" : keyPrefix;
+ 	}
+ 
+-	public String get(String key) {
++	@Override
++    public String get(String key) {
+ 		String ckey = unityKey(key);
+ 		Jedis jedis = null;
+ 		try {
+@@ -79,7 +80,7 @@ public V getx(String key) {
+ 		Jedis jedis = null;
+ 		try {
+ 			jedis = jedisPool.getResource();
+-			byte bs[] = jedis.get(ckey.getBytes());
++			byte[] bs = jedis.get(ckey.getBytes());
+ 			if (bs == null || bs.length == 0) {
+ 				return null;
+ 			}
+diff --git a/src/main/java/com/rebuild/server/helper/datalist/DataListWrapper.java b/src/main/java/com/rebuild/server/helper/datalist/DataListWrapper.java
+index c21c5fe3..b2dd3e39 100644
+--- a/src/main/java/com/rebuild/server/helper/datalist/DataListWrapper.java
++++ b/src/main/java/com/rebuild/server/helper/datalist/DataListWrapper.java
+@@ -179,7 +179,7 @@ private boolean checkHasJoinFieldPrivileges(SelectItem field, Object[] original)
+ 			return true;
+ 		}
+ 		
+-		String fieldPath[] = field.getFieldPath().split("\\.");
++		String[] fieldPath = field.getFieldPath().split("\\.");
+ 		if (fieldPath.length == 1) {
+ 			return true;
+ 		}
+diff --git a/src/main/java/com/rebuild/server/helper/setup/Installer.java b/src/main/java/com/rebuild/server/helper/setup/Installer.java
+index 92c4ddc3..832d07ae 100644
+--- a/src/main/java/com/rebuild/server/helper/setup/Installer.java
++++ b/src/main/java/com/rebuild/server/helper/setup/Installer.java
+@@ -228,7 +228,9 @@ protected void installDatabase() {
+             boolean H2Supported = quickMode && L2.startsWith("fulltext");
+ 
+             // Ignore comments and line of blank
+-            if (StringUtils.isEmpty(L2) || L2.startsWith("--") || H2Supported) continue;
++            if (StringUtils.isEmpty(L2) || L2.startsWith("--") || H2Supported) {
++                continue;
++            }
+             if (L2.startsWith("/*") || L2.endsWith("*/")) {
+                 ignoreTerms = L2.startsWith("/*");
+                 continue;
+@@ -252,7 +254,9 @@ protected void installDatabase() {
+      */
+     protected void installSystem() {
+         JSONObject systemProps = installProps.getJSONObject("systemProps");
+-        if (systemProps == null || systemProps.isEmpty()) return;
++        if (systemProps == null || systemProps.isEmpty()) {
++            return;
++        }
+ 
+         insertSystemProp(ConfigurableItem.DataDirectory, systemProps.getString("dataDirectory"));
+         insertSystemProp(ConfigurableItem.AppName, systemProps.getString("appName"));
+@@ -264,7 +268,9 @@ protected void installSystem() {
+      */
+     protected void installAdmin() {
+         JSONObject adminProps = installProps.getJSONObject("adminProps");
+-        if (adminProps == null || adminProps.isEmpty()) return;
++        if (adminProps == null || adminProps.isEmpty()) {
++            return;
++        }
+ 
+         String adminPasswd = adminProps.getString("adminPasswd");
+         String adminMail = adminProps.getString("adminMail");
+@@ -276,14 +282,18 @@ protected void installAdmin() {
+         if (StringUtils.isNotBlank(adminMail)) {
+             ub.addColumn("EMAIL", adminMail);
+         }
+-        if (!ub.hasColumn()) return;
++        if (!ub.hasColumn()) {
++            return;
++        }
+ 
+         ub.setWhere("LOGIN_NAME = 'admin'");
+         executeSql(ub.toSql());
+     }
+ 
+     private void insertSystemProp(ConfigurableItem item, String value) {
+-        if (StringUtils.isBlank(value)) return;
++        if (StringUtils.isBlank(value)) {
++            return;
++        }
+ 
+         InsertBuilder ib = SqlBuilder.buildInsert("system_config")
+                 .addColumn("CONFIG_ID", ID.newId(EntityHelper.SystemConfig))
+@@ -311,7 +321,9 @@ private void executeSql(String sql) {
+      * @return
+      */
+     public static boolean checkInstall() {
+-        if (Application.devMode()) return true;  // for dev
++        if (Application.devMode()) {
++            return true;  // for dev
++        }
+ 
+         File file = SysConfiguration.getFileOfData(INSTALL_FILE);
+         if (file.exists()) {
+@@ -324,7 +336,7 @@ public static boolean checkInstall() {
+ 
+                 for (Map.Entry<Object, Object> e : dbProps.entrySet()) {
+                     System.setProperty((String) e.getKey(), (String) e.getValue());
+-                    if (e.getKey().equals("db.url") && ((String) e.getValue()).contains("jdbc:h2:")) {
++                    if ("db.url".equals(e.getKey()) && ((String) e.getValue()).contains("jdbc:h2:")) {
+                         LOG.warn("Using QuickMode with H2 database!");
+                         try {
+                             Class.forName(org.h2.Driver.class.getName());
+diff --git a/src/main/java/com/rebuild/server/helper/setup/UpgradeDatabase.java b/src/main/java/com/rebuild/server/helper/setup/UpgradeDatabase.java
+index 4809e322..cab7fb06 100644
+--- a/src/main/java/com/rebuild/server/helper/setup/UpgradeDatabase.java
++++ b/src/main/java/com/rebuild/server/helper/setup/UpgradeDatabase.java
+@@ -50,7 +50,7 @@ public void upgrade() throws Exception {
+ 		int upgradeVer = dbVer;
+ 		try {
+ 			while (true) {
+-				String sql[] = scripts.get(upgradeVer + 1);
++				String[] sql = scripts.get(upgradeVer + 1);
+ 				if (sql == null) {
+ 					break;
+ 				} else if (sql.length == 0) {
+diff --git a/src/main/java/com/rebuild/server/helper/state/StateManager.java b/src/main/java/com/rebuild/server/helper/state/StateManager.java
+index 1d6de2d2..cf653d99 100644
+--- a/src/main/java/com/rebuild/server/helper/state/StateManager.java
++++ b/src/main/java/com/rebuild/server/helper/state/StateManager.java
+@@ -98,7 +98,9 @@ public String getLabel(Field stateField, int state) {
+     public String getName(Field stateField, int state) {
+         Class<?> stateClass = StateHelper.getSatetClass(stateField);
+         for (Object c : stateClass.getEnumConstants()) {
+-            if (((StateSpec) c).getState() == state) return ((StateSpec) c).getName();
++            if (((StateSpec) c).getState() == state) {
++                return ((StateSpec) c).getName();
++            }
+         }
+         return null;
+     }
+@@ -112,7 +114,9 @@ public Integer getState(Field stateField, String name) {
+         Class<?> stateClass = StateHelper.getSatetClass(stateField);
+         for (Object c : stateClass.getEnumConstants()) {
+             StateSpec s = (StateSpec) c;
+-            if (s.getName().equalsIgnoreCase(name) || ((Enum<?>) s).name().equalsIgnoreCase(name)) return s.getState();
++            if (s.getName().equalsIgnoreCase(name) || ((Enum<?>) s).name().equalsIgnoreCase(name)) {
++                return s.getState();
++            }
+         }
+         return null;
+     }
+diff --git a/src/main/java/com/rebuild/server/helper/task/TaskExecutors.java b/src/main/java/com/rebuild/server/helper/task/TaskExecutors.java
+index cfc7c3e3..8998335e 100644
+--- a/src/main/java/com/rebuild/server/helper/task/TaskExecutors.java
++++ b/src/main/java/com/rebuild/server/helper/task/TaskExecutors.java
+@@ -30,9 +30,9 @@
+ import java.util.Map;
+ import java.util.concurrent.ConcurrentHashMap;
+ import java.util.concurrent.ExecutorService;
+-import java.util.concurrent.Executors;
+-import java.util.concurrent.RejectedExecutionException;
++import java.util.concurrent.LinkedBlockingQueue;
+ import java.util.concurrent.ThreadPoolExecutor;
++import java.util.concurrent.TimeUnit;
+ 
+ /**
+  * 任务执行调度/管理
+@@ -41,9 +41,11 @@
+  * @since 09/29/2018
+  */
+ public class TaskExecutors extends QuartzJobBean {
+-	
+-	private static final int EXECS_MAX = 4;
+-	private static final ExecutorService EXECS = Executors.newFixedThreadPool(EXECS_MAX);
++
++	private static final int MAX_TASK = Runtime.getRuntime().availableProcessors() / 2;
++	private static final int MAX_QUEUE = MAX_TASK * 10;
++	private static final ExecutorService EXECS = new ThreadPoolExecutor(
++			MAX_TASK, MAX_TASK, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>(MAX_QUEUE));
+ 	
+ 	private static final Map<String, HeavyTask<?>> TASKS = new ConcurrentHashMap<>();
+ 
+@@ -55,12 +57,6 @@
+ 	 * @return 任务 ID，可通过任务ID获取任务对象，或取消任务
+ 	 */
+ 	public static String submit(HeavyTask<?> task, ID execUser) {
+-		ThreadPoolExecutor tpe = (ThreadPoolExecutor) EXECS;
+-		int queueSize = tpe.getQueue().size();
+-		if (queueSize > EXECS_MAX * 5) {
+-			throw new RejectedExecutionException("Too many task : " + tpe.getTaskCount());
+-		}
+-		
+ 		String taskid = task.getClass().getSimpleName() + "-" + CodecUtils.randomCode(20);
+ 		task.setUser(execUser);
+ 		EXECS.execute(task);
+diff --git a/src/main/java/com/rebuild/server/metadata/DefaultValueHelper.java b/src/main/java/com/rebuild/server/metadata/DefaultValueHelper.java
+index aa0c3fe4..f488730f 100644
+--- a/src/main/java/com/rebuild/server/metadata/DefaultValueHelper.java
++++ b/src/main/java/com/rebuild/server/metadata/DefaultValueHelper.java
+@@ -68,6 +68,7 @@ public static String exprDefaultValueToString(Field field) {
+         }
+     }
+ 
++    private static final Pattern EXPR_PATTERN = Pattern.compile("\\{NOW([-+])([0-9]{1,9})([YMDH])\\}");
+     /**
+      * 获取字段默认值，可指定表达式
+      *
+@@ -90,7 +91,9 @@ public static Object exprDefaultValue(Field field, String valueExpr) {
+             }
+ 
+             for (Object c : stateClass.getEnumConstants()) {
+-                if (((StateSpec) c).isDefault()) return ((StateSpec) c).getState();
++                if (((StateSpec) c).isDefault()) {
++                    return ((StateSpec) c).getState();
++                }
+             }
+         } else if (dt == DisplayType.MULTISELECT) {
+             return MultiSelectManager.instance.getDefaultValue(field);
+@@ -105,8 +108,7 @@ public static Object exprDefaultValue(Field field, String valueExpr) {
+                 return CalendarUtils.now();
+             }
+ 
+-            Pattern exprPattern = Pattern.compile("\\{NOW([-+])([0-9]{1,9})([YMDH])\\}");
+-            Matcher exprMatcher = exprPattern.matcher(StringUtils.remove(valueExpr, " "));
++            Matcher exprMatcher = EXPR_PATTERN.matcher(StringUtils.remove(valueExpr, " "));
+             if (exprMatcher.matches()) {
+                 String op = exprMatcher.group(1);
+                 String num = exprMatcher.group(2);
+diff --git a/src/main/java/com/rebuild/server/metadata/entity/MetaEntityService.java b/src/main/java/com/rebuild/server/metadata/entity/MetaEntityService.java
+index efc31c5a..d736edaa 100644
+--- a/src/main/java/com/rebuild/server/metadata/entity/MetaEntityService.java
++++ b/src/main/java/com/rebuild/server/metadata/entity/MetaEntityService.java
+@@ -55,7 +55,8 @@ public int delete(ID recordId) {
+ 		final Entity entity = MetadataHelper.getEntity((String) entityRecord[0]);
+ 		
+ 		// 删除此实体的相关配置记录
+-		String whoUsed[] = new String[] {
++		// Field: belongEntity
++		String[] whoUsed = new String[] {
+ 				"MetaField", "PickList", "LayoutConfig", "FilterConfig", "ShareAccess", "ChartConfig", 
+ 				"Attachment", "AutoFillinConfig", "RobotTriggerConfig", "RobotApprovalConfig",
+ 				"DataReportConfig",
+diff --git a/src/main/java/com/rebuild/server/metadata/entity/MetaFieldService.java b/src/main/java/com/rebuild/server/metadata/entity/MetaFieldService.java
+index 96b74f32..5e96440b 100644
+--- a/src/main/java/com/rebuild/server/metadata/entity/MetaFieldService.java
++++ b/src/main/java/com/rebuild/server/metadata/entity/MetaFieldService.java
+@@ -51,18 +51,19 @@ public int delete(ID recordId) {
+ 		final Field field = MetadataHelper.getField((String) fieldRecord[0], (String) fieldRecord[1]);
+ 		
+ 		// 删除此字段的相关配置记录
+-		String whoUsed[] = new String[] {
++		// Field: belongEntity, belongField
++		String[] whoUsed = new String[] {
+ 				"PickList", "AutoFillinConfig"
+ 		};
+ 		int del = 0;
+ 		for (String who : whoUsed) {
+-			Entity whoEntity = MetadataHelper.getEntity(who);
+-			if (!(whoEntity.containsField("belongEntity") || whoEntity.containsField("belongField"))) {
++			Entity whichEntity = MetadataHelper.getEntity(who);
++			if (!whichEntity.containsField("belongEntity") || !whichEntity.containsField("belongField")) {
+ 				continue;
+ 			}
+-			
+-			String sql = String.format("select %s from %s where belongEntity = '%s' and belongField = '%s'", 
+-					whoEntity.getPrimaryField().getName(), whoEntity.getName(), field.getOwnEntity().getName(), field.getName());
++
++			String sql = String.format("select %s from %s where belongEntity = '%s' and belongField = '%s'",
++					whichEntity.getPrimaryField().getName(), whichEntity.getName(), field.getOwnEntity().getName(), field.getName());
+ 			Object[][] usedArray = getPMFactory().createQuery(sql).array();
+ 			for (Object[] used : usedArray) {
+ 				del += super.delete((ID) used[0]);
+diff --git a/src/main/java/com/rebuild/server/service/CommonService.java b/src/main/java/com/rebuild/server/service/CommonService.java
+index 67ec2bc7..06835e0c 100644
+--- a/src/main/java/com/rebuild/server/service/CommonService.java
++++ b/src/main/java/com/rebuild/server/service/CommonService.java
+@@ -153,7 +153,7 @@ public void delete(ID[] deletes, boolean strictMode) {
+ 	 * @param records
+ 	 * @param deletes
+ 	 */
+-	public void createOrUpdateAndDelete(Record[] records, ID deletes[]) {
++	public void createOrUpdateAndDelete(Record[] records, ID[] deletes) {
+ 		createOrUpdateAndDelete(records, deletes, true);
+ 	}
+ 
+@@ -164,7 +164,7 @@ public void createOrUpdateAndDelete(Record[] records, ID deletes[]) {
+ 	 * @param deletes
+ 	 * @param strictMode
+ 	 */
+-	public void createOrUpdateAndDelete(Record[] records, ID deletes[], boolean strictMode) {
++	public void createOrUpdateAndDelete(Record[] records, ID[] deletes, boolean strictMode) {
+ 		createOrUpdate(records, strictMode);
+ 		delete(deletes, strictMode);
+ 	}
+diff --git a/src/main/java/com/rebuild/server/service/SQLExecutor.java b/src/main/java/com/rebuild/server/service/SQLExecutor.java
+index b51df85a..f55e74dc 100644
+--- a/src/main/java/com/rebuild/server/service/SQLExecutor.java
++++ b/src/main/java/com/rebuild/server/service/SQLExecutor.java
+@@ -102,7 +102,9 @@ public int executeBatch(String[] sqls, int timeout) {
+             }
+         }
+ 
+-        if (!tmp.isEmpty()) affected += this.executeBatchInternal(tmp, timeout);
++        if (!tmp.isEmpty()) {
++            affected += this.executeBatchInternal(tmp, timeout);
++        }
+         return affected;
+ 	}
+ 
+@@ -118,7 +120,9 @@ private int executeBatchInternal(Collection<String> sqls, int timeout) {
+             jdbcSupport.setTimeout(timeout);
+ 
+             int[] exec = jdbcSupport.executeBatch(sqls.toArray(new String[0]));
+-            for (int a : exec) affected += a;
++            for (int a : exec) {
++                affected += a;
++            }
+         } catch (Exception ex) {
+             throw new DataAccessException("Batch SQL Error! #", ex);
+         }
+diff --git a/src/main/java/com/rebuild/server/service/base/ApprovalStepService.java b/src/main/java/com/rebuild/server/service/base/ApprovalStepService.java
+index 167bbf5d..681616e4 100644
+--- a/src/main/java/com/rebuild/server/service/base/ApprovalStepService.java
++++ b/src/main/java/com/rebuild/server/service/base/ApprovalStepService.java
+@@ -292,9 +292,15 @@ private ID createStepIfNeed(ID recordId, ID approvalId, String node, ID approver
+ 	 */
+ 	private void cancelAliveSteps(ID recordId, ID approvalId, String node, ID excludeStep, boolean onlyDarft) {
+ 		String sql = "select stepId from RobotApprovalStep where recordId = ? and isCanceled = 'F'";
+-		if (approvalId != null) sql += " and approvalId = '" + approvalId + "'";
+-		if (node != null) sql += " and node = '" + node + "'";
+-		if (onlyDarft) sql += " and state = " + ApprovalState.DRAFT.getState();
++		if (approvalId != null) {
++            sql += " and approvalId = '" + approvalId + "'";
++        }
++		if (node != null) {
++            sql += " and node = '" + node + "'";
++        }
++		if (onlyDarft) {
++            sql += " and state = " + ApprovalState.DRAFT.getState();
++        }
+ 
+ 		Object[][] cancelled = Application.createQueryNoFilter(sql)
+ 				.setParameter(1, recordId)
+diff --git a/src/main/java/com/rebuild/server/service/base/QuickCodeReindexTask.java b/src/main/java/com/rebuild/server/service/base/QuickCodeReindexTask.java
+index a641a980..0d7835fa 100644
+--- a/src/main/java/com/rebuild/server/service/base/QuickCodeReindexTask.java
++++ b/src/main/java/com/rebuild/server/service/base/QuickCodeReindexTask.java
+@@ -180,7 +180,7 @@ public static String generateQuickCode(String nameVal) {
+ 		// 仅包含字母数字或空格
+ 		if (nameVal.matches("[a-zA-Z0-9\\s]+")) {
+ 			// 提取英文单词的首字母
+-			String asplit[] = nameVal.split("(?=[A-Z\\s])");
++			String[] asplit = nameVal.split("(?=[A-Z\\s])");
+ 			if (asplit.length == 1) {
+ 				quickCode = nameVal;
+ 			} else {
+diff --git a/src/main/java/com/rebuild/server/service/bizz/TeamService.java b/src/main/java/com/rebuild/server/service/bizz/TeamService.java
+index 4f6952ac..04fada02 100644
+--- a/src/main/java/com/rebuild/server/service/bizz/TeamService.java
++++ b/src/main/java/com/rebuild/server/service/bizz/TeamService.java
+@@ -77,7 +77,9 @@ public int createMembers(ID teamId, Collection<ID> members) {
+         int added = 0;
+         Team team = Application.getUserStore().getTeam(teamId);
+         for (ID user : members) {
+-            if (team.isMember(user)) continue;
++            if (team.isMember(user)) {
++                continue;
++            }
+             Record record = EntityHelper.forNew(EntityHelper.TeamMember, Application.getCurrentUser());
+             record.setID("teamId", teamId);
+             record.setID("userId", user);
+diff --git a/src/main/java/com/rebuild/server/service/bizz/privileges/EntityQueryFilter.java b/src/main/java/com/rebuild/server/service/bizz/privileges/EntityQueryFilter.java
+index faa4a773..4dcd7400 100644
+--- a/src/main/java/com/rebuild/server/service/bizz/privileges/EntityQueryFilter.java
++++ b/src/main/java/com/rebuild/server/service/bizz/privileges/EntityQueryFilter.java
+@@ -48,7 +48,8 @@
+ 	 * 总是拒绝 */
+ 	public static final Filter DENIED = new EntityQueryFilter() {
+ 		private static final long serialVersionUID = -1841438304452108874L;
+-		public String evaluate(Entity entity) {
++		@Override
++        public String evaluate(Entity entity) {
+ 			return "( 1 = 0 )";
+ 		}
+ 	};
+@@ -57,7 +58,8 @@ public String evaluate(Entity entity) {
+ 	 * 总是允许 */
+ 	public static final Filter ALLOWED = new EntityQueryFilter() {
+ 		private static final long serialVersionUID = -1300184338130890817L;
+-		public String evaluate(Entity entity) {
++		@Override
++        public String evaluate(Entity entity) {
+ 			return "( 1 = 1 )";
+ 		}
+ 	};
+diff --git a/src/main/java/com/rebuild/server/service/bizz/privileges/SecurityManager.java b/src/main/java/com/rebuild/server/service/bizz/privileges/SecurityManager.java
+index b31adf4b..0c074229 100644
+--- a/src/main/java/com/rebuild/server/service/bizz/privileges/SecurityManager.java
++++ b/src/main/java/com/rebuild/server/service/bizz/privileges/SecurityManager.java
+@@ -232,7 +232,9 @@ public boolean allowedS(ID user, ID target) {
+ 	 */
+ 	public boolean allowed(ID user, int entity, Permission action) {
+ 		Boolean a = allowedUser(user);
+-		if (a != null) return a;
++		if (a != null) {
++            return a;
++        }
+ 
+ 		Role role = theUserStore.getUser(user).getOwningRole();
+ 		if (RoleService.ADMIN_ROLE.equals(role.getIdentity())) {
+@@ -273,7 +275,9 @@ else if (action == BizzPermission.ASSIGN || action == BizzPermission.SHARE) {
+ 	 */
+ 	public boolean allowed(ID user, ID target, Permission action) {
+ 		Boolean a = allowedUser(user);
+-		if (a != null) return a;
++		if (a != null) {
++            return a;
++        }
+ 
+ 		Role role = theUserStore.getUser(user).getOwningRole();
+ 		if (RoleService.ADMIN_ROLE.equals(role.getIdentity())) {
+@@ -455,7 +459,9 @@ public Filter createQueryFilter(ID user, Permission action) {
+ 	 */
+ 	public boolean allowed(ID user, ZeroEntry entry) {
+ 		Boolean a = allowedUser(user);
+-		if (a != null) return a;
++		if (a != null) {
++            return a;
++        }
+ 
+ 		Role role = theUserStore.getUser(user).getOwningRole();
+ 		if (RoleService.ADMIN_ROLE.equals(role.getIdentity())) {
+diff --git a/src/main/java/com/rebuild/server/service/bizz/privileges/User.java b/src/main/java/com/rebuild/server/service/bizz/privileges/User.java
+index 8aa8e151..14e4f7f2 100644
+--- a/src/main/java/com/rebuild/server/service/bizz/privileges/User.java
++++ b/src/main/java/com/rebuild/server/service/bizz/privileges/User.java
+@@ -91,7 +91,8 @@ public Department getOwningDept() {
+ 	/**
+ 	 * 是否激活/可用。如果用户所属部门或角色被禁用，用户同样也不可用
+ 	 */
+-	public boolean isActive() {
++	@Override
++    public boolean isActive() {
+ 		if (isDisabled()) {
+ 			return false;
+ 		}
+diff --git a/src/main/java/com/rebuild/server/service/bizz/privileges/UserStore.java b/src/main/java/com/rebuild/server/service/bizz/privileges/UserStore.java
+index 872c1710..29a71628 100644
+--- a/src/main/java/com/rebuild/server/service/bizz/privileges/UserStore.java
++++ b/src/main/java/com/rebuild/server/service/bizz/privileges/UserStore.java
+@@ -622,30 +622,70 @@ private String converEntityPrivilegesDefinition(String definition) {
+ 			deepG += BizzPermission.CREATE.getMask();
+ 		}
+ 		
+-		if (D >= 1) deepP += BizzPermission.DELETE.getMask();
+-		if (D >= 2) deepL += BizzPermission.DELETE.getMask();
+-		if (D >= 3) deepD += BizzPermission.DELETE.getMask();
+-		if (D >= 4) deepG += BizzPermission.DELETE.getMask();
++		if (D >= 1) {
++            deepP += BizzPermission.DELETE.getMask();
++        }
++		if (D >= 2) {
++            deepL += BizzPermission.DELETE.getMask();
++        }
++		if (D >= 3) {
++            deepD += BizzPermission.DELETE.getMask();
++        }
++		if (D >= 4) {
++            deepG += BizzPermission.DELETE.getMask();
++        }
+ 		
+-		if (U >= 1) deepP += BizzPermission.UPDATE.getMask();
+-		if (U >= 2) deepL += BizzPermission.UPDATE.getMask();
+-		if (U >= 3) deepD += BizzPermission.UPDATE.getMask();
+-		if (U >= 4) deepG += BizzPermission.UPDATE.getMask();
++		if (U >= 1) {
++            deepP += BizzPermission.UPDATE.getMask();
++        }
++		if (U >= 2) {
++            deepL += BizzPermission.UPDATE.getMask();
++        }
++		if (U >= 3) {
++            deepD += BizzPermission.UPDATE.getMask();
++        }
++		if (U >= 4) {
++            deepG += BizzPermission.UPDATE.getMask();
++        }
+ 		
+-		if (R >= 1) deepP += BizzPermission.READ.getMask();
+-		if (R >= 2) deepL += BizzPermission.READ.getMask();
+-		if (R >= 3) deepD += BizzPermission.READ.getMask();
+-		if (R >= 4) deepG += BizzPermission.READ.getMask();
++		if (R >= 1) {
++            deepP += BizzPermission.READ.getMask();
++        }
++		if (R >= 2) {
++            deepL += BizzPermission.READ.getMask();
++        }
++		if (R >= 3) {
++            deepD += BizzPermission.READ.getMask();
++        }
++		if (R >= 4) {
++            deepG += BizzPermission.READ.getMask();
++        }
+ 		
+-		if (A >= 1) deepP += BizzPermission.ASSIGN.getMask();
+-		if (A >= 2) deepL += BizzPermission.ASSIGN.getMask();
+-		if (A >= 3) deepD += BizzPermission.ASSIGN.getMask();
+-		if (A >= 4) deepG += BizzPermission.ASSIGN.getMask();
++		if (A >= 1) {
++            deepP += BizzPermission.ASSIGN.getMask();
++        }
++		if (A >= 2) {
++            deepL += BizzPermission.ASSIGN.getMask();
++        }
++		if (A >= 3) {
++            deepD += BizzPermission.ASSIGN.getMask();
++        }
++		if (A >= 4) {
++            deepG += BizzPermission.ASSIGN.getMask();
++        }
+ 		
+-		if (S >= 1) deepP += BizzPermission.SHARE.getMask();
+-		if (S >= 2) deepL += BizzPermission.SHARE.getMask();
+-		if (S >= 3) deepD += BizzPermission.SHARE.getMask();
+-		if (S >= 4) deepG += BizzPermission.SHARE.getMask();
++		if (S >= 1) {
++            deepP += BizzPermission.SHARE.getMask();
++        }
++		if (S >= 2) {
++            deepL += BizzPermission.SHARE.getMask();
++        }
++		if (S >= 3) {
++            deepD += BizzPermission.SHARE.getMask();
++        }
++		if (S >= 4) {
++            deepG += BizzPermission.SHARE.getMask();
++        }
+ 		
+ 		return "1:" + deepP + ",2:" + deepL + ",3:" + deepD + ",4:" + deepG;
+ 	}
+diff --git a/src/main/java/com/rebuild/server/service/configuration/ConfigurationService.java b/src/main/java/com/rebuild/server/service/configuration/ConfigurationService.java
+index 818df701..ad6824d4 100644
+--- a/src/main/java/com/rebuild/server/service/configuration/ConfigurationService.java
++++ b/src/main/java/com/rebuild/server/service/configuration/ConfigurationService.java
+@@ -65,7 +65,9 @@ public int delete(ID recordId) {
+ 	 */
+ 	protected void throwIfNotSelf(ID cfgid) {
+ 		ID user = Application.getCurrentUser();
+-		if (UserHelper.isAdmin(user)) return;
++		if (UserHelper.isAdmin(user)) {
++            return;
++        }
+ 		if (!ShareToManager.isSelf(user, cfgid)) {
+ 			throw new DataSpecificationException("无权操作他人配置");
+ 		}
+diff --git a/src/main/java/com/rebuild/server/service/feeds/FeedsAware.java b/src/main/java/com/rebuild/server/service/feeds/FeedsAware.java
+index cfd5868c..7734e802 100644
+--- a/src/main/java/com/rebuild/server/service/feeds/FeedsAware.java
++++ b/src/main/java/com/rebuild/server/service/feeds/FeedsAware.java
+@@ -108,14 +108,18 @@ protected void awareMention(Record record, boolean isNew) {
+         while (atMatcher.find()) {
+             String at = atMatcher.group().substring(1);
+             ID atUser = ID.valueOf(at);
+-            if (atUser.getEntityCode() != EntityHelper.User) continue;
++            if (atUser.getEntityCode() != EntityHelper.User) {
++                continue;
++            }
+ 
+             Record clone = mention.clone();
+             clone.setID("user", atUser);
+             super.create(clone);
+             atUsers.add(atUser);
+         }
+-        if (atUsers.isEmpty()) return;
++        if (atUsers.isEmpty()) {
++            return;
++        }
+ 
+         // 发送通知
+         String messageContent = String.format("@%s 在%s中提到了你",
+@@ -156,7 +160,9 @@ protected void awareMention(ID deleted) {
+      */
+     private Record converContent(Record record) {
+         String content = record.getString("content");
+-        if (StringUtils.isBlank(content)) return record;
++        if (StringUtils.isBlank(content)) {
++            return record;
++        }
+ 
+         Map<String, ID> map = FeedsHelper.findMentionsMap(content);
+         for (Map.Entry<String, ID> e : map.entrySet()) {
+diff --git a/src/main/java/com/rebuild/server/service/notification/NotificationObserver.java b/src/main/java/com/rebuild/server/service/notification/NotificationObserver.java
+index b9ddaf48..3dc8c718 100644
+--- a/src/main/java/com/rebuild/server/service/notification/NotificationObserver.java
++++ b/src/main/java/com/rebuild/server/service/notification/NotificationObserver.java
+@@ -84,7 +84,7 @@ private String getLabel(ID id) {
+ 	 * @param shareType
+ 	 * @return
+ 	 */
+-	private String makeMessage(ID affected[], ID related, boolean shareType) {
++	private String makeMessage(ID[] affected, ID related, boolean shareType) {
+ 		String msg = "@{0} 共享了 {1} 条{2}记录给你";
+ 		if (affected.length > 1) {
+ 			for (ID id : affected) {
+diff --git a/src/main/java/com/rebuild/server/service/notification/NotificationService.java b/src/main/java/com/rebuild/server/service/notification/NotificationService.java
+index a8766082..86acdb2e 100644
+--- a/src/main/java/com/rebuild/server/service/notification/NotificationService.java
++++ b/src/main/java/com/rebuild/server/service/notification/NotificationService.java
+@@ -65,7 +65,7 @@ public int delete(ID recordId) {
+ 	
+ 	// 清理缓存
+ 	private void cleanCache(ID messageId) {
+-		Object m[] = Application.createQueryNoFilter(
++		Object[] m = Application.createQueryNoFilter(
+ 				"select toUser from Notification where messageId = ?")
+ 				.setParameter(1, messageId)
+ 				.unique();
+diff --git a/src/main/java/com/rebuild/server/service/query/AdvFilterParser.java b/src/main/java/com/rebuild/server/service/query/AdvFilterParser.java
+index ac2a4730..4cdcf2d1 100644
+--- a/src/main/java/com/rebuild/server/service/query/AdvFilterParser.java
++++ b/src/main/java/com/rebuild/server/service/query/AdvFilterParser.java
+@@ -151,7 +151,7 @@ public String toSqlWhere() {
+                 if (NumberUtils.isDigits(token)) {
+                     String itemSql = StringUtils.defaultIfBlank(indexItemSqls.get(Integer.valueOf(token)), "(9=9)");
+                     itemSqls.add(itemSql);
+-                } else if (token.equals("(") || token.equals(")") || token.equals("or") || token.equals("and")) {
++                } else if ("(".equals(token) || ")".equals(token) || "or".equals(token) || "and".equals(token)) {
+                     itemSqls.add(token);
+                 } else {
+                     LOG.warn("Invalid equation token : " + token);
+diff --git a/src/main/java/com/rebuild/server/service/query/ParserTokens.java b/src/main/java/com/rebuild/server/service/query/ParserTokens.java
+index ac9bd8c9..5d843261 100644
+--- a/src/main/java/com/rebuild/server/service/query/ParserTokens.java
++++ b/src/main/java/com/rebuild/server/service/query/ParserTokens.java
+@@ -65,34 +65,63 @@
+      * @return
+      */
+     protected static String convetOperator(String token) {
+-        if (EQ.equalsIgnoreCase(token)) return "=";
+-        else if (NEQ.equalsIgnoreCase(token)) return "<>";
+-        else if (GT.equalsIgnoreCase(token)) return ">";
+-        else if (LT.equalsIgnoreCase(token)) return "<";
+-        else if (GE.equalsIgnoreCase(token)) return ">=";
+-        else if (LE.equalsIgnoreCase(token)) return "<=";
+-        else if (NL.equalsIgnoreCase(token)) return "is null";
+-        else if (NT.equalsIgnoreCase(token)) return "is not null";
+-        else if (LK.equalsIgnoreCase(token)) return "like";
+-        else if (NLK.equalsIgnoreCase(token)) return "not like";
+-        else if (IN.equalsIgnoreCase(token)) return "in";
+-        else if (NIN.equalsIgnoreCase(token)) return "not in";
+-        else if (BW.equalsIgnoreCase(token)) return "between";
+-        else if (BFD.equalsIgnoreCase(token)) return "<=";  // "$before_day(%d)";
+-        else if (BFM.equalsIgnoreCase(token)) return "<=";  // "$before_month(%d)";
+-        else if (AFD.equalsIgnoreCase(token)) return ">=";  // "$after_day(%d)";
+-        else if (AFM.equalsIgnoreCase(token)) return ">=";  // "$after_month(%d)";
+-        else if (RED.equalsIgnoreCase(token)) return ">";   // "$recent_day(%d)";
+-        else if (REM.equalsIgnoreCase(token)) return ">";   // "$recent_month(%d)";
+-        else if (SFU.equalsIgnoreCase(token)) return "=";
+-        else if (SFB.equalsIgnoreCase(token)) return "=";
+-        else if (SFD.equalsIgnoreCase(token)) return "in";
+-        else if (YTA.equalsIgnoreCase(token)) return "=";
+-        else if (TDA.equalsIgnoreCase(token)) return "=";
+-        else if (TTA.equalsIgnoreCase(token)) return "=";
+-        else if (BAND.equalsIgnoreCase(token)) return "&&";
+-        else if (NBAND.equalsIgnoreCase(token)) return "!&";
+-        else if (FT.equalsIgnoreCase(token)) return "match";
++        if (EQ.equalsIgnoreCase(token)) {
++            return "=";
++        } else if (NEQ.equalsIgnoreCase(token)) {
++            return "<>";
++        } else if (GT.equalsIgnoreCase(token)) {
++            return ">";
++        } else if (LT.equalsIgnoreCase(token)) {
++            return "<";
++        } else if (GE.equalsIgnoreCase(token)) {
++            return ">=";
++        } else if (LE.equalsIgnoreCase(token)) {
++            return "<=";
++        } else if (NL.equalsIgnoreCase(token)) {
++            return "is null";
++        } else if (NT.equalsIgnoreCase(token)) {
++            return "is not null";
++        } else if (LK.equalsIgnoreCase(token)) {
++            return "like";
++        } else if (NLK.equalsIgnoreCase(token)) {
++            return "not like";
++        } else if (IN.equalsIgnoreCase(token)) {
++            return "in";
++        } else if (NIN.equalsIgnoreCase(token)) {
++            return "not in";
++        } else if (BW.equalsIgnoreCase(token)) {
++            return "between";
++        } else if (BFD.equalsIgnoreCase(token)) {
++            return "<=";  // "$before_day(%d)";
++        } else if (BFM.equalsIgnoreCase(token)) {
++            return "<=";  // "$before_month(%d)";
++        } else if (AFD.equalsIgnoreCase(token)) {
++            return ">=";  // "$after_day(%d)";
++        } else if (AFM.equalsIgnoreCase(token)) {
++            return ">=";  // "$after_month(%d)";
++        } else if (RED.equalsIgnoreCase(token)) {
++            return ">";   // "$recent_day(%d)";
++        } else if (REM.equalsIgnoreCase(token)) {
++            return ">";   // "$recent_month(%d)";
++        } else if (SFU.equalsIgnoreCase(token)) {
++            return "=";
++        } else if (SFB.equalsIgnoreCase(token)) {
++            return "=";
++        } else if (SFD.equalsIgnoreCase(token)) {
++            return "in";
++        } else if (YTA.equalsIgnoreCase(token)) {
++            return "=";
++        } else if (TDA.equalsIgnoreCase(token)) {
++            return "=";
++        } else if (TTA.equalsIgnoreCase(token)) {
++            return "=";
++        } else if (BAND.equalsIgnoreCase(token)) {
++            return "&&";
++        } else if (NBAND.equalsIgnoreCase(token)) {
++            return "!&";
++        } else if (FT.equalsIgnoreCase(token)) {
++            return "match";
++        }
+         throw new UnsupportedOperationException("Unsupported token of operator : " + token);
+     }
+ 
+diff --git a/src/main/java/com/rebuild/utils/CommonsUtils.java b/src/main/java/com/rebuild/utils/CommonsUtils.java
+index 53e85bc7..72118042 100644
+--- a/src/main/java/com/rebuild/utils/CommonsUtils.java
++++ b/src/main/java/com/rebuild/utils/CommonsUtils.java
+@@ -97,7 +97,9 @@ public static String stars(String text) {
+ 	 */
+ 	public static boolean isSpecialChar(char ch) {
+ 		for (char c : SPECIAL_CHARS) {
+-			if (c == ch) return true;
++			if (c == ch) {
++				return true;
++			}
+ 		}
+ 		return false;
+ 	}
+@@ -251,7 +253,9 @@ public void doAfterAllAnalysed(AnalysisContext analysisContext) {
+ 	 * @return
+ 	 */
+ 	public static String escapeHtml(String text) {
+-		if (StringUtils.isBlank(text)) return text;
++		if (StringUtils.isBlank(text)) {
++			return text;
++		}
+ 		return text.replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+ 	}
+ }
+diff --git a/src/main/java/com/rebuild/utils/JSONUtils.java b/src/main/java/com/rebuild/utils/JSONUtils.java
+index bb489489..a9bdcced 100644
+--- a/src/main/java/com/rebuild/utils/JSONUtils.java
++++ b/src/main/java/com/rebuild/utils/JSONUtils.java
+@@ -58,7 +58,7 @@ public static JSONObject toJSONObject(String key, Object value) {
+      */
+     public static JSONObject toJSONObject(String[] keys, Object[] values) {
+         Assert.isTrue(keys.length <= values.length, "K/V 长度不匹配");
+-        Map<String, Object> map = new HashMap<>();
++        Map<String, Object> map = new HashMap<>(keys.length);
+         for (int i = 0; i < keys.length; i++) {
+             map.put(keys[i], values[i]);
+         }
+@@ -73,7 +73,7 @@ public static JSONObject toJSONObject(String[] keys, Object[] values) {
+     public static JSONArray toJSONArray(String[] keys, Object[][] valuesArray) {
+         List<Map<String, Object>> array = new ArrayList<>();
+         for (Object[] o : valuesArray) {
+-            Map<String, Object> map = new HashMap<>();
++            Map<String, Object> map = new HashMap<>(keys.length);
+             for (int i = 0; i < keys.length; i++) {
+                 map.put(keys[i], o[i]);
+             }
+diff --git a/src/main/java/com/rebuild/utils/RequestFrequencyCounter.java b/src/main/java/com/rebuild/utils/RequestFrequencyCounter.java
+index c57a9c1a..3217d807 100644
+--- a/src/main/java/com/rebuild/utils/RequestFrequencyCounter.java
++++ b/src/main/java/com/rebuild/utils/RequestFrequencyCounter.java
+@@ -109,7 +109,9 @@ public int times() {
+         int c = 0;
+         long ctm = System.currentTimeMillis() - (this.seconds * 1000);
+         for (Long t : requestCounter) {
+-            if (t < ctm) break;
++            if (t < ctm) {
++                break;
++            }
+             c++;
+         }
+         return c;
+diff --git a/src/main/java/com/rebuild/web/RequestWatchHandler.java b/src/main/java/com/rebuild/web/RequestWatchHandler.java
+index bad14b90..16b1177f 100644
+--- a/src/main/java/com/rebuild/web/RequestWatchHandler.java
++++ b/src/main/java/com/rebuild/web/RequestWatchHandler.java
+@@ -135,7 +135,9 @@ private void logProgressTime(HttpServletRequest request) {
+ 		if (startTime > 500) {
+ 			String url = request.getRequestURI();
+ 			String qstr = request.getQueryString();
+-			if (qstr != null) url += '?' + qstr;
++			if (qstr != null) {
++				url += '?' + qstr;
++			}
+ 			LOG.warn("Method handle time " + startTime + " ms. Request URL [ " + url + " ] from [ " + StringUtils.defaultIfEmpty(ServletUtils.getReferer(request), "-") + " ]");
+ 		}
+ 	}
+diff --git a/src/main/java/com/rebuild/web/admin/bizz/DepartmentControll.java b/src/main/java/com/rebuild/web/admin/bizz/DepartmentControll.java
+index 27556873..982a78a6 100644
+--- a/src/main/java/com/rebuild/web/admin/bizz/DepartmentControll.java
++++ b/src/main/java/com/rebuild/web/admin/bizz/DepartmentControll.java
+@@ -70,7 +70,7 @@ public void deptTreeGet(HttpServletRequest request, HttpServletResponse response
+ 				.array();
+ 		
+ 		JSONArray roots = new JSONArray();
+-		for (Object dept[] : rootDepts) {
++		for (Object[] dept : rootDepts) {
+ 			Department root = Application.getUserStore().getDepartment((ID) dept[0]);
+ 			roots.add(recursiveDeptTree(root));
+ 		}
+diff --git a/src/main/java/com/rebuild/web/admin/bizz/UserControll.java b/src/main/java/com/rebuild/web/admin/bizz/UserControll.java
+index eca15759..6a844779 100644
+--- a/src/main/java/com/rebuild/web/admin/bizz/UserControll.java
++++ b/src/main/java/com/rebuild/web/admin/bizz/UserControll.java
+@@ -72,7 +72,7 @@ public void checkUserStatus(HttpServletRequest request, HttpServletResponse resp
+ 		
+ 		Map<String, Object> ret = new HashMap<>();
+ 		ret.put("active", checkedUser.isActive());
+-		ret.put("system", checkedUser.getName().equals("system") || checkedUser.getName().equals("admin"));
++		ret.put("system", "system".equals(checkedUser.getName()) || "admin".equals(checkedUser.getName()));
+ 		
+ 		ret.put("disabled", checkedUser.isDisabled());
+ 		if (checkedUser.getOwningRole() != null) {
+diff --git a/src/main/java/com/rebuild/web/admin/entityhub/ClassificationControll.java b/src/main/java/com/rebuild/web/admin/entityhub/ClassificationControll.java
+index 25259f70..0a22f554 100644
+--- a/src/main/java/com/rebuild/web/admin/entityhub/ClassificationControll.java
++++ b/src/main/java/com/rebuild/web/admin/entityhub/ClassificationControll.java
+@@ -69,7 +69,9 @@ public ModelAndView pageData(@PathVariable String id,
+ 		mv.getModel().put("openLevel", data[1]);
+ 		return mv;
+ 	}
+-	
++
++	private static final String[] CN_NUMBER = new String[] { "一", "二", "三", "四" };
++
+ 	@RequestMapping("classification/list")
+ 	public void list(HttpServletRequest request, HttpServletResponse resp) throws IOException {
+ 		Object[][] array = Application.createQuery(
+@@ -77,10 +79,9 @@ public void list(HttpServletRequest request, HttpServletResponse resp) throws IO
+ 				.array();
+ 		for (Object[] o : array) {
+ 			int level = (int) o[3];
+-			if (level == 0) o[3] = "一";
+-			else if (level == 1) o[3] = "二";
+-			else if (level == 2) o[3] = "三";
+-			else if (level == 3) o[3] = "四";
++			if (level >= 0 && level <= 3) {
++				o[3] = CN_NUMBER[level];
++			}
+ 		}
+ 		writeSuccess(resp, array);
+ 	}
+diff --git a/src/main/java/com/rebuild/web/admin/entityhub/DataReportControll.java b/src/main/java/com/rebuild/web/admin/entityhub/DataReportControll.java
+index 693e0f14..80dfc085 100644
+--- a/src/main/java/com/rebuild/web/admin/entityhub/DataReportControll.java
++++ b/src/main/java/com/rebuild/web/admin/entityhub/DataReportControll.java
+@@ -112,7 +112,7 @@ public void preview(HttpServletRequest request, HttpServletResponse response) th
+ 
+         String sql = String.format("select %s from %s order by modifiedOn desc",
+                 entity.getPrimaryField().getName(), entity.getName());
+-        Object random[] = Application.createQueryNoFilter(sql).unique();
++        Object[] random = Application.createQueryNoFilter(sql).unique();
+         if (random == null) {
+             response.sendError(400, "无法预览。未找到可用记录");
+             return;
+diff --git a/src/main/java/com/rebuild/web/base/general/GeneralModelControll.java b/src/main/java/com/rebuild/web/base/general/GeneralModelControll.java
+index d8b016c8..968f8816 100644
+--- a/src/main/java/com/rebuild/web/base/general/GeneralModelControll.java
++++ b/src/main/java/com/rebuild/web/base/general/GeneralModelControll.java
+@@ -92,13 +92,17 @@ public void entityForm(@PathVariable String entity,
+ 				}
+ 			}
+ 		}
+-		
+-		JSON model = FormsBuilder.instance.buildForm(entity, user, record);
+-		// 填充前端设定的初始值
+-		if (record == null && initialVal != null) {
+-			FormsBuilder.instance.setFormInitialValue(MetadataHelper.getEntity(entity), model, (JSONObject) initialVal);
++
++		try {
++			JSON model = FormsBuilder.instance.buildForm(entity, user, record);
++			// 填充前端设定的初始值
++			if (record == null && initialVal != null) {
++				FormsBuilder.instance.setFormInitialValue(MetadataHelper.getEntity(entity), model, (JSONObject) initialVal);
++			}
++			writeSuccess(response, model);
++		} finally {
++			FormsBuilder.setCurrentMasterId(null);
+ 		}
+-		writeSuccess(response, model);
+ 	}
+ 	
+ 	@RequestMapping("view-model")
+diff --git a/src/main/java/com/rebuild/web/base/general/GeneralOperatingControll.java b/src/main/java/com/rebuild/web/base/general/GeneralOperatingControll.java
+index 8f929a77..0c50d521 100644
+--- a/src/main/java/com/rebuild/web/base/general/GeneralOperatingControll.java
++++ b/src/main/java/com/rebuild/web/base/general/GeneralOperatingControll.java
+@@ -410,7 +410,9 @@ public void fetchSharedList(HttpServletRequest request, HttpServletResponse resp
+ 		Set<ID> idList = new HashSet<>();
+ 		int sameEntityCode = 0;
+ 		for (String id : ids.split(",")) {
+-			if (!ID.isId(id)) continue;
++			if (!ID.isId(id)) {
++                continue;
++            }
+ 			ID id0 = ID.valueOf(id);
+ 			if (sameEntityCode == 0) {
+ 				sameEntityCode = id0.getEntityCode();
+diff --git a/src/main/java/com/rebuild/web/common/FileUploader.java b/src/main/java/com/rebuild/web/common/FileUploader.java
+index 8544b845..8599f3d8 100644
+--- a/src/main/java/com/rebuild/web/common/FileUploader.java
++++ b/src/main/java/com/rebuild/web/common/FileUploader.java
+@@ -105,7 +105,9 @@ public void upload(HttpServletRequest request, HttpServletResponse response) thr
+     @RequestMapping("store-filesize")
+     public void storeFilesize(HttpServletRequest request, HttpServletResponse response) throws IOException {
+ 	    int fileSize = ObjectUtils.toInt(request.getParameter("fs"));
+-	    if (fileSize < 1) return;
++	    if (fileSize < 1) {
++            return;
++        }
+ 	    String filePath = request.getParameter("fp");
+ 	    if (StringUtils.isNotBlank(filePath)) {
+             FilesHelper.storeFileSize(filePath, fileSize);
+diff --git a/src/main/java/com/rebuild/web/feeds/FeedsListControll.java b/src/main/java/com/rebuild/web/feeds/FeedsListControll.java
+index 034d9973..11ceec6a 100644
+--- a/src/main/java/com/rebuild/web/feeds/FeedsListControll.java
++++ b/src/main/java/com/rebuild/web/feeds/FeedsListControll.java
+@@ -121,9 +121,13 @@ public void fetchFeeds(HttpServletRequest request, HttpServletResponse response)
+         }
+ 
+         String sql = "select feedsId,createdBy,createdOn,modifiedOn,content,images,attachments,scope,type,relatedRecord from Feeds where " + sqlWhere;
+-        if ("older".equalsIgnoreCase(sort)) sql += " order by createdOn asc";
+-        else if ("modified".equalsIgnoreCase(sort)) sql += " order by modifiedOn desc";
+-        else sql += " order by createdOn desc";
++        if ("older".equalsIgnoreCase(sort)) {
++            sql += " order by createdOn asc";
++        } else if ("modified".equalsIgnoreCase(sort)) {
++            sql += " order by modifiedOn desc";
++        } else {
++            sql += " order by createdOn desc";
++        }
+ 
+         Object[][] array = Application.createQueryNoFilter(sql)
+                 .setLimit(pageSize, pageNo * pageSize - pageSize)
+diff --git a/src/main/java/com/rebuild/web/files/FileListControll.java b/src/main/java/com/rebuild/web/files/FileListControll.java
+index 547fc1fd..c3e56687 100644
+--- a/src/main/java/com/rebuild/web/files/FileListControll.java
++++ b/src/main/java/com/rebuild/web/files/FileListControll.java
+@@ -203,7 +203,9 @@ private JSONObject toEntityJson(Entity entity) {
+     private boolean hasAttachmentFields(Entity entity) {
+         for (Field field : entity.getFields()) {
+             DisplayType dt = EasyMeta.getDisplayType(field);
+-            if (dt == DisplayType.FILE || dt == DisplayType.IMAGE) return true;
++            if (dt == DisplayType.FILE || dt == DisplayType.IMAGE) {
++                return true;
++            }
+         }
+         return false;
+     }
+diff --git a/src/main/java/com/rebuild/web/files/FileManagerControll.java b/src/main/java/com/rebuild/web/files/FileManagerControll.java
+index 44e5a9fc..6695298d 100644
+--- a/src/main/java/com/rebuild/web/files/FileManagerControll.java
++++ b/src/main/java/com/rebuild/web/files/FileManagerControll.java
+@@ -75,7 +75,9 @@ public void deleteFiles(HttpServletRequest request, HttpServletResponse response
+ 
+         Set<ID> willDeletes = new HashSet<>();
+         for (String file : files) {
+-            if (!ID.isId(file)) continue;
++            if (!ID.isId(file)) {
++                continue;
++            }
+             ID fileId = ID.valueOf(file);
+             if (!checkAllow(user, fileId)) {
+                 writeFailure(response, "无权删除他人文件");
+@@ -97,7 +99,9 @@ public void moveFiles(HttpServletRequest request, HttpServletResponse response)
+ 
+         List<Record> fileRecords = new ArrayList<>();
+         for (String file : files) {
+-            if (!ID.isId(file)) continue;
++            if (!ID.isId(file)) {
++                continue;
++            }
+             ID fileId = ID.valueOf(file);
+             if (!checkAllow(user, fileId)) {
+                 writeFailure(response, "无权更改他人文件");
+@@ -105,8 +109,11 @@ public void moveFiles(HttpServletRequest request, HttpServletResponse response)
+             }
+ 
+             Record r = EntityHelper.forUpdate(fileId, user);
+-            if (inFolder == null) r.setNull("inFolder");
+-            else r.setID("inFolder", inFolder);
++            if (inFolder == null) {
++                r.setNull("inFolder");
++            } else {
++                r.setID("inFolder", inFolder);
++            }
+             fileRecords.add(r);
+         }
+         Application.getCommonService().createOrUpdate(fileRecords.toArray(new Record[0]), false);
+diff --git a/src/main/java/com/rebuild/web/setup/InstallControll.java b/src/main/java/com/rebuild/web/setup/InstallControll.java
+index 841e2143..e3a03472 100644
+--- a/src/main/java/com/rebuild/web/setup/InstallControll.java
++++ b/src/main/java/com/rebuild/web/setup/InstallControll.java
+@@ -83,7 +83,9 @@ public void testDirectory(HttpServletRequest request, HttpServletResponse respon
+         String dir = getParameterNotNull(request, "dir");
+         File file = new File(dir);
+         if (file.exists()) {
+-            if (!file.isDirectory()) file = null;
++            if (!file.isDirectory()) {
++                file = null;
++            }
+         } else {
+             try {
+                 FileUtils.forceMkdir(file);
+diff --git a/src/main/java/com/rebuild/web/user/account/UserAvatar.java b/src/main/java/com/rebuild/web/user/account/UserAvatar.java
+index 3149f0b2..6b08eab7 100644
+--- a/src/main/java/com/rebuild/web/user/account/UserAvatar.java
++++ b/src/main/java/com/rebuild/web/user/account/UserAvatar.java
+@@ -139,7 +139,7 @@ public void avatarUpdate(HttpServletRequest request, HttpServletResponse respons
+ 	 * @throws IOException
+ 	 */
+ 	private String avatarCrop(File avatar, String params) throws IOException {
+-		String xywh[] = params.split(",");
++		String[] xywh = params.split(",");
+ 		BufferedImage bi = ImageIO.read(avatar);
+ 		int x = Integer.parseInt(xywh[0]);
+ 		int y = Integer.parseInt(xywh[1]);
+diff --git a/src/main/java/com/rebuild/web/user/signin/LoginControll.java b/src/main/java/com/rebuild/web/user/signin/LoginControll.java
+index 02f71b6e..788292d4 100644
+--- a/src/main/java/com/rebuild/web/user/signin/LoginControll.java
++++ b/src/main/java/com/rebuild/web/user/signin/LoginControll.java
+@@ -95,7 +95,7 @@ public ModelAndView checkLogin(HttpServletRequest request, HttpServletResponse r
+ 			ID altUser = null;
+ 			try {
+ 				alt = AES.decrypt(alt);
+-				String alts[] = alt.split(",");
++				String[] alts = alt.split(",");
+ 				altUser = ID.isId(alts[0]) ? ID.valueOf(alts[0]) : null;
+ 
+ 				// 最大一个月有效期
+diff --git a/src/main/webapp/assets/js/rb-forms.exts.jsx b/src/main/webapp/assets/js/rb-forms.exts.jsx
+index a522f2d6..11749f7e 100644
+--- a/src/main/webapp/assets/js/rb-forms.exts.jsx
++++ b/src/main/webapp/assets/js/rb-forms.exts.jsx
+@@ -80,11 +80,16 @@ class RbFormState extends RbFormPickList {
+     super(props)
+   }
+ }
++
+ // 审批状态
+ class RbApprovalState extends RbFormReadonly {
+   constructor(props) {
+     super(props)
+   }
++  getOptionText(options, value) {
++    if (this.props.$$$parent.isNew) return value
++    else return super.getOptionText(options, value)
++  }
+ }
+ 
+ // eslint-disable-next-line no-unused-vars
+diff --git a/src/main/webapp/assets/js/rb-forms.jsx b/src/main/webapp/assets/js/rb-forms.jsx
+index e625df59..e206dd1d 100644
+--- a/src/main/webapp/assets/js/rb-forms.jsx
++++ b/src/main/webapp/assets/js/rb-forms.jsx
+@@ -379,13 +379,13 @@ class RbFormReadonly extends RbFormElement {
+     super(props)
+   }
+   renderElement() {
+-    let texted = this.props.value
+-    if (texted) {
++    let text = this.props.value
++    if (text) {
+       let type = this.props.type
+-      if (type === 'REFERENCE') texted = texted[1]
+-      else if (type === 'PICKLIST' || type === 'STATE') texted = this.__textedOptionValue(this.props.options, texted)
++      if (type === 'REFERENCE') text = text[1]
++      else if (type === 'PICKLIST' || type === 'STATE') text = this.getOptionText(this.props.options, text)
+     }
+-    return <input className="form-control form-control-sm" type="text" readOnly value={texted} />
++    return <input className="form-control form-control-sm" type="text" readOnly value={text} />
+   }
+   setValue() {
+     // NOOP
+@@ -394,9 +394,10 @@ class RbFormReadonly extends RbFormElement {
+     return this.props.value
+   }
+ 
+-  __textedOptionValue(options, value) {
++  // 获取选项显示值
++  getOptionText(options, value) {
+     let texted = null
+-    $(options).each(function () {
++    $(options || []).each(function () {
+       // eslint-disable-next-line eqeqeq
+       if (this.id == value) {
+         texted = this.text
+diff --git a/src/test/java/com/rebuild/server/helper/task/HeavyTaskTest.java b/src/test/java/com/rebuild/server/helper/task/HeavyTaskTest.java
+index 076af678..1e08d34b 100644
+--- a/src/test/java/com/rebuild/server/helper/task/HeavyTaskTest.java
++++ b/src/test/java/com/rebuild/server/helper/task/HeavyTaskTest.java
+@@ -19,6 +19,7 @@
+ package com.rebuild.server.helper.task;
+ 
+ import cn.devezhao.commons.ThreadPool;
++import com.rebuild.server.TestSupport;
+ import com.rebuild.server.service.bizz.UserService;
+ import org.junit.Test;
+ 
+@@ -29,7 +30,7 @@
+  * @author devezhao
+  * @since 01/04/2019
+  */
+-public class HeavyTaskTest {
++public class HeavyTaskTest extends TestSupport {
+ 
+ 	@Test
+ 	public void testTask() throws Exception {
+@@ -50,9 +51,9 @@ public void testTask() throws Exception {
+ 		new TaskExecutors().executeInternal(null);
+ 	}
+ 	
+-	@Test(expected=RejectedExecutionException.class)
++	@Test(expected= RejectedExecutionException.class)
+ 	public void testRejected() throws Exception {
+-		for (int i = 0; i < 30; i++) {
++		for (int i = 0; i < 50; i++) {
+ 			TaskExecutors.submit(new TestTask("testRejected", 2), UserService.SYSTEM_USER);
+ 		}
+ 	}

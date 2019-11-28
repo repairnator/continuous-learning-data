@@ -1,0 +1,674 @@
+diff --git a/.codeclimate.yml b/.codeclimate.yml
+index a93580c..1f4ab0b 100644
+--- a/.codeclimate.yml
++++ b/.codeclimate.yml
+@@ -1,16 +1,30 @@
+ version: "2"
+ 
++checks:
++  method-lines:
++    config:
++      threshold: 50
++
+ checkstyle:
+   enabled: true
+   checks:
+     com.puppycrawl.tools.checkstyle.checks.imports.CustomImportOrderCheck:
+       enabled: false
+ 
++
+ plugins:
+   sonar-java:
+     enabled: true
+     config:
+       sonar.java.source: "11"
++    checks:
++      squid:S2885:
++        enabled: false
++  duplication:
++    enabled: true
++    checks:
++      Similar code:
++        enabled: false
+ 
+ exclude_patterns:
+   - "**/jooq/"
+diff --git a/common/pom.xml b/common/pom.xml
+new file mode 100644
+index 0000000..fd0f8cc
+--- /dev/null
++++ b/common/pom.xml
+@@ -0,0 +1,47 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<project xmlns="http://maven.apache.org/POM/4.0.0"
++         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
++         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
++    <parent>
++        <artifactId>movie-store</artifactId>
++        <groupId>com.garret.movies</groupId>
++        <version>0.0.1-SNAPSHOT</version>
++    </parent>
++    <modelVersion>4.0.0</modelVersion>
++
++    <artifactId>common</artifactId>
++    <packaging>jar</packaging>
++
++    <dependencies>
++        <dependency>
++            <groupId>org.modelmapper</groupId>
++            <artifactId>modelmapper</artifactId>
++        </dependency>
++        <dependency>
++            <groupId>com.garret.movies</groupId>
++            <artifactId>dao</artifactId>
++            <version>0.0.1-SNAPSHOT</version>
++        </dependency>
++        <dependency>
++            <groupId>com.garret.movies</groupId>
++            <artifactId>movie-api</artifactId>
++            <version>0.0.1-SNAPSHOT</version>
++        </dependency>
++        <dependency>
++            <groupId>com.garret.movies</groupId>
++            <artifactId>api</artifactId>
++            <version>0.0.1-SNAPSHOT</version>
++        </dependency>
++        <dependency>
++            <groupId>org.projectlombok</groupId>
++            <artifactId>lombok</artifactId>
++            <scope>compile</scope>
++            <optional>true</optional>
++        </dependency>
++        <dependency>
++            <groupId>org.springframework.boot</groupId>
++            <artifactId>spring-boot-starter-test</artifactId>
++            <scope>test</scope>
++        </dependency>
++    </dependencies>
++</project>
+\ No newline at end of file
+diff --git a/common/src/main/java/com/garret/movies/common/config/mapper/ModelMapperConfig.java b/common/src/main/java/com/garret/movies/common/config/mapper/ModelMapperConfig.java
+new file mode 100644
+index 0000000..525d754
+--- /dev/null
++++ b/common/src/main/java/com/garret/movies/common/config/mapper/ModelMapperConfig.java
+@@ -0,0 +1,32 @@
++package com.garret.movies.common.config.mapper;
++
++import lombok.RequiredArgsConstructor;
++import org.modelmapper.ModelMapper;
++import org.modelmapper.convention.NamingConventions;
++import org.springframework.context.annotation.Bean;
++import org.springframework.context.annotation.Configuration;
++
++import java.util.List;
++
++import static org.modelmapper.config.Configuration.AccessLevel.PRIVATE;
++
++@Configuration
++@RequiredArgsConstructor
++public class ModelMapperConfig {
++
++    private final List<ModelMapperConfigurer> configurerList;
++
++    @Bean
++    public ModelMapper modelMapper() {
++        ModelMapper modelMapper = new ModelMapper();
++
++        modelMapper.getConfiguration()
++                .setFieldMatchingEnabled(true)
++                .setFieldAccessLevel(PRIVATE)
++                .setSkipNullEnabled(true)
++                .setSourceNamingConvention(NamingConventions.JAVABEANS_MUTATOR);
++
++        configurerList.forEach(configurer -> configurer.configure(modelMapper));
++        return modelMapper;
++    }
++}
+diff --git a/common/src/main/java/com/garret/movies/common/config/mapper/ModelMapperConfigurer.java b/common/src/main/java/com/garret/movies/common/config/mapper/ModelMapperConfigurer.java
+new file mode 100644
+index 0000000..a4956b6
+--- /dev/null
++++ b/common/src/main/java/com/garret/movies/common/config/mapper/ModelMapperConfigurer.java
+@@ -0,0 +1,7 @@
++package com.garret.movies.common.config.mapper;
++
++import org.modelmapper.ModelMapper;
++
++public interface ModelMapperConfigurer {
++    void configure(ModelMapper modelMapper);
++}
+diff --git a/common/src/main/java/com/garret/movies/common/config/mapper/impl/ActorMapperConfigurer.java b/common/src/main/java/com/garret/movies/common/config/mapper/impl/ActorMapperConfigurer.java
+new file mode 100644
+index 0000000..f103d31
+--- /dev/null
++++ b/common/src/main/java/com/garret/movies/common/config/mapper/impl/ActorMapperConfigurer.java
+@@ -0,0 +1,20 @@
++package com.garret.movies.common.config.mapper.impl;
++
++import com.garret.movies.common.config.mapper.ModelMapperConfigurer;
++import com.garret.movies.dao.entity.Actor;
++import com.garret.movies.service.dto.ActorDto;
++import org.modelmapper.ModelMapper;
++import org.springframework.stereotype.Component;
++
++@Component
++public class ActorMapperConfigurer implements ModelMapperConfigurer {
++
++    @Override
++    public void configure(ModelMapper modelMapper) {
++        modelMapper.createTypeMap(ActorDto.class, Actor.class)
++                .addMappings(mapper -> mapper.map(ActorDto::getValue, Actor::setFullName));
++
++        modelMapper.createTypeMap(Actor.class, ActorDto.class)
++                .addMappings(mapper -> mapper.map(Actor::getFullName, ActorDto::setValue));
++    }
++}
+diff --git a/common/src/main/java/com/garret/movies/common/config/mapper/impl/CountryMapperConfigurer.java b/common/src/main/java/com/garret/movies/common/config/mapper/impl/CountryMapperConfigurer.java
+new file mode 100644
+index 0000000..edcc61b
+--- /dev/null
++++ b/common/src/main/java/com/garret/movies/common/config/mapper/impl/CountryMapperConfigurer.java
+@@ -0,0 +1,20 @@
++package com.garret.movies.common.config.mapper.impl;
++
++import com.garret.movies.common.config.mapper.ModelMapperConfigurer;
++import com.garret.movies.dao.entity.Country;
++import com.garret.movies.service.dto.CountryDto;
++import org.modelmapper.ModelMapper;
++import org.springframework.stereotype.Component;
++
++@Component
++public class CountryMapperConfigurer implements ModelMapperConfigurer {
++
++    @Override
++    public void configure(ModelMapper modelMapper) {
++        modelMapper.createTypeMap(CountryDto.class, Country.class)
++                .addMappings(mapper -> mapper.map(CountryDto::getValue, Country::setName));
++
++        modelMapper.createTypeMap(Country.class, CountryDto.class)
++                .addMappings(mapper -> mapper.map(Country::getName, CountryDto::setValue));
++    }
++}
+diff --git a/common/src/main/java/com/garret/movies/common/config/mapper/impl/GenreMapperConfigurer.java b/common/src/main/java/com/garret/movies/common/config/mapper/impl/GenreMapperConfigurer.java
+new file mode 100644
+index 0000000..ae12f3c
+--- /dev/null
++++ b/common/src/main/java/com/garret/movies/common/config/mapper/impl/GenreMapperConfigurer.java
+@@ -0,0 +1,20 @@
++package com.garret.movies.common.config.mapper.impl;
++
++import com.garret.movies.common.config.mapper.ModelMapperConfigurer;
++import com.garret.movies.dao.entity.Genre;
++import com.garret.movies.service.dto.GenreDto;
++import org.modelmapper.ModelMapper;
++import org.springframework.stereotype.Component;
++
++@Component
++public class GenreMapperConfigurer implements ModelMapperConfigurer {
++
++    @Override
++    public void configure(ModelMapper modelMapper) {
++        modelMapper.createTypeMap(GenreDto.class, Genre.class)
++                .addMappings(mapper -> mapper.map(GenreDto::getValue, Genre::setName));
++
++        modelMapper.createTypeMap(Genre.class, GenreDto.class)
++                .addMappings(mapper -> mapper.map(Genre::getName, GenreDto::setValue));
++    }
++}
+diff --git a/common/src/main/java/com/garret/movies/common/config/mapper/impl/LanguageMapperConfigurer.java b/common/src/main/java/com/garret/movies/common/config/mapper/impl/LanguageMapperConfigurer.java
+new file mode 100644
+index 0000000..f831d9f
+--- /dev/null
++++ b/common/src/main/java/com/garret/movies/common/config/mapper/impl/LanguageMapperConfigurer.java
+@@ -0,0 +1,20 @@
++package com.garret.movies.common.config.mapper.impl;
++
++import com.garret.movies.common.config.mapper.ModelMapperConfigurer;
++import com.garret.movies.dao.entity.Language;
++import com.garret.movies.service.dto.LanguageDto;
++import org.modelmapper.ModelMapper;
++import org.springframework.stereotype.Component;
++
++@Component
++public class LanguageMapperConfigurer implements ModelMapperConfigurer {
++
++    @Override
++    public void configure(ModelMapper modelMapper) {
++        modelMapper.createTypeMap(LanguageDto.class, Language.class)
++                .addMappings(mapper -> mapper.map(LanguageDto::getValue, Language::setName));
++
++        modelMapper.createTypeMap(Language.class, LanguageDto.class)
++                .addMappings(mapper -> mapper.map(Language::getName, LanguageDto::setValue));
++    }
++}
+diff --git a/common/src/main/java/com/garret/movies/common/config/mapper/impl/MovieDtoToMovieConfigurer.java b/common/src/main/java/com/garret/movies/common/config/mapper/impl/MovieDtoToMovieConfigurer.java
+new file mode 100644
+index 0000000..808633c
+--- /dev/null
++++ b/common/src/main/java/com/garret/movies/common/config/mapper/impl/MovieDtoToMovieConfigurer.java
+@@ -0,0 +1,19 @@
++package com.garret.movies.common.config.mapper.impl;
++
++import com.garret.movies.common.config.mapper.ModelMapperConfigurer;
++import com.garret.movies.dao.entity.Movie;
++import com.garret.movies.service.dto.response.MovieDto;
++import org.modelmapper.ModelMapper;
++import org.springframework.stereotype.Component;
++
++@Component
++public class MovieDtoToMovieConfigurer implements ModelMapperConfigurer {
++
++    @Override
++    public void configure(ModelMapper modelMapper) {
++        modelMapper.createTypeMap(MovieDto.class, Movie.class)
++                .addMappings(mapper -> {
++                    mapper.skip(Movie::setId);
++                });
++    }
++}
+diff --git a/common/src/main/java/com/garret/movies/common/config/mapper/impl/OmdbMovieToMovieDtoConfigurer.java b/common/src/main/java/com/garret/movies/common/config/mapper/impl/OmdbMovieToMovieDtoConfigurer.java
+new file mode 100644
+index 0000000..a639e5f
+--- /dev/null
++++ b/common/src/main/java/com/garret/movies/common/config/mapper/impl/OmdbMovieToMovieDtoConfigurer.java
+@@ -0,0 +1,57 @@
++package com.garret.movies.common.config.mapper.impl;
++
++import com.garret.movies.common.config.mapper.ModelMapperConfigurer;
++import com.garret.movies.common.util.MovieUtil;
++import com.garret.movies.omdb.dto.OmdbMovie;
++import com.garret.movies.service.dto.ActorDto;
++import com.garret.movies.service.dto.CountryDto;
++import com.garret.movies.service.dto.GenreDto;
++import com.garret.movies.service.dto.LanguageDto;
++import com.garret.movies.service.dto.enums.MovieTypeDto;
++import com.garret.movies.service.dto.response.MovieDto;
++import org.modelmapper.Converter;
++import org.modelmapper.ModelMapper;
++import org.springframework.stereotype.Component;
++
++import java.sql.Date;
++import java.util.List;
++
++@Component
++public class OmdbMovieToMovieDtoConfigurer implements ModelMapperConfigurer {
++
++    @Override
++    public void configure(ModelMapper modelMapper) {
++        Converter<String, MovieTypeDto> movieTypeConverter = context ->
++                MovieTypeDto.valueOf(context.getSource().toUpperCase());
++        Converter<String, List<ActorDto>> toActorDtoConverter = context ->
++                MovieUtil.stringToValuableList(context.getSource(), ActorDto::new);
++        Converter<String, List<GenreDto>> toGenresDtoConverter = context ->
++                MovieUtil.stringToValuableList(convertToGenreString(context.getSource()), GenreDto::new);
++        Converter<String, List<LanguageDto>> toLanguageDtoConverter = context ->
++                MovieUtil.stringToValuableList(context.getSource(), LanguageDto::new);
++        Converter<String, List<CountryDto>> toCountriesDtoConverter = context ->
++                MovieUtil.stringToValuableList(context.getSource(), CountryDto::new);
++        Converter<String, Integer> toImdbVotesConverter = context ->
++                MovieUtil.convertStringToInteger(context.getSource());
++        Converter<String, Double> toImdbRatingDtoConverter = context ->
++                MovieUtil.convertStringToDouble(context.getSource());
++        Converter<String, Date> dateConverter = context ->
++                MovieUtil.parseDate(context.getSource());
++
++        modelMapper.createTypeMap(OmdbMovie.class, MovieDto.class)
++                .addMappings(mapper -> {
++                    mapper.using(movieTypeConverter).map(OmdbMovie::getType, MovieDto::setType);
++                    mapper.using(toActorDtoConverter).map(OmdbMovie::getActors, MovieDto::setActors);
++                    mapper.using(toGenresDtoConverter).map(OmdbMovie::getGenres, MovieDto::setGenres);
++                    mapper.using(toLanguageDtoConverter).map(OmdbMovie::getLanguages, MovieDto::setLanguages);
++                    mapper.using(toCountriesDtoConverter).map(OmdbMovie::getCountries, MovieDto::setCountries);
++                    mapper.using(toImdbVotesConverter).map(OmdbMovie::getImdbVotes, MovieDto::setImdbVotes);
++                    mapper.using(toImdbRatingDtoConverter).map(OmdbMovie::getImdbRating, MovieDto::setImdbRating);
++                    mapper.using(dateConverter).map(OmdbMovie::getReleased, MovieDto::setReleased);
++                });
++    }
++
++    private String convertToGenreString(String source) {
++        return source.replaceAll("-", "_").toUpperCase();
++    }
++}
+diff --git a/common/src/main/java/com/garret/movies/common/config/mapper/impl/PageToSimpleMovieResponseConfigurer.java b/common/src/main/java/com/garret/movies/common/config/mapper/impl/PageToSimpleMovieResponseConfigurer.java
+new file mode 100644
+index 0000000..59e709d
+--- /dev/null
++++ b/common/src/main/java/com/garret/movies/common/config/mapper/impl/PageToSimpleMovieResponseConfigurer.java
+@@ -0,0 +1,21 @@
++package com.garret.movies.common.config.mapper.impl;
++
++import com.garret.movies.common.config.mapper.ModelMapperConfigurer;
++import com.garret.movies.service.dto.response.SimpleMoviesResponse;
++import org.modelmapper.ModelMapper;
++import org.springframework.data.domain.PageImpl;
++import org.springframework.stereotype.Component;
++
++@Component
++public class PageToSimpleMovieResponseConfigurer implements ModelMapperConfigurer {
++
++    @Override
++    public void configure(ModelMapper modelMapper) {
++        modelMapper.createTypeMap(PageImpl.class, SimpleMoviesResponse.class)
++                .addMappings(mapper -> {
++                    mapper.map(PageImpl::getTotalElements, SimpleMoviesResponse::setTotalElements);
++                    mapper.map(PageImpl::getSize, SimpleMoviesResponse::setPageSize);
++                    mapper.map(PageImpl::getContent, SimpleMoviesResponse::setSearchContent);
++                });
++    }
++}
+diff --git a/movie-service/movie-impl/src/main/java/com/garret/movies/service/exception/IncorrectDateException.java b/common/src/main/java/com/garret/movies/common/exception/IncorrectDateException.java
+similarity index 76%
+rename from movie-service/movie-impl/src/main/java/com/garret/movies/service/exception/IncorrectDateException.java
+rename to common/src/main/java/com/garret/movies/common/exception/IncorrectDateException.java
+index 777cc51..df12393 100644
+--- a/movie-service/movie-impl/src/main/java/com/garret/movies/service/exception/IncorrectDateException.java
++++ b/common/src/main/java/com/garret/movies/common/exception/IncorrectDateException.java
+@@ -1,4 +1,4 @@
+-package com.garret.movies.service.exception;
++package com.garret.movies.common.exception;
+ 
+ public class IncorrectDateException extends RuntimeException {
+     public IncorrectDateException(String message) {
+diff --git a/common/src/main/java/com/garret/movies/common/util/MovieUtil.java b/common/src/main/java/com/garret/movies/common/util/MovieUtil.java
+new file mode 100644
+index 0000000..541f302
+--- /dev/null
++++ b/common/src/main/java/com/garret/movies/common/util/MovieUtil.java
+@@ -0,0 +1,72 @@
++package com.garret.movies.common.util;
++
++import com.garret.movies.common.exception.IncorrectDateException;
++import com.garret.movies.service.dto.marker.Valuable;
++import lombok.NonNull;
++import lombok.extern.slf4j.Slf4j;
++
++import java.sql.Date;
++import java.text.ParseException;
++import java.text.SimpleDateFormat;
++import java.util.Arrays;
++import java.util.Collections;
++import java.util.List;
++import java.util.Locale;
++import java.util.function.Supplier;
++import java.util.stream.Collectors;
++
++@Slf4j
++public class MovieUtil {
++
++    private static final SimpleDateFormat formatter = new SimpleDateFormat("dd MMM yyyy", Locale.ENGLISH);
++    private static final String NOT_ASSIGNED = "N/A";
++
++    private MovieUtil() {
++    }
++
++    public static <T extends Valuable> List<T> stringToValuableList(@NonNull String input, Supplier<T> supplier) {
++        if (isInvalidString(input)) {
++            return Collections.emptyList();
++        }
++        return Arrays.stream(input.split(","))
++                .map(String::trim)
++                .map(value -> {
++                    T valuable = supplier.get();
++                    valuable.setValue(value);
++                    return valuable;
++                }).collect(Collectors.toList());
++    }
++
++    public static Integer convertStringToInteger(@NonNull String votes) {
++        if (isInvalidString(votes)) {
++            log.info("Number of votes not found, default value was set");
++            return 0;
++        }
++        return Integer.parseInt(votes.replaceAll(",", ""));
++    }
++
++    public static Date parseDate(@NonNull String released) {
++        if (isInvalidString(released)) {
++            log.info("Release date not found, default value was set");
++            return Date.valueOf("1111-11-11");
++        }
++        try {
++            return new Date(formatter.parse(released).getTime());
++        } catch (ParseException e) {
++            log.warn("Can't parse date", e);
++            throw new IncorrectDateException("Date parsing was failed");
++        }
++    }
++
++    public static Double convertStringToDouble(@NonNull String input) {
++        if (isInvalidString(input)) {
++            log.info("Can't parse double, default value was returned");
++            return 0.0;
++        }
++        return Double.parseDouble(input);
++    }
++
++    private static boolean isInvalidString(String input) {
++        return (input.isEmpty() || input.equals(NOT_ASSIGNED));
++    }
++}
+diff --git a/common/src/test/java/com/garret/movies/common/util/MovieUtilTest.java b/common/src/test/java/com/garret/movies/common/util/MovieUtilTest.java
+new file mode 100644
+index 0000000..8a7a19b
+--- /dev/null
++++ b/common/src/test/java/com/garret/movies/common/util/MovieUtilTest.java
+@@ -0,0 +1,136 @@
++package com.garret.movies.common.util;
++
++import com.garret.movies.common.exception.IncorrectDateException;
++import com.garret.movies.service.dto.ActorDto;
++import com.garret.movies.service.dto.CountryDto;
++import com.garret.movies.service.dto.GenreDto;
++import com.garret.movies.service.dto.LanguageDto;
++import com.garret.movies.service.dto.marker.Valuable;
++import org.junit.Test;
++
++import java.sql.Date;
++import java.util.List;
++
++import static org.assertj.core.api.Assertions.assertThat;
++
++
++public class MovieUtilTest {
++
++    @Test
++    public void testConvertVotesToInt() {
++        String input = "123,456";
++
++        Integer expected = 123456;
++        Integer result = MovieUtil.convertStringToInteger(input);
++
++        assertThat(result).isGreaterThan(123000).isEqualTo(expected);
++    }
++
++    @Test
++    public void testConvertVotesToIntWhenInputIsEmpty() {
++        Integer result = MovieUtil.convertStringToInteger("");
++        assertThat(result).isEqualTo(0);
++    }
++
++    @Test
++    public void testParseDate() {
++        String input = "23 Jun 2015";
++
++        Date expected = Date.valueOf("2015-06-23");
++        Date result = MovieUtil.parseDate(input);
++
++        assertThat(result).isInSameDayAs(expected);
++    }
++
++    @Test
++    public void testParseDateWhenNotAssignedParameter() {
++        String params = "N/A";
++
++        Date expected = Date.valueOf("1111-11-11");
++        Date result = MovieUtil.parseDate(params);
++
++        assertThat(result).isInSameDayAs(expected);
++    }
++
++    @Test(expected = IncorrectDateException.class)
++    public void testParseDateWhenInvalidParameter() {
++        String params = "2";
++        MovieUtil.parseDate(params);
++    }
++
++    @Test
++    public void convertStringToDouble() {
++        String input = "2.0";
++        Double expected = 2.0;
++        Double result = MovieUtil.convertStringToDouble(input);
++
++        assertThat(result).isEqualTo(expected);
++    }
++
++    @Test
++    public void convertStringToDoubleNotAssignedParam() {
++        String input = "N/A";
++        Double result = MovieUtil.convertStringToDouble(input);
++        assertThat(result).isEqualTo(0);
++    }
++
++    @Test
++    public void stringToActorList() {
++        String input = "Arnold";
++        ActorDto actorDto = new ActorDto();
++        actorDto.setValue(input);
++        List<ActorDto> resultList = MovieUtil.stringToValuableList(input, ActorDto::new);
++        assertThat(resultList)
++                .isNotNull()
++                .isNotEmpty()
++                .contains(actorDto);
++        assertThat(resultList.get(0)).isInstanceOf(Valuable.class);
++    }
++
++    @Test
++    public void stringToCountryList() {
++        String input = "USA";
++        CountryDto countryDto = new CountryDto();
++        countryDto.setValue(input);
++        List<CountryDto> resultList = MovieUtil.stringToValuableList(input, CountryDto::new);
++        assertThat(resultList)
++                .isNotNull()
++                .isNotEmpty()
++                .contains(countryDto);
++        assertThat(resultList.get(0)).isInstanceOf(Valuable.class);
++    }
++
++    @Test
++    public void stringToGenreList() {
++        String input = "DRAMA";
++        GenreDto genreDto = new GenreDto();
++        genreDto.setValue(input);
++        List<GenreDto> resultList = MovieUtil.stringToValuableList(input, GenreDto::new);
++        assertThat(resultList)
++                .isNotNull()
++                .isNotEmpty()
++                .contains(genreDto);
++        assertThat(resultList.get(0)).isInstanceOf(Valuable.class);
++    }
++
++    @Test
++    public void stringToLanguageList() {
++        String input = "English";
++        LanguageDto languageDto = new LanguageDto();
++        languageDto.setValue(input);
++        List<LanguageDto> resultList = MovieUtil.stringToValuableList(input, LanguageDto::new);
++        assertThat(resultList)
++                .isNotNull()
++                .isNotEmpty()
++                .contains(languageDto);
++        assertThat(resultList.get(0)).isInstanceOf(Valuable.class);
++    }
++
++    @Test
++    public void stringToValuableListWhenInvalidStringInput() {
++        List<ActorDto> result = MovieUtil.stringToValuableList("", ActorDto::new);
++        assertThat(result)
++                .isNotNull()
++                .isEmpty();
++    }
++}
+diff --git a/pom.xml b/pom.xml
+index 81217fd..a191600 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -8,6 +8,7 @@
+         <module>dao</module>
+         <module>movie-service</module>
+         <module>web</module>
++        <module>common</module>
+     </modules>
+ 
+     <parent>
+@@ -61,6 +62,13 @@
+                 <groupId>org.jacoco</groupId>
+                 <artifactId>jacoco-maven-plugin</artifactId>
+                 <version>0.8.3</version>
++                <configuration>
++                    <excludes>
++                        <exclude>**/MovieApplication.class</exclude>
++                        <exclude>**/config/**/*</exclude>
++                        <exclude>**/exception/**/*</exclude>
++                    </excludes>
++                </configuration>
+                 <executions>
+                     <execution>
+                         <id>prepare-agent</id>
+diff --git a/web/pom.xml b/web/pom.xml
+index b0b88b0..4167c88 100644
+--- a/web/pom.xml
++++ b/web/pom.xml
+@@ -17,16 +17,25 @@
+             <groupId>com.garret.movies</groupId>
+             <artifactId>dao</artifactId>
+             <version>0.0.1-SNAPSHOT</version>
++            <scope>compile</scope>
+         </dependency>
+         <dependency>
+             <groupId>com.garret.movies</groupId>
+             <artifactId>movie-api</artifactId>
+             <version>0.0.1-SNAPSHOT</version>
++            <scope>compile</scope>
+         </dependency>
+         <dependency>
+             <groupId>com.garret.movies</groupId>
+             <artifactId>movie-impl</artifactId>
+             <version>0.0.1-SNAPSHOT</version>
++            <scope>compile</scope>
++        </dependency>
++        <dependency>
++            <groupId>com.garret.movies</groupId>
++            <artifactId>common</artifactId>
++            <version>0.0.1-SNAPSHOT</version>
++            <scope>compile</scope>
+         </dependency>
+         <dependency>
+             <groupId>org.projectlombok</groupId>
+diff --git a/web/src/main/java/com/garret/movies/MovieApplication.java b/web/src/main/java/com/garret/movies/MovieApplication.java
+index 9ca46ee..d55bb8b 100644
+--- a/web/src/main/java/com/garret/movies/MovieApplication.java
++++ b/web/src/main/java/com/garret/movies/MovieApplication.java
+@@ -1,21 +1,13 @@
+ package com.garret.movies;
+ 
+-import org.modelmapper.ModelMapper;
+ import org.springframework.boot.SpringApplication;
+ import org.springframework.boot.autoconfigure.SpringBootApplication;
+-import org.springframework.context.annotation.Bean;
+ import org.springframework.scheduling.annotation.EnableAsync;
+ 
+ @SpringBootApplication
+ @EnableAsync
+ public class MovieApplication {
+ 
+-    @Bean
+-    public ModelMapper modelMapper() {
+-        //temporary config
+-        return new ModelMapper();
+-    }
+-
+     public static void main(String[] args) {
+         SpringApplication.run(MovieApplication.class);
+     }

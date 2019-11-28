@@ -1,0 +1,60 @@
+diff --git a/anax-plugins/anax-zapi/src/main/java/org/anax/framework/integrations/CycleCreator.java b/anax-plugins/anax-zapi/src/main/java/org/anax/framework/integrations/CycleCreator.java
+index 381d58c..38c6413 100644
+--- a/anax-plugins/anax-zapi/src/main/java/org/anax/framework/integrations/CycleCreator.java
++++ b/anax-plugins/anax-zapi/src/main/java/org/anax/framework/integrations/CycleCreator.java
+@@ -3,7 +3,7 @@
+ import lombok.extern.slf4j.Slf4j;
+ import org.anax.framework.integrations.pojo.CycleClone;
+ import org.anax.framework.integrations.pojo.CycleInfo;
+-import org.anax.framework.integrations.service.ServiceImpl;
++import org.anax.framework.integrations.service.ZapiServiceImpl;
+ import org.springframework.beans.factory.annotation.Autowired;
+ import org.springframework.stereotype.Service;
+ import org.springframework.util.StringUtils;
+@@ -16,7 +16,7 @@
+ public class CycleCreator {
+ 
+     @Autowired
+-    protected ServiceImpl zapiService;
++    protected ZapiServiceImpl zapiService;
+ 
+     /**
+      * Create new cycle (clone existing one). If not exist create with given name, else append incremental number
+diff --git a/anax-plugins/anax-zapi/src/main/java/org/anax/framework/integrations/ExecutionManager.java b/anax-plugins/anax-zapi/src/main/java/org/anax/framework/integrations/ExecutionManager.java
+index 102a7ae..32d6da1 100644
+--- a/anax-plugins/anax-zapi/src/main/java/org/anax/framework/integrations/ExecutionManager.java
++++ b/anax-plugins/anax-zapi/src/main/java/org/anax/framework/integrations/ExecutionManager.java
+@@ -3,7 +3,7 @@
+ import lombok.extern.slf4j.Slf4j;
+ import org.anax.framework.integrations.pojo.ExecutionStatus;
+ import org.anax.framework.integrations.pojo.Results;
+-import org.anax.framework.integrations.service.ServiceImpl;
++import org.anax.framework.integrations.service.ZapiServiceImpl;
+ import org.springframework.beans.factory.annotation.Autowired;
+ import org.springframework.stereotype.Component;
+ 
+@@ -15,7 +15,7 @@
+ public class ExecutionManager {
+ 
+     @Autowired
+-    protected ServiceImpl zapiService;
++    protected ZapiServiceImpl zapiService;
+ 
+     public void updateTestExecutions(String projectName, String versionName, String cycleName, List<String> issueIds, ExecutionStatus status) throws NoSuchFieldException {
+         List<String> jiraIssueIds;
+diff --git a/anax-plugins/anax-zapi/src/main/java/org/anax/framework/integrations/service/ServiceImpl.java b/anax-plugins/anax-zapi/src/main/java/org/anax/framework/integrations/service/ZapiServiceImpl.java
+similarity index 99%
+rename from anax-plugins/anax-zapi/src/main/java/org/anax/framework/integrations/service/ServiceImpl.java
+rename to anax-plugins/anax-zapi/src/main/java/org/anax/framework/integrations/service/ZapiServiceImpl.java
+index 091c368..97eb403 100644
+--- a/anax-plugins/anax-zapi/src/main/java/org/anax/framework/integrations/service/ServiceImpl.java
++++ b/anax-plugins/anax-zapi/src/main/java/org/anax/framework/integrations/service/ZapiServiceImpl.java
+@@ -12,7 +12,7 @@
+ import java.util.Map;
+ 
+ @Service
+-public class ServiceImpl {
++public class ZapiServiceImpl {
+ 
+     @Autowired
+     @Qualifier("zapiRestTemplate")
