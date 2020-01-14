@@ -1,0 +1,1474 @@
+diff --git a/src/functionaltests/java/com/ericsson/gerrit/plugins/eiffel/linking/LinkingSteps.java b/src/functionaltests/java/com/ericsson/gerrit/plugins/eiffel/linking/LinkingSteps.java
+index b91e2c0..75dea43 100644
+--- a/src/functionaltests/java/com/ericsson/gerrit/plugins/eiffel/linking/LinkingSteps.java
++++ b/src/functionaltests/java/com/ericsson/gerrit/plugins/eiffel/linking/LinkingSteps.java
+@@ -212,7 +212,7 @@ private PatchSetCreatedEvent buildPatchSetCreatedEvent(final String projectName,
+         patchSetCreatedEvent.patchSet = patchSetAttributeSupplier;
+         patchSetCreatedEvent.changeKey = changeKey;
+ 
+-        when(patchSetCreatedEvent.getProjectNameKey()).thenReturn(mock(NameKey.class));
++        when(patchSetCreatedEvent.getProjectNameKey()).thenReturn(new NameKey(PROJECT_NAME));
+         return patchSetCreatedEvent;
+     }
+ 
+@@ -228,7 +228,7 @@ private ChangeMergedEvent buildChangeMergedEvent(final String projectName, final
+         changeMergedEvent.changeKey = changeKey;
+         changeMergedEvent.newRev = commitId;
+ 
+-        when(changeMergedEvent.getProjectNameKey()).thenReturn(mock(NameKey.class));
++        when(changeMergedEvent.getProjectNameKey()).thenReturn(new NameKey(PROJECT_NAME));
+         return changeMergedEvent;
+     }
+ 
+diff --git a/src/main/java/com/ericsson/gerrit/plugins/eiffel/configuration/EiffelPluginConfiguration.java b/src/main/java/com/ericsson/gerrit/plugins/eiffel/configuration/EiffelPluginConfiguration.java
+index 9c66080..5343de5 100644
+--- a/src/main/java/com/ericsson/gerrit/plugins/eiffel/configuration/EiffelPluginConfiguration.java
++++ b/src/main/java/com/ericsson/gerrit/plugins/eiffel/configuration/EiffelPluginConfiguration.java
+@@ -53,19 +53,21 @@
+     private final boolean enabled;
+     private final String flowContext;
+     private File pluginDirectoryPath;
++    private final NameKey project;
+ 
+     public EiffelPluginConfiguration(final String pluginName, final NameKey project,
+             final PluginConfigFactory pluginConfigFactory) {
+ 
++        this.project = project;
+         PluginConfig pluginConfig;
+ 
+         try {
+             pluginConfig = pluginConfigFactory.getFromProjectConfig(project, pluginName);
+-        } catch (NoSuchProjectException e) {
++        } catch (final NoSuchProjectException e) {
+             LOGGER.error("Could not initiate, error: {} \n{}", e.getMessage(), e);
+             throw new ExceptionInInitializerError(
+                     String.format("Can't read %s plugin configuration for project %s: %s",
+-                            pluginName, project.toString(), e.getMessage()));
++                            pluginName, getProject(), e.getMessage()));
+         }
+         // Read plugin configuration
+         this.enabled = pluginConfig.getBoolean(ENABLED, false);
+@@ -90,7 +92,7 @@ public EiffelPluginConfiguration(final String pluginName, final NameKey project,
+                     String.format(
+                             "Can't read %s plugin configuration for project %s: REMReM Generate URL is null",
+                             pluginName,
+-                            project.toString()));
++                            getProject()));
+         }
+         LOGGER.info("Loaded plugin configuration: {}", pluginConfig.toString());
+     }
+@@ -133,13 +135,22 @@ public File getPluginDirectoryPath() {
+      *
+      * @param pluginDirectoryPath
+      */
+-    public void setPluginDirectoryPath(File pluginDirectoryPath) {
++    public void setPluginDirectoryPath(final File pluginDirectoryPath) {
+         this.pluginDirectoryPath = pluginDirectoryPath;
+     }
+ 
++
++    /**
++     * Retrieves the name of the project
++     * @return project name
++     */
++    public String getProject() {
++        return project.get();
++    }
++
+     /**
+      * This method reads multiple values set manually by editing the project configuration
+-     * and then setting it in the GUI so that the person who is having the privileges to the UI is aware of the 
++     * and then setting it in the GUI so that the person who is having the privileges to the UI is aware of the
+      * parameters set manually.
+      * Ex:
+      * [eiffel-integration]
+@@ -151,7 +162,7 @@ public void setPluginDirectoryPath(File pluginDirectoryPath) {
+      */
+     private String getMultiValueParameters(final String property, final PluginConfig pluginConfig) {
+         String propertyValue = "";
+-        String[] propertyValues = pluginConfig.getStringList(property);
++        final String[] propertyValues = pluginConfig.getStringList(property);
+         if (propertyValues != null && propertyValues.length > 0) {
+             propertyValue = Arrays.stream(propertyValues).collect(Collectors.joining(","));
+             pluginConfig.setString(property, propertyValue);
+diff --git a/src/main/java/com/ericsson/gerrit/plugins/eiffel/events/generators/EiffelEventGenerator.java b/src/main/java/com/ericsson/gerrit/plugins/eiffel/events/generators/EiffelEventGenerator.java
+index ca7a562..96c61db 100644
+--- a/src/main/java/com/ericsson/gerrit/plugins/eiffel/events/generators/EiffelEventGenerator.java
++++ b/src/main/java/com/ericsson/gerrit/plugins/eiffel/events/generators/EiffelEventGenerator.java
+@@ -16,7 +16,6 @@
+ */
+ package com.ericsson.gerrit.plugins.eiffel.events.generators;
+ 
+-import java.io.File;
+ import java.net.InetAddress;
+ import java.net.URI;
+ import java.net.URISyntaxException;
+@@ -27,6 +26,7 @@
+ import org.slf4j.Logger;
+ import org.slf4j.LoggerFactory;
+ 
++import com.ericsson.gerrit.plugins.eiffel.configuration.EiffelPluginConfiguration;
+ import com.ericsson.gerrit.plugins.eiffel.events.models.Link;
+ import com.ericsson.gerrit.plugins.eiffel.exceptions.NoSuchElementException;
+ import com.ericsson.gerrit.plugins.eiffel.storage.EventStorage;
+@@ -67,12 +67,13 @@ protected static String createRepoURI(final String url, final String projectName
+     /**
+      * Will for a given list of search criteria return the first found event
+      */
+-    protected static String getPreviousEiffelEventId(final String linkedEiffelEventType,
+-            final String projectName,
+-            final List<String> searchCriterias, final File pluginDirectoryPath) {
++    protected static String getPreviousEiffelEventId(final EiffelPluginConfiguration pluginConfig,
++            final String linkedEiffelEventType,
++            final List<String> searchCriterias) {
+         for (final String searchCriteria : searchCriterias) {
+-            final String eiffelEventId = getPreviousEiffelEventId(linkedEiffelEventType, projectName,
+-                    searchCriteria, pluginDirectoryPath);
++            final String eiffelEventId = getPreviousEiffelEventId(pluginConfig,
++                    linkedEiffelEventType,
++                    searchCriteria);
+             if (!StringUtils.isEmpty(eiffelEventId)) {
+                 return eiffelEventId;
+             }
+@@ -80,13 +81,13 @@ protected static String getPreviousEiffelEventId(final String linkedEiffelEventT
+         return "";
+     }
+ 
+-    protected static String getPreviousEiffelEventId(final String linkedEiffelEventType,
+-            final String projectName,
+-            final String searchCriteria, final File pluginDirectoryPath) {
++    protected static String getPreviousEiffelEventId(final EiffelPluginConfiguration pluginConfig,
++            final String linkedEiffelEventType,
++            final String searchCriteria ) {
+         try {
+-            final EventStorage eventStorage = EventStorageFactory.getEventStorage(pluginDirectoryPath,
++            final EventStorage eventStorage = EventStorageFactory.getEventStorage(pluginConfig,
+                     linkedEiffelEventType);
+-            final String lastEiffelEventId = getEiffelEventIdFromStorage(eventStorage, projectName,
++            final String lastEiffelEventId = getEiffelEventIdFromStorage(eventStorage, pluginConfig.getProject(),
+                     searchCriteria);
+             return lastEiffelEventId;
+         } catch (final IllegalArgumentException e) {
+diff --git a/src/main/java/com/ericsson/gerrit/plugins/eiffel/events/generators/EiffelSourceChangeCreatedEventGenerator.java b/src/main/java/com/ericsson/gerrit/plugins/eiffel/events/generators/EiffelSourceChangeCreatedEventGenerator.java
+index e7fe4fb..63b8b71 100644
+--- a/src/main/java/com/ericsson/gerrit/plugins/eiffel/events/generators/EiffelSourceChangeCreatedEventGenerator.java
++++ b/src/main/java/com/ericsson/gerrit/plugins/eiffel/events/generators/EiffelSourceChangeCreatedEventGenerator.java
+@@ -16,9 +16,9 @@
+ */
+ package com.ericsson.gerrit.plugins.eiffel.events.generators;
+ 
+-import java.io.File;
+ import java.util.List;
+ 
++import com.ericsson.gerrit.plugins.eiffel.configuration.EiffelPluginConfiguration;
+ import com.ericsson.gerrit.plugins.eiffel.events.EiffelSourceChangeCreatedEvent;
+ import com.ericsson.gerrit.plugins.eiffel.events.EventType;
+ import com.ericsson.gerrit.plugins.eiffel.events.models.Link;
+@@ -43,8 +43,9 @@
+      * @param commitInformation
+      * @return EiffelSourceChangeCreatedEvent
+      */
+-    public static EiffelSourceChangeCreatedEvent generate(PatchSetCreatedEvent patchSetCreatedEvent,
+-            File pluginDirectoryPath, CommitInformation commitInformation) {
++    public static EiffelSourceChangeCreatedEvent generate(final EiffelPluginConfiguration pluginConfig,
++            final PatchSetCreatedEvent patchSetCreatedEvent,
++            final CommitInformation commitInformation) {
+         final ChangeAttribute changeAttribute = patchSetCreatedEvent.change.get();
+         final PatchSetAttribute patchSetAttribute = patchSetCreatedEvent.patchSet.get();
+         final String projectName = changeAttribute.project;
+@@ -58,7 +59,7 @@ public static EiffelSourceChangeCreatedEvent generate(PatchSetCreatedEvent patch
+         final int deletions = patchSetAttribute.sizeDeletions;
+         final String changeId = patchSetCreatedEvent.changeKey.toString();
+ 
+-        EiffelSourceChangeCreatedEvent eiffelEvent = new EiffelSourceChangeCreatedEvent();
++        final EiffelSourceChangeCreatedEvent eiffelEvent = new EiffelSourceChangeCreatedEvent();
+         eiffelEvent.msgParams.meta.type = TYPE;
+         eiffelEvent.msgParams.meta.source.name = META_SOURCE_NAME;
+         eiffelEvent.msgParams.meta.source.host = determineHostName();
+@@ -79,17 +80,17 @@ public static EiffelSourceChangeCreatedEvent generate(PatchSetCreatedEvent patch
+         eiffelEvent.eventParams.data.gitIdentifier.branch = branch;
+         eiffelEvent.eventParams.data.gitIdentifier.repoName = projectName;
+ 
+-        String previousSourceChangeCreatedEvent = getPreviousEiffelEventId(EventType.SCC_EVENT,
+-                projectName, changeId, pluginDirectoryPath);
++        final String previousSourceChangeCreatedEvent = getPreviousEiffelEventId(pluginConfig,
++                EventType.SCC_EVENT, changeId);
+         final Link previousVersionLink = createLink(LINK_TYPE_PREVIOUS_VERSION,
+                 previousSourceChangeCreatedEvent);
+         if (previousVersionLink != null) {
+             eiffelEvent.eventParams.links.add(previousVersionLink);
+         }
+ 
+-        List<String> parentsSHAs = commitInformation.getParentsSHAs(commitId, projectName);
+-        String previousSourceChangeSubmittedEventId = getPreviousEiffelEventId(EventType.SCS_EVENT,
+-                projectName, parentsSHAs, pluginDirectoryPath);
++        final List<String> parentsSHAs = commitInformation.getParentsSHAs(commitId, projectName);
++        final String previousSourceChangeSubmittedEventId = getPreviousEiffelEventId(pluginConfig,
++                EventType.SCS_EVENT, parentsSHAs);
+         final Link baseLink = createLink(LINK_TYPE_BASE, previousSourceChangeSubmittedEventId);
+         if (baseLink != null) {
+             eiffelEvent.eventParams.links.add(baseLink);
+diff --git a/src/main/java/com/ericsson/gerrit/plugins/eiffel/events/generators/EiffelSourceChangeSubmittedEventGenerator.java b/src/main/java/com/ericsson/gerrit/plugins/eiffel/events/generators/EiffelSourceChangeSubmittedEventGenerator.java
+index afd5171..286d59d 100644
+--- a/src/main/java/com/ericsson/gerrit/plugins/eiffel/events/generators/EiffelSourceChangeSubmittedEventGenerator.java
++++ b/src/main/java/com/ericsson/gerrit/plugins/eiffel/events/generators/EiffelSourceChangeSubmittedEventGenerator.java
+@@ -16,9 +16,9 @@
+ */
+ package com.ericsson.gerrit.plugins.eiffel.events.generators;
+ 
+-import java.io.File;
+ import java.util.List;
+ 
++import com.ericsson.gerrit.plugins.eiffel.configuration.EiffelPluginConfiguration;
+ import com.ericsson.gerrit.plugins.eiffel.events.EiffelSourceChangeSubmittedEvent;
+ import com.ericsson.gerrit.plugins.eiffel.events.EventType;
+ import com.ericsson.gerrit.plugins.eiffel.events.models.Link;
+@@ -37,13 +37,13 @@
+      * Extracts information from the ChangeMergedEvent and generates an
+      * EiffelSourceChangeSubmittedEvent
+      *
+-     * @param changeMergedEvent
++     * @param pluginConfig
+      * @param commitInformation
+      * @param pluginConfig
+      * @return EiffelSourceChangeSubmittedEvent
+      */
+-    public static EiffelSourceChangeSubmittedEvent generate(ChangeMergedEvent changeMergedEvent,
+-            File pluginDirectoryPath, CommitInformation commitInformation) {
++    public static EiffelSourceChangeSubmittedEvent generate(final EiffelPluginConfiguration pluginConfig,
++            final ChangeMergedEvent changeMergedEvent, final CommitInformation commitInformation) {
+         final ChangeAttribute changeAttribute = changeMergedEvent.change.get();
+         final PatchSetAttribute patchSetAttribute = changeMergedEvent.patchSet.get();
+         final String commitId = changeMergedEvent.newRev;
+@@ -55,7 +55,7 @@ public static EiffelSourceChangeSubmittedEvent generate(ChangeMergedEvent change
+         final String email = patchSetAttribute.author.email;
+         final String changeId = changeMergedEvent.changeKey.toString();
+ 
+-        EiffelSourceChangeSubmittedEvent eiffelEvent = new EiffelSourceChangeSubmittedEvent();
++        final EiffelSourceChangeSubmittedEvent eiffelEvent = new EiffelSourceChangeSubmittedEvent();
+         eiffelEvent.msgParams.meta.type = TYPE;
+         eiffelEvent.msgParams.meta.source.name = META_SOURCE_NAME;
+         eiffelEvent.msgParams.meta.source.host = determineHostName();
+@@ -70,16 +70,17 @@ public static EiffelSourceChangeSubmittedEvent generate(ChangeMergedEvent change
+         eiffelEvent.eventParams.data.gitIdentifier.branch = branch;
+         eiffelEvent.eventParams.data.gitIdentifier.repoName = projectName;
+ 
+-        String previousSourceChangeCreatedEvent = getPreviousEiffelEventId(EventType.SCC_EVENT,
+-                projectName, changeId, pluginDirectoryPath);
++        final String previousSourceChangeCreatedEvent = getPreviousEiffelEventId(pluginConfig,
++                EventType.SCC_EVENT, changeId);
+         final Link changeLink = createLink(LINK_TYPE_CHANGE, previousSourceChangeCreatedEvent);
+         if (changeLink != null) {
+             eiffelEvent.eventParams.links.add(changeLink);
+         }
+ 
+-        List<String> parentsSHAs = commitInformation.getParentsSHAs(commitId, projectName);
+-        String previousSourceChangeSubmittedEventId = getPreviousEiffelEventId(EventType.SCS_EVENT,
+-                projectName, parentsSHAs, pluginDirectoryPath);
++        final List<String> parentsSHAs = commitInformation.getParentsSHAs(commitId, projectName);
++        final String previousSourceChangeSubmittedEventId = getPreviousEiffelEventId(pluginConfig,
++                EventType.SCS_EVENT,
++                parentsSHAs);
+         final Link previousVersionLink = createLink(LINK_TYPE_PREVIOUS_VERSION,
+                 previousSourceChangeSubmittedEventId);
+         if (previousVersionLink != null) {
+diff --git a/src/main/java/com/ericsson/gerrit/plugins/eiffel/listeners/AbstractEventListener.java b/src/main/java/com/ericsson/gerrit/plugins/eiffel/listeners/AbstractEventListener.java
+index 4e415ed..9850d41 100644
+--- a/src/main/java/com/ericsson/gerrit/plugins/eiffel/listeners/AbstractEventListener.java
++++ b/src/main/java/com/ericsson/gerrit/plugins/eiffel/listeners/AbstractEventListener.java
+@@ -61,7 +61,7 @@
+     private static AtomicBoolean initialized = new AtomicBoolean();
+     private static ThreadPoolExecutor executor;
+ 
+-    private final BlockingQueue<Runnable> queue = new ArrayBlockingQueue<Runnable>(QUEUE_SIZE);
++    private final BlockingQueue<Runnable> queue = new ArrayBlockingQueue<>(QUEUE_SIZE);
+ 
+     @Inject
+     private com.google.gerrit.server.config.PluginConfigFactory pluginConfigFactory;
+@@ -104,7 +104,7 @@ public void onEvent(final Event gerritEvent) {
+      * @return EiffelPluginConfiguration
+      */
+     public EiffelPluginConfiguration createPluginConfig(final Event gerritEvent) {
+-        ChangeEvent changeEvent = (ChangeEvent) gerritEvent;
++        final ChangeEvent changeEvent = (ChangeEvent) gerritEvent;
+         final Project.NameKey projectNameKey = changeEvent.getProjectNameKey();
+         final EiffelPluginConfiguration pluginConfig = new EiffelPluginConfiguration(pluginName,
+                 projectNameKey, pluginConfigFactory);
+@@ -119,13 +119,13 @@ public EiffelPluginConfiguration createPluginConfig(final Event gerritEvent) {
+      * @param eiffelEvent
+      * @param pluginConfig
+      */
+-    public void sendEiffelEvent(EiffelEvent eiffelEvent, EiffelPluginConfiguration pluginConfig) {
+-        EiffelEventSender eiffelEventSender = new EiffelEventSender(pluginDirectoryPath, pluginConfig);
++    public void sendEiffelEvent(final EiffelEvent eiffelEvent, final EiffelPluginConfiguration pluginConfig) {
++        final EiffelEventSender eiffelEventSender = new EiffelEventSender(pluginConfig);
+         eiffelEventSender.setEiffelEventType(eiffelEvent.getClass().getSimpleName());
+         eiffelEventSender.setEiffelEventMessage(eiffelEvent);
+ 
+-        Retry policy = retryConfiguration.getRetryPolicy();
+-        Runnable decoratedRunnable = Decorators.ofRunnable(() -> eiffelEventSender.send())
++        final Retry policy = retryConfiguration.getRetryPolicy();
++        final Runnable decoratedRunnable = Decorators.ofRunnable(() -> eiffelEventSender.send())
+                                                .withRetry(policy)
+                                                .decorate();
+         executor.submit(() -> {
+@@ -142,20 +142,18 @@ public void sendEiffelEvent(EiffelEvent eiffelEvent, EiffelPluginConfiguration p
+      */
+     protected boolean isEiffelEventSendingEnabled(final Event gerritEvent,
+             final EiffelPluginConfiguration pluginConfig) {
+-
+-        final ChangeEvent changeEvent = (ChangeEvent) gerritEvent;
+-        final String project = changeEvent.change.get().project;
+-        if (!isPluginEnabled(pluginConfig, project)) {
++        if (!isPluginEnabled(pluginConfig)) {
+             return false;
+         }
+ 
++        final ChangeEvent changeEvent = (ChangeEvent) gerritEvent;
+         final String branch = changeEvent.change.get().branch;
+         final String filter = pluginConfig.getFilter();
+-        boolean isFilterSet = !StringUtils.isEmpty(filter);
+-        boolean isBranchNameInConfiguredFilter = isFilterSet
+-                && isBranchNameInConfiguredFilter(branch, filter, project);
++        final boolean isFilterSet = !StringUtils.isEmpty(filter);
++        final boolean isBranchNameInConfiguredFilter = isFilterSet
++                && isBranchNameInConfiguredFilter(branch, filter, pluginConfig.getProject());
+ 
+-        boolean isEiffelEventSendingEnabled = !isFilterSet || isBranchNameInConfiguredFilter;
++        final boolean isEiffelEventSendingEnabled = !isFilterSet || isBranchNameInConfiguredFilter;
+         return isEiffelEventSendingEnabled;
+     }
+ 
+@@ -171,12 +169,11 @@ private void initializeThreadPoolExecutor() {
+         }
+     }
+ 
+-    private boolean isPluginEnabled(final EiffelPluginConfiguration pluginConfig,
+-            final String project) {
++    private boolean isPluginEnabled(final EiffelPluginConfiguration pluginConfig) {
+         if (!pluginConfig.isEnabled()) {
+             LOGGER.debug("Eiffel plugin is disabled for project '{}'.\n"
+                     + "Please refer to Eiffel plugin documentation to find out how to configure and enable plugin\n"
+-                    + "{}plugins/{}/Documentation/index.html", project, gerritUrl, pluginName);
++                    + "{}plugins/{}/Documentation/index.html", pluginConfig.getProject(), gerritUrl, pluginName);
+             return false;
+         }
+ 
+diff --git a/src/main/java/com/ericsson/gerrit/plugins/eiffel/listeners/ChangeMergedEventListener.java b/src/main/java/com/ericsson/gerrit/plugins/eiffel/listeners/ChangeMergedEventListener.java
+index 96c5ed4..7ade6f7 100644
+--- a/src/main/java/com/ericsson/gerrit/plugins/eiffel/listeners/ChangeMergedEventListener.java
++++ b/src/main/java/com/ericsson/gerrit/plugins/eiffel/listeners/ChangeMergedEventListener.java
+@@ -54,19 +54,19 @@ public ChangeMergedEventListener(@PluginName final String pluginName,
+     }
+ 
+     @Override
+-    protected boolean isExpectedGerritEvent(Event gerritEvent) {
++    protected boolean isExpectedGerritEvent(final Event gerritEvent) {
+         return gerritEvent instanceof ChangeMergedEvent;
+     }
+ 
+     @Override
+-    protected void prepareAndSendEiffelEvent(Event gerritEvent,
+-            EiffelPluginConfiguration pluginConfig) {
+-        ChangeMergedEvent changeMergedEvent = (ChangeMergedEvent) gerritEvent;
++    protected void prepareAndSendEiffelEvent(final Event gerritEvent,
++            final EiffelPluginConfiguration pluginConfig) {
++        final ChangeMergedEvent changeMergedEvent = (ChangeMergedEvent) gerritEvent;
+         LOGGER.info("ChangeMergedEvent recieved from Gerrit, "
+                 + "preparing to send a SourceChangeSubmitted eiffel event.\n{}",
+                 changeMergedEvent);
+-        EiffelSourceChangeSubmittedEvent eiffelEvent = EiffelSourceChangeSubmittedEventGenerator.generate(
+-                changeMergedEvent, pluginDirectoryPath, commitInformation);
++        final EiffelSourceChangeSubmittedEvent eiffelEvent = EiffelSourceChangeSubmittedEventGenerator.generate(
++                pluginConfig, changeMergedEvent, commitInformation);
+         sendEiffelEvent(eiffelEvent, pluginConfig);
+     }
+ }
+diff --git a/src/main/java/com/ericsson/gerrit/plugins/eiffel/listeners/PatchsetCreatedEventListener.java b/src/main/java/com/ericsson/gerrit/plugins/eiffel/listeners/PatchsetCreatedEventListener.java
+index 58835fc..9bb71e9 100644
+--- a/src/main/java/com/ericsson/gerrit/plugins/eiffel/listeners/PatchsetCreatedEventListener.java
++++ b/src/main/java/com/ericsson/gerrit/plugins/eiffel/listeners/PatchsetCreatedEventListener.java
+@@ -55,20 +55,20 @@ public PatchsetCreatedEventListener(@PluginName final String pluginName,
+     }
+ 
+     @Override
+-    protected boolean isExpectedGerritEvent(Event gerritEvent) {
++    protected boolean isExpectedGerritEvent(final Event gerritEvent) {
+         return gerritEvent instanceof PatchSetCreatedEvent;
+     }
+ 
+     @Override
+-    protected void prepareAndSendEiffelEvent(Event gerritEvent,
+-            EiffelPluginConfiguration pluginConfig) {
+-        PatchSetCreatedEvent patchSetCreatedEvent = (PatchSetCreatedEvent) gerritEvent;
++    protected void prepareAndSendEiffelEvent(final Event gerritEvent,
++            final EiffelPluginConfiguration pluginConfig) {
++        final PatchSetCreatedEvent patchSetCreatedEvent = (PatchSetCreatedEvent) gerritEvent;
+         LOGGER.info("PatchSetCreatedEvent recieved from Gerrit, "
+                 + "preparing to send a SourceChangeCreated eiffel event.\n{}",
+                 patchSetCreatedEvent);
+ 
+-        EiffelSourceChangeCreatedEvent eiffelEvent = EiffelSourceChangeCreatedEventGenerator.generate(
+-                patchSetCreatedEvent, pluginDirectoryPath, commitInformation);
++        final EiffelSourceChangeCreatedEvent eiffelEvent = EiffelSourceChangeCreatedEventGenerator.generate(
++                pluginConfig, patchSetCreatedEvent, commitInformation);
+         sendEiffelEvent(eiffelEvent, pluginConfig);
+     }
+ }
+diff --git a/src/main/java/com/ericsson/gerrit/plugins/eiffel/messaging/EiffelEventSender.java b/src/main/java/com/ericsson/gerrit/plugins/eiffel/messaging/EiffelEventSender.java
+index 0f988ec..41b012c 100644
+--- a/src/main/java/com/ericsson/gerrit/plugins/eiffel/messaging/EiffelEventSender.java
++++ b/src/main/java/com/ericsson/gerrit/plugins/eiffel/messaging/EiffelEventSender.java
+@@ -16,7 +16,6 @@
+ */
+ package com.ericsson.gerrit.plugins.eiffel.messaging;
+ 
+-import java.io.File;
+ import java.io.IOException;
+ import java.io.UnsupportedEncodingException;
+ import java.net.ConnectException;
+@@ -56,19 +55,16 @@
+     private final Gson gson = new Gson();
+     private EiffelEvent eiffelEvent;
+     private String eiffelType;
+-    private EiffelPluginConfiguration pluginConfig;
+-    private HttpRequest httpRequest;
+-    private File pluginDir;
++    private final EiffelPluginConfiguration pluginConfig;
++    private final HttpRequest httpRequest;
+ 
+-    public EiffelEventSender(File pluginDir, EiffelPluginConfiguration pluginConfig) {
+-        this(pluginDir, pluginConfig, new HttpRequest(HttpMethod.POST));
++    public EiffelEventSender(final EiffelPluginConfiguration pluginConfig) {
++        this(pluginConfig, new HttpRequest(HttpMethod.POST));
+     }
+ 
+-    public EiffelEventSender(File pluginDir, EiffelPluginConfiguration pluginConfig,
+-            HttpRequest httpRequest) {
++    public EiffelEventSender(final EiffelPluginConfiguration pluginConfig, final HttpRequest httpRequest) {
+         this.httpRequest = httpRequest;
+         this.pluginConfig = pluginConfig;
+-        this.pluginDir = pluginDir;
+     }
+ 
+     /**
+@@ -79,18 +75,19 @@ public EiffelEventSender(File pluginDir, EiffelPluginConfiguration pluginConfig,
+     public void send() {
+         try {
+             verifyConfiguration();
+-            String generatedEventId = generateAndPublish();
+-            EventStorage eventStorage = EventStorageFactory.getEventStorage(pluginDir, eiffelEvent.msgParams.meta.type);
++            final String generatedEventId = generateAndPublish();
++            final EventStorage eventStorage = EventStorageFactory.getEventStorage(pluginConfig,
++                    eiffelEvent.msgParams.meta.type);
+             eventStorage.saveEventId(generatedEventId, eiffelEvent);
+ 
+         } catch (URISyntaxException | MissingConfigurationException | NoSuchElementException e) {
+             LOGGER.error("Failed to send eiffel message.", e);
+         } catch (SQLException | ConnectException e) {
+             LOGGER.error("Failed to save the internal state after sending event.", e);
+-        } catch (HttpRequestFailedException e) {
++        } catch (final HttpRequestFailedException e) {
+             LOGGER.error("Failed to send eiffel message.", e);
+             throw e;
+-        } catch (IOException e) {
++        } catch (final IOException e) {
+             LOGGER.error("Failed to send eiffel message.", e);
+             throw new HttpRequestFailedException(e);
+         }
+@@ -113,7 +110,7 @@ private String generateAndPublish()
+         final ResponseEntity response = httpRequest.performRequest();
+         verifyResponse(response);
+ 
+-        String generatedEventId = getGeneratedEventId(response);
++        final String generatedEventId = getGeneratedEventId(response);
+         return generatedEventId;
+     }
+ 
+@@ -125,7 +122,7 @@ private String getGeneratedEventId(final ResponseEntity response) {
+         return generatedEventId;
+     }
+ 
+-    private void verifyResponse(ResponseEntity response) throws HttpRequestFailedException {
++    private void verifyResponse(final ResponseEntity response) throws HttpRequestFailedException {
+         final int statusCode = response.getStatusCode();
+         final String result = response.getBody();
+ 
+@@ -151,7 +148,7 @@ private void verifyConfiguration() throws MissingConfigurationException {
+     }
+ 
+     private boolean isConfigurationSet() {
+-        boolean isConfigurationSet = eiffelEvent != null
++        final boolean isConfigurationSet = eiffelEvent != null
+                 && !StringUtils.isEmpty(eiffelType);
+         return isConfigurationSet;
+     }
+diff --git a/src/main/java/com/ericsson/gerrit/plugins/eiffel/storage/EventStorage.java b/src/main/java/com/ericsson/gerrit/plugins/eiffel/storage/EventStorage.java
+index 98f056f..d817fad 100644
+--- a/src/main/java/com/ericsson/gerrit/plugins/eiffel/storage/EventStorage.java
++++ b/src/main/java/com/ericsson/gerrit/plugins/eiffel/storage/EventStorage.java
+@@ -17,7 +17,6 @@
+ 
+ package com.ericsson.gerrit.plugins.eiffel.storage;
+ 
+-import java.io.File;
+ import java.io.FileNotFoundException;
+ import java.net.ConnectException;
+ import java.sql.SQLException;
+@@ -25,6 +24,7 @@
+ import org.slf4j.Logger;
+ import org.slf4j.LoggerFactory;
+ 
++import com.ericsson.gerrit.plugins.eiffel.configuration.EiffelPluginConfiguration;
+ import com.ericsson.gerrit.plugins.eiffel.events.EiffelEvent;
+ import com.ericsson.gerrit.plugins.eiffel.exceptions.NoSuchElementException;
+ import com.ericsson.gerrit.plugins.eiffel.handlers.DatabaseHandler;
+@@ -32,10 +32,10 @@
+ 
+ public abstract class EventStorage {
+     protected static final Logger LOGGER = LoggerFactory.getLogger(EventStorage.class);
+-    protected File pluginDir;
++    protected EiffelPluginConfiguration pluginConfig;
+ 
+-    public EventStorage(File pluginDir) {
+-        this.pluginDir = pluginDir;
++    public EventStorage(final EiffelPluginConfiguration pluginConfig) {
++        this.pluginConfig = pluginConfig;
+     }
+ 
+     public abstract String getEventId(String project, String searchCriteria)
+@@ -44,16 +44,17 @@ public abstract String getEventId(String project, String searchCriteria)
+     public abstract void saveEventId(String eiffelEventId, EiffelEvent eiffelEvent)
+             throws NoSuchElementException, SQLException, ConnectException;
+ 
+-    protected String getLastSavedEiffelEvent(String project, String searchCriteria, Table tableName)
++    protected String getLastSavedEiffelEvent(final String project, final String searchCriteria, final Table tableName)
+             throws NoSuchElementException, FileNotFoundException, ConnectException {
+         return getEventId(project, searchCriteria, tableName);
+     }
+ 
+-    protected void saveEiffelEventId(String project, String searchCriteria, String eiffelEventId,
+-            Table tableName)
++    protected void saveEiffelEventId(final String searchCriteria, final String eiffelEventId,
++            final Table tableName)
+             throws NoSuchElementException, ConnectException, SQLException {
+-        DatabaseHandler dBHandler = new DatabaseHandler(pluginDir, project);
+-        String oldEventId = getOldEventId(dBHandler, tableName, searchCriteria);
++        final String project = pluginConfig.getProject();
++        final DatabaseHandler dBHandler = new DatabaseHandler(pluginConfig.getPluginDirectoryPath(), project);
++        final String oldEventId = getOldEventId(dBHandler, tableName, searchCriteria);
+ 
+         if (!oldEventId.isEmpty()) {
+             dBHandler.updateInto(tableName, searchCriteria, eiffelEventId);
+@@ -69,21 +70,21 @@ protected void saveEiffelEventId(String project, String searchCriteria, String e
+         }
+     }
+ 
+-    private String getOldEventId(DatabaseHandler dBHandler, Table tableName, String searchCriteria)
++    private String getOldEventId(final DatabaseHandler dBHandler, final Table tableName, final String searchCriteria)
+             throws ConnectException {
+         try {
+-            String oldEvent = dBHandler.getEventID(tableName, searchCriteria);
++            final String oldEvent = dBHandler.getEventID(tableName, searchCriteria);
+             return oldEvent;
+-        } catch (NoSuchElementException e) {
++        } catch (final NoSuchElementException e) {
+             LOGGER.debug("No old event found");
+             return "";
+         }
+     }
+ 
+-    private String getEventId(String project, String searchCriteria, Table tableName)
++    private String getEventId(final String project, final String searchCriteria, final Table tableName)
+             throws NoSuchElementException, ConnectException {
+-        DatabaseHandler dBHandler = new DatabaseHandler(pluginDir, project);
+-        String eventId = dBHandler.getEventID(tableName, searchCriteria);
++        final DatabaseHandler dBHandler = new DatabaseHandler(pluginConfig.getPluginDirectoryPath(), project);
++        final String eventId = dBHandler.getEventID(tableName, searchCriteria);
+         LOGGER.info("Fetched old event with id '{}', for project '{}', and searchCritera '{}'",
+                 eventId, project,
+                 searchCriteria);
+diff --git a/src/main/java/com/ericsson/gerrit/plugins/eiffel/storage/EventStorageFactory.java b/src/main/java/com/ericsson/gerrit/plugins/eiffel/storage/EventStorageFactory.java
+index 8aaee11..59e6c06 100644
+--- a/src/main/java/com/ericsson/gerrit/plugins/eiffel/storage/EventStorageFactory.java
++++ b/src/main/java/com/ericsson/gerrit/plugins/eiffel/storage/EventStorageFactory.java
+@@ -17,22 +17,21 @@
+ 
+ package com.ericsson.gerrit.plugins.eiffel.storage;
+ 
+-import java.io.File;
+-
+ import org.slf4j.Logger;
+ import org.slf4j.LoggerFactory;
+ 
++import com.ericsson.gerrit.plugins.eiffel.configuration.EiffelPluginConfiguration;
+ import com.ericsson.gerrit.plugins.eiffel.events.EventType;
+ 
+ public class EventStorageFactory {
+     protected static final Logger LOGGER = LoggerFactory.getLogger(EventStorageFactory.class);
+ 
+-    public static EventStorage getEventStorage(File pluginDir, String eventType) {
++    public static EventStorage getEventStorage(final EiffelPluginConfiguration pluginConfig, final String eventType) {
+         switch (eventType) {
+             case EventType.SCC_EVENT:
+-                return new SourceChangeCreatedStorage(pluginDir);
++                return new SourceChangeCreatedStorage(pluginConfig);
+             case EventType.SCS_EVENT:
+-                return new SourceChangeSubmittedStorage(pluginDir);
++                return new SourceChangeSubmittedStorage(pluginConfig);
+             default:
+                 throw new IllegalArgumentException("The event type does not exist " + eventType + ".");
+         }
+diff --git a/src/main/java/com/ericsson/gerrit/plugins/eiffel/storage/SourceChangeCreatedStorage.java b/src/main/java/com/ericsson/gerrit/plugins/eiffel/storage/SourceChangeCreatedStorage.java
+index 2bc452f..33e8128 100644
+--- a/src/main/java/com/ericsson/gerrit/plugins/eiffel/storage/SourceChangeCreatedStorage.java
++++ b/src/main/java/com/ericsson/gerrit/plugins/eiffel/storage/SourceChangeCreatedStorage.java
+@@ -17,11 +17,11 @@
+ 
+ package com.ericsson.gerrit.plugins.eiffel.storage;
+ 
+-import java.io.File;
+ import java.io.FileNotFoundException;
+ import java.net.ConnectException;
+ import java.sql.SQLException;
+ 
++import com.ericsson.gerrit.plugins.eiffel.configuration.EiffelPluginConfiguration;
+ import com.ericsson.gerrit.plugins.eiffel.events.EiffelEvent;
+ import com.ericsson.gerrit.plugins.eiffel.events.EiffelSourceChangeCreatedEvent;
+ import com.ericsson.gerrit.plugins.eiffel.exceptions.NoSuchElementException;
+@@ -29,22 +29,21 @@
+ 
+ public class SourceChangeCreatedStorage extends EventStorage {
+ 
+-    public SourceChangeCreatedStorage(File pluginDir) {
+-        super(pluginDir);
++    public SourceChangeCreatedStorage(final EiffelPluginConfiguration pluginConfig) {
++        super(pluginConfig);
+     }
+ 
+     @Override
+-    public String getEventId(String project, String changeId) throws NoSuchElementException, ConnectException, FileNotFoundException {
++    public String getEventId(final String project, final String changeId) throws NoSuchElementException, ConnectException, FileNotFoundException {
+         return getLastSavedEiffelEvent(project, changeId, Table.SCC_TABLE);
+     }
+ 
+     @Override
+-    public void saveEventId(String eiffelEventId, EiffelEvent eiffelEvent)
++    public void saveEventId(final String eiffelEventId, final EiffelEvent eiffelEvent)
+             throws NoSuchElementException, SQLException, ConnectException {
+-        EiffelSourceChangeCreatedEvent eiffelSourceChangeCreatedEvent = (EiffelSourceChangeCreatedEvent) eiffelEvent;
+-        String projectName = eiffelSourceChangeCreatedEvent.eventParams.data.gitIdentifier.repoName;
+-        String searchCriteria = eiffelSourceChangeCreatedEvent.eventParams.data.change.id;
++        final EiffelSourceChangeCreatedEvent eiffelSourceChangeCreatedEvent = (EiffelSourceChangeCreatedEvent) eiffelEvent;
++        final String searchCriteria = eiffelSourceChangeCreatedEvent.eventParams.data.change.id;
+ 
+-        saveEiffelEventId(projectName, searchCriteria, eiffelEventId, Table.SCC_TABLE);
++        saveEiffelEventId(searchCriteria, eiffelEventId, Table.SCC_TABLE);
+     }
+ }
+diff --git a/src/main/java/com/ericsson/gerrit/plugins/eiffel/storage/SourceChangeSubmittedStorage.java b/src/main/java/com/ericsson/gerrit/plugins/eiffel/storage/SourceChangeSubmittedStorage.java
+index 4e4de20..1da4a9a 100644
+--- a/src/main/java/com/ericsson/gerrit/plugins/eiffel/storage/SourceChangeSubmittedStorage.java
++++ b/src/main/java/com/ericsson/gerrit/plugins/eiffel/storage/SourceChangeSubmittedStorage.java
+@@ -17,11 +17,11 @@
+ 
+ package com.ericsson.gerrit.plugins.eiffel.storage;
+ 
+-import java.io.File;
+ import java.io.FileNotFoundException;
+ import java.net.ConnectException;
+ import java.sql.SQLException;
+ 
++import com.ericsson.gerrit.plugins.eiffel.configuration.EiffelPluginConfiguration;
+ import com.ericsson.gerrit.plugins.eiffel.events.EiffelEvent;
+ import com.ericsson.gerrit.plugins.eiffel.events.EiffelSourceChangeSubmittedEvent;
+ import com.ericsson.gerrit.plugins.eiffel.exceptions.NoSuchElementException;
+@@ -29,22 +29,21 @@
+ 
+ public class SourceChangeSubmittedStorage extends EventStorage {
+ 
+-    public SourceChangeSubmittedStorage(File pluginDir) {
+-        super(pluginDir);
++    public SourceChangeSubmittedStorage(final EiffelPluginConfiguration pluginConfig) {
++        super(pluginConfig);
+     }
+ 
+     @Override
+-    public String getEventId(String project, String branch) throws NoSuchElementException, ConnectException, FileNotFoundException {
++    public String getEventId(final String project, final String branch) throws NoSuchElementException, ConnectException, FileNotFoundException {
+         return getLastSavedEiffelEvent(project, branch, Table.SCS_TABLE);
+     }
+ 
+     @Override
+-    public void saveEventId(String eiffelEventId, EiffelEvent eiffelEvent)
++    public void saveEventId(final String eiffelEventId, final EiffelEvent eiffelEvent)
+             throws NoSuchElementException, ConnectException, SQLException {
+-        EiffelSourceChangeSubmittedEvent eiffelSourceChangeSubmittedEvent = (EiffelSourceChangeSubmittedEvent) eiffelEvent;
+-        String projectName = eiffelSourceChangeSubmittedEvent.eventParams.data.gitIdentifier.repoName;
+-        String searchCriteria = eiffelSourceChangeSubmittedEvent.eventParams.data.gitIdentifier.commitId;
++        final EiffelSourceChangeSubmittedEvent eiffelSourceChangeSubmittedEvent = (EiffelSourceChangeSubmittedEvent) eiffelEvent;
++        final String searchCriteria = eiffelSourceChangeSubmittedEvent.eventParams.data.gitIdentifier.commitId;
+ 
+-        saveEiffelEventId(projectName, searchCriteria, eiffelEventId, Table.SCS_TABLE);
++        saveEiffelEventId(searchCriteria, eiffelEventId, Table.SCS_TABLE);
+     }
+ }
+diff --git a/src/test/java/com/ericsson/gerrit/plugins/eiffel/configuration/EiffelPluginConfigurationTest.java b/src/test/java/com/ericsson/gerrit/plugins/eiffel/configuration/EiffelPluginConfigurationTest.java
+index 552fcfe..26a0d9e 100644
+--- a/src/test/java/com/ericsson/gerrit/plugins/eiffel/configuration/EiffelPluginConfigurationTest.java
++++ b/src/test/java/com/ericsson/gerrit/plugins/eiffel/configuration/EiffelPluginConfigurationTest.java
+@@ -1,6 +1,5 @@
+ package com.ericsson.gerrit.plugins.eiffel.configuration;
+ 
+-
+ import org.junit.Before;
+ import org.junit.Rule;
+ import org.junit.Test;
+@@ -16,6 +15,8 @@
+ 
+ public class EiffelPluginConfigurationTest {
+ 
++    private static final String PROJECT_NAME = "project";
++
+     @Rule
+     public ExpectedException exception = ExpectedException.none();
+ 
+@@ -34,22 +35,29 @@
+ 
+     @Before
+     public void init() throws NoSuchProjectException {
+-        nameKey = mock(NameKey.class);
++        nameKey = new NameKey(PROJECT_NAME);
+         pluginConfigFactory = mock(PluginConfigFactory.class);
+         pluginConfig = mock(PluginConfig.class);
+ 
+-        when(pluginConfigFactory.getFromProjectConfig(nameKey, PLUGIN_NAME)).thenReturn(pluginConfig);
+-        when(pluginConfig.getBoolean(EiffelPluginConfiguration.ENABLED, false)).thenReturn(ENABLED_TRUE);
++        when(pluginConfigFactory.getFromProjectConfig(nameKey, PLUGIN_NAME)).thenReturn(
++                pluginConfig);
++        when(pluginConfig.getBoolean(EiffelPluginConfiguration.ENABLED, false)).thenReturn(
++                ENABLED_TRUE);
+         when(pluginConfig.getStringList(EiffelPluginConfiguration.FILTER)).thenReturn(FILTER);
+-        when(pluginConfig.getStringList(EiffelPluginConfiguration.FLOW_CONTEXT)).thenReturn(FLOW_CONTEXT);
+-        when(pluginConfig.getString(EiffelPluginConfiguration.REMREM_PUBLISH_URL)).thenReturn(REMREM_PUBLISH_URL);
+-        when(pluginConfig.getString(EiffelPluginConfiguration.REMREM_USERNAME)).thenReturn(REMREM_USERNAME);
+-        when(pluginConfig.getString(EiffelPluginConfiguration.REMREM_PASSWORD)).thenReturn(REMREM_PASSWORD);
++        when(pluginConfig.getStringList(EiffelPluginConfiguration.FLOW_CONTEXT)).thenReturn(
++                FLOW_CONTEXT);
++        when(pluginConfig.getString(EiffelPluginConfiguration.REMREM_PUBLISH_URL)).thenReturn(
++                REMREM_PUBLISH_URL);
++        when(pluginConfig.getString(EiffelPluginConfiguration.REMREM_USERNAME)).thenReturn(
++                REMREM_USERNAME);
++        when(pluginConfig.getString(EiffelPluginConfiguration.REMREM_PASSWORD)).thenReturn(
++                REMREM_PASSWORD);
+     }
+ 
+     @Test
+     public void testEiffelPluginConfigurationException1() throws NoSuchProjectException {
+-        when(pluginConfigFactory.getFromProjectConfig(nameKey, PLUGIN_NAME)).thenThrow(NoSuchProjectException.class);
++        when(pluginConfigFactory.getFromProjectConfig(nameKey, PLUGIN_NAME)).thenThrow(
++                NoSuchProjectException.class);
+         exception.expect(ExceptionInInitializerError.class);
+ 
+         new EiffelPluginConfiguration(PLUGIN_NAME, nameKey, pluginConfigFactory);
+@@ -65,46 +73,61 @@ public void testEiffelPluginConfigurationException2() throws NoSuchProjectExcept
+ 
+     @Test
+     public void testEiffelPluginConfigurationDisabled() throws NoSuchProjectException {
+-        when(pluginConfig.getBoolean(EiffelPluginConfiguration.ENABLED, false)).thenReturn(ENABLED_FALSE);
++        when(pluginConfig.getBoolean(EiffelPluginConfiguration.ENABLED, false)).thenReturn(
++                ENABLED_FALSE);
+ 
+-        EiffelPluginConfiguration pluginConfig = new EiffelPluginConfiguration(PLUGIN_NAME, nameKey,
++        final EiffelPluginConfiguration pluginConfig = new EiffelPluginConfiguration(PLUGIN_NAME,
++                nameKey,
+                 pluginConfigFactory);
+-        assertEquals(pluginConfig.isEnabled(), false);
++        assertEquals(false, pluginConfig.isEnabled());
+     }
+ 
+     @Test
+     public void testEiffelPluginConfigurationRemremGenerateURL() throws NoSuchProjectException {
+-        EiffelPluginConfiguration pluginConfig = new EiffelPluginConfiguration(PLUGIN_NAME, nameKey,
++        final EiffelPluginConfiguration pluginConfig = new EiffelPluginConfiguration(PLUGIN_NAME,
++                nameKey,
+                 pluginConfigFactory);
+-        assertEquals(pluginConfig.getRemremPublishURL(), REMREM_PUBLISH_URL);
++        assertEquals(REMREM_PUBLISH_URL, pluginConfig.getRemremPublishURL());
+     }
+ 
+     @Test
+     public void testEiffelPluginConfigurationRemremUsername() throws NoSuchProjectException {
+-        EiffelPluginConfiguration pluginConfig = new EiffelPluginConfiguration(PLUGIN_NAME, nameKey,
++        final EiffelPluginConfiguration pluginConfig = new EiffelPluginConfiguration(PLUGIN_NAME,
++                nameKey,
+                 pluginConfigFactory);
+-        assertEquals(pluginConfig.getRemremUsername(), REMREM_USERNAME);
++        assertEquals(REMREM_USERNAME, pluginConfig.getRemremUsername());
+     }
+ 
+     @Test
+     public void testEiffelPluginConfigurationFilter() throws NoSuchProjectException {
+-        EiffelPluginConfiguration pluginConfig = new EiffelPluginConfiguration(PLUGIN_NAME, nameKey,
++        final EiffelPluginConfiguration pluginConfig = new EiffelPluginConfiguration(PLUGIN_NAME,
++                nameKey,
+                 pluginConfigFactory);
+-        assertEquals(pluginConfig.getFilter(), "");
++        assertEquals("", pluginConfig.getFilter());
+     }
+ 
+     @Test
+     public void testEiffelPluginConfigurationtFlowContext() throws NoSuchProjectException {
+-        EiffelPluginConfiguration pluginConfig = new EiffelPluginConfiguration(PLUGIN_NAME, nameKey,
++        final EiffelPluginConfiguration pluginConfig = new EiffelPluginConfiguration(PLUGIN_NAME,
++                nameKey,
+                 pluginConfigFactory);
+-        assertEquals(pluginConfig.getFlowContext(), "");
++        assertEquals("", pluginConfig.getFlowContext());
+     }
+ 
+     @Test
+     public void testEiffelPluginConfigurationEnabled() throws NoSuchProjectException {
+-        EiffelPluginConfiguration pluginConfig = new EiffelPluginConfiguration(PLUGIN_NAME, nameKey,
++        final EiffelPluginConfiguration pluginConfig = new EiffelPluginConfiguration(PLUGIN_NAME,
++                nameKey,
++                pluginConfigFactory);
++        assertEquals(ENABLED_TRUE, pluginConfig.isEnabled());
++    }
++
++    @Test
++    public void testEiffelPluginConfigurationGetProject() throws NoSuchProjectException {
++        final EiffelPluginConfiguration pluginConfig = new EiffelPluginConfiguration(PLUGIN_NAME,
++                nameKey,
+                 pluginConfigFactory);
+-        assertEquals(pluginConfig.isEnabled(), ENABLED_TRUE);
++        assertEquals(PROJECT_NAME, pluginConfig.getProject());
+     }
+ 
+ }
+\ No newline at end of file
+diff --git a/src/test/java/com/ericsson/gerrit/plugins/eiffel/events/generators/EiffelEventGeneratorTest.java b/src/test/java/com/ericsson/gerrit/plugins/eiffel/events/generators/EiffelEventGeneratorTest.java
+index 00b4ba4..26d5344 100644
+--- a/src/test/java/com/ericsson/gerrit/plugins/eiffel/events/generators/EiffelEventGeneratorTest.java
++++ b/src/test/java/com/ericsson/gerrit/plugins/eiffel/events/generators/EiffelEventGeneratorTest.java
+@@ -7,7 +7,6 @@
+ import static org.powermock.api.mockito.PowerMockito.when;
+ import static org.powermock.api.mockito.PowerMockito.whenNew;
+ 
+-import java.io.File;
+ import java.io.FileNotFoundException;
+ import java.net.ConnectException;
+ import java.net.InetAddress;
+@@ -28,6 +27,7 @@
+ import org.slf4j.Logger;
+ import org.slf4j.LoggerFactory;
+ 
++import com.ericsson.gerrit.plugins.eiffel.configuration.EiffelPluginConfiguration;
+ import com.ericsson.gerrit.plugins.eiffel.events.EiffelSourceChangeCreatedEvent;
+ import com.ericsson.gerrit.plugins.eiffel.events.EiffelSourceChangeSubmittedEvent;
+ import com.ericsson.gerrit.plugins.eiffel.exceptions.NoSuchElementException;
+@@ -70,7 +70,7 @@
+     private static final int SIZE_DELETIONS = 1;
+     private static final int DEFAULT_PORT = 29418;
+ 
+-    private Gson gson = new Gson();
++    private final Gson gson = new Gson();
+ 
+     private PatchSetCreatedEvent patchSetCreatedEvent;
+     private ChangeMergedEvent changeMergedEvent;
+@@ -83,7 +83,7 @@
+ 
+     private CommitInformation commitInformation;
+ 
+-    private File pluginDirectory;
++    private EiffelPluginConfiguration pluginConfig;
+ 
+     @Captor
+     private ArgumentCaptor<String> keyCaptor;
+@@ -99,9 +99,9 @@ public void setUp() throws ConnectException, FileNotFoundException, NoSuchElemen
+     public void testEiffelSourceChangeSubmittedEventGenerator() {
+         populateChangeMergedEvent();
+ 
+-        EiffelSourceChangeSubmittedEvent eiffelEvent =
++        final EiffelSourceChangeSubmittedEvent eiffelEvent =
+                 EiffelSourceChangeSubmittedEventGenerator.generate(
+-                        changeMergedEvent, pluginDirectory, commitInformation);
++                        pluginConfig, changeMergedEvent, commitInformation);
+ 
+         verifyEiffelSourceChangeSubmittedEvent(eiffelEvent);
+     }
+@@ -110,8 +110,8 @@ public void testEiffelSourceChangeSubmittedEventGenerator() {
+      public void testEiffelSourceChangeCreatedEventGenerator() {
+      populatePatchSetCreatedEvent();
+ 
+-        EiffelSourceChangeCreatedEvent eiffelEvent = EiffelSourceChangeCreatedEventGenerator.generate(
+-                patchSetCreatedEvent, pluginDirectory, commitInformation);
++        final EiffelSourceChangeCreatedEvent eiffelEvent = EiffelSourceChangeCreatedEventGenerator.generate(
++                pluginConfig, patchSetCreatedEvent, commitInformation);
+ 
+      verifyEiffelSourceChangeCreatedEvent(eiffelEvent);
+      }
+@@ -120,7 +120,7 @@ public void testEiffelSourceChangeCreatedEventGenerator() {
+     public void testEiffelEventGeneratorHostNameException() {
+         setUpHostNameExceptionMock();
+ 
+-        String hostName = EiffelEventGenerator.determineHostName();
++        final String hostName = EiffelEventGenerator.determineHostName();
+         assertEquals("Host name should have been set to null", null, hostName);
+     }
+ 
+@@ -128,7 +128,7 @@ public void testEiffelEventGeneratorHostNameException() {
+     public void testEiffelEventGeneratorRepoUriException() {
+         setUpRepoUriExceptionMocks();
+ 
+-        String repoURI = EiffelEventGenerator.createRepoURI(URL, PROJECT);
++        final String repoURI = EiffelEventGenerator.createRepoURI(URL, PROJECT);
+         assertEquals("Repo URI should have been set to null", null, repoURI);
+     }
+ 
+@@ -136,13 +136,13 @@ public void testEiffelEventGeneratorRepoUriException() {
+     public void testEiffelEventGeneratorSshBaseUrlException() {
+         setUpSshBaseUrlExceptionMocks();
+ 
+-        String repoURI = EiffelEventGenerator.createRepoURI(URL, PROJECT);
++        final String repoURI = EiffelEventGenerator.createRepoURI(URL, PROJECT);
+         assertEquals("Repo URI should have been set to null", null, repoURI);
+     }
+ 
+     @Test
+     public void testEiffelEventGeneratorNullHost() {
+-        String repoURI = EiffelEventGenerator.createRepoURI(NULL_HOST, PROJECT);
++        final String repoURI = EiffelEventGenerator.createRepoURI(NULL_HOST, PROJECT);
+ 
+         assertNull("Repo URI should have been set to null", repoURI);
+     }
+@@ -152,16 +152,16 @@ public void testGetPreviousEiffelEventInSourceChangeCreated()
+             throws ConnectException, FileNotFoundException, NoSuchElementException {
+         populatePatchSetCreatedEvent();
+ 
+-        SourceChangeCreatedStorage sourceChangeCreatedState = mock(SourceChangeCreatedStorage.class);
++        final SourceChangeCreatedStorage sourceChangeCreatedState = mock(SourceChangeCreatedStorage.class);
+         when(EventStorageFactory.getEventStorage(Mockito.any(), Mockito.any())).thenReturn(sourceChangeCreatedState);
+ 
+-        EiffelSourceChangeCreatedEventGenerator.generate(patchSetCreatedEvent, pluginDirectory,
++        EiffelSourceChangeCreatedEventGenerator.generate(pluginConfig, patchSetCreatedEvent,
+                 commitInformation);
+ 
+         Mockito.verify(sourceChangeCreatedState, Mockito.times(2)).getEventId(keyCaptor.capture(),
+                 valueCaptor.capture());
+ 
+-        List<String> parametersCalledWith = valueCaptor.getAllValues();
++        final List<String> parametersCalledWith = valueCaptor.getAllValues();
+         assertEquals("Incorrect parameter, should have been a changeID", CHANGE_ID, parametersCalledWith.get(0));
+         assertEquals("Incorrect parameter, should have been a branch.", PARENT_SHA, parametersCalledWith.get(1));
+     }
+@@ -171,16 +171,16 @@ public void testGetPreviousEiffelEventInSourceChangeSubmitted()
+             throws ConnectException, FileNotFoundException, NoSuchElementException {
+         populateChangeMergedEvent();
+ 
+-        SourceChangeSubmittedStorage sourceChangeSubmittedState = mock(SourceChangeSubmittedStorage.class);
++        final SourceChangeSubmittedStorage sourceChangeSubmittedState = mock(SourceChangeSubmittedStorage.class);
+         when(EventStorageFactory.getEventStorage(Mockito.any(), Mockito.any())).thenReturn(sourceChangeSubmittedState);
+ 
+-        EiffelSourceChangeSubmittedEventGenerator.generate(changeMergedEvent, pluginDirectory,
++        EiffelSourceChangeSubmittedEventGenerator.generate(pluginConfig, changeMergedEvent,
+                 commitInformation);
+ 
+         Mockito.verify(sourceChangeSubmittedState, Mockito.times(2)).getEventId(keyCaptor.capture(),
+                 valueCaptor.capture());
+ 
+-        List<String> parametersCalledWith = valueCaptor.getAllValues();
++        final List<String> parametersCalledWith = valueCaptor.getAllValues();
+         assertEquals("Incorrect parameter, should have been a changeID", CHANGE_ID, parametersCalledWith.get(0));
+         assertEquals("Incorrect parameter, should have been a branch.", PARENT_SHA, parametersCalledWith.get(1));
+     }
+@@ -190,13 +190,13 @@ public void testCreateLinksForSCCWithNoPreviousEventIdSaved()
+             throws ConnectException, FileNotFoundException, NoSuchElementException {
+         populatePatchSetCreatedEvent();
+ 
+-        SourceChangeCreatedStorage sourceChangeCreatedState = mock(SourceChangeCreatedStorage.class);
++        final SourceChangeCreatedStorage sourceChangeCreatedState = mock(SourceChangeCreatedStorage.class);
+         when(EventStorageFactory.getEventStorage(Mockito.any(), Mockito.any())).thenReturn(sourceChangeCreatedState);
+         when(sourceChangeCreatedState.getEventId(Mockito.any(), Mockito.any()))
+                 .thenThrow(new NoSuchElementException("exception"));
+ 
+-        EiffelSourceChangeCreatedEvent eiffelEvent = EiffelSourceChangeCreatedEventGenerator
+-                .generate(patchSetCreatedEvent, pluginDirectory, commitInformation);
++        final EiffelSourceChangeCreatedEvent eiffelEvent = EiffelSourceChangeCreatedEventGenerator
++                .generate(pluginConfig, patchSetCreatedEvent, commitInformation);
+         assertEquals("No links should have been created.", 0, eiffelEvent.eventParams.links.size());
+     }
+ 
+@@ -205,13 +205,13 @@ public void testCreateLinksForSCSWithNoPreviousEventIdSaved()
+             throws ConnectException, FileNotFoundException, NoSuchElementException {
+         populateChangeMergedEvent();
+ 
+-        SourceChangeSubmittedStorage sourceChangeSubmittedState = mock(SourceChangeSubmittedStorage.class);
++        final SourceChangeSubmittedStorage sourceChangeSubmittedState = mock(SourceChangeSubmittedStorage.class);
+         when(EventStorageFactory.getEventStorage(Mockito.any(), Mockito.any())).thenReturn(sourceChangeSubmittedState);
+         when(sourceChangeSubmittedState.getEventId(Mockito.any(), Mockito.any()))
+                 .thenThrow(new NoSuchElementException("exception"));
+ 
+-        EiffelSourceChangeSubmittedEvent eiffelEvent = EiffelSourceChangeSubmittedEventGenerator
+-                .generate(changeMergedEvent, pluginDirectory, commitInformation);
++        final EiffelSourceChangeSubmittedEvent eiffelEvent = EiffelSourceChangeSubmittedEventGenerator
++                .generate(pluginConfig, changeMergedEvent, commitInformation);
+         assertEquals("No links should have been created.", 0, eiffelEvent.eventParams.links.size());
+     }
+ 
+@@ -220,17 +220,17 @@ public void testCreateLinksForSCCWithPreviousEventIdSaved()
+             throws ConnectException, FileNotFoundException, NoSuchElementException {
+         populatePatchSetCreatedEvent();
+ 
+-        SourceChangeCreatedStorage sourceChangeCreatedState = mock(SourceChangeCreatedStorage.class);
++        final SourceChangeCreatedStorage sourceChangeCreatedState = mock(SourceChangeCreatedStorage.class);
+         when(EventStorageFactory.getEventStorage(Mockito.any(), Mockito.any())).thenReturn(sourceChangeCreatedState);
+         when(sourceChangeCreatedState.getEventId(Mockito.any(), Mockito.any())).thenReturn("previous-event-id");
+ 
+-        EiffelSourceChangeCreatedEvent eiffelEvent = EiffelSourceChangeCreatedEventGenerator
+-                .generate(patchSetCreatedEvent, pluginDirectory, commitInformation);
++        final EiffelSourceChangeCreatedEvent eiffelEvent = EiffelSourceChangeCreatedEventGenerator
++                .generate(pluginConfig, patchSetCreatedEvent, commitInformation);
+ 
+-        String expectedTypePreviousVersion = "PREVIOUS_VERSION";
+-        String expectedTypeBase = "BASE";
++        final String expectedTypePreviousVersion = "PREVIOUS_VERSION";
++        final String expectedTypeBase = "BASE";
+ 
+-        String message = "Incorrect link type.";
++        final String message = "Incorrect link type.";
+         assertEquals(message, expectedTypePreviousVersion, eiffelEvent.eventParams.links.get(0).type);
+         assertEquals(message, expectedTypeBase, eiffelEvent.eventParams.links.get(1).type);
+     }
+@@ -240,17 +240,17 @@ public void testCreateLinksForSCSWithPreviousEventIdSaved()
+             throws ConnectException, FileNotFoundException, NoSuchElementException {
+         populateChangeMergedEvent();
+ 
+-        SourceChangeSubmittedStorage sourceChangeSubmittedState = mock(SourceChangeSubmittedStorage.class);
++        final SourceChangeSubmittedStorage sourceChangeSubmittedState = mock(SourceChangeSubmittedStorage.class);
+         when(EventStorageFactory.getEventStorage(Mockito.any(), Mockito.any())).thenReturn(sourceChangeSubmittedState);
+         when(sourceChangeSubmittedState.getEventId(Mockito.any(), Mockito.any())).thenReturn("previous-event-id");
+ 
+-        EiffelSourceChangeSubmittedEvent eiffelEvent = EiffelSourceChangeSubmittedEventGenerator
+-                .generate(changeMergedEvent, pluginDirectory, commitInformation);
++        final EiffelSourceChangeSubmittedEvent eiffelEvent = EiffelSourceChangeSubmittedEventGenerator
++                .generate(pluginConfig, changeMergedEvent, commitInformation);
+ 
+-        String expectedTypeChange = "CHANGE";
+-        String expectedTypePreviousVersion = "PREVIOUS_VERSION";
++        final String expectedTypeChange = "CHANGE";
++        final String expectedTypePreviousVersion = "PREVIOUS_VERSION";
+ 
+-        String message = "Incorrect link type.";
++        final String message = "Incorrect link type.";
+         assertEquals(message, expectedTypeChange, eiffelEvent.eventParams.links.get(0).type);
+         assertEquals(message, expectedTypePreviousVersion, eiffelEvent.eventParams.links.get(1).type);
+     }
+@@ -266,11 +266,11 @@ private void setUpMocks() throws ConnectException, FileNotFoundException, NoSuch
+         accountAttribute = mock(AccountAttribute.class);
+         changeKey = mock(Key.class);
+         changeMergedEvent.changeKey = changeKey;
+-        pluginDirectory = mock(File.class);
++        pluginConfig = mock(EiffelPluginConfiguration.class);
+         commitInformation = mock(CommitInformation.class);
+ 
+         mockStatic(EventStorageFactory.class);
+-        SourceChangeSubmittedStorage sourceChangeSubmittedState = mock(SourceChangeSubmittedStorage.class);
++        final SourceChangeSubmittedStorage sourceChangeSubmittedState = mock(SourceChangeSubmittedStorage.class);
+ 
+         when(supplierChangeAttribute.get()).thenReturn(changeAttribute);
+         when(supplierPatchSetAttribute.get()).thenReturn(patchSetAttribute);
+@@ -287,25 +287,25 @@ private void setUpHostNameExceptionMock() {
+         mockStatic(InetAddress.class);
+         try {
+             when(InetAddress.getLocalHost()).thenThrow(UnknownHostException.class);
+-        } catch (Exception ignore) {
++        } catch (final Exception ignore) {
+         }
+     }
+ 
+     private void setUpRepoUriExceptionMocks() {
+         try {
+             whenNew(URI.class).withArguments(URL).thenThrow(URISyntaxException.class);
+-        } catch (Exception ignore) {
++        } catch (final Exception ignore) {
+         }
+     }
+ 
+     private void setUpSshBaseUrlExceptionMocks() {
+         try {
+-            URI uri = new URI(URL);
+-            String host = uri.getHost();
++            final URI uri = new URI(URL);
++            final String host = uri.getHost();
+             whenNew(URI.class).withArguments(URL).thenReturn(uri);
+             whenNew(URI.class).withArguments("ssh", null, host, DEFAULT_PORT, "/", null, null)
+                               .thenThrow(URISyntaxException.class);
+-        } catch (Exception ignore) {
++        } catch (final Exception ignore) {
+         }
+     }
+ 
+@@ -339,22 +339,22 @@ private void populatePatchSetCreatedEvent() {
+     }
+ 
+     private void verifyEiffelSourceChangeSubmittedEvent(
+-            EiffelSourceChangeSubmittedEvent eiffelEvent) {
+-        JsonObject eiffelEventJson = gson.toJsonTree(eiffelEvent).getAsJsonObject();
++            final EiffelSourceChangeSubmittedEvent eiffelEvent) {
++        final JsonObject eiffelEventJson = gson.toJsonTree(eiffelEvent).getAsJsonObject();
+         LOGGER.debug("EiffelSourceChangeSubmittedEvent : \n{}", eiffelEventJson.toString());
+ 
+-        JsonObject meta = eiffelEventJson.getAsJsonObject("msgParams").getAsJsonObject("meta");
+-        JsonObject source = meta.getAsJsonObject("source");
+-        JsonObject data = eiffelEventJson.getAsJsonObject("eventParams").getAsJsonObject("data");
+-        JsonObject submitter = data.getAsJsonObject("submitter");
+-        JsonObject gitIdentifier = data.getAsJsonObject("gitIdentifier");
+-        JsonObject eventParams = eiffelEventJson.getAsJsonObject("eventParams");
++        final JsonObject meta = eiffelEventJson.getAsJsonObject("msgParams").getAsJsonObject("meta");
++        final JsonObject source = meta.getAsJsonObject("source");
++        final JsonObject data = eiffelEventJson.getAsJsonObject("eventParams").getAsJsonObject("data");
++        final JsonObject submitter = data.getAsJsonObject("submitter");
++        final JsonObject gitIdentifier = data.getAsJsonObject("gitIdentifier");
++        final JsonObject eventParams = eiffelEventJson.getAsJsonObject("eventParams");
+ 
+-        JsonArray links = eventParams.getAsJsonArray("links");
+-        JsonObject link1 = links.get(0).getAsJsonObject();
+-        JsonObject link2 = links.get(1).getAsJsonObject();
++        final JsonArray links = eventParams.getAsJsonArray("links");
++        final JsonObject link1 = links.get(0).getAsJsonObject();
++        final JsonObject link2 = links.get(1).getAsJsonObject();
+ 
+-        String errorMessage = "Eiffel event did not generate properly";
++        final String errorMessage = "Eiffel event did not generate properly";
+         assertEquals(errorMessage, SCS_EVENT, meta.get("type").getAsString());
+         assertEquals(errorMessage, SOURCE_NAME, source.get("name").getAsString());
+         assertEquals(errorMessage, URL, source.get("uri").getAsString());
+@@ -370,23 +370,23 @@ private void verifyEiffelSourceChangeSubmittedEvent(
+ 
+ 
+     private void verifyEiffelSourceChangeCreatedEvent(
+-            EiffelSourceChangeCreatedEvent eiffelEvent) {
+-        JsonObject eiffelEventJson = gson.toJsonTree(eiffelEvent).getAsJsonObject();
++            final EiffelSourceChangeCreatedEvent eiffelEvent) {
++        final JsonObject eiffelEventJson = gson.toJsonTree(eiffelEvent).getAsJsonObject();
+         LOGGER.debug("EiffelSourceChangeCreatedEvent : \n{}", eiffelEventJson.toString());
+ 
+-        JsonObject meta = eiffelEventJson.getAsJsonObject("msgParams").getAsJsonObject("meta");
+-        JsonObject source = meta.getAsJsonObject("source");
+-        JsonObject data = eiffelEventJson.getAsJsonObject("eventParams").getAsJsonObject("data");
+-        JsonObject author = data.getAsJsonObject("author");
+-        JsonObject gitIdentifier = data.getAsJsonObject("gitIdentifier");
+-        JsonObject change = data.getAsJsonObject("change");
+-        JsonObject eventParams = eiffelEventJson.getAsJsonObject("eventParams");
++        final JsonObject meta = eiffelEventJson.getAsJsonObject("msgParams").getAsJsonObject("meta");
++        final JsonObject source = meta.getAsJsonObject("source");
++        final JsonObject data = eiffelEventJson.getAsJsonObject("eventParams").getAsJsonObject("data");
++        final JsonObject author = data.getAsJsonObject("author");
++        final JsonObject gitIdentifier = data.getAsJsonObject("gitIdentifier");
++        final JsonObject change = data.getAsJsonObject("change");
++        final JsonObject eventParams = eiffelEventJson.getAsJsonObject("eventParams");
+ 
+-        JsonArray links = eventParams.getAsJsonArray("links");
+-        JsonObject link1 = links.get(0).getAsJsonObject();
+-        JsonObject link2 = links.get(1).getAsJsonObject();
++        final JsonArray links = eventParams.getAsJsonArray("links");
++        final JsonObject link1 = links.get(0).getAsJsonObject();
++        final JsonObject link2 = links.get(1).getAsJsonObject();
+ 
+-        String errorMessage = "Eiffel event did not generate properly";
++        final String errorMessage = "Eiffel event did not generate properly";
+         assertEquals(errorMessage, SCC_EVENT, meta.get("type").getAsString());
+         assertEquals(errorMessage, SOURCE_NAME, source.get("name").getAsString());
+         assertEquals(errorMessage, URL, source.get("uri").getAsString());
+diff --git a/src/test/java/com/ericsson/gerrit/plugins/eiffel/listeners/TestAbstractEventListener.java b/src/test/java/com/ericsson/gerrit/plugins/eiffel/listeners/TestAbstractEventListener.java
+index 0935827..11a8dca 100644
+--- a/src/test/java/com/ericsson/gerrit/plugins/eiffel/listeners/TestAbstractEventListener.java
++++ b/src/test/java/com/ericsson/gerrit/plugins/eiffel/listeners/TestAbstractEventListener.java
+@@ -211,15 +211,15 @@ private void populateChangeMergedEvent() {
+     private boolean isExpectedGerritEvent = false;
+     private EiffelPluginConfiguration pluginConfig;
+ 
+-    public ListenerTestMock(String pluginName, File pluginDir) {
++    public ListenerTestMock(final String pluginName, final File pluginDir) {
+         super(pluginName, pluginDir);
+     }
+ 
+-    public void setPluginConfig(EiffelPluginConfiguration pluginConfig) {
++    public void setPluginConfig(final EiffelPluginConfiguration pluginConfig) {
+         this.pluginConfig = pluginConfig;
+     }
+ 
+-    public void setIsExpectedGerritEvent(boolean isExpectedGerritEvent) {
++    public void setIsExpectedGerritEvent(final boolean isExpectedGerritEvent) {
+         this.isExpectedGerritEvent = isExpectedGerritEvent;
+     }
+ 
+@@ -251,7 +251,7 @@ public EiffelPluginConfiguration createPluginConfig(final Event gerritEvent) {
+      * @param pluginConfig
+      * @return
+      */
+-    public boolean verifyPluginEnabled(Event gerritEvent, EiffelPluginConfiguration pluginConfig) {
++    public boolean verifyPluginEnabled(final Event gerritEvent, final EiffelPluginConfiguration pluginConfig) {
+         return isEiffelEventSendingEnabled(gerritEvent, pluginConfig);
+     }
+ 
+@@ -259,7 +259,7 @@ public boolean verifyPluginEnabled(Event gerritEvent, EiffelPluginConfiguration
+      * This method is enforced by the AbstractEventListener and not used in test.
+      */
+     @Override
+-    protected boolean isExpectedGerritEvent(Event gerritEvent) {
++    protected boolean isExpectedGerritEvent(final Event gerritEvent) {
+         if (isExpectedGerritEvent) {
+             isExpectedGerritEvent = false;
+             return true;
+@@ -271,8 +271,8 @@ protected boolean isExpectedGerritEvent(Event gerritEvent) {
+      * This method is enforced by the AbstractEventListener and not used in test.
+      */
+     @Override
+-    protected void prepareAndSendEiffelEvent(Event gerritEvent,
+-            EiffelPluginConfiguration pluginConfig) {
++    protected void prepareAndSendEiffelEvent(final Event gerritEvent,
++            final EiffelPluginConfiguration pluginConfig) {
+         isPrepareAndSendEiffelEventMethodCalled = true;
+     }
+ 
+diff --git a/src/test/java/com/ericsson/gerrit/plugins/eiffel/messaging/EiffelEventSenderTest.java b/src/test/java/com/ericsson/gerrit/plugins/eiffel/messaging/EiffelEventSenderTest.java
+index 4512760..55c4c1f 100644
+--- a/src/test/java/com/ericsson/gerrit/plugins/eiffel/messaging/EiffelEventSenderTest.java
++++ b/src/test/java/com/ericsson/gerrit/plugins/eiffel/messaging/EiffelEventSenderTest.java
+@@ -1,6 +1,5 @@
+ package com.ericsson.gerrit.plugins.eiffel.messaging;
+ 
+-import java.io.File;
+ import java.io.IOException;
+ import java.net.URISyntaxException;
+ 
+@@ -23,7 +22,6 @@
+     private EiffelPluginConfiguration pluginConfig;
+     private HttpRequest httpRequest;
+     private ResponseEntity response;
+-    private File pluginDir;
+ 
+     private static final String EIFFEL_TYPE = "EiffelSourceChangeCreatedEvent";
+     private static final int STATUS_OK = HttpStatus.SC_OK;
+@@ -38,7 +36,7 @@ public void beforeTest() throws IOException, URISyntaxException {
+     public void testEventSender() throws Exception {
+         setUpMockActions();
+ 
+-        EiffelEventSender sender = new EiffelEventSender(pluginDir, pluginConfig, httpRequest);
++        final EiffelEventSender sender = new EiffelEventSender(pluginConfig, httpRequest);
+         sender.setEiffelEventMessage(new EiffelSourceChangeCreatedEvent());
+         sender.setEiffelEventType(EIFFEL_TYPE);
+ 
+@@ -48,7 +46,7 @@ public void testEventSender() throws Exception {
+ 
+     @Test(expected = MissingConfigurationException.class)
+     public void testEventSenderWithMissingConfiguration() throws Exception {
+-        EiffelEventSender sender = new EiffelEventSender(pluginDir, pluginConfig, httpRequest);
++        final EiffelEventSender sender = new EiffelEventSender(pluginConfig, httpRequest);
+         sender.setEiffelEventMessage(new EiffelSourceChangeCreatedEvent());
+         sender.setEiffelEventType("");
+ 
+@@ -59,7 +57,7 @@ public void testEventSenderWithMissingConfiguration() throws Exception {
+     public void testEventSenderWithBadStatus() throws Exception {
+         setUpMockActionsWithBadStatus();
+ 
+-        EiffelEventSender sender = new EiffelEventSender(pluginDir, pluginConfig, httpRequest);
++        final EiffelEventSender sender = new EiffelEventSender(pluginConfig, httpRequest);
+         sender.setEiffelEventMessage(new EiffelSourceChangeCreatedEvent());
+         sender.setEiffelEventType(EIFFEL_TYPE);
+ 
+@@ -70,7 +68,6 @@ private void setUpMockObjects() throws URISyntaxException, IOException {
+         httpRequest = Mockito.mock(HttpRequest.class);
+         pluginConfig = Mockito.mock(EiffelPluginConfiguration.class);
+         response = Mockito.mock(ResponseEntity.class);
+-        pluginDir = Mockito.mock(File.class);
+     }
+ 
+     private void setUpMockActions() throws URISyntaxException, IOException {
+diff --git a/src/test/java/com/ericsson/gerrit/plugins/eiffel/messaging/RetryRequestTest.java b/src/test/java/com/ericsson/gerrit/plugins/eiffel/messaging/RetryRequestTest.java
+index 4677a53..b5154f9 100644
+--- a/src/test/java/com/ericsson/gerrit/plugins/eiffel/messaging/RetryRequestTest.java
++++ b/src/test/java/com/ericsson/gerrit/plugins/eiffel/messaging/RetryRequestTest.java
+@@ -44,8 +44,8 @@
+     private HttpRequest httpRequest;
+     private ResponseEntity response;
+     private ChangeMergedEvent changeMergedEvent;
+-    private MutableInt counter = new MutableInt();
+-    private EiffelSourceChangeSubmittedEvent eiffelEvent = new EiffelSourceChangeSubmittedEvent();
++    private final MutableInt counter = new MutableInt();
++    private final EiffelSourceChangeSubmittedEvent eiffelEvent = new EiffelSourceChangeSubmittedEvent();
+ 
+     private static final String EIFFEL_TYPE = "EiffelSourceChangeCreatedEvent";
+     private static final int STATUS_ERROR = HttpStatus.SC_INTERNAL_SERVER_ERROR;
+@@ -53,7 +53,7 @@
+     private static final File FILE_DIR = new File("");
+     private CommitInformation commitInformation;
+ 
+-    private LogHelper logHelper = new LogHelper();
++    private final LogHelper logHelper = new LogHelper();
+ 
+     @Before
+     public void beforeTest() throws IOException, URISyntaxException {
+@@ -72,21 +72,21 @@ public void testRetryLogic() throws URISyntaxException, IOException {
+         setUpMockActions();
+         counter.setValue(0);
+ 
+-        RetryConfiguration retryConfiguration = new RetryConfiguration();
+-        EiffelEventSender eiffelEventSender = new EiffelEventSender(FILE_DIR, pluginConfig, httpRequest);
++        final RetryConfiguration retryConfiguration = new RetryConfiguration();
++        final EiffelEventSender eiffelEventSender = new EiffelEventSender(pluginConfig, httpRequest);
+         eiffelEventSender.setEiffelEventMessage(new EiffelSourceChangeCreatedEvent());
+         eiffelEventSender.setEiffelEventType(EIFFEL_TYPE);
+ 
+-        Retry policy = retryConfiguration.getRetryPolicy();
+-        Runnable decoratedRunnable = Decorators.ofRunnable(() -> {
++        final Retry policy = retryConfiguration.getRetryPolicy();
++        final Runnable decoratedRunnable = Decorators.ofRunnable(() -> {
+             counter.setValue(counter.getValue().intValue() + 1);
+             eiffelEventSender.send();
+         }).withRetry(policy).decorate();
+         Try.runRunnable(decoratedRunnable);
+ 
+-        int expectedValue = retryConfiguration.getMaxAttempts();
+-        int actualValue = counter.getValue().intValue();
+-        String errorMessage = String.format("Expected retry counter to be %d but was %d",
++        final int expectedValue = retryConfiguration.getMaxAttempts();
++        final int actualValue = counter.getValue().intValue();
++        final String errorMessage = String.format("Expected retry counter to be %d but was %d",
+                 expectedValue, actualValue);
+         assertEquals(errorMessage, expectedValue, actualValue);
+ 
+@@ -99,13 +99,13 @@ public void testPrepareAndSendEiffelEvent() throws Exception {
+         setUpMockActions();
+         setUpMocksAndActionsForMethodInvoke();
+ 
+-        RetryConfiguration retryConfiguration = new RetryConfiguration();
+-        ChangeMergedEventListener listener = new ChangeMergedEventListener(PLUGIN_NAME, FILE_DIR);
++        final RetryConfiguration retryConfiguration = new RetryConfiguration();
++        final ChangeMergedEventListener listener = new ChangeMergedEventListener(PLUGIN_NAME, FILE_DIR);
+         Whitebox.setInternalState(listener, "retryConfiguration", retryConfiguration);
+         Whitebox.invokeMethod(listener, "sendEiffelEvent", eiffelEvent,
+                 pluginConfig);
+ 
+-        ThreadPoolExecutor executor = Whitebox.<ThreadPoolExecutor>getInternalState(
++        final ThreadPoolExecutor executor = Whitebox.<ThreadPoolExecutor>getInternalState(
+                 AbstractEventListener.class, "executor");
+         int expectedValue = 1;
+         int actualValue = executor.getActiveCount();
+@@ -114,7 +114,7 @@ public void testPrepareAndSendEiffelEvent() throws Exception {
+         assertEquals(errorMessage, expectedValue, actualValue);
+ 
+         boolean finished = false;
+-        long stopTime = System.currentTimeMillis() + 30000;
++        final long stopTime = System.currentTimeMillis() + 30000;
+         while (!finished && stopTime > System.currentTimeMillis()) {
+             if (executor.getActiveCount() > 0) {
+                 Thread.sleep(1000);
+@@ -152,12 +152,12 @@ private void setUpMockActions() throws URISyntaxException, IOException {
+     private void setUpMocksAndActionsForMethodInvoke() throws Exception {
+         PowerMockito.mockStatic(EiffelSourceChangeSubmittedEventGenerator.class);
+         Mockito.when(
+-                EiffelSourceChangeSubmittedEventGenerator.generate(changeMergedEvent, FILE_DIR,
++                EiffelSourceChangeSubmittedEventGenerator.generate(pluginConfig, changeMergedEvent,
+                         commitInformation))
+                .thenReturn(eiffelEvent);
+-        EiffelEventSender sender = new EiffelEventSender(FILE_DIR, pluginConfig, httpRequest);
++        final EiffelEventSender sender = new EiffelEventSender(pluginConfig, httpRequest);
+         PowerMockito.whenNew(EiffelEventSender.class)
+-                    .withArguments(FILE_DIR, pluginConfig)
++                    .withArguments(pluginConfig)
+                     .thenReturn(sender);
+     }
+ }
+diff --git a/src/test/java/com/ericsson/gerrit/plugins/eiffel/storage/EventStorageTest.java b/src/test/java/com/ericsson/gerrit/plugins/eiffel/storage/EventStorageTest.java
+index 16e3908..13d2628 100644
+--- a/src/test/java/com/ericsson/gerrit/plugins/eiffel/storage/EventStorageTest.java
++++ b/src/test/java/com/ericsson/gerrit/plugins/eiffel/storage/EventStorageTest.java
+@@ -17,6 +17,7 @@
+ import org.powermock.core.classloader.annotations.PrepareForTest;
+ import org.powermock.modules.junit4.PowerMockRunner;
+ 
++import com.ericsson.gerrit.plugins.eiffel.configuration.EiffelPluginConfiguration;
+ import com.ericsson.gerrit.plugins.eiffel.exceptions.NoSuchElementException;
+ import com.ericsson.gerrit.plugins.eiffel.handlers.DatabaseHandler;
+ import com.ericsson.gerrit.plugins.eiffel.handlers.Table;
+@@ -42,21 +43,28 @@
+     @Before
+     public void init() throws Exception {
+         tmpFolderPath = testFolder.newFolder();
++
++        final EiffelPluginConfiguration pluginConfig = Mockito.mock(EiffelPluginConfiguration.class);
++        PowerMockito.when(pluginConfig.getProject()).thenReturn(PROJECT);
++        PowerMockito.when(pluginConfig.getPluginDirectoryPath()).thenReturn(tmpFolderPath);
++
+         dbHandler = Mockito.mock(DatabaseHandler.class);
+         PowerMockito.whenNew(DatabaseHandler.class).withParameterTypes(File.class, String.class).withArguments(Mockito.any())
+                 .thenReturn(dbHandler);
+-        sourceChangeCreatedState = (SourceChangeCreatedStorage) EventStorageFactory.getEventStorage(tmpFolderPath, "EiffelSourceChangeCreatedEvent");
+-        sourceChangeSubmittedState = (SourceChangeSubmittedStorage) EventStorageFactory.getEventStorage(tmpFolderPath, "EiffelSourceChangeSubmittedEvent");
++        sourceChangeCreatedState = (SourceChangeCreatedStorage) EventStorageFactory.getEventStorage(
++                pluginConfig, "EiffelSourceChangeCreatedEvent");
++        sourceChangeSubmittedState = (SourceChangeSubmittedStorage) EventStorageFactory.getEventStorage(
++                pluginConfig, "EiffelSourceChangeSubmittedEvent");
+     }
+ 
+     @Test
+     public void testBuildParentFilePath() throws Exception {
+-        String expectedParentPath = tmpFolderPath.toString();
++        final String expectedParentPath = tmpFolderPath.toString();
+ 
+         Mockito.when(dbHandler.getEventID(Table.SCC_TABLE, BRANCH)).thenReturn("");
+-        sourceChangeCreatedState.saveEiffelEventId(PROJECT, BRANCH, "{eiffel_event}", Table.SCC_TABLE);
++        sourceChangeCreatedState.saveEiffelEventId(BRANCH, "{eiffel_event}", Table.SCC_TABLE);
+ 
+-        File parentDirectory = new File(expectedParentPath);
++        final File parentDirectory = new File(expectedParentPath);
+         assertTrue(parentDirectory.exists());
+     }
+ 
+@@ -64,7 +72,7 @@ public void testBuildParentFilePath() throws Exception {
+     public void testgetLastSentEvent() throws Exception {
+         Mockito.when(dbHandler.getEventID(Mockito.any(), Mockito.any())).thenReturn("eventID");
+ 
+-        String eventId = sourceChangeSubmittedState.getLastSavedEiffelEvent(PROJECT, BRANCH, Table.SCS_TABLE);
++        final String eventId = sourceChangeSubmittedState.getLastSavedEiffelEvent(PROJECT, BRANCH, Table.SCS_TABLE);
+         assertEquals("Table.SCS_TABLE tabler key should be", "eventID", eventId);
+ 
+         Mockito.when(dbHandler.getEventID(Table.SCS_TABLE, ""))
+@@ -77,8 +85,8 @@ public void testgetLastSentEvent() throws Exception {
+     public void testUpdateLastEventCalled() throws Exception {
+         Mockito.when(dbHandler.getEventID(Table.SCS_TABLE, BRANCH)).thenReturn("old-event-id");
+ 
+-        String eventId = "event-id";
+-        sourceChangeSubmittedState.saveEiffelEventId(PROJECT, BRANCH, eventId, Table.SCS_TABLE);
++        final String eventId = "event-id";
++        sourceChangeSubmittedState.saveEiffelEventId(BRANCH, eventId, Table.SCS_TABLE);
+         Mockito.verify(dbHandler).updateInto(Table.SCS_TABLE, BRANCH, eventId);
+         Mockito.verify(dbHandler, Mockito.never()).insertInto(Mockito.any(), Mockito.any(), Mockito.any());
+ 
+@@ -88,8 +96,8 @@ public void testUpdateLastEventCalled() throws Exception {
+     public void testInsertLastEventCalled() throws Exception {
+         Mockito.when(dbHandler.getEventID(Table.SCS_TABLE, BRANCH)).thenReturn("");
+ 
+-        String eventId = "event-id";
+-        sourceChangeSubmittedState.saveEiffelEventId(PROJECT, BRANCH, eventId, Table.SCS_TABLE);
++        final String eventId = "event-id";
++        sourceChangeSubmittedState.saveEiffelEventId(BRANCH, eventId, Table.SCS_TABLE);
+         Mockito.verify(dbHandler, Mockito.never()).updateInto(Mockito.any(), Mockito.any(), Mockito.any());
+         Mockito.verify(dbHandler).insertInto(Table.SCS_TABLE, BRANCH, eventId);
+ 
+@@ -99,10 +107,10 @@ public void testInsertLastEventCalled() throws Exception {
+     public void testConnectionErrorsHandled() throws Exception {
+         Mockito.when(dbHandler.getEventID(Table.SCS_TABLE, BRANCH)).thenThrow(new ConnectException("Test Exception"));
+ 
+-        String eventId = "event-id";
++        final String eventId = "event-id";
+ 
+         exception.expect(ConnectException.class);
+-        sourceChangeSubmittedState.saveEiffelEventId(PROJECT, BRANCH, eventId, Table.SCS_TABLE);
++        sourceChangeSubmittedState.saveEiffelEventId(BRANCH, eventId, Table.SCS_TABLE);
+ 
+         Mockito.verify(dbHandler, Mockito.never()).updateInto(Mockito.any(), Mockito.any(), Mockito.any());
+         Mockito.verify(dbHandler, Mockito.never()).insertInto(Mockito.any(), Mockito.any(), Mockito.any());

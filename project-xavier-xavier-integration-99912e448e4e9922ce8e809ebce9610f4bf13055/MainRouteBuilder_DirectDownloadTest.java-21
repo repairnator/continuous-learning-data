@@ -1,0 +1,9 @@
+@@ -21,7 +21,7 @@
+ import static org.assertj.core.api.Assertions.assertThat;
+ 
+ 
+-@MockEndpointsAndSkip("http4:oldhost|direct:unzip-file")
++@MockEndpointsAndSkip("http.*|direct:unzip-file")
+ public class MainRouteBuilder_DirectDownloadTest extends XavierCamelTest {
+     @Autowired
+     MainRouteBuilder mainRouteBuilder;

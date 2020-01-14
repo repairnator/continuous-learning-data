@@ -1,0 +1,9 @@
+@@ -22,7 +22,7 @@ public boolean isDraft() {
+         return draft;
+     }
+ 
+-    public UpdateRequirementDto setDraft(final boolean draft) {
++    public UpdateRequirementDto setDraft(boolean draft) {
+         this.draft = draft;
+         return this;
+     }

@@ -1,0 +1,9 @@
+@@ -68,7 +68,7 @@ public void testEncode() {
+                     (byte) 0xc0
+                 }));
+ 
+-        assertEquals(
++        assertArrayEquals(
+                 RlpEncoder.encode(
+                         RlpString.create(
+                                 "Lorem ipsum dolor sit amet, consectetur adipisicing elit")),

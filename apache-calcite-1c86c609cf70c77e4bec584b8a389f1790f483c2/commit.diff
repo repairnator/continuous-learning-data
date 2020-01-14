@@ -1,0 +1,1002 @@
+diff --git a/core/src/main/java/org/apache/calcite/adapter/enumerable/EnumUtils.java b/core/src/main/java/org/apache/calcite/adapter/enumerable/EnumUtils.java
+index f33ae687b9..fa09f35651 100644
+--- a/core/src/main/java/org/apache/calcite/adapter/enumerable/EnumUtils.java
++++ b/core/src/main/java/org/apache/calcite/adapter/enumerable/EnumUtils.java
+@@ -46,6 +46,7 @@
+ import org.apache.calcite.util.Pair;
+ import org.apache.calcite.util.Util;
+ 
++import com.google.common.base.Preconditions;
+ import com.google.common.collect.ImmutableList;
+ 
+ import java.lang.reflect.Method;
+@@ -247,24 +248,43 @@ private static Expression fromInternal(Expression operand,
+     return operand;
+   }
+ 
++  /**
++   * Build expression list.
++   * If varArgs is true, the last targetType will be replaced by its component type.
++   */
+   static List<Expression> fromInternal(Class<?>[] targetTypes,
+-      List<Expression> expressions) {
++      List<Expression> expressions, boolean varArgs) {
++
+     final List<Expression> list = new ArrayList<>();
+-    if (targetTypes.length == expressions.size()) {
++
++    if (varArgs) {
++      Class<?> varTargetType = targetTypes[targetTypes.length - 1];
++      Preconditions.checkArgument(varTargetType != null && varTargetType.isArray(),
++          "the var target type should not null and it must be an array.");
++
++      Class<?> varArgsType = varTargetType.getComponentType();
+       for (int i = 0; i < expressions.size(); i++) {
+-        list.add(fromInternal(expressions.get(i), targetTypes[i]));
++        list.add(
++            fromInternal(expressions.get(i),
++                i < targetTypes.length - 1 ? targetTypes[i] : varArgsType));
+       }
+     } else {
+-      int j = 0;
+-      for (int i = 0; i < expressions.size(); i++) {
+-        Class<?> type;
+-        if (!targetTypes[j].isArray()) {
+-          type = targetTypes[j];
+-          j++;
+-        } else {
+-          type = targetTypes[j].getComponentType();
++      if (targetTypes.length == expressions.size()) {
++        for (int i = 0; i < expressions.size(); i++) {
++          list.add(fromInternal(expressions.get(i), targetTypes[i]));
++        }
++      } else {
++        int j = 0;
++        for (int i = 0; i < expressions.size(); i++) {
++          Class<?> type;
++          if (!targetTypes[j].isArray()) {
++            type = targetTypes[j];
++            j++;
++          } else {
++            type = targetTypes[j].getComponentType();
++          }
++          list.add(fromInternal(expressions.get(i), type));
+         }
+-        list.add(fromInternal(expressions.get(i), type));
+       }
+     }
+     return list;
+@@ -555,23 +575,37 @@ private static boolean representAsInternalType(Type type) {
+    * @return Input expressions with probable type conversion
+    */
+   static List<Expression> convertAssignableTypes(Class<?>[] targetTypes,
+-      List<Expression> arguments) {
++      List<Expression> arguments, boolean varArgs) {
+     final List<Expression> list = new ArrayList<>();
+-    if (targetTypes.length == arguments.size()) {
++
++    if (varArgs) {
++      Class<?> varTargetType = targetTypes[targetTypes.length - 1];
++      Preconditions.checkArgument(varTargetType != null && varTargetType.isArray(),
++          "the var target type should not null and it must be an array.");
++
++      Class<?> varArgsType = varTargetType.getComponentType();
+       for (int i = 0; i < arguments.size(); i++) {
+-        list.add(convertAssignableType(arguments.get(i), targetTypes[i]));
++        list.add(
++            convertAssignableType(arguments.get(i),
++                i < targetTypes.length - 1 ? targetTypes[i] : varArgsType));
+       }
+     } else {
+-      int j = 0;
+-      for (Expression argument: arguments) {
+-        Class<?> type;
+-        if (!targetTypes[j].isArray()) {
+-          type = targetTypes[j];
+-          j++;
+-        } else {
+-          type = targetTypes[j].getComponentType();
++      if (targetTypes.length == arguments.size()) {
++        for (int i = 0; i < arguments.size(); i++) {
++          list.add(convertAssignableType(arguments.get(i), targetTypes[i]));
++        }
++      } else {
++        int j = 0;
++        for (Expression argument : arguments) {
++          Class<?> type;
++          if (!targetTypes[j].isArray()) {
++            type = targetTypes[j];
++            j++;
++          } else {
++            type = targetTypes[j].getComponentType();
++          }
++          list.add(convertAssignableType(argument, type));
+         }
+-        list.add(convertAssignableType(argument, type));
+       }
+     }
+     return list;
+diff --git a/core/src/main/java/org/apache/calcite/adapter/enumerable/ReflectiveCallNotNullImplementor.java b/core/src/main/java/org/apache/calcite/adapter/enumerable/ReflectiveCallNotNullImplementor.java
+index d0319836ae..ae8e6646d7 100644
+--- a/core/src/main/java/org/apache/calcite/adapter/enumerable/ReflectiveCallNotNullImplementor.java
++++ b/core/src/main/java/org/apache/calcite/adapter/enumerable/ReflectiveCallNotNullImplementor.java
+@@ -46,9 +46,10 @@ public ReflectiveCallNotNullImplementor(Method method) {
+   public Expression implement(RexToLixTranslator translator,
+       RexCall call, List<Expression> translatedOperands) {
+     translatedOperands =
+-        EnumUtils.fromInternal(method.getParameterTypes(), translatedOperands);
++        EnumUtils.fromInternal(method.getParameterTypes(), translatedOperands, method.isVarArgs());
+     translatedOperands =
+-        EnumUtils.convertAssignableTypes(method.getParameterTypes(), translatedOperands);
++        EnumUtils.convertAssignableTypes(method.getParameterTypes(), translatedOperands,
++            method.isVarArgs());
+     final Expression callExpr;
+     if ((method.getModifiers() & Modifier.STATIC) != 0) {
+       callExpr = Expressions.call(method, translatedOperands);
+diff --git a/core/src/main/java/org/apache/calcite/prepare/CalciteCatalogReader.java b/core/src/main/java/org/apache/calcite/prepare/CalciteCatalogReader.java
+index 74fe7677e7..7e6d476841 100644
+--- a/core/src/main/java/org/apache/calcite/prepare/CalciteCatalogReader.java
++++ b/core/src/main/java/org/apache/calcite/prepare/CalciteCatalogReader.java
+@@ -319,11 +319,13 @@ private static SqlOperator toOp(RelDataTypeFactory typeFactory,
+     }
+     final FamilyOperandTypeChecker typeChecker =
+         OperandTypes.family(typeFamilies, i ->
+-            function.getParameters().get(i).isOptional());
++                function.getParameters().get(i).isOptional(),
++            function.isVarArgs());
+     final List<RelDataType> paramTypes = toSql(typeFactory, argTypes);
+     if (function instanceof ScalarFunction) {
+       return new SqlUserDefinedFunction(name, infer((ScalarFunction) function),
+-          InferTypes.explicit(argTypes), typeChecker, paramTypes, function);
++          InferTypes.explicit(argTypes), typeChecker, paramTypes,
++          function.isVarArgs(), function);
+     } else if (function instanceof AggregateFunction) {
+       return new SqlUserDefinedAggFunction(name,
+           infer((AggregateFunction) function), InferTypes.explicit(argTypes),
+diff --git a/core/src/main/java/org/apache/calcite/schema/Function.java b/core/src/main/java/org/apache/calcite/schema/Function.java
+index 8349056df8..a4ba8c3dfb 100644
+--- a/core/src/main/java/org/apache/calcite/schema/Function.java
++++ b/core/src/main/java/org/apache/calcite/schema/Function.java
+@@ -39,4 +39,13 @@
+    * @return Parameters; never null
+    */
+   List<FunctionParameter> getParameters();
++
++  /**
++   * Returns the function is var args or not.
++   *
++   * @return Boolean
++   */
++  default boolean isVarArgs() {
++    return getParameters().stream().anyMatch(fp -> fp.isVarArgs());
++  }
+ }
+diff --git a/core/src/main/java/org/apache/calcite/schema/FunctionParameter.java b/core/src/main/java/org/apache/calcite/schema/FunctionParameter.java
+index f675399aa4..374e202e1e 100644
+--- a/core/src/main/java/org/apache/calcite/schema/FunctionParameter.java
++++ b/core/src/main/java/org/apache/calcite/schema/FunctionParameter.java
+@@ -62,4 +62,9 @@
+    * allow functions to specify other default values.
+    */
+   boolean isOptional();
++
++  /**
++   * Returns the parameter's count is variable.
++   */
++  boolean isVarArgs();
+ }
+diff --git a/core/src/main/java/org/apache/calcite/schema/impl/AggregateFunctionImpl.java b/core/src/main/java/org/apache/calcite/schema/impl/AggregateFunctionImpl.java
+index 45d83beffb..6943dfc4d9 100644
+--- a/core/src/main/java/org/apache/calcite/schema/impl/AggregateFunctionImpl.java
++++ b/core/src/main/java/org/apache/calcite/schema/impl/AggregateFunctionImpl.java
+@@ -108,7 +108,8 @@ public static AggregateFunctionImpl create(Class<?> clazz) {
+         final Class type = addParamTypes.get(i);
+         final String name = ReflectUtil.getParameterName(addMethod, i);
+         final boolean optional = ReflectUtil.isParameterOptional(addMethod, i);
+-        params.add(type, name, optional);
++        final boolean varargs = ReflectUtil.isParameterVarArgs(addMethod, i);
++        params.add(type, name, optional, varargs);
+         valueTypes.add(type);
+       }
+ 
+diff --git a/core/src/main/java/org/apache/calcite/schema/impl/ReflectiveFunctionBase.java b/core/src/main/java/org/apache/calcite/schema/impl/ReflectiveFunctionBase.java
+index 82a966e0e9..d55dfd8e09 100644
+--- a/core/src/main/java/org/apache/calcite/schema/impl/ReflectiveFunctionBase.java
++++ b/core/src/main/java/org/apache/calcite/schema/impl/ReflectiveFunctionBase.java
+@@ -104,11 +104,11 @@ public static ParameterListBuilder builder() {
+     }
+ 
+     public ParameterListBuilder add(final Class<?> type, final String name) {
+-      return add(type, name, false);
++      return add(type, name, false, false);
+     }
+ 
+     public ParameterListBuilder add(final Class<?> type, final String name,
+-        final boolean optional) {
++        final boolean optional, final boolean varArgs) {
+       final int ordinal = builder.size();
+       builder.add(
+           new FunctionParameter() {
+@@ -121,12 +121,17 @@ public String getName() {
+             }
+ 
+             public RelDataType getType(RelDataTypeFactory typeFactory) {
+-              return typeFactory.createJavaType(type);
++              final Class paramType = varArgs ? type.getComponentType() : type;
++              return typeFactory.createJavaType(paramType);
+             }
+ 
+             public boolean isOptional() {
+               return optional;
+             }
++
++            public boolean isVarArgs() {
++              return varArgs;
++            }
+           });
+       return this;
+     }
+@@ -135,7 +140,8 @@ public ParameterListBuilder addMethodParameters(Method method) {
+       final Class<?>[] types = method.getParameterTypes();
+       for (int i = 0; i < types.length; i++) {
+         add(types[i], ReflectUtil.getParameterName(method, i),
+-            ReflectUtil.isParameterOptional(method, i));
++            ReflectUtil.isParameterOptional(method, i),
++              ReflectUtil.isParameterVarArgs(method, i));
+       }
+       return this;
+     }
+diff --git a/core/src/main/java/org/apache/calcite/sql/SqlAggFunction.java b/core/src/main/java/org/apache/calcite/sql/SqlAggFunction.java
+index 4f9aac3487..9fdd41ac84 100644
+--- a/core/src/main/java/org/apache/calcite/sql/SqlAggFunction.java
++++ b/core/src/main/java/org/apache/calcite/sql/SqlAggFunction.java
+@@ -103,7 +103,7 @@ protected SqlAggFunction(
+       boolean requiresOver,
+       Optionality requiresGroupOrder) {
+     super(name, sqlIdentifier, kind, returnTypeInference, operandTypeInference,
+-        operandTypeChecker, null, funcType);
++        operandTypeChecker, null, false, funcType);
+     this.requiresOrder = requiresOrder;
+     this.requiresOver = requiresOver;
+     this.requiresGroupOrder = Objects.requireNonNull(requiresGroupOrder);
+diff --git a/core/src/main/java/org/apache/calcite/sql/SqlCallBinding.java b/core/src/main/java/org/apache/calcite/sql/SqlCallBinding.java
+index 5d0363b7f2..80f190742b 100644
+--- a/core/src/main/java/org/apache/calcite/sql/SqlCallBinding.java
++++ b/core/src/main/java/org/apache/calcite/sql/SqlCallBinding.java
+@@ -30,10 +30,15 @@
+ import org.apache.calcite.sql.validate.SqlValidatorUtil;
+ import org.apache.calcite.util.NlsString;
+ 
++import org.apache.commons.lang3.StringUtils;
++
+ import com.google.common.collect.Lists;
+ 
+ import java.math.BigDecimal;
++import java.util.ArrayList;
+ import java.util.List;
++import java.util.Locale;
++import java.util.stream.Collectors;
+ 
+ import static org.apache.calcite.util.Static.RESOURCE;
+ 
+@@ -153,17 +158,32 @@ private boolean hasAssignment() {
+    * formal parameters of the function. */
+   private List<SqlNode> permutedOperands(final SqlCall call) {
+     final SqlFunction operator = (SqlFunction) call.getOperator();
+-    return Lists.transform(operator.getParamNames(), paramName -> {
++    boolean varArgs = operator.isVarArgs();
++    final int varArgIndex = varArgs ? operator.getParamNames().size() - 1 : -1;
++    String varArgParamName = varArgs ? operator.getParamNames().get(varArgIndex) : "";
++
++    List<SqlNode> nodes = operator.getParamNames().stream().flatMap(paramName -> {
++      List<SqlNode> operands = new ArrayList<>();
+       for (SqlNode operand2 : call.getOperandList()) {
+         final SqlCall call2 = (SqlCall) operand2;
+         assert operand2.getKind() == SqlKind.ARGUMENT_ASSIGNMENT;
+         final SqlIdentifier id = call2.operand(1);
+-        if (id.getSimple().equals(paramName)) {
+-          return call2.operand(0);
++        if (id.getSimple().equalsIgnoreCase(paramName)) {
++          operands.add(call2.operand(0));
++        } else if (StringUtils.equalsIgnoreCase(paramName, varArgParamName)
++            && id.getSimple().toUpperCase(Locale.ROOT)
++            .startsWith(paramName.toUpperCase(Locale.ROOT))) {
++          operands.add(call2.operand(0));
+         }
+       }
+-      return DEFAULT_CALL;
+-    });
++      if (operands.size() == 0) {
++        operands.add(DEFAULT_CALL);
++      }
++      return operands.stream();
++
++    }).collect(Collectors.toList());
++
++    return nodes;
+   }
+ 
+   /**
+diff --git a/core/src/main/java/org/apache/calcite/sql/SqlFunction.java b/core/src/main/java/org/apache/calcite/sql/SqlFunction.java
+index 6b8899a271..abbb1f748b 100644
+--- a/core/src/main/java/org/apache/calcite/sql/SqlFunction.java
++++ b/core/src/main/java/org/apache/calcite/sql/SqlFunction.java
+@@ -50,6 +50,8 @@
+ 
+   private final List<RelDataType> paramTypes;
+ 
++  private final boolean varArgs;
++
+   //~ Constructors -----------------------------------------------------------
+ 
+   /**
+@@ -72,7 +74,7 @@ public SqlFunction(
+     // We leave sqlIdentifier as null to indicate
+     // that this is a builtin.  Same for paramTypes.
+     this(name, null, kind, returnTypeInference, operandTypeInference,
+-        operandTypeChecker, null, category);
++        operandTypeChecker, null, false, category);
+ 
+     assert !((category == SqlFunctionCategory.USER_DEFINED_CONSTRUCTOR)
+         && (returnTypeInference == null));
+@@ -99,7 +101,7 @@ public SqlFunction(
+       SqlFunctionCategory funcType) {
+     this(Util.last(sqlIdentifier.names), sqlIdentifier, SqlKind.OTHER_FUNCTION,
+         returnTypeInference, operandTypeInference, operandTypeChecker,
+-        paramTypes, funcType);
++        paramTypes, false, funcType);
+   }
+ 
+   /**
+@@ -113,6 +115,7 @@ protected SqlFunction(
+       SqlOperandTypeInference operandTypeInference,
+       SqlOperandTypeChecker operandTypeChecker,
+       List<RelDataType> paramTypes,
++      boolean varArgs,
+       SqlFunctionCategory category) {
+     super(name, kind, 100, 100, returnTypeInference, operandTypeInference,
+         operandTypeChecker);
+@@ -121,6 +124,7 @@ protected SqlFunction(
+     this.category = Objects.requireNonNull(category);
+     this.paramTypes =
+         paramTypes == null ? null : ImmutableList.copyOf(paramTypes);
++    this.varArgs = varArgs;
+   }
+ 
+   //~ Methods ----------------------------------------------------------------
+@@ -150,13 +154,22 @@ public SqlIdentifier getSqlIdentifier() {
+     return paramTypes;
+   }
+ 
++
++  /**
++   *
++   * @return is varArgs parameters.
++   */
++  public boolean isVarArgs() {
++    return varArgs;
++  }
++
+   /**
+    * Returns a list of parameter names.
+    *
+    * <p>The default implementation returns {@code [arg0, arg1, ..., argN]}.
+    */
+   public List<String> getParamNames() {
+-    return Functions.generate(paramTypes.size(), i -> "arg" + i);
++    return Functions.generate(getParamTypes().size(), i -> "arg" + i);
+   }
+ 
+   public void unparse(
+diff --git a/core/src/main/java/org/apache/calcite/sql/SqlUtil.java b/core/src/main/java/org/apache/calcite/sql/SqlUtil.java
+index 640b080432..606e3b3607 100644
+--- a/core/src/main/java/org/apache/calcite/sql/SqlUtil.java
++++ b/core/src/main/java/org/apache/calcite/sql/SqlUtil.java
+@@ -18,7 +18,6 @@
+ 
+ import org.apache.calcite.avatica.util.ByteString;
+ import org.apache.calcite.linq4j.Ord;
+-import org.apache.calcite.linq4j.function.Functions;
+ import org.apache.calcite.rel.RelNode;
+ import org.apache.calcite.rel.hint.HintStrategyTable;
+ import org.apache.calcite.rel.hint.Hintable;
+@@ -65,6 +64,8 @@
+ import java.util.Objects;
+ import java.util.function.Predicate;
+ import java.util.stream.Collectors;
++import java.util.stream.IntStream;
++import java.util.stream.Stream;
+ 
+ import static org.apache.calcite.util.Static.RESOURCE;
+ 
+@@ -194,7 +195,7 @@ public static boolean isNullLiteral(
+   public static boolean isNull(SqlNode node) {
+     return isNullLiteral(node, false)
+         || node.getKind() == SqlKind.CAST
+-            && isNull(((SqlCall) node).operand(0));
++        && isNull(((SqlCall) node).operand(0));
+   }
+ 
+   /**
+@@ -602,33 +603,50 @@ public static boolean matchRoutinesByParameterCount(
+             // the type coerce will not work here.
+             return true;
+           }
++          // convert to mutable list.
++          List<RelDataType> permutedParamTypes = Lists.newArrayList(paramTypes);
+           final List<RelDataType> permutedArgTypes;
++          boolean varArgs = function.isVarArgs();
++          List<String> paramNames = function.getParamNames()
++              .stream()
++              .map(p -> p.toUpperCase(Locale.ROOT))
++              .collect(Collectors.toList());
++          final int varArgIndex = varArgs ? paramNames.size() - 1 : -1;
++          String varArgParamName = varArgs ? paramNames.get(varArgIndex) : "";
++
+           if (argNames != null) {
+             // Arguments passed by name. Make sure that the function has
+             // parameters of all of these names.
+-            final Map<Integer, Integer> map = new HashMap<>();
++            final Map<Integer, List<Integer>> map = new HashMap<>();
+             for (Ord<String> argName : Ord.zip(argNames)) {
+-              final int i = function.getParamNames().indexOf(argName.e);
++              final int i = paramNames.indexOf(argName.e.toUpperCase(Locale.ROOT));
+               if (i < 0) {
+-                return false;
++                if (varArgs) {
++                  if (argName.e.toUpperCase(Locale.ROOT).startsWith(varArgParamName)) {
++                    List<Integer> argIndexes = map.computeIfAbsent(varArgIndex,
++                        integer -> new ArrayList<>());
++                    argIndexes.add(argName.i);
++                  }
++                } else {
++                  return false;
++                }
+               }
+-              map.put(i, argName.i);
++              map.put(i, Lists.newArrayList(argName.i));
+             }
+-            permutedArgTypes = Functions.generate(paramTypes.size(), a0 -> {
+-              if (map.containsKey(a0)) {
+-                return argTypes.get(map.get(a0));
++
++            permutedArgTypes = IntStream.range(0, paramTypes.size()).boxed().flatMap(idx -> {
++              if (map.containsKey(idx)) {
++                List<Integer> argIndexes = map.get(idx);
++                return argIndexes.stream().map(i -> argTypes.get(i));
+               } else {
+-                return null;
++                return Stream.generate(() -> (RelDataType) null).limit(1);
+               }
+-            });
++            }).collect(Collectors.toList());
+           } else {
+             permutedArgTypes = Lists.newArrayList(argTypes);
+-            while (permutedArgTypes.size() < argTypes.size()) {
+-              paramTypes.add(null);
+-            }
+           }
+           for (Pair<RelDataType, RelDataType> p
+-              : Pair.zip(paramTypes, permutedArgTypes)) {
++              : Pair.zip(permutedParamTypes, permutedArgTypes)) {
+             final RelDataType argType = p.right;
+             final RelDataType paramType = p.left;
+             if (argType != null
+diff --git a/core/src/main/java/org/apache/calcite/sql/type/FamilyOperandTypeChecker.java b/core/src/main/java/org/apache/calcite/sql/type/FamilyOperandTypeChecker.java
+index eeb67a898c..3edd3bcd75 100644
+--- a/core/src/main/java/org/apache/calcite/sql/type/FamilyOperandTypeChecker.java
++++ b/core/src/main/java/org/apache/calcite/sql/type/FamilyOperandTypeChecker.java
+@@ -42,18 +42,27 @@
+ 
+   protected final ImmutableList<SqlTypeFamily> families;
+   protected final Predicate<Integer> optional;
++  protected final boolean varArgs;
+ 
+   //~ Constructors -----------------------------------------------------------
+ 
++
++  FamilyOperandTypeChecker(List<SqlTypeFamily> families,
++      Predicate<Integer> optional) {
++    this(families, optional, false);
++  }
++
+   /**
+    * Package private. Create using {@link OperandTypes#family}.
+    */
+   FamilyOperandTypeChecker(List<SqlTypeFamily> families,
+-      Predicate<Integer> optional) {
++      Predicate<Integer> optional, boolean varArgs) {
+     this.families = ImmutableList.copyOf(families);
+     this.optional = optional;
++    this.varArgs = varArgs;
+   }
+ 
++
+   //~ Methods ----------------------------------------------------------------
+ 
+   public boolean isOptional(int i) {
+@@ -166,8 +175,8 @@ public boolean checkOperandTypes(
+   }
+ 
+   public SqlOperandCountRange getOperandCountRange() {
+-    final int max = families.size();
+-    int min = max;
++    final int max = varArgs ? -1 : families.size();
++    int min = families.size();
+     while (min > 0 && optional.test(min - 1)) {
+       --min;
+     }
+diff --git a/core/src/main/java/org/apache/calcite/sql/type/OperandTypes.java b/core/src/main/java/org/apache/calcite/sql/type/OperandTypes.java
+index eddba183d8..0a3e6d3951 100644
+--- a/core/src/main/java/org/apache/calcite/sql/type/OperandTypes.java
++++ b/core/src/main/java/org/apache/calcite/sql/type/OperandTypes.java
+@@ -72,6 +72,15 @@ public static FamilyOperandTypeChecker family(List<SqlTypeFamily> families,
+     return new FamilyOperandTypeChecker(families, optional);
+   }
+ 
++  /**
++   * Creates a checker that passes if each operand is a member of a
++   * corresponding family, and allows specified parameters to be optional.
++   */
++  public static FamilyOperandTypeChecker family(List<SqlTypeFamily> families,
++      Predicate<Integer> optional, boolean varArgs) {
++    return new FamilyOperandTypeChecker(families, optional, varArgs);
++  }
++
+   /**
+    * Creates a checker that passes if each operand is a member of a
+    * corresponding family.
+diff --git a/core/src/main/java/org/apache/calcite/sql/validate/SqlUserDefinedFunction.java b/core/src/main/java/org/apache/calcite/sql/validate/SqlUserDefinedFunction.java
+index ac78949b01..e802c46ffa 100644
+--- a/core/src/main/java/org/apache/calcite/sql/validate/SqlUserDefinedFunction.java
++++ b/core/src/main/java/org/apache/calcite/sql/validate/SqlUserDefinedFunction.java
+@@ -33,11 +33,11 @@
+ import java.util.List;
+ 
+ /**
+-* User-defined scalar function.
++ * User-defined scalar function.
+  *
+  * <p>Created by the validator, after resolving a function call to a function
+  * defined in a Calcite schema.</p>
+-*/
++ */
+ public class SqlUserDefinedFunction extends SqlFunction {
+   public final Function function;
+ 
+@@ -47,9 +47,10 @@ public SqlUserDefinedFunction(SqlIdentifier opName,
+       SqlOperandTypeInference operandTypeInference,
+       SqlOperandTypeChecker operandTypeChecker,
+       List<RelDataType> paramTypes,
++      boolean varArgs,
+       Function function) {
+     this(opName, returnTypeInference, operandTypeInference, operandTypeChecker,
+-        paramTypes, function, SqlFunctionCategory.USER_DEFINED_FUNCTION);
++        paramTypes, varArgs, function, SqlFunctionCategory.USER_DEFINED_FUNCTION);
+   }
+ 
+   /** Constructor used internally and by derived classes. */
+@@ -58,11 +59,12 @@ protected SqlUserDefinedFunction(SqlIdentifier opName,
+       SqlOperandTypeInference operandTypeInference,
+       SqlOperandTypeChecker operandTypeChecker,
+       List<RelDataType> paramTypes,
++      boolean varArgs,
+       Function function,
+       SqlFunctionCategory category) {
+     super(Util.last(opName.names), opName, SqlKind.OTHER_FUNCTION,
+         returnTypeInference, operandTypeInference, operandTypeChecker,
+-        paramTypes, category);
++        paramTypes, varArgs, category);
+     this.function = function;
+   }
+ 
+diff --git a/core/src/main/java/org/apache/calcite/sql/validate/SqlUserDefinedTableFunction.java b/core/src/main/java/org/apache/calcite/sql/validate/SqlUserDefinedTableFunction.java
+index 622b20b54c..a472e5dd10 100644
+--- a/core/src/main/java/org/apache/calcite/sql/validate/SqlUserDefinedTableFunction.java
++++ b/core/src/main/java/org/apache/calcite/sql/validate/SqlUserDefinedTableFunction.java
+@@ -43,7 +43,7 @@ public SqlUserDefinedTableFunction(SqlIdentifier opName,
+       List<RelDataType> paramTypes,
+       TableFunction function) {
+     super(opName, returnTypeInference, operandTypeInference, operandTypeChecker,
+-        paramTypes, function, SqlFunctionCategory.USER_DEFINED_TABLE_FUNCTION);
++        paramTypes, false, function, SqlFunctionCategory.USER_DEFINED_TABLE_FUNCTION);
+   }
+ 
+   /**
+diff --git a/core/src/main/java/org/apache/calcite/sql/validate/SqlUserDefinedTableMacro.java b/core/src/main/java/org/apache/calcite/sql/validate/SqlUserDefinedTableMacro.java
+index 3d4dbd7a44..976d4e956d 100644
+--- a/core/src/main/java/org/apache/calcite/sql/validate/SqlUserDefinedTableMacro.java
++++ b/core/src/main/java/org/apache/calcite/sql/validate/SqlUserDefinedTableMacro.java
+@@ -69,6 +69,7 @@ public SqlUserDefinedTableMacro(SqlIdentifier opName,
+     super(Util.last(opName.names), opName, SqlKind.OTHER_FUNCTION,
+         returnTypeInference, operandTypeInference, operandTypeChecker,
+         Objects.requireNonNull(paramTypes),
++        false,
+         SqlFunctionCategory.USER_DEFINED_TABLE_FUNCTION);
+     this.tableMacro = tableMacro;
+   }
+diff --git a/core/src/main/java/org/apache/calcite/sql/validate/SqlValidatorImpl.java b/core/src/main/java/org/apache/calcite/sql/validate/SqlValidatorImpl.java
+index cbb197ed5e..a23377f025 100644
+--- a/core/src/main/java/org/apache/calcite/sql/validate/SqlValidatorImpl.java
++++ b/core/src/main/java/org/apache/calcite/sql/validate/SqlValidatorImpl.java
+@@ -3599,7 +3599,9 @@ private void checkRollUp(SqlNode grandParent, SqlNode parent,
+ 
+       List<SqlNode> children = ((SqlCall) stripAs(stripDot(current))).getOperandList();
+       for (SqlNode child : children) {
+-        checkRollUp(parent, current, child, scope, optionalClause);
++        if (child == null || child.getKind() !=  SqlKind.ARGUMENT_ASSIGNMENT) {
++          checkRollUp(parent, current, child, scope, optionalClause);
++        }
+       }
+     } else if (current instanceof SqlIdentifier) {
+       SqlIdentifier id = (SqlIdentifier) current;
+diff --git a/core/src/main/java/org/apache/calcite/util/ReflectUtil.java b/core/src/main/java/org/apache/calcite/util/ReflectUtil.java
+index 1d9a703072..6fce28618c 100644
+--- a/core/src/main/java/org/apache/calcite/util/ReflectUtil.java
++++ b/core/src/main/java/org/apache/calcite/util/ReflectUtil.java
+@@ -568,7 +568,11 @@ public static boolean isParameterOptional(Method method, int i) {
+         return ((Parameter) annotation).optional();
+       }
+     }
+-    return false;
++    return isParameterVarArgs(method, i);
++  }
++
++  public static boolean isParameterVarArgs(Method method, int i) {
++    return method.getParameters()[i].isVarArgs();
+   }
+ 
+   //~ Inner Classes ----------------------------------------------------------
+diff --git a/core/src/test/java/org/apache/calcite/test/MockSqlOperatorTable.java b/core/src/test/java/org/apache/calcite/test/MockSqlOperatorTable.java
+index 0ba07bb5f5..33ec13d3b8 100644
+--- a/core/src/test/java/org/apache/calcite/test/MockSqlOperatorTable.java
++++ b/core/src/test/java/org/apache/calcite/test/MockSqlOperatorTable.java
+@@ -115,6 +115,7 @@ public MyFunction() {
+           null,
+           OperandTypes.NUMERIC,
+           null,
++          false,
+           SqlFunctionCategory.USER_DEFINED_FUNCTION);
+     }
+ 
+diff --git a/core/src/test/java/org/apache/calcite/test/UdfTest.java b/core/src/test/java/org/apache/calcite/test/UdfTest.java
+index c5d80c948c..fbc8cc41f5 100644
+--- a/core/src/test/java/org/apache/calcite/test/UdfTest.java
++++ b/core/src/test/java/org/apache/calcite/test/UdfTest.java
+@@ -91,6 +91,12 @@
+         + "'\n"
+         + "         },\n"
+         + "         {\n"
++        + "           name: 'VAR_ARGS',\n"
++        + "           className: '"
++        + Smalls.VarArgsFunction.class.getName()
++        + "'\n"
++        + "         },\n"
++        + "         {\n"
+         + "           name: 'MY_LEFT',\n"
+         + "           className: '"
+         + Smalls.MyLeftFunction.class.getName()
+@@ -182,6 +188,37 @@
+     return CalciteAssert.model(model);
+   }
+ 
++
++  /** Tests a user-defined function that is defined in terms of a class with
++   * non-static methods. */
++  @Test public void testVarArgsUserDefinedFunction() throws Exception {
++    final String sql = "select \"adhoc\".var_args(\"deptno\", 100) as p\n"
++        + "from \"adhoc\".EMPLOYEES";
++    final AtomicInteger c = Smalls.VarArgsFunction.INSTANCE_COUNT;
++    final int before = c.get();
++    withUdf().query(sql).returnsUnordered("P=110",
++        "P=120",
++        "P=110",
++        "P=110");
++    final int after = c.get();
++    assertThat(after, is(before + 4));
++  }
++
++  /** Tests a user-defined function that is defined in terms of a class with
++   * non-static methods. */
++  @Test public void testVarArgsUserDefinedFunctionWithNameParameters() throws Exception {
++    final String sql = "select \"adhoc\".var_args(y=>100, x=>\"deptno\") as p\n"
++        + "from \"adhoc\".EMPLOYEES";
++    final AtomicInteger c = Smalls.VarArgsFunction.INSTANCE_COUNT;
++    final int before = c.get();
++    withUdf().query(sql).returnsUnordered("P=110",
++        "P=120",
++        "P=110",
++        "P=110");
++    final int after = c.get();
++    assertThat(after, is(before + 4));
++  }
++
+   /** Tests a user-defined function that is defined in terms of a class with
+    * non-static methods. */
+   @Disabled("[CALCITE-1561] Intermittent test failures")
+@@ -198,6 +235,19 @@
+     assertThat(after, is(before + 4));
+   }
+ 
++  @Test public void testUserDefinedFunctionWithArgumentAssignment() throws Exception {
++    final String sql = "select \"adhoc\".my_plus(x=>\"deptno\", y=>100) as p\n"
++        + "from \"adhoc\".EMPLOYEES";
++    final AtomicInteger c = Smalls.MyPlusFunction.INSTANCE_COUNT.get();
++    final int before = c.get();
++    withUdf().query(sql).returnsUnordered("P=110",
++        "P=120",
++        "P=110",
++        "P=110");
++    final int after = c.get();
++    assertThat(after, is(before + 4));
++  }
++
+   /** As {@link #testUserDefinedFunction()}, but checks that the class is
+    * instantiated exactly once, per
+    * <a href="https://issues.apache.org/jira/browse/CALCITE-1548">[CALCITE-1548]
+@@ -1041,6 +1091,10 @@ public RelDataType getType(RelDataTypeFactory typeFactory) {
+               public boolean isOptional() {
+                 return false;
+               }
++
++              public boolean isVarArgs() {
++                return false;
++              }
+             });
+       }
+       return parameters;
+diff --git a/core/src/test/java/org/apache/calcite/util/Smalls.java b/core/src/test/java/org/apache/calcite/util/Smalls.java
+index 0ce7f88afd..2f1284bda1 100644
+--- a/core/src/test/java/org/apache/calcite/util/Smalls.java
++++ b/core/src/test/java/org/apache/calcite/util/Smalls.java
+@@ -62,6 +62,7 @@
+ import java.util.Locale;
+ import java.util.Map;
+ import java.util.concurrent.atomic.AtomicInteger;
++import java.util.stream.IntStream;
+ 
+ import static org.hamcrest.CoreMatchers.is;
+ import static org.hamcrest.MatcherAssert.assertThat;
+@@ -87,7 +88,7 @@
+       Types.lookupMethod(MazeTable.class, "generate3", String.class);
+   public static final Method MULTIPLICATION_TABLE_METHOD =
+       Types.lookupMethod(Smalls.class, "multiplicationTable", int.class,
+-        int.class, Integer.class);
++          int.class, Integer.class);
+   public static final Method FIBONACCI_TABLE_METHOD =
+       Types.lookupMethod(Smalls.class, "fibonacciTable");
+   public static final Method FIBONACCI2_TABLE_METHOD =
+@@ -253,7 +254,7 @@ public RelDataType getRowType(RelDataTypeFactory typeFactory) {
+               private long current = 0;
+ 
+               public Object[] current() {
+-                return new Object[] {current};
++                return new Object[]{current};
+               }
+ 
+               public boolean moveNext() {
+@@ -380,6 +381,23 @@ public String toString() {
+     }
+   }
+ 
++
++  /** Example of a UDF with named parameters. */
++  public static class VarArgsFunction {
++
++    public static final AtomicInteger INSTANCE_COUNT = new AtomicInteger(0);
++
++    // Note: Not marked @Deterministic
++    public VarArgsFunction() {
++      INSTANCE_COUNT.incrementAndGet();
++    }
++
++    public int eval(@Parameter(name = "x")int x, @Parameter(name = "y") int... numerics) {
++      return IntStream.concat(IntStream.of(x), IntStream.of(numerics)).sum();
++    }
++  }
++
++
+   /** Example of a UDF with a non-static {@code eval} method,
+    * and named parameters. */
+   public static class MyPlusFunction {
+@@ -430,7 +448,7 @@ public String eval(@Parameter(name = "A", optional = false) Integer a,
+         @Parameter(name = "C", optional = false) Integer c,
+         @Parameter(name = "D", optional = true) Integer d,
+         @Parameter(name = "E", optional = true) Integer e) {
+-      return "{a: " + a + ", b: " + b +  ", c: " + c +  ", d: " + d  + ", e: "
++      return "{a: " + a + ", b: " + b + ", c: " + c + ", d: " + d + ", e: "
+           + e + "}";
+     }
+   }
+@@ -554,9 +572,11 @@ private MultipleFunction() {}
+     public static String fun1(String x) {
+       return x.toLowerCase(Locale.ROOT);
+     }
++
+     public static int fun1(int x) {
+       return x * 2;
+     }
++
+     public static int fun1(int x, int y) {
+       return x + y;
+     }
+@@ -585,9 +605,11 @@ private AllTypesFunction() {}
+     public static long dateFun(java.sql.Date v) {
+       return v == null ? -1L : SqlFunctions.toLong(v);
+     }
++
+     public static long timestampFun(java.sql.Timestamp v) {
+       return v == null ? -1L : SqlFunctions.toLong(v);
+     }
++
+     public static long timeFun(java.sql.Time v) {
+       return v == null ? -1L : SqlFunctions.toLong(v);
+     }
+@@ -600,21 +622,26 @@ public static long timeFun(java.sql.Time v) {
+     public static java.sql.Date toDateFun(Long v) {
+       return v == null ? null : SqlFunctions.internalToDate(v.intValue());
+     }
++
+     public static java.sql.Timestamp toTimestampFun(Long v) {
+       return SqlFunctions.internalToTimestamp(v);
+     }
++
+     public static java.sql.Time toTimeFun(Long v) {
+       return v == null ? null : SqlFunctions.internalToTime(v.intValue());
+     }
++
+     /** for Overloaded user-defined functions that have Double and BigDecimal
+      * arguments will goes wrong
+      * */
+     public static double toDouble(BigDecimal var) {
+       return var == null ? null : var.doubleValue();
+     }
++
+     public static double toDouble(Double var) {
+       return var == null ? 0.0d : var;
+     }
++
+     public static double toDouble(Float var) {
+       return var == null ? 0.0d : Double.valueOf(var.toString());
+     }
+@@ -647,15 +674,19 @@ public static long toLong(Time time) {
+   public static class MySumFunction {
+     public MySumFunction() {
+     }
++
+     public long init() {
+       return 0L;
+     }
++
+     public long add(long accumulator, int v) {
+       return accumulator + v;
+     }
++
+     public long merge(long accumulator0, long accumulator1) {
+       return accumulator0 + accumulator1;
+     }
++
+     public long result(long accumulator) {
+       return accumulator;
+     }
+@@ -703,12 +734,15 @@ public Integer result(Integer accumulator) {
+     public static long init() {
+       return 0L;
+     }
++
+     public static long add(long accumulator, int v) {
+       return accumulator + v;
+     }
++
+     public static long merge(long accumulator0, long accumulator1) {
+       return accumulator0 + accumulator1;
+     }
++
+     public static long result(long accumulator) {
+       return accumulator;
+     }
+@@ -718,18 +752,22 @@ public static long result(long accumulator) {
+   public static class MyTwoParamsSumFunctionFilter1 {
+     public MyTwoParamsSumFunctionFilter1() {
+     }
++
+     public int init() {
+       return 0;
+     }
++
+     public int add(int accumulator, int v1, int v2) {
+       if (v1 > v2) {
+         return accumulator + v1;
+       }
+       return accumulator;
+     }
++
+     public int merge(int accumulator0, int accumulator1) {
+       return accumulator0 + accumulator1;
+     }
++
+     public int result(int accumulator) {
+       return accumulator;
+     }
+@@ -739,18 +777,22 @@ public int result(int accumulator) {
+   public static class MyTwoParamsSumFunctionFilter2 {
+     public MyTwoParamsSumFunctionFilter2() {
+     }
++
+     public long init() {
+       return 0L;
+     }
++
+     public long add(long accumulator, int v1, String v2) {
+       if (v2.equals("Eric")) {
+         return accumulator + v1;
+       }
+       return accumulator;
+     }
++
+     public long merge(long accumulator0, long accumulator1) {
+       return accumulator0 + accumulator1;
+     }
++
+     public long result(long accumulator) {
+       return accumulator;
+     }
+@@ -762,15 +804,18 @@ public long result(long accumulator) {
+     public static long init() {
+       return 0L;
+     }
++
+     public static long add(long accumulator, int v1, String v2, String v3) {
+       if (v2.equals(v3)) {
+         return accumulator + v1;
+       }
+       return accumulator;
+     }
++
+     public static long merge(long accumulator0, long accumulator1) {
+       return accumulator0 + accumulator1;
+     }
++
+     public static long result(long accumulator) {
+       return accumulator;
+     }
+@@ -782,15 +827,18 @@ public static long result(long accumulator) {
+     public static long init() {
+       return 0L;
+     }
++
+     public static long add(long accumulator, int v1, int v2, int v3) {
+       if (v3 > 250) {
+         return accumulator + v1 + v2;
+       }
+       return accumulator;
+     }
++
+     public static long merge(long accumulator0, long accumulator1) {
+       return accumulator0 + accumulator1;
+     }
++
+     public static long result(long accumulator) {
+       return accumulator;
+     }
+@@ -801,6 +849,7 @@ public static long result(long accumulator) {
+     public long init() {
+       return 0L;
+     }
++
+     public long add(short accumulator, int v) {
+       return accumulator + v;
+     }
+diff --git a/piglet/src/main/java/org/apache/calcite/piglet/PigUserDefinedFunction.java b/piglet/src/main/java/org/apache/calcite/piglet/PigUserDefinedFunction.java
+index 08a1b9d9b9..f2c88292b5 100644
+--- a/piglet/src/main/java/org/apache/calcite/piglet/PigUserDefinedFunction.java
++++ b/piglet/src/main/java/org/apache/calcite/piglet/PigUserDefinedFunction.java
+@@ -44,7 +44,7 @@ private PigUserDefinedFunction(SqlIdentifier opName,
+       List<RelDataType> paramTypes,
+       Function function,
+       FuncSpec funcSpec) {
+-    super(opName, returnTypeInference, operandTypeInference, operandTypeChecker, paramTypes,
++    super(opName, returnTypeInference, operandTypeInference, operandTypeChecker, paramTypes, false,
+         function,
+         SqlFunctionCategory.USER_DEFINED_CONSTRUCTOR);
+     this.funcSpec = funcSpec;

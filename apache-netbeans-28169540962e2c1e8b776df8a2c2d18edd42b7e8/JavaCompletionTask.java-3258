@@ -1,0 +1,9 @@
+@@ -3258,7 +3258,7 @@ private void addEffectivelyFinalAutoCloseables(final Env env) throws IOException
+             @Override
+             public boolean accept(Element e, TypeMirror t) {
+                 boolean isStatic = ctxStatic || (t != null && t.getKind() == TypeKind.DECLARED && ((DeclaredType) t).asElement() != enclClass && enclStatic);
+-                switch (e.getKind()) {
++                switch (simplifyElementKind(e.getKind())) {
+                     case CONSTRUCTOR:
+                         return false;
+                     case LOCAL_VARIABLE:

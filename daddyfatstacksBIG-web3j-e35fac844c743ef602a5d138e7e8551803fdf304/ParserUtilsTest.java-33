@@ -1,0 +1,9 @@
+@@ -33,7 +33,7 @@ public void testGenerateJavaPoetStringTypesWhenReturnTypeIsContract() {
+                         .collect(Collectors.toList())
+                         .get(0);
+         assertEquals(
+-                "$L = $T.deploy($L,$L,$L,$S ).send()",
++                "$L = $T.deploy($L, $L, $L, $S).send()",
+                 ParserUtils.generateJavaPoetStringTypes(deploy, greeterContractClass));
+     }
+ 

@@ -1,0 +1,9 @@
+@@ -247,7 +247,7 @@ public Portfolio createReferencePortfolio(String scope, CreateReferencePortfolio
+         final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+         localVarHeaderParams.put("Content-Type", localVarContentType);
+         localVarHeaderParams.put("X-LUSID-SDK-Language", "Java");
+-        localVarHeaderParams.put("X-LUSID-SDK-Version", "0.10.1017");
++        localVarHeaderParams.put("X-LUSID-SDK-Version", "0.10.1019");
+ 
+         String[] localVarAuthNames = new String[] { "oauth2" };
+         return localVarApiClient.buildCall(localVarPath, "GET", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarFormParams, localVarAuthNames, _callback);

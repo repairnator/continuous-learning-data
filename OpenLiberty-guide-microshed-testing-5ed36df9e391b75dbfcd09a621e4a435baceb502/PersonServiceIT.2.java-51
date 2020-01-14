@@ -1,0 +1,9 @@
+@@ -51,7 +51,7 @@
+ public class PersonServiceIT {
+ 
+     // tag::inject[]
+-    @Inject
++    @RESTClient
+     // end::inject[]
+     // tag::personSvc[]
+     public static PersonService personSvc;

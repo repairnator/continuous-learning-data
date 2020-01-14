@@ -1,0 +1,9 @@
+@@ -6,7 +6,7 @@
+ import org.tron.api.GrpcAPI.Return;
+ import org.tron.api.GrpcAPI.TransactionExtention;
+ import org.tron.common.crypto.ECKey;
+-import org.tron.common.crypto.Sha256Hash;
++import org.tron.common.crypto.Sha256Sm3Hash;
+ import org.tron.common.utils.ByteArray;
+ import org.tron.core.exception.CancelException;
+ import org.tron.protos.Contract;

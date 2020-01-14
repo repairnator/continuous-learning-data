@@ -1,0 +1,9 @@
+@@ -73,7 +73,7 @@ private static Keycloak initialiseEnvConnection() throws Exception {
+     String username = System.getenv(JsonKey.SUNBIRD_SSO_USERNAME);
+     String password = System.getenv(JsonKey.SUNBIRD_SSO_PASSWORD);
+     String cleintId = System.getenv(JsonKey.SUNBIRD_SSO_CLIENT_ID);
+-    String cleintSecret = System.getenv(JsonKey.SUNBIRD_SSO_CLIENT_SECRET);
++    String clientSecret = System.getenv(JsonKey.SUNBIRD_SSO_CLIENT_SECRET);
+     String relam = System.getenv(JsonKey.SUNBIRD_SSO_RELAM);
+     if (StringUtils.isBlank(url)
+         || StringUtils.isBlank(username)

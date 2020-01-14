@@ -1,0 +1,8 @@
+@@ -9,6 +9,6 @@
+ @RequiredArgsConstructor
+ @Getter
+ @EqualsAndHashCode
+-public class InvitationAcceptedEvent {
++public class GroupInvitationAcceptedEvent {
+     private final GroupInvitation groupInvitation;
+ }

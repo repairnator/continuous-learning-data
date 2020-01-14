@@ -1,0 +1,9 @@
+@@ -212,7 +212,7 @@ private PatchSetCreatedEvent buildPatchSetCreatedEvent(final String projectName,
+         patchSetCreatedEvent.patchSet = patchSetAttributeSupplier;
+         patchSetCreatedEvent.changeKey = changeKey;
+ 
+-        when(patchSetCreatedEvent.getProjectNameKey()).thenReturn(mock(NameKey.class));
++        when(patchSetCreatedEvent.getProjectNameKey()).thenReturn(new NameKey(PROJECT_NAME));
+         return patchSetCreatedEvent;
+     }
+ 

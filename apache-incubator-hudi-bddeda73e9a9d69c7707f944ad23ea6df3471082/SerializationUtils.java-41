@@ -1,0 +1,9 @@
+@@ -41,7 +41,7 @@
+ 
+   // Caching kryo serializer to avoid creating kryo instance for every serde operation
+   private static final ThreadLocal<KryoSerializerInstance> SERIALIZER_REF =
+-      ThreadLocal.withInitial(() -> new KryoSerializerInstance());
++      ThreadLocal.withInitial(KryoSerializerInstance::new);
+ 
+   // Serialize
+   // -----------------------------------------------------------------------

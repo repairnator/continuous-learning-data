@@ -1,0 +1,9 @@
+@@ -115,7 +115,7 @@ public CheckNonCombinablePathCallable(Path[] paths, int start, int length, JobCo
+ 
+     @Override
+     public Set<Integer> call() throws Exception {
+-      Set<Integer> nonCombinablePathIndices = new HashSet<Integer>();
++      Set<Integer> nonCombinablePathIndices = new HashSet<>();
+       for (int i = 0; i < length; i++) {
+         PartitionDesc part = HiveFileFormatUtils.getPartitionDescFromPathRecursively(pathToPartitionInfo,
+             paths[i + start], IOPrepareCache.get().allocatePartitionDescMap());

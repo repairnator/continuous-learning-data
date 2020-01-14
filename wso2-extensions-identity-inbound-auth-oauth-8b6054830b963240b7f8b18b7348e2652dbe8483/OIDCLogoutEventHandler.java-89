@@ -1,0 +1,9 @@
+@@ -89,7 +89,7 @@ private HttpServletRequest getHttpRequestFromEvent(Event event) {
+         return (HttpServletRequest) event.getEventProperties().get(EventProperty.REQUEST);
+     }
+ 
+-    private boolean hasOPBSCookieValue (Cookie opbsCookie) {
++    private boolean hasOPBSCookieValue(Cookie opbsCookie) {
+ 
+         String opbsCookieValue = null;
+ 

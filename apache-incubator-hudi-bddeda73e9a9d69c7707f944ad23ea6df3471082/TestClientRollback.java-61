@@ -1,0 +1,9 @@
+@@ -61,7 +61,7 @@ public void testSavepointAndRollback() throws Exception {
+     try (HoodieWriteClient client = getHoodieWriteClient(cfg);) {
+       HoodieTestDataGenerator.writePartitionMetadata(fs, HoodieTestDataGenerator.DEFAULT_PARTITION_PATHS, basePath);
+ 
+-      /**
++      /*
+        * Write 1 (only inserts)
+        */
+       String newCommitTime = "001";

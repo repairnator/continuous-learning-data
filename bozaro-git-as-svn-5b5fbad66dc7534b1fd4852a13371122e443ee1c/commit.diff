@@ -1,0 +1,1428 @@
+diff --git a/src/docs/asciidoc/_changelog.adoc b/src/docs/asciidoc/_changelog.adoc
+index 4c10ced0..cb59782e 100644
+--- a/src/docs/asciidoc/_changelog.adoc
++++ b/src/docs/asciidoc/_changelog.adoc
+@@ -12,6 +12,11 @@ endif::[]
+ * Update dependencies
+ * `/usr/bin/git-as-svn` no longer implicitly adds `-Xmx512m` JVM argument
+ * Several file descriptor leaks fixed
++* git-as-svn no longer overrides `.gitattributes` settings with text/binary auto-detection
++* `svn:mime-type=application/octet-stream` property is now added to files that have `-text` in `.gitattributes`. https://github.com/bozaro/git-as-svn/issues/317[#317]
++
++IMPORTANT: Repository data exported to SVN has changed.
++Users will need to perform re-checkout of their working copies after git-as-svn upgrade.
+ 
+ == 1.21.9
+ 
+diff --git a/src/main/java/svnserver/repository/git/GitBranch.java b/src/main/java/svnserver/repository/git/GitBranch.java
+index 5114cad4..c9b204fc 100644
+--- a/src/main/java/svnserver/repository/git/GitBranch.java
++++ b/src/main/java/svnserver/repository/git/GitBranch.java
+@@ -36,6 +36,7 @@
+ 
+ public final class GitBranch {
+   private static final int revisionCacheVersion = 2;
++  private static final int repositoryVersion = 2;
+   private static final int REPORT_DELAY = 2500;
+   private static final int MARK_NO_FILE = -1;
+   @NotNull
+@@ -78,7 +79,9 @@ public GitBranch(@NotNull GitRepository repository, @NotNull String branch) thro
+     this.svnBranch = svnBranchRef.getName();
+     this.gitBranch = Constants.R_HEADS + branch;
+     final String repositoryId = loadRepositoryId(repository.getGit(), svnBranchRef);
+-    this.uuid = UUID.nameUUIDFromBytes((repositoryId + "\0" + gitBranch).getBytes(StandardCharsets.UTF_8)).toString();
++    this.uuid = UUID.nameUUIDFromBytes(
++        String.format("%s\0%s\0%s", repositoryId, gitBranch, repositoryVersion).getBytes(StandardCharsets.UTF_8)
++    ).toString();
+ 
+     final String revisionCacheName = String.format(
+         "cache-revision.%s.%s.%s.v%s", repository.getContext().getName(), gitBranch, repository.hasRenameDetection() ? 1 : 0, revisionCacheVersion
+diff --git a/src/main/java/svnserver/repository/git/GitFileEmptyTree.java b/src/main/java/svnserver/repository/git/GitFileEmptyTree.java
+index bcb2776e..898452a5 100644
+--- a/src/main/java/svnserver/repository/git/GitFileEmptyTree.java
++++ b/src/main/java/svnserver/repository/git/GitFileEmptyTree.java
+@@ -14,7 +14,6 @@
+ import svnserver.repository.VcsCopyFrom;
+ import svnserver.repository.git.filter.GitFilter;
+ import svnserver.repository.git.prop.GitProperty;
+-import svnserver.repository.git.prop.PropertyMapping;
+ 
+ import java.io.InputStream;
+ import java.util.Collections;
+@@ -31,7 +30,7 @@
+   private final int revision;
+ 
+   GitFileEmptyTree(@NotNull GitBranch branch, @NotNull String parentPath, int revision) {
+-    super(PropertyMapping.getRootProperties(), parentPath, GitProperty.emptyArray, "", FileMode.TREE);
++    super(GitProperty.emptyArray, parentPath, GitProperty.emptyArray, "", FileMode.TREE);
+     this.branch = branch;
+     this.revision = revision;
+   }
+diff --git a/src/main/java/svnserver/repository/git/GitFileTreeEntry.java b/src/main/java/svnserver/repository/git/GitFileTreeEntry.java
+index 99c81710..bc63ac6c 100644
+--- a/src/main/java/svnserver/repository/git/GitFileTreeEntry.java
++++ b/src/main/java/svnserver/repository/git/GitFileTreeEntry.java
+@@ -18,7 +18,6 @@
+ import svnserver.repository.VcsSupplier;
+ import svnserver.repository.git.filter.GitFilter;
+ import svnserver.repository.git.prop.GitProperty;
+-import svnserver.repository.git.prop.PropertyMapping;
+ 
+ import java.io.IOException;
+ import java.io.InputStream;
+@@ -58,7 +57,7 @@ private GitFileTreeEntry(@NotNull GitBranch branch, @NotNull GitProperty[] paren
+ 
+   @NotNull
+   public static GitFile create(@NotNull GitBranch branch, @NotNull RevTree tree, int revision) throws IOException {
+-    return create(branch, PropertyMapping.getRootProperties(), "", new GitTreeEntry(branch.getRepository().getGit(), FileMode.TREE, tree, ""), revision);
++    return create(branch, GitProperty.emptyArray, "", new GitTreeEntry(branch.getRepository().getGit(), FileMode.TREE, tree, ""), revision);
+   }
+ 
+   @NotNull
+@@ -120,12 +119,19 @@ public GitTreeEntry getTreeEntry() {
+       props.remove(SVNProperty.MIME_TYPE);
+       props.put(SVNProperty.SPECIAL, "*");
+     } else {
+-      if (fileMode.equals(FileMode.EXECUTABLE_FILE)) {
++      if (fileMode.equals(FileMode.EXECUTABLE_FILE))
+         props.put(SVNProperty.EXECUTABLE, "*");
+-      }
+-      if (fileMode.getObjectType() == Constants.OBJ_BLOB && branch.getRepository().isObjectBinary(filter, getObjectId())) {
++
++      if (props.containsKey(SVNProperty.MIME_TYPE)) {
+         props.remove(SVNProperty.EOL_STYLE);
+-        props.put(SVNProperty.MIME_TYPE, MIME_BINARY);
++      } else if (props.containsKey(SVNProperty.EOL_STYLE)) {
++        props.remove(SVNProperty.MIME_TYPE);
++      } else if (fileMode.getObjectType() == Constants.OBJ_BLOB) {
++        if (branch.getRepository().isObjectBinary(filter, getObjectId())) {
++          props.put(SVNProperty.MIME_TYPE, MIME_BINARY);
++        } else {
++          props.put(SVNProperty.EOL_STYLE, SVNProperty.NATIVE);
++        }
+       }
+     }
+     return props;
+diff --git a/src/main/java/svnserver/repository/git/prop/GitAttributesFactory.java b/src/main/java/svnserver/repository/git/prop/GitAttributesFactory.java
+index 9f097830..0e4339c1 100644
+--- a/src/main/java/svnserver/repository/git/prop/GitAttributesFactory.java
++++ b/src/main/java/svnserver/repository/git/prop/GitAttributesFactory.java
+@@ -63,14 +63,6 @@ public String getFileName() {
+     return properties.toArray(GitProperty.emptyArray);
+   }
+ 
+-  @NotNull
+-  @Override
+-  public GitProperty[] rootDefaults() {
+-    return new GitProperty[]{
+-        new GitFileProperty(AlwaysMatcher.INSTANCE, SVNProperty.EOL_STYLE, SVNProperty.EOL_STYLE_NATIVE)
+-    };
+-  }
+-
+   private static void processProperty(@NotNull List<GitProperty> properties, @NotNull Wildcard wildcard, @NotNull String property, @Nullable String value) {
+     if (value == null) {
+       return;
+@@ -89,16 +81,13 @@ private static void processProperty(@NotNull List<GitProperty> properties, @NotN
+   private String getMimeType(@NotNull String[] tokens) {
+     for (int i = 1; i < tokens.length; ++i) {
+       String token = tokens[i];
+-      if (token.startsWith("binary")) {
++      if (token.equals("binary") || token.equals("-text"))
+         return SVNFileUtil.BINARY_MIME_TYPE;
+-      }
+-      if (token.startsWith("-binary")) {
+-        return "";
+-      }
+-      if (token.startsWith("text")) {
++
++      if (token.equals("-binary") || token.equals("text"))
+         return "";
+-      }
+     }
++
+     return null;
+   }
+ 
+@@ -118,12 +107,9 @@ private String getEol(@NotNull String[] tokens) {
+             return SVNProperty.EOL_STYLE_CRLF;
+         }
+       }
+-      if (token.startsWith("binary")) {
+-        return "";
+-      }
+-      if (token.startsWith("-text")) {
++
++      if (token.equals("binary") || token.equals("-text"))
+         return "";
+-      }
+     }
+     return null;
+   }
+@@ -147,4 +133,11 @@ private String getFilter(@NotNull String[] tokens) {
+     }
+     return null;
+   }
++
++  @NotNull
++  public GitProperty[] rootDefaults() {
++    return new GitProperty[]{
++        new GitFileProperty(AlwaysMatcher.INSTANCE, SVNProperty.EOL_STYLE, SVNProperty.EOL_STYLE_NATIVE)
++    };
++  }
+ }
+diff --git a/src/main/java/svnserver/repository/git/prop/GitPropertyFactory.java b/src/main/java/svnserver/repository/git/prop/GitPropertyFactory.java
+index 063a3f63..73522417 100644
+--- a/src/main/java/svnserver/repository/git/prop/GitPropertyFactory.java
++++ b/src/main/java/svnserver/repository/git/prop/GitPropertyFactory.java
+@@ -34,14 +34,4 @@
+    * @return Git property workers.
+    */
+   @NotNull GitProperty[] create(@NotNull String content) throws IOException;
+-
+-  /**
+-   * Create git property for root directory.
+-   *
+-   * @return Git property workers.
+-   */
+-  @NotNull
+-  default GitProperty[] rootDefaults() {
+-    return GitProperty.emptyArray;
+-  }
+ }
+diff --git a/src/main/java/svnserver/repository/git/prop/PropertyMapping.java b/src/main/java/svnserver/repository/git/prop/PropertyMapping.java
+index 71c62d06..891c3eb9 100644
+--- a/src/main/java/svnserver/repository/git/prop/PropertyMapping.java
++++ b/src/main/java/svnserver/repository/git/prop/PropertyMapping.java
+@@ -11,7 +11,10 @@
+ import org.jetbrains.annotations.NotNull;
+ import org.jetbrains.annotations.Nullable;
+ 
+-import java.util.*;
++import java.util.Collection;
++import java.util.Collections;
++import java.util.Map;
++import java.util.TreeMap;
+ 
+ /**
+  * @author Marat Radchenko <marat@slonopotamus.org>
+@@ -19,31 +22,21 @@
+ public class PropertyMapping {
+   @NotNull
+   private static final Map<String, GitPropertyFactory> parserByFile = new TreeMap<>();
+-  @NotNull
+-  private static final GitProperty[] rootProperties;
+ 
+   static {
+     try {
+-      GitProperty[] properties = GitProperty.emptyArray;
+       for (Class<? extends GitPropertyFactory> factoryClass : ClassIndex.getSubclasses(GitPropertyFactory.class)) {
+         final GitPropertyFactory factory = factoryClass.getConstructor().newInstance();
+         final GitPropertyFactory oldParser = parserByFile.put(factory.getFileName(), factory);
+         if (oldParser != null) {
+           throw new RuntimeException("Found two classes mapped for same file: " + oldParser.getClass() + " and " + factoryClass);
+         }
+-        properties = GitProperty.joinProperties(properties, factory.rootDefaults());
+       }
+-      rootProperties = properties;
+     } catch (ReflectiveOperationException e) {
+       throw new RuntimeException(e);
+     }
+   }
+ 
+-  @NotNull
+-  public static GitProperty[] getRootProperties() {
+-    return Arrays.copyOf(rootProperties, rootProperties.length);
+-  }
+-
+   @Nullable
+   public static GitPropertyFactory getFactory(@NotNull String fileName) {
+     return parserByFile.get(fileName);
+diff --git a/src/test/java/svnserver/SvnTestHelper.java b/src/test/java/svnserver/SvnTestHelper.java
+index 60d202be..799fb30c 100644
+--- a/src/test/java/svnserver/SvnTestHelper.java
++++ b/src/test/java/svnserver/SvnTestHelper.java
+@@ -31,8 +31,6 @@
+  * @author Artem V. Navrotskiy <bozaro@users.noreply.github.com>
+  */
+ public final class SvnTestHelper {
+-  @NotNull
+-  private static final byte[] emptyBytes = {};
+ 
+   private SvnTestHelper() {
+   }
+diff --git a/src/test/java/svnserver/ext/gitlfs/storage/local/LfsLocalStorageTest.java b/src/test/java/svnserver/ext/gitlfs/storage/local/LfsLocalStorageTest.java
+index 239ebc04..06a1c3e5 100644
+--- a/src/test/java/svnserver/ext/gitlfs/storage/local/LfsLocalStorageTest.java
++++ b/src/test/java/svnserver/ext/gitlfs/storage/local/LfsLocalStorageTest.java
+@@ -46,6 +46,7 @@
+ import java.util.concurrent.ConcurrentSkipListMap;
+ 
+ import static svnserver.server.SvnFilePropertyTest.propsBinary;
++import static svnserver.server.SvnFilePropertyTest.propsEolNative;
+ 
+ /**
+  * Simple test for LfsLocalStorage.
+@@ -66,7 +67,7 @@
+   public void commitToLocalLFS() throws Exception {
+     try (SvnTestServer server = SvnTestServer.createEmpty(null, false, SvnTestServer.LfsMode.Local)) {
+       final SVNRepository svnRepository = server.openSvnRepository();
+-      SvnTestHelper.createFile(svnRepository, ".gitattributes", "* -text\n*.txt filter=lfs diff=lfs merge=lfs -text", null);
++      SvnTestHelper.createFile(svnRepository, ".gitattributes", "* -text\n*.txt filter=lfs diff=lfs merge=lfs -text", propsBinary);
+ 
+       final byte[] data = bigFile();
+ 
+@@ -92,7 +93,7 @@ public void handleUnlock(String path, SVNLock lock, SVNErrorMessage error) {
+       Assert.assertNotNull(lock.getID());
+       Assert.assertEquals(lock.getOwner(), SvnTestServer.USER_NAME);
+ 
+-      SvnTestHelper.createFile(svnRepository, "empty.txt", GitRepository.emptyBytes, null);
++      SvnTestHelper.createFile(svnRepository, "empty.txt", GitRepository.emptyBytes, propsBinary);
+       SvnTestHelper.checkFileContent(svnRepository, "empty.txt", GitRepository.emptyBytes);
+     }
+   }
+diff --git a/src/test/java/svnserver/ext/gitlfs/storage/network/LfsHttpStorageTest.java b/src/test/java/svnserver/ext/gitlfs/storage/network/LfsHttpStorageTest.java
+index c930c496..0e1c037c 100644
+--- a/src/test/java/svnserver/ext/gitlfs/storage/network/LfsHttpStorageTest.java
++++ b/src/test/java/svnserver/ext/gitlfs/storage/network/LfsHttpStorageTest.java
+@@ -97,7 +97,7 @@ public void commitToRemoteLfs() throws Exception {
+ 
+       try (SvnTestServer server = SvnTestServer.createEmpty(null, false, SvnTestServer.LfsMode.None, new GitAsSvnLfsHttpStorage(url, user))) {
+         final SVNRepository svnRepository = server.openSvnRepository();
+-        SvnTestHelper.createFile(svnRepository, ".gitattributes", "* -text\n*.txt filter=lfs diff=lfs merge=lfs -text", null);
++        SvnTestHelper.createFile(svnRepository, ".gitattributes", "* -text\n*.txt filter=lfs diff=lfs merge=lfs -text", propsBinary);
+ 
+         final byte[] data = LfsLocalStorageTest.bigFile();
+ 
+diff --git a/src/test/java/svnserver/repository/git/prop/GitEolTest.java b/src/test/java/svnserver/repository/git/prop/GitEolTest.java
+index e40918c9..c08a830e 100644
+--- a/src/test/java/svnserver/repository/git/prop/GitEolTest.java
++++ b/src/test/java/svnserver/repository/git/prop/GitEolTest.java
+@@ -25,7 +25,7 @@
+  *
+  * @author Artem V. Navrotskiy <bozaro@users.noreply.github.com>
+  */
+-public class GitEolTest {
++public final class GitEolTest {
+   @DataProvider(name = "parseAttributesData")
+   public static Object[][] parseAttributesData() {
+     final GitProperty[] attr = GitProperty.joinProperties(
+@@ -35,24 +35,25 @@
+                 "*.txt  eol=native\n" +
+                 "*.md   eol=lf\n" +
+                 "*.dat  -text\n" +
+-                "3.md   -text\n" +
++                "/3.md   -text\n" +
+                 "*.bin  binary\n" +
+-                "1.bin  -binary\n" +
+-                "2.bin  text\n"
++                "/1.bin  -binary\n" +
++                "/2.bin  text\n"
+         )
+     );
+     final Params[] params = new Params[]{
+         new Params(attr, "/").prop(SVNProperty.INHERITABLE_AUTO_PROPS, "*.txt = svn:eol-style=native\n" +
+             "*.md = svn:eol-style=LF\n" +
++            "*.dat = svn:mime-type=application/octet-stream\n" +
+             "*.bin = svn:mime-type=application/octet-stream\n"),
+         new Params(attr, "README.md").prop(SVNProperty.EOL_STYLE, SVNProperty.EOL_STYLE_LF),
+-        new Params(attr, "foo.dat"),
++        new Params(attr, "foo.dat").prop(SVNProperty.MIME_TYPE, SVNFileUtil.BINARY_MIME_TYPE),
+         new Params(attr, "foo.txt").prop(SVNProperty.EOL_STYLE, SVNProperty.EOL_STYLE_NATIVE),
+         new Params(attr, "foo.bin").prop(SVNProperty.MIME_TYPE, SVNFileUtil.BINARY_MIME_TYPE),
+ 
+         new Params(attr, "1.bin"),
+         new Params(attr, "2.bin"),
+-        new Params(attr, "3.md"),
++        new Params(attr, "3.md").prop(SVNProperty.MIME_TYPE, SVNFileUtil.BINARY_MIME_TYPE),
+ 
+         new Params(attr, "changelog").prop(SVNProperty.EOL_STYLE, SVNProperty.EOL_STYLE_NATIVE),
+     };
+diff --git a/src/test/java/svnserver/server/CheckPathAndStatCmdTest.java b/src/test/java/svnserver/server/CheckPathAndStatCmdTest.java
+index 2aa5405e..8ffe8fd4 100644
+--- a/src/test/java/svnserver/server/CheckPathAndStatCmdTest.java
++++ b/src/test/java/svnserver/server/CheckPathAndStatCmdTest.java
+@@ -7,31 +7,28 @@
+  */
+ package svnserver.server;
+ 
+-import com.google.common.collect.ImmutableMap;
+ import org.jetbrains.annotations.NotNull;
+ import org.testng.Assert;
+ import org.testng.annotations.Listeners;
+ import org.testng.annotations.Test;
+-import org.tmatesoft.svn.core.*;
++import org.tmatesoft.svn.core.SVNDirEntry;
++import org.tmatesoft.svn.core.SVNErrorCode;
++import org.tmatesoft.svn.core.SVNException;
++import org.tmatesoft.svn.core.SVNNodeKind;
+ import org.tmatesoft.svn.core.io.SVNRepository;
+ import svnserver.tester.SvnTester;
+ import svnserver.tester.SvnTesterDataProvider;
+ import svnserver.tester.SvnTesterExternalListener;
+ import svnserver.tester.SvnTesterFactory;
+ 
+-import java.util.Map;
+-
+ import static svnserver.SvnTestHelper.createFile;
++import static svnserver.server.SvnFilePropertyTest.propsEolNative;
+ 
+ /**
+  * @author Marat Radchenko <marat@slonopotamus.org>
+  */
+ @Listeners(SvnTesterExternalListener.class)
+ public final class CheckPathAndStatCmdTest {
+-  @NotNull
+-  final static Map<String, String> propsEolNative = ImmutableMap.<String, String>builder()
+-      .put(SVNProperty.EOL_STYLE, SVNProperty.EOL_STYLE_NATIVE)
+-      .build();
+ 
+   @Test(dataProvider = "all", dataProviderClass = SvnTesterDataProvider.class)
+   public void nonexistentRev(@NotNull SvnTesterFactory factory) throws Exception {
+diff --git a/src/test/java/svnserver/server/DepthTest.java b/src/test/java/svnserver/server/DepthTest.java
+index ddb98dbe..6f488e01 100644
+--- a/src/test/java/svnserver/server/DepthTest.java
++++ b/src/test/java/svnserver/server/DepthTest.java
+@@ -14,6 +14,7 @@
+ import org.testng.annotations.Test;
+ import org.tmatesoft.svn.core.SVNDepth;
+ import org.tmatesoft.svn.core.SVNException;
++import org.tmatesoft.svn.core.SVNProperty;
+ import org.tmatesoft.svn.core.SVNPropertyValue;
+ import org.tmatesoft.svn.core.io.ISVNEditor;
+ import org.tmatesoft.svn.core.io.ISVNReporterBaton;
+@@ -31,42 +32,6 @@
+  */
+ @Listeners(SvnTesterExternalListener.class)
+ public final class DepthTest {
+-  @NotNull
+-  private SvnTester create(@NotNull SvnTesterFactory factory) throws Exception {
+-    final SvnTester tester = factory.create();
+-
+-    final SVNRepository repo = tester.openSvnRepository();
+-    final ISVNEditor editor = repo.getCommitEditor("", null);
+-    editor.openRoot(-1);
+-
+-    editor.changeDirProperty("svn:ignore", SVNPropertyValue.create("sample.txt"));
+-
+-    editor.addFile("/.gitattributes", null, -1);
+-    sendDeltaAndClose(editor, "/.gitattributes", null, "* -text\n");
+-
+-    editor.addFile("/.gitignore", null, -1);
+-    sendDeltaAndClose(editor, "/.gitignore", null, "/sample.txt\n");
+-
+-    editor.addDir("/a", null, -1);
+-    editor.addDir("/a/b", null, -1);
+-
+-    editor.addFile("/a/b/e", null, -1);
+-    sendDeltaAndClose(editor, "/a/b/e", null, "e body");
+-
+-    editor.addDir("/a/b/c", null, -1);
+-
+-    editor.addFile("/a/b/c/d", null, -1);
+-    sendDeltaAndClose(editor, "/a/b/c/d", null, "d body");
+-
+-    editor.closeDir();
+-    editor.closeDir();
+-    editor.closeDir();
+-    editor.closeDir();
+-    editor.closeEdit();
+-
+-    return tester;
+-  }
+-
+   @Test(dataProvider = "all", dataProviderClass = SvnTesterDataProvider.class)
+   public void interruptedUpdate(@NotNull SvnTesterFactory factory) throws Exception {
+     try (SvnTester server = create(factory)) {
+@@ -101,12 +66,60 @@ public void interruptedUpdate(@NotNull SvnTesterFactory factory) throws Exceptio
+           "a/b/c/d - change-file-prop: svn:entry:committed-rev\n" +
+           "a/b/c/d - change-file-prop: svn:entry:last-author\n" +
+           "a/b/c/d - change-file-prop: svn:entry:uuid\n" +
++          "a/b/c/d - change-file-prop: svn:eol-style\n" +
+           "a/b/c/d - close-file: e08b5cff98d6e3f8a892fc999622d441\n" +
+           "a/b/c/d - delta-chunk\n" +
+           "a/b/c/d - delta-end\n");
+     }
+   }
+ 
++  @NotNull
++  private SvnTester create(@NotNull SvnTesterFactory factory) throws Exception {
++    final SvnTester tester = factory.create();
++
++    final SVNRepository repo = tester.openSvnRepository();
++    final ISVNEditor editor = repo.getCommitEditor("", null);
++    editor.openRoot(-1);
++
++    editor.changeDirProperty("svn:ignore", SVNPropertyValue.create("sample.txt"));
++
++    editor.addFile("/.gitattributes", null, -1);
++    editor.changeFileProperty("/.gitattributes", SVNProperty.EOL_STYLE, SVNPropertyValue.create(SVNProperty.EOL_STYLE_NATIVE));
++    sendDeltaAndClose(editor, "/.gitattributes", null, "\n");
++
++    editor.addFile("/.gitignore", null, -1);
++    editor.changeFileProperty("/.gitignore", SVNProperty.EOL_STYLE, SVNPropertyValue.create(SVNProperty.EOL_STYLE_NATIVE));
++    sendDeltaAndClose(editor, "/.gitignore", null, "/sample.txt\n");
++
++    editor.addDir("/a", null, -1);
++    editor.addDir("/a/b", null, -1);
++
++    editor.addFile("/a/b/e", null, -1);
++    editor.changeFileProperty("/a/b/e", SVNProperty.EOL_STYLE, SVNPropertyValue.create(SVNProperty.EOL_STYLE_NATIVE));
++    sendDeltaAndClose(editor, "/a/b/e", null, "e body");
++
++    editor.addDir("/a/b/c", null, -1);
++
++    editor.addFile("/a/b/c/d", null, -1);
++    editor.changeFileProperty("/a/b/c/d", SVNProperty.EOL_STYLE, SVNPropertyValue.create(SVNProperty.EOL_STYLE_NATIVE));
++    sendDeltaAndClose(editor, "/a/b/c/d", null, "d body");
++
++    editor.closeDir();
++    editor.closeDir();
++    editor.closeDir();
++    editor.closeDir();
++    editor.closeEdit();
++
++    return tester;
++  }
++
++  private void check(@NotNull SvnTester server, @NotNull String path, @Nullable SVNDepth depth, @NotNull ISVNReporterBaton reporterBaton, @NotNull String expected) throws SVNException {
++    final SVNRepository repo = server.openSvnRepository();
++    final ReportSVNEditor editor = new ReportSVNEditor();
++    repo.update(repo.getLatestRevision(), path, depth, false, reporterBaton, editor);
++    Assert.assertEquals(editor.toString(), expected);
++  }
++
+   @Test(dataProvider = "all", dataProviderClass = SvnTesterDataProvider.class)
+   public void empty(@NotNull SvnTesterFactory factory) throws Exception {
+     try (SvnTester server = create(factory)) {
+@@ -143,7 +156,8 @@ public void empty(@NotNull SvnTesterFactory factory) throws Exception {
+           ".gitattributes - change-file-prop: svn:entry:committed-rev\n" +
+           ".gitattributes - change-file-prop: svn:entry:last-author\n" +
+           ".gitattributes - change-file-prop: svn:entry:uuid\n" +
+-          ".gitattributes - close-file: d3d04ac1b5897688b0d97abfd135aefa\n" +
++          ".gitattributes - change-file-prop: svn:eol-style\n" +
++          ".gitattributes - close-file: 68b329da9893e34099c7d8ad5cb9c940\n" +
+           ".gitattributes - delta-chunk\n" +
+           ".gitattributes - delta-end\n" +
+           ".gitignore - add-file\n" +
+@@ -152,6 +166,7 @@ public void empty(@NotNull SvnTesterFactory factory) throws Exception {
+           ".gitignore - change-file-prop: svn:entry:committed-rev\n" +
+           ".gitignore - change-file-prop: svn:entry:last-author\n" +
+           ".gitignore - change-file-prop: svn:entry:uuid\n" +
++          ".gitignore - change-file-prop: svn:eol-style\n" +
+           ".gitignore - close-file: 57457451fdf67806102d334f30c062f3\n" +
+           ".gitignore - delta-chunk\n" +
+           ".gitignore - delta-end\n" +
+@@ -180,6 +195,7 @@ public void empty(@NotNull SvnTesterFactory factory) throws Exception {
+           "a/b/c/d - change-file-prop: svn:entry:committed-rev\n" +
+           "a/b/c/d - change-file-prop: svn:entry:last-author\n" +
+           "a/b/c/d - change-file-prop: svn:entry:uuid\n" +
++          "a/b/c/d - change-file-prop: svn:eol-style\n" +
+           "a/b/c/d - close-file: e08b5cff98d6e3f8a892fc999622d441\n" +
+           "a/b/c/d - delta-chunk\n" +
+           "a/b/c/d - delta-end\n" +
+@@ -189,6 +205,7 @@ public void empty(@NotNull SvnTesterFactory factory) throws Exception {
+           "a/b/e - change-file-prop: svn:entry:committed-rev\n" +
+           "a/b/e - change-file-prop: svn:entry:last-author\n" +
+           "a/b/e - change-file-prop: svn:entry:uuid\n" +
++          "a/b/e - change-file-prop: svn:eol-style\n" +
+           "a/b/e - close-file: babc2f91dac8ef35815e635d89196696\n" +
+           "a/b/e - delta-chunk\n" +
+           "a/b/e - delta-end\n");
+@@ -237,6 +254,7 @@ public void emptySubdir(@NotNull SvnTesterFactory factory) throws Exception {
+           "a/b/c/d - change-file-prop: svn:entry:committed-rev\n" +
+           "a/b/c/d - change-file-prop: svn:entry:last-author\n" +
+           "a/b/c/d - change-file-prop: svn:entry:uuid\n" +
++          "a/b/c/d - change-file-prop: svn:eol-style\n" +
+           "a/b/c/d - close-file: e08b5cff98d6e3f8a892fc999622d441\n" +
+           "a/b/c/d - delta-chunk\n" +
+           "a/b/c/d - delta-end\n" +
+@@ -246,6 +264,7 @@ public void emptySubdir(@NotNull SvnTesterFactory factory) throws Exception {
+           "a/b/e - change-file-prop: svn:entry:committed-rev\n" +
+           "a/b/e - change-file-prop: svn:entry:last-author\n" +
+           "a/b/e - change-file-prop: svn:entry:uuid\n" +
++          "a/b/e - change-file-prop: svn:eol-style\n" +
+           "a/b/e - close-file: babc2f91dac8ef35815e635d89196696\n" +
+           "a/b/e - delta-chunk\n" +
+           "a/b/e - delta-end\n");
+@@ -289,6 +308,7 @@ public void emptySubdir2(@NotNull SvnTesterFactory factory) throws Exception {
+           "a/b/c/d - change-file-prop: svn:entry:committed-rev\n" +
+           "a/b/c/d - change-file-prop: svn:entry:last-author\n" +
+           "a/b/c/d - change-file-prop: svn:entry:uuid\n" +
++          "a/b/c/d - change-file-prop: svn:eol-style\n" +
+           "a/b/c/d - close-file: e08b5cff98d6e3f8a892fc999622d441\n" +
+           "a/b/c/d - delta-chunk\n" +
+           "a/b/c/d - delta-end\n");
+@@ -310,7 +330,8 @@ public void infinity(@NotNull SvnTesterFactory factory) throws Exception {
+           ".gitattributes - change-file-prop: svn:entry:committed-rev\n" +
+           ".gitattributes - change-file-prop: svn:entry:last-author\n" +
+           ".gitattributes - change-file-prop: svn:entry:uuid\n" +
+-          ".gitattributes - close-file: d3d04ac1b5897688b0d97abfd135aefa\n" +
++          ".gitattributes - change-file-prop: svn:eol-style\n" +
++          ".gitattributes - close-file: 68b329da9893e34099c7d8ad5cb9c940\n" +
+           ".gitattributes - delta-chunk\n" +
+           ".gitattributes - delta-end\n" +
+           ".gitignore - add-file\n" +
+@@ -319,6 +340,7 @@ public void infinity(@NotNull SvnTesterFactory factory) throws Exception {
+           ".gitignore - change-file-prop: svn:entry:committed-rev\n" +
+           ".gitignore - change-file-prop: svn:entry:last-author\n" +
+           ".gitignore - change-file-prop: svn:entry:uuid\n" +
++          ".gitignore - change-file-prop: svn:eol-style\n" +
+           ".gitignore - close-file: 57457451fdf67806102d334f30c062f3\n" +
+           ".gitignore - delta-chunk\n" +
+           ".gitignore - delta-end\n" +
+@@ -348,6 +370,7 @@ public void infinity(@NotNull SvnTesterFactory factory) throws Exception {
+           "a/b/c/d - change-file-prop: svn:entry:committed-rev\n" +
+           "a/b/c/d - change-file-prop: svn:entry:last-author\n" +
+           "a/b/c/d - change-file-prop: svn:entry:uuid\n" +
++          "a/b/c/d - change-file-prop: svn:eol-style\n" +
+           "a/b/c/d - close-file: e08b5cff98d6e3f8a892fc999622d441\n" +
+           "a/b/c/d - delta-chunk\n" +
+           "a/b/c/d - delta-end\n" +
+@@ -357,6 +380,7 @@ public void infinity(@NotNull SvnTesterFactory factory) throws Exception {
+           "a/b/e - change-file-prop: svn:entry:committed-rev\n" +
+           "a/b/e - change-file-prop: svn:entry:last-author\n" +
+           "a/b/e - change-file-prop: svn:entry:uuid\n" +
++          "a/b/e - change-file-prop: svn:eol-style\n" +
+           "a/b/e - close-file: babc2f91dac8ef35815e635d89196696\n" +
+           "a/b/e - delta-chunk\n" +
+           "a/b/e - delta-end\n");
+@@ -403,6 +427,7 @@ public void infinitySubdir(@NotNull SvnTesterFactory factory) throws Exception {
+           "a/b/c/d - change-file-prop: svn:entry:committed-rev\n" +
+           "a/b/c/d - change-file-prop: svn:entry:last-author\n" +
+           "a/b/c/d - change-file-prop: svn:entry:uuid\n" +
++          "a/b/c/d - change-file-prop: svn:eol-style\n" +
+           "a/b/c/d - close-file: e08b5cff98d6e3f8a892fc999622d441\n" +
+           "a/b/c/d - delta-chunk\n" +
+           "a/b/c/d - delta-end\n" +
+@@ -412,6 +437,7 @@ public void infinitySubdir(@NotNull SvnTesterFactory factory) throws Exception {
+           "a/b/e - change-file-prop: svn:entry:committed-rev\n" +
+           "a/b/e - change-file-prop: svn:entry:last-author\n" +
+           "a/b/e - change-file-prop: svn:entry:uuid\n" +
++          "a/b/e - change-file-prop: svn:eol-style\n" +
+           "a/b/e - close-file: babc2f91dac8ef35815e635d89196696\n" +
+           "a/b/e - delta-chunk\n" +
+           "a/b/e - delta-end\n");
+@@ -444,6 +470,7 @@ public void files(@NotNull SvnTesterFactory factory) throws Exception {
+           "a/b/e - change-file-prop: svn:entry:committed-rev\n" +
+           "a/b/e - change-file-prop: svn:entry:last-author\n" +
+           "a/b/e - change-file-prop: svn:entry:uuid\n" +
++          "a/b/e - change-file-prop: svn:eol-style\n" +
+           "a/b/e - close-file: babc2f91dac8ef35815e635d89196696\n" +
+           "a/b/e - delta-chunk\n" +
+           "a/b/e - delta-end\n");
+@@ -475,6 +502,7 @@ public void files(@NotNull SvnTesterFactory factory) throws Exception {
+           "a/b/c/d - change-file-prop: svn:entry:committed-rev\n" +
+           "a/b/c/d - change-file-prop: svn:entry:last-author\n" +
+           "a/b/c/d - change-file-prop: svn:entry:uuid\n" +
++          "a/b/c/d - change-file-prop: svn:eol-style\n" +
+           "a/b/c/d - close-file: e08b5cff98d6e3f8a892fc999622d441\n" +
+           "a/b/c/d - delta-chunk\n" +
+           "a/b/c/d - delta-end\n");
+@@ -506,6 +534,7 @@ public void immediates(@NotNull SvnTesterFactory factory) throws Exception {
+           "a/b/e - change-file-prop: svn:entry:committed-rev\n" +
+           "a/b/e - change-file-prop: svn:entry:last-author\n" +
+           "a/b/e - change-file-prop: svn:entry:uuid\n" +
++          "a/b/e - change-file-prop: svn:eol-style\n" +
+           "a/b/e - close-file: babc2f91dac8ef35815e635d89196696\n" +
+           "a/b/e - delta-chunk\n" +
+           "a/b/e - delta-end\n");
+@@ -537,6 +566,7 @@ public void immediates(@NotNull SvnTesterFactory factory) throws Exception {
+           "a/b/c/d - change-file-prop: svn:entry:committed-rev\n" +
+           "a/b/c/d - change-file-prop: svn:entry:last-author\n" +
+           "a/b/c/d - change-file-prop: svn:entry:uuid\n" +
++          "a/b/c/d - change-file-prop: svn:eol-style\n" +
+           "a/b/c/d - close-file: e08b5cff98d6e3f8a892fc999622d441\n" +
+           "a/b/c/d - delta-chunk\n" +
+           "a/b/c/d - delta-end\n");
+@@ -558,7 +588,8 @@ public void complex(@NotNull SvnTesterFactory factory) throws Exception {
+           ".gitattributes - change-file-prop: svn:entry:committed-rev\n" +
+           ".gitattributes - change-file-prop: svn:entry:last-author\n" +
+           ".gitattributes - change-file-prop: svn:entry:uuid\n" +
+-          ".gitattributes - close-file: d3d04ac1b5897688b0d97abfd135aefa\n" +
++          ".gitattributes - change-file-prop: svn:eol-style\n" +
++          ".gitattributes - close-file: 68b329da9893e34099c7d8ad5cb9c940\n" +
+           ".gitattributes - delta-chunk\n" +
+           ".gitattributes - delta-end\n" +
+           ".gitignore - add-file\n" +
+@@ -567,6 +598,7 @@ public void complex(@NotNull SvnTesterFactory factory) throws Exception {
+           ".gitignore - change-file-prop: svn:entry:committed-rev\n" +
+           ".gitignore - change-file-prop: svn:entry:last-author\n" +
+           ".gitignore - change-file-prop: svn:entry:uuid\n" +
++          ".gitignore - change-file-prop: svn:eol-style\n" +
+           ".gitignore - close-file: 57457451fdf67806102d334f30c062f3\n" +
+           ".gitignore - delta-chunk\n" +
+           ".gitignore - delta-end\n" +
+@@ -596,6 +628,7 @@ public void complex(@NotNull SvnTesterFactory factory) throws Exception {
+           "a/b/c/d - change-file-prop: svn:entry:committed-rev\n" +
+           "a/b/c/d - change-file-prop: svn:entry:last-author\n" +
+           "a/b/c/d - change-file-prop: svn:entry:uuid\n" +
++          "a/b/c/d - change-file-prop: svn:eol-style\n" +
+           "a/b/c/d - close-file: e08b5cff98d6e3f8a892fc999622d441\n" +
+           "a/b/c/d - delta-chunk\n" +
+           "a/b/c/d - delta-end\n" +
+@@ -605,6 +638,7 @@ public void complex(@NotNull SvnTesterFactory factory) throws Exception {
+           "a/b/e - change-file-prop: svn:entry:committed-rev\n" +
+           "a/b/e - change-file-prop: svn:entry:last-author\n" +
+           "a/b/e - change-file-prop: svn:entry:uuid\n" +
++          "a/b/e - change-file-prop: svn:eol-style\n" +
+           "a/b/e - close-file: babc2f91dac8ef35815e635d89196696\n" +
+           "a/b/e - delta-chunk\n" +
+           "a/b/e - delta-end\n");
+@@ -646,6 +680,7 @@ public void complex(@NotNull SvnTesterFactory factory) throws Exception {
+           "a/b/c/d - change-file-prop: svn:entry:committed-rev\n" +
+           "a/b/c/d - change-file-prop: svn:entry:last-author\n" +
+           "a/b/c/d - change-file-prop: svn:entry:uuid\n" +
++          "a/b/c/d - change-file-prop: svn:eol-style\n" +
+           "a/b/c/d - close-file: e08b5cff98d6e3f8a892fc999622d441\n" +
+           "a/b/c/d - delta-chunk\n" +
+           "a/b/c/d - delta-end\n");
+@@ -687,6 +722,7 @@ public void complex(@NotNull SvnTesterFactory factory) throws Exception {
+           "a/b/c/d - change-file-prop: svn:entry:committed-rev\n" +
+           "a/b/c/d - change-file-prop: svn:entry:last-author\n" +
+           "a/b/c/d - change-file-prop: svn:entry:uuid\n" +
++          "a/b/c/d - change-file-prop: svn:eol-style\n" +
+           "a/b/c/d - close-file: e08b5cff98d6e3f8a892fc999622d441\n" +
+           "a/b/c/d - delta-chunk\n" +
+           "a/b/c/d - delta-end\n" +
+@@ -696,6 +732,7 @@ public void complex(@NotNull SvnTesterFactory factory) throws Exception {
+           "a/b/e - change-file-prop: svn:entry:committed-rev\n" +
+           "a/b/e - change-file-prop: svn:entry:last-author\n" +
+           "a/b/e - change-file-prop: svn:entry:uuid\n" +
++          "a/b/e - change-file-prop: svn:eol-style\n" +
+           "a/b/e - close-file: babc2f91dac8ef35815e635d89196696\n" +
+           "a/b/e - delta-chunk\n" +
+           "a/b/e - delta-end\n");
+@@ -738,16 +775,10 @@ public void complex(@NotNull SvnTesterFactory factory) throws Exception {
+           "a/b/c/d - change-file-prop: svn:entry:committed-rev\n" +
+           "a/b/c/d - change-file-prop: svn:entry:last-author\n" +
+           "a/b/c/d - change-file-prop: svn:entry:uuid\n" +
++          "a/b/c/d - change-file-prop: svn:eol-style\n" +
+           "a/b/c/d - close-file: e08b5cff98d6e3f8a892fc999622d441\n" +
+           "a/b/c/d - delta-chunk\n" +
+           "a/b/c/d - delta-end\n");
+     }
+   }
+-
+-  private void check(@NotNull SvnTester server, @NotNull String path, @Nullable SVNDepth depth, @NotNull ISVNReporterBaton reporterBaton, @NotNull String expected) throws SVNException {
+-    final SVNRepository repo = server.openSvnRepository();
+-    final ReportSVNEditor editor = new ReportSVNEditor();
+-    repo.update(repo.getLatestRevision(), path, depth, false, reporterBaton, editor);
+-    Assert.assertEquals(editor.toString(), expected);
+-  }
+ }
+diff --git a/src/test/java/svnserver/server/GetFileRevsTest.java b/src/test/java/svnserver/server/GetFileRevsTest.java
+index a6bb8b57..71455337 100644
+--- a/src/test/java/svnserver/server/GetFileRevsTest.java
++++ b/src/test/java/svnserver/server/GetFileRevsTest.java
+@@ -26,7 +26,7 @@
+ 
+ import static svnserver.SvnTestHelper.createFile;
+ import static svnserver.SvnTestHelper.modifyFile;
+-import static svnserver.server.CheckPathAndStatCmdTest.propsEolNative;
++import static svnserver.server.SvnFilePropertyTest.propsEolNative;
+ 
+ @Listeners(SvnTesterExternalListener.class)
+ public final class GetFileRevsTest {
+diff --git a/src/test/java/svnserver/server/SvnCheckoutTest.java b/src/test/java/svnserver/server/SvnCheckoutTest.java
+index b1992c4d..1a000ae2 100644
+--- a/src/test/java/svnserver/server/SvnCheckoutTest.java
++++ b/src/test/java/svnserver/server/SvnCheckoutTest.java
+@@ -158,7 +158,7 @@ public void checkCancelled() {
+   public void checkoutAndUpdate() throws Exception {
+     try (SvnTestServer server = SvnTestServer.createEmpty()) {
+       final SVNRepository repo = server.openSvnRepository();
+-      final ISVNEditor editor = repo.getCommitEditor("Intital state", null, false, null);
++      final ISVNEditor editor = repo.getCommitEditor("Initial state", null, false, null);
+       editor.openRoot(-1);
+       editor.addDir("/src", null, -1);
+       editor.addDir("/src/main", null, -1);
+diff --git a/src/test/java/svnserver/server/SvnCommitTest.java b/src/test/java/svnserver/server/SvnCommitTest.java
+index 74541387..492db4ec 100644
+--- a/src/test/java/svnserver/server/SvnCommitTest.java
++++ b/src/test/java/svnserver/server/SvnCommitTest.java
+@@ -7,7 +7,6 @@
+  */
+ package svnserver.server;
+ 
+-import com.google.common.collect.ImmutableMap;
+ import org.jetbrains.annotations.NotNull;
+ import org.testng.Assert;
+ import org.testng.annotations.Test;
+@@ -17,9 +16,13 @@
+ import svnserver.SvnTestServer;
+ import svnserver.ext.gitlfs.storage.local.LfsLocalStorageTest;
+ 
+-import java.util.*;
++import java.util.ArrayList;
++import java.util.Collection;
++import java.util.HashSet;
++import java.util.Set;
+ 
+ import static svnserver.SvnTestHelper.*;
++import static svnserver.server.SvnFilePropertyTest.propsEolNative;
+ 
+ /**
+  * Simple update tests.
+@@ -27,18 +30,12 @@
+  * @author Artem V. Navrotskiy <bozaro@users.noreply.github.com>
+  */
+ public final class SvnCommitTest {
+-  @NotNull
+-  private final static Map<String, String> propsEolNative = ImmutableMap.<String, String>builder()
+-      .put(SVNProperty.EOL_STYLE, SVNProperty.EOL_STYLE_NATIVE)
+-      .build();
+ 
+   /**
+    * Check file copy.
+    * <pre>
+    * svn copy README.md@45 README.copy
+    * </pre>
+-   *
+-   * @throws Exception
+    */
+   @Test
+   public void copyFileFromRevisionTest() throws Exception {
+@@ -85,15 +82,13 @@ public void bigFile() throws Exception {
+    * <pre>
+    * svn copy README.md@45 README.copy
+    * </pre>
+-   *
+-   * @throws Exception
+    */
+   @Test
+   public void copyDirFromRevisionTest() throws Exception {
+     try (SvnTestServer server = SvnTestServer.createEmpty()) {
+       final SVNRepository repo = server.openSvnRepository();
+       {
+-        final ISVNEditor editor = repo.getCommitEditor("Intital state", null, false, null);
++        final ISVNEditor editor = repo.getCommitEditor("Initial state", null, false, null);
+         editor.openRoot(-1);
+         editor.addDir("/src", null, -1);
+         editor.addDir("/src/main", null, -1);
+@@ -128,8 +123,8 @@ public void copyDirFromRevisionTest() throws Exception {
+       }
+ 
+       // compare content
+-      final Collection<SVNDirEntry> srcList = repo.getDir(srcDir, srcRev, null, 0, new ArrayList());
+-      final Collection<SVNDirEntry> dstList = repo.getDir(dstDir, repo.getLatestRevision(), null, 0, new ArrayList());
++      final Collection<SVNDirEntry> srcList = repo.getDir(srcDir, srcRev, null, 0, new ArrayList<SVNDirEntry>());
++      final Collection<SVNDirEntry> dstList = repo.getDir(dstDir, repo.getLatestRevision(), null, 0, new ArrayList<SVNDirEntry>());
+       checkEquals(srcList, dstList);
+     }
+   }
+@@ -147,8 +142,6 @@ private void checkEquals(@NotNull Collection<SVNDirEntry> listA, @NotNull Collec
+ 
+   /**
+    * Check commit out-of-date.
+-   *
+-   * @throws Exception
+    */
+   @Test
+   public void commitFileOufOfDateTest() throws Exception {
+@@ -171,8 +164,6 @@ public void commitFileOufOfDateTest() throws Exception {
+ 
+   /**
+    * Check commit up-to-date.
+-   *
+-   * @throws Exception
+    */
+   @Test
+   public void commitFileUpToDateTest() throws Exception {
+@@ -190,8 +181,6 @@ public void commitFileUpToDateTest() throws Exception {
+ 
+   /**
+    * Check commit without e-mail.
+-   *
+-   * @throws Exception
+    */
+   @Test
+   public void commitWithoutEmail() throws Exception {
+diff --git a/src/test/java/svnserver/server/SvnFilePropertyTest.java b/src/test/java/svnserver/server/SvnFilePropertyTest.java
+index bf004cec..7151e491 100644
+--- a/src/test/java/svnserver/server/SvnFilePropertyTest.java
++++ b/src/test/java/svnserver/server/SvnFilePropertyTest.java
+@@ -30,13 +30,13 @@
+  *
+  * @author Artem V. Navrotskiy <bozaro@users.noreply.github.com>
+  */
+-public class SvnFilePropertyTest {
++public final class SvnFilePropertyTest {
+   @NotNull
+   public final static Map<String, String> propsBinary = ImmutableMap.<String, String>builder()
+       .put(SVNProperty.MIME_TYPE, SVNFileUtil.BINARY_MIME_TYPE)
+       .build();
+   @NotNull
+-  private final static Map<String, String> propsEolNative = ImmutableMap.<String, String>builder()
++  public final static Map<String, String> propsEolNative = ImmutableMap.<String, String>builder()
+       .put(SVNProperty.EOL_STYLE, SVNProperty.EOL_STYLE_NATIVE)
+       .build();
+   @NotNull
+@@ -59,6 +59,7 @@
+   @NotNull
+   private final static Map<String, String> propsNeedsLock = ImmutableMap.<String, String>builder()
+       .put(SVNProperty.NEEDS_LOCK, "*")
++      .put(SVNProperty.MIME_TYPE, SVNFileUtil.BINARY_MIME_TYPE)
+       .build();
+ 
+   /**
+diff --git a/src/test/java/svnserver/server/SvnFilterTest.java b/src/test/java/svnserver/server/SvnFilterTest.java
+index b93577bc..4713a4c2 100644
+--- a/src/test/java/svnserver/server/SvnFilterTest.java
++++ b/src/test/java/svnserver/server/SvnFilterTest.java
+@@ -13,7 +13,6 @@
+ import org.testng.annotations.Test;
+ import org.tmatesoft.svn.core.SVNProperty;
+ import org.tmatesoft.svn.core.SVNPropertyValue;
+-import org.tmatesoft.svn.core.internal.wc.SVNFileUtil;
+ import org.tmatesoft.svn.core.io.ISVNEditor;
+ import org.tmatesoft.svn.core.io.SVNRepository;
+ import svnserver.SvnTestServer;
+@@ -22,37 +21,27 @@
+ import java.io.IOException;
+ import java.io.OutputStream;
+ import java.nio.charset.StandardCharsets;
+-import java.util.HashMap;
+ import java.util.HashSet;
+-import java.util.Map;
+ import java.util.Set;
+ import java.util.zip.GZIPOutputStream;
+ 
+ import static svnserver.SvnTestHelper.*;
++import static svnserver.server.SvnFilePropertyTest.propsBinary;
++import static svnserver.server.SvnFilePropertyTest.propsEolNative;
+ 
+ /**
+  * Check file content filter.
+  *
+  * @author Artem V. Navrotskiy <bozaro@users.noreply.github.com>
+  */
+-public class SvnFilterTest {
++public final class SvnFilterTest {
+   @NotNull
+   private final static byte[] CONTENT_FOO = (Strings.repeat("Some data\n", 100) + "Foo file\n").getBytes(StandardCharsets.UTF_8);
+   @NotNull
+   private final static byte[] CONTENT_BAR = (Strings.repeat("Some data\n", 100) + "Bar file\n").getBytes(StandardCharsets.UTF_8);
+-  @NotNull
+-  private final static Map<String, String> propsBinary = new HashMap<String, String>() {{
+-    put(SVNProperty.MIME_TYPE, SVNFileUtil.BINARY_MIME_TYPE);
+-  }};
+-  @NotNull
+-  private final static Map<String, String> propsNative = new HashMap<String, String>() {{
+-    put(SVNProperty.EOL_STYLE, SVNProperty.EOL_STYLE_NATIVE);
+-  }};
+ 
+   /**
+    * Check file read content on filter change.
+-   *
+-   * @throws Exception
+    */
+   @Test
+   public void binaryRead() throws Exception {
+@@ -70,7 +59,7 @@ public void binaryRead() throws Exception {
+       checkFileContent(repo, "/data.z", compressed);
+       checkFileContent(repo, "/data.x", compressed);
+       // Add filter to file.
+-      createFile(repo, "/.gitattributes", "*.z\t\t\tfilter=gzip\n", propsNative);
++      createFile(repo, "/.gitattributes", "*.z\t\t\tfilter=gzip\n", propsEolNative);
+       // On file read now we must have uncompressed content.
+       checkFileProp(repo, "/data.z", propsBinary);
+       checkFileProp(repo, "/data.x", propsBinary);
+@@ -86,10 +75,16 @@ public void binaryRead() throws Exception {
+     }
+   }
+ 
++  private static byte[] gzip(@NotNull byte[] data) throws IOException {
++    final ByteArrayOutputStream result = new ByteArrayOutputStream();
++    try (OutputStream stream = new GZIPOutputStream(result)) {
++      stream.write(data);
++    }
++    return result.toByteArray();
++  }
++
+   /**
+    * Check file read content on filter change.
+-   *
+-   * @throws Exception
+    */
+   @Test
+   public void textRead() throws Exception {
+@@ -107,7 +102,7 @@ public void textRead() throws Exception {
+       checkFileContent(repo, "/data.z", compressed);
+       checkFileContent(repo, "/data.x", compressed);
+       // Add filter to file.
+-      createFile(repo, "/.gitattributes", "*.z\t\t\tfilter=gzip\n", propsNative);
++      createFile(repo, "/.gitattributes", "*.z\t\t\tfilter=gzip\n", propsEolNative);
+       // After commit .gitattributes file data.z must change property svn:mime-type and content automagically.
+       {
+         final Set<String> changed = new HashSet<>();
+@@ -117,7 +112,7 @@ public void textRead() throws Exception {
+         Assert.assertEquals(changed.size(), 2);
+       }
+       // On file read now we must have uncompressed content.
+-      checkFileProp(repo, "/data.z", propsNative);
++      checkFileProp(repo, "/data.z", propsEolNative);
+       checkFileProp(repo, "/data.x", propsBinary);
+       checkFileContent(repo, "/data.z", uncompressed);
+       checkFileContent(repo, "/data.x", compressed);
+@@ -134,7 +129,7 @@ public void textRead() throws Exception {
+       }
+       // Check result.
+       checkFileProp(repo, "/data.z", propsBinary);
+-      checkFileProp(repo, "/data.x", propsNative);
++      checkFileProp(repo, "/data.x", propsEolNative);
+       checkFileContent(repo, "/data.z", compressed);
+       checkFileContent(repo, "/data.x", uncompressed);
+     }
+@@ -142,8 +137,6 @@ public void textRead() throws Exception {
+ 
+   /**
+    * Write filtered file.
+-   *
+-   * @throws Exception
+    */
+   @Test()
+   public void write() throws Exception {
+@@ -151,9 +144,9 @@ public void write() throws Exception {
+       final SVNRepository repo = server.openSvnRepository();
+ 
+       // Add filter to file.
+-      createFile(repo, "/.gitattributes", "/*.z\t\t\tfilter=gzip\n", propsNative);
++      createFile(repo, "/.gitattributes", "/*.z\t\t\tfilter=gzip\n", propsEolNative);
+       // On file read now we must have uncompressed content.
+-      createFile(repo, "/data.z", CONTENT_FOO, propsNative);
++      createFile(repo, "/data.z", CONTENT_FOO, propsEolNative);
+       checkFileContent(repo, "/data.z", CONTENT_FOO);
+       // Modify file.
+       modifyFile(repo, "/data.z", CONTENT_BAR, repo.getLatestRevision());
+@@ -163,8 +156,6 @@ public void write() throws Exception {
+ 
+   /**
+    * Write file before .gitattributes in single commit.
+-   *
+-   * @throws Exception
+    */
+   @Test()
+   public void writeBeforeAttributes() throws Exception {
+@@ -212,8 +203,6 @@ public void writeBeforeAttributes() throws Exception {
+ 
+   /**
+    * Write file after .gitattributes in single commit.
+-   *
+-   * @throws Exception
+    */
+   @Test()
+   public void writeAfterAttributes() throws Exception {
+@@ -261,8 +250,6 @@ public void writeAfterAttributes() throws Exception {
+ 
+   /**
+    * Copy file with filter change.
+-   *
+-   * @throws Exception
+    */
+   @Test()
+   public void copy() throws Exception {
+@@ -270,9 +257,9 @@ public void copy() throws Exception {
+       final SVNRepository repo = server.openSvnRepository();
+ 
+       // Add filter to file.
+-      createFile(repo, "/.gitattributes", "/*.z\t\t\tfilter=gzip\n", propsNative);
++      createFile(repo, "/.gitattributes", "/*.z\t\t\tfilter=gzip\n", propsEolNative);
+       // Create source file.
+-      createFile(repo, "/data.txt", CONTENT_FOO, propsNative);
++      createFile(repo, "/data.txt", CONTENT_FOO, propsEolNative);
+       // Copy source file with "raw" filter to destination with "gzip" filter.
+       {
+         final long rev = repo.getLatestRevision();
+@@ -290,8 +277,6 @@ public void copy() throws Exception {
+ 
+   /**
+    * Copy file with filter change.
+-   *
+-   * @throws Exception
+    */
+   @Test()
+   public void copyAndModify() throws Exception {
+@@ -299,9 +284,9 @@ public void copyAndModify() throws Exception {
+       final SVNRepository repo = server.openSvnRepository();
+ 
+       // Add filter to file.
+-      createFile(repo, "/.gitattributes", "/*.z\t\t\tfilter=gzip\n", propsNative);
++      createFile(repo, "/.gitattributes", "/*.z\t\t\tfilter=gzip\n", propsEolNative);
+       // Create source file.
+-      createFile(repo, "/data.txt", CONTENT_FOO, propsNative);
++      createFile(repo, "/data.txt", CONTENT_FOO, propsEolNative);
+       // Copy source file with "raw" filter to destination with "gzip" filter.
+       {
+         final long rev = repo.getLatestRevision();
+@@ -316,12 +301,4 @@ public void copyAndModify() throws Exception {
+       checkFileContent(repo, "/data.z", CONTENT_BAR);
+     }
+   }
+-
+-  private static byte[] gzip(@NotNull byte[] data) throws IOException {
+-    final ByteArrayOutputStream result = new ByteArrayOutputStream();
+-    try (OutputStream stream = new GZIPOutputStream(result)) {
+-      stream.write(data);
+-    }
+-    return result.toByteArray();
+-  }
+ }
+diff --git a/src/test/java/svnserver/server/SvnLockTest.java b/src/test/java/svnserver/server/SvnLockTest.java
+index 3a12efba..39242107 100644
+--- a/src/test/java/svnserver/server/SvnLockTest.java
++++ b/src/test/java/svnserver/server/SvnLockTest.java
+@@ -7,7 +7,6 @@
+  */
+ package svnserver.server;
+ 
+-import com.google.common.collect.ImmutableMap;
+ import org.jetbrains.annotations.NotNull;
+ import org.jetbrains.annotations.Nullable;
+ import org.testng.Assert;
+@@ -30,6 +29,7 @@
+ import java.util.Map;
+ 
+ import static svnserver.SvnTestHelper.*;
++import static svnserver.server.SvnFilePropertyTest.propsEolNative;
+ 
+ /**
+  * Check svn locking.
+@@ -37,11 +37,7 @@
+  * @author Artem V. Navrotskiy <bozaro@users.noreply.github.com>
+  */
+ @Listeners(SvnTesterExternalListener.class)
+-public class SvnLockTest {
+-  @NotNull
+-  private final static Map<String, String> propsEolNative = ImmutableMap.<String, String>builder()
+-      .put(SVNProperty.EOL_STYLE, SVNProperty.EOL_STYLE_NATIVE)
+-      .build();
++public final class SvnLockTest {
+ 
+   /**
+    * Check to take lock on absent file.
+@@ -107,7 +103,7 @@ public void lockNotFile(@NotNull SvnTesterFactory factory) throws Exception {
+     try (SvnTester server = factory.create()) {
+       final SVNRepository repo = server.openSvnRepository();
+ 
+-      final ISVNEditor editor = repo.getCommitEditor("Intital state", null, false, null);
++      final ISVNEditor editor = repo.getCommitEditor("Initial state", null, false, null);
+       editor.openRoot(-1);
+       editor.addDir("/example", null, -1);
+       editor.addFile("/example/example.txt", null, -1);
+@@ -147,31 +143,13 @@ public void lockForce(@NotNull SvnTesterFactory factory) throws Exception {
+     }
+   }
+ 
+-  private void unlock(@NotNull SVNRepository repo, @NotNull SVNLock lock, boolean breakLock, @Nullable SVNErrorCode errorCode) {
+-    try {
+-      final Map<String, String> pathsToTokens = new HashMap<>();
+-      final String root = repo.getLocation().getPath().substring(repo.getRepositoryRoot(true).getPath().length());
+-      Assert.assertTrue(lock.getPath().startsWith(root));
+-      pathsToTokens.put(StringHelper.normalize(lock.getPath().substring(root.length())), lock.getID());
+-      repo.unlock(pathsToTokens, breakLock, new ISVNLockHandler() {
+-        @Override
+-        public void handleLock(@NotNull String path, @Nullable SVNLock lock, @Nullable SVNErrorMessage error) {
+-          Assert.fail();
+-        }
+-
+-        @Override
+-        public void handleUnlock(String path, SVNLock removedLock, SVNErrorMessage error) throws SVNException {
+-          if (error != null) {
+-            throw new SVNException(error);
+-          }
+-          Assert.assertNull(errorCode);
+-          Assert.assertNotNull(removedLock);
+-          compareLock(removedLock, lock);
+-        }
+-      });
+-      Assert.assertNull(errorCode);
+-    } catch (SVNException e) {
+-      Assert.assertEquals(e.getErrorMessage().getErrorCode(), errorCode);
++  private void compareLock(@Nullable SVNLock actual, @Nullable SVNLock expected) {
++    if (expected == null) {
++      Assert.assertNull(actual);
++    } else {
++      Assert.assertNotNull(actual);
++      Assert.assertEquals(actual.getID(), expected.getID());
++      Assert.assertEquals(actual.getComment(), expected.getComment());
+     }
+   }
+ 
+@@ -199,13 +177,31 @@ public void unlockForce(@NotNull SvnTesterFactory factory) throws Exception {
+     }
+   }
+ 
+-  private void compareLock(@Nullable SVNLock actual, @Nullable SVNLock expected) {
+-    if (expected == null) {
+-      Assert.assertNull(actual);
+-    } else {
+-      Assert.assertNotNull(actual);
+-      Assert.assertEquals(actual.getID(), expected.getID());
+-      Assert.assertEquals(actual.getComment(), expected.getComment());
++  private void unlock(@NotNull SVNRepository repo, @NotNull SVNLock lock, boolean breakLock, @Nullable SVNErrorCode errorCode) {
++    try {
++      final Map<String, String> pathsToTokens = new HashMap<>();
++      final String root = repo.getLocation().getPath().substring(repo.getRepositoryRoot(true).getPath().length());
++      Assert.assertTrue(lock.getPath().startsWith(root));
++      pathsToTokens.put(StringHelper.normalize(lock.getPath().substring(root.length())), lock.getID());
++      repo.unlock(pathsToTokens, breakLock, new ISVNLockHandler() {
++        @Override
++        public void handleLock(@NotNull String path, @Nullable SVNLock lock, @Nullable SVNErrorMessage error) {
++          Assert.fail();
++        }
++
++        @Override
++        public void handleUnlock(String path, SVNLock removedLock, SVNErrorMessage error) throws SVNException {
++          if (error != null) {
++            throw new SVNException(error);
++          }
++          Assert.assertNull(errorCode);
++          Assert.assertNotNull(removedLock);
++          compareLock(removedLock, lock);
++        }
++      });
++      Assert.assertNull(errorCode);
++    } catch (SVNException e) {
++      Assert.assertEquals(e.getErrorMessage().getErrorCode(), errorCode);
+     }
+   }
+ 
+@@ -285,7 +281,7 @@ public void modifyLockedInvalidLock(@NotNull SvnTesterFactory factory) throws Ex
+ 
+       final Map<String, String> locks = new HashMap<>();
+       locks.put(oldLock.getPath(), oldLock.getID());
+-      final ISVNEditor editor = repo.getCommitEditor("Intital state", locks, false, null);
++      final ISVNEditor editor = repo.getCommitEditor("Initial state", locks, false, null);
+       try {
+         editor.openRoot(-1);
+         editor.openFile("/example.txt", latestRevision);
+@@ -319,7 +315,7 @@ public void modifyLockedRemoveLock(@NotNull SvnTesterFactory factory) throws Exc
+       {
+         final Map<String, String> locks = new HashMap<>();
+         locks.put("/example.txt", lock.getID());
+-        final ISVNEditor editor = repo.getCommitEditor("Intital state", locks, false, null);
++        final ISVNEditor editor = repo.getCommitEditor("Initial state", locks, false, null);
+         editor.openRoot(-1);
+         editor.openFile("/example.txt", latestRevision);
+         sendDeltaAndClose(editor, "/example.txt", "", "Source content");
+@@ -357,7 +353,7 @@ public void modifyLockedKeepLock(@NotNull SvnTesterFactory factory) throws Excep
+       {
+         final Map<String, String> locks = new HashMap<>();
+         locks.put("/example.txt", lock.getID());
+-        final ISVNEditor editor = repo.getCommitEditor("Intital state", locks, true, null);
++        final ISVNEditor editor = repo.getCommitEditor("Initial state", locks, true, null);
+         editor.openRoot(-1);
+         editor.openFile("/example.txt", latestRevision);
+         sendDeltaAndClose(editor, "/example.txt", "", "Source content");
+@@ -406,7 +402,7 @@ public void deleteLockedDirNoLock(@NotNull SvnTesterFactory factory) throws Exce
+     try (SvnTester server = factory.create()) {
+       final SVNRepository repo = server.openSvnRepository();
+       {
+-        final ISVNEditor editor = repo.getCommitEditor("Intital state", null, false, null);
++        final ISVNEditor editor = repo.getCommitEditor("Initial state", null, false, null);
+         editor.openRoot(-1);
+         editor.addDir("/example", null, -1);
+         editor.addFile("/example/example.txt", null, -1);
+@@ -443,7 +439,7 @@ public void getLocks(@NotNull SvnTesterFactory factory) throws Exception {
+     try (SvnTester server = factory.create()) {
+       final SVNRepository repo = server.openSvnRepository();
+       {
+-        final ISVNEditor editor = repo.getCommitEditor("Intital state", null, false, null);
++        final ISVNEditor editor = repo.getCommitEditor("Initial state", null, false, null);
+         editor.openRoot(-1);
+         editor.addDir("/example", null, -1);
+         editor.addFile("/example/example.txt", null, -1);
+@@ -488,7 +484,7 @@ public void deleteLockedDirWithLock(@NotNull SvnTesterFactory factory) throws Ex
+     try (SvnTester server = factory.create()) {
+       final SVNRepository repo = server.openSvnRepository();
+       {
+-        final ISVNEditor editor = repo.getCommitEditor("Intital state", null, false, null);
++        final ISVNEditor editor = repo.getCommitEditor("Initial state", null, false, null);
+         editor.openRoot(-1);
+         editor.addDir("/example", null, -1);
+         editor.addFile("/example/example.txt", null, -1);
+@@ -504,7 +500,7 @@ public void deleteLockedDirWithLock(@NotNull SvnTesterFactory factory) throws Ex
+       Assert.assertNotNull(lock);
+       final Map<String, String> locks = new HashMap<>();
+       locks.put(lock.getPath(), lock.getID());
+-      final ISVNEditor editor = repo.getCommitEditor("Intital state", locks, false, null);
++      final ISVNEditor editor = repo.getCommitEditor("Initial state", locks, false, null);
+       editor.openRoot(-1);
+       editor.deleteEntry("/example", latestRevision);
+       editor.closeDir();
+diff --git a/src/test/java/svnserver/server/SvnLogTest.java b/src/test/java/svnserver/server/SvnLogTest.java
+index d8c815a3..89b259eb 100644
+--- a/src/test/java/svnserver/server/SvnLogTest.java
++++ b/src/test/java/svnserver/server/SvnLogTest.java
+@@ -7,7 +7,6 @@
+  */
+ package svnserver.server;
+ 
+-import com.google.common.collect.ImmutableMap;
+ import org.jetbrains.annotations.NotNull;
+ import org.jetbrains.annotations.Nullable;
+ import org.testng.annotations.Test;
+@@ -20,6 +19,7 @@
+ import java.util.*;
+ 
+ import static svnserver.SvnTestHelper.*;
++import static svnserver.server.SvnFilePropertyTest.propsEolNative;
+ 
+ /**
+  * Check file properties.
+@@ -27,68 +27,6 @@
+  * @author Artem V. Navrotskiy <bozaro@users.noreply.github.com>
+  */
+ public final class SvnLogTest {
+-  private static class LogEntry {
+-    private final long revision;
+-    @Nullable
+-    private final String message;
+-    @NotNull
+-    private final Set<String> paths;
+-
+-    private LogEntry(@NotNull SVNLogEntry logEntry) {
+-      this(logEntry.getRevision(), logEntry.getMessage(), convert(logEntry.getChangedPaths().values()));
+-    }
+-
+-    private static Collection<String> convert(@NotNull Collection<SVNLogEntryPath> changedPaths) {
+-      List<String> result = new ArrayList<>();
+-      for (SVNLogEntryPath logPath : changedPaths) {
+-        result.add(logPath.getType() + " " + logPath.getPath());
+-      }
+-      return result;
+-    }
+-
+-    private LogEntry(long revision, @Nullable String message, @NotNull String... paths) {
+-      this(revision, message, Arrays.asList(paths));
+-    }
+-
+-    private LogEntry(long revision, @Nullable String message, @NotNull Collection<String> paths) {
+-      this.revision = revision;
+-      this.message = message;
+-      this.paths = new TreeSet<>(paths);
+-    }
+-
+-    @Override
+-    public boolean equals(Object o) {
+-      if (this == o) return true;
+-      if (o == null || getClass() != o.getClass()) return false;
+-
+-      final LogEntry logEntry = (LogEntry) o;
+-      return revision == logEntry.revision
+-          && Objects.equals(message, logEntry.message)
+-          && paths.equals(logEntry.paths);
+-    }
+-
+-    @Override
+-    public int hashCode() {
+-      int result = (int) (revision ^ (revision >>> 32));
+-      if (message != null)
+-        result = 31 * result + message.hashCode();
+-      result = 31 * result + paths.hashCode();
+-      return result;
+-    }
+-
+-    @Override
+-    public String toString() {
+-      return "LogEntry{" +
+-          "revision=" + revision +
+-          ", message='" + message + '\'' +
+-          ", paths=" + paths +
+-          '}';
+-    }
+-  }
+-  @NotNull
+-  private final static Map<String, String> propsEolNative = ImmutableMap.<String, String>builder()
+-      .put(SVNProperty.EOL_STYLE, SVNProperty.EOL_STYLE_NATIVE)
+-      .build();
+   /**
+    * Check simple svn log behaviour.
+    */
+@@ -146,6 +84,16 @@ public void simple() throws Exception {
+     }
+   }
+ 
++  private void checkLog(@NotNull SVNRepository repo, long r1, long r2, @NotNull String path, @NotNull LogEntry... expecteds) throws SVNException {
++    checkLogLimit(repo, r1, r2, 0, path, expecteds);
++  }
++
++  private void checkLogLimit(@NotNull SVNRepository repo, long r1, long r2, int limit, @NotNull String path, @NotNull LogEntry... expecteds) throws SVNException {
++    final List<LogEntry> actual = new ArrayList<>();
++    repo.log(new String[]{path}, r1, r2, true, false, limit, logEntry -> actual.add(new LogEntry(logEntry)));
++    ArrayAsserts.assertArrayEquals(expecteds, actual.toArray(new LogEntry[0]));
++  }
++
+   /**
+    * Check file recreate log test.
+    */
+@@ -407,13 +355,62 @@ public void moveDirectory() throws Exception {
+     }
+   }
+ 
+-  private void checkLog(@NotNull SVNRepository repo, long r1, long r2, @NotNull String path, @NotNull LogEntry... expecteds) throws SVNException {
+-    checkLogLimit(repo, r1, r2, 0, path, expecteds);
+-  }
++  private static class LogEntry {
++    private final long revision;
++    @Nullable
++    private final String message;
++    @NotNull
++    private final Set<String> paths;
+ 
+-  private void checkLogLimit(@NotNull SVNRepository repo, long r1, long r2, int limit, @NotNull String path, @NotNull LogEntry... expecteds) throws SVNException {
+-    final List<LogEntry> actual = new ArrayList<>();
+-    repo.log(new String[]{path}, r1, r2, true, false, limit, logEntry -> actual.add(new LogEntry(logEntry)));
+-    ArrayAsserts.assertArrayEquals(expecteds, actual.toArray(new LogEntry[0]));
++    private LogEntry(@NotNull SVNLogEntry logEntry) {
++      this(logEntry.getRevision(), logEntry.getMessage(), convert(logEntry.getChangedPaths().values()));
++    }
++
++    private LogEntry(long revision, @Nullable String message, @NotNull Collection<String> paths) {
++      this.revision = revision;
++      this.message = message;
++      this.paths = new TreeSet<>(paths);
++    }
++
++    private static Collection<String> convert(@NotNull Collection<SVNLogEntryPath> changedPaths) {
++      List<String> result = new ArrayList<>();
++      for (SVNLogEntryPath logPath : changedPaths) {
++        result.add(logPath.getType() + " " + logPath.getPath());
++      }
++      return result;
++    }
++
++    private LogEntry(long revision, @Nullable String message, @NotNull String... paths) {
++      this(revision, message, Arrays.asList(paths));
++    }
++
++    @Override
++    public int hashCode() {
++      int result = (int) (revision ^ (revision >>> 32));
++      if (message != null)
++        result = 31 * result + message.hashCode();
++      result = 31 * result + paths.hashCode();
++      return result;
++    }
++
++    @Override
++    public boolean equals(Object o) {
++      if (this == o) return true;
++      if (o == null || getClass() != o.getClass()) return false;
++
++      final LogEntry logEntry = (LogEntry) o;
++      return revision == logEntry.revision
++          && Objects.equals(message, logEntry.message)
++          && paths.equals(logEntry.paths);
++    }
++
++    @Override
++    public String toString() {
++      return "LogEntry{" +
++          "revision=" + revision +
++          ", message='" + message + '\'' +
++          ", paths=" + paths +
++          '}';
++    }
+   }
+ }

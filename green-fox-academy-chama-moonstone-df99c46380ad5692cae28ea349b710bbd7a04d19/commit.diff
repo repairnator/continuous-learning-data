@@ -1,0 +1,182 @@
+diff --git a/src/main/java/com/greenfoxacademy/flowmoonstone/controllers/RiverController.java b/src/main/java/com/greenfoxacademy/flowmoonstone/controllers/RiverController.java
+new file mode 100644
+index 0000000..eb78a40
+--- /dev/null
++++ b/src/main/java/com/greenfoxacademy/flowmoonstone/controllers/RiverController.java
+@@ -0,0 +1,40 @@
++package com.greenfoxacademy.flowmoonstone.controllers;
++
++import com.greenfoxacademy.flowmoonstone.models.ErrorMessages;
++import com.greenfoxacademy.flowmoonstone.models.River;
++import com.greenfoxacademy.flowmoonstone.responses.ErrorResponse;
++import com.greenfoxacademy.flowmoonstone.services.river.RiverService;
++
++import java.util.Date;
++import java.util.List;
++
++import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.http.HttpStatus;
++import org.springframework.http.ResponseEntity;
++import org.springframework.web.bind.annotation.GetMapping;
++import org.springframework.web.bind.annotation.RestController;
++
++
++@RestController
++public class RiverController {
++
++  private RiverService riverService;
++
++  @Autowired
++  public RiverController(RiverService riverService) {
++    this.riverService = riverService;
++  }
++
++  @GetMapping(value = "/api/rivers")
++  public ResponseEntity listingRivers() {
++    List<River> rivers = riverService.findAll();
++    if (rivers.isEmpty()) {
++      return ResponseEntity.status(HttpStatus.NOT_FOUND)
++          .body(new ErrorResponse(HttpStatus.NOT_FOUND,
++              ErrorMessages.RIVER_NOT_FOUND.getErrorMessage(),
++              "/api/rivers", new Date()));
++    } else {
++      return ResponseEntity.status(HttpStatus.OK).body(rivers);
++    }
++  }
++}
+diff --git a/src/main/java/com/greenfoxacademy/flowmoonstone/models/ErrorMessages.java b/src/main/java/com/greenfoxacademy/flowmoonstone/models/ErrorMessages.java
+index 7ef589f..8045f2f 100644
+--- a/src/main/java/com/greenfoxacademy/flowmoonstone/models/ErrorMessages.java
++++ b/src/main/java/com/greenfoxacademy/flowmoonstone/models/ErrorMessages.java
+@@ -8,7 +8,7 @@
+   BAD_REQUEST("Bad request and/or invalid syntax"),
+   RIVERSECTIONS_NOT_FOUND("This river has no riversections"),
+   PLACES_NOT_FOUND("This section has no places"),
+-  RIVER_NOT_FOUND("River not found");
++  RIVER_NOT_FOUND("River(s) not found");
+ 
+   private String errorMessage;
+ 
+diff --git a/src/main/java/com/greenfoxacademy/flowmoonstone/services/river/RiverService.java b/src/main/java/com/greenfoxacademy/flowmoonstone/services/river/RiverService.java
+index 7731ace..14e8dc2 100644
+--- a/src/main/java/com/greenfoxacademy/flowmoonstone/services/river/RiverService.java
++++ b/src/main/java/com/greenfoxacademy/flowmoonstone/services/river/RiverService.java
+@@ -14,4 +14,6 @@
+ 
+   River findByName(String river);
+ 
++  void addRiver(River river);
++
+ }
+diff --git a/src/main/java/com/greenfoxacademy/flowmoonstone/services/river/RiverServiceImpl.java b/src/main/java/com/greenfoxacademy/flowmoonstone/services/river/RiverServiceImpl.java
+index 3733e3a..71f2bbc 100644
+--- a/src/main/java/com/greenfoxacademy/flowmoonstone/services/river/RiverServiceImpl.java
++++ b/src/main/java/com/greenfoxacademy/flowmoonstone/services/river/RiverServiceImpl.java
+@@ -25,7 +25,7 @@ public RiverServiceImpl(RiverRepository riverRepository) {
+   @Override
+   public boolean isRiverValid(River river) {
+     return ((river.getId() != 0) && (river.getId() != null)
+-            && (river.getName() != null) && (!river.getName().equals("")));
++        && (river.getName() != null) && (!river.getName().equals("")));
+   }
+ 
+   @Override
+@@ -47,4 +47,8 @@ public River findById(Long id) {
+     return rivers;
+   }
+ 
++  @Override
++  public void addRiver(River river) {
++    riverRepository.save(river);
++  }
+ }
+diff --git a/src/test/java/com/greenfoxacademy/flowmoonstone/controllers/RiverControllerTest.java b/src/test/java/com/greenfoxacademy/flowmoonstone/controllers/RiverControllerTest.java
+new file mode 100644
+index 0000000..691d7dd
+--- /dev/null
++++ b/src/test/java/com/greenfoxacademy/flowmoonstone/controllers/RiverControllerTest.java
+@@ -0,0 +1,70 @@
++package com.greenfoxacademy.flowmoonstone.controllers;
++
++import com.greenfoxacademy.flowmoonstone.models.River;
++import com.greenfoxacademy.flowmoonstone.services.river.RiverServiceImpl;
++import java.nio.charset.StandardCharsets;
++import java.util.ArrayList;
++import java.util.Arrays;
++import java.util.List;
++import org.junit.Test;
++import org.junit.runner.RunWith;
++
++import static org.mockito.Mockito.when;
++
++import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
++import org.springframework.boot.test.mock.mockito.MockBean;
++import org.springframework.http.MediaType;
++import org.springframework.test.context.junit4.SpringRunner;
++import org.springframework.test.web.servlet.MockMvc;
++
++import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
++import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
++import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
++import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
++import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
++
++@RunWith(SpringRunner.class)
++@WebMvcTest(RiverController.class)
++public class RiverControllerTest {
++
++  @Autowired
++  private MockMvc mockMvc;
++
++  @MockBean
++  private RiverServiceImpl riverServiceImpl;
++
++  private MediaType contentType = new MediaType(
++      MediaType.APPLICATION_JSON.getType(),
++      MediaType.APPLICATION_JSON.getSubtype(),
++      StandardCharsets.UTF_8);
++
++  @Test
++  public void listingRivers_IsEmpty_ShouldReturnEmptyList() throws Exception {
++    List<River> mockRivers = new ArrayList<>();
++    when(riverServiceImpl.findAll()).thenReturn(mockRivers);
++
++    mockMvc.perform(get("/api/rivers"))
++        .andDo(print())
++        .andExpect(status().isNotFound())
++        .andExpect(content().contentType(contentType))
++        .andExpect(jsonPath("$.message").value("River(s) not found"));
++  }
++
++  @Test
++  public void listingRivers_ContainsOneRiver_ShouldReturnListOfRivers()
++      throws Exception {
++    List<River> mockRivers = new ArrayList<>(Arrays.asList(new River(1L, "MockRiver", 77, 100)));
++    when(riverServiceImpl.findAll()).thenReturn(mockRivers);
++
++    mockMvc.perform(get("/api/rivers"))
++        .andDo(print())
++        .andExpect(status().isOk())
++        .andExpect(content().contentType(contentType))
++        .andExpect(jsonPath("$.size()").value(1))
++        .andExpect(jsonPath("$[0].id").value(1L))
++        .andExpect(jsonPath("$[0].name").value("MockRiver"))
++        .andExpect(jsonPath("$[0].waterLevel").value(77))
++        .andExpect(jsonPath("$[0].km").value(100));
++  }
++}
+diff --git a/src/test/java/com/greenfoxacademy/flowmoonstone/controllers/RiverSectionControllerTest.java b/src/test/java/com/greenfoxacademy/flowmoonstone/controllers/RiverSectionControllerTest.java
+index f01d8bf..d10bcbd 100644
+--- a/src/test/java/com/greenfoxacademy/flowmoonstone/controllers/RiverSectionControllerTest.java
++++ b/src/test/java/com/greenfoxacademy/flowmoonstone/controllers/RiverSectionControllerTest.java
+@@ -76,8 +76,8 @@ public void shouldReturnJsonListingSections() throws Exception {
+     when(riverSectionService.findRiverSectionsOfRiver("Kukulo"))
+         .thenReturn(Arrays.asList(riversection1));
+     mockMvc.perform(get("/api/riversections/Kukulo"))
+-        .andExpect(status().isOk())
+         .andDo(print())
++        .andExpect(status().isOk())
+         .andExpect(content().contentType(contentType))
+         .andExpect(jsonPath("$[0].id", is(1)))
+         .andExpect(jsonPath("$[0].name", is("Section1")))

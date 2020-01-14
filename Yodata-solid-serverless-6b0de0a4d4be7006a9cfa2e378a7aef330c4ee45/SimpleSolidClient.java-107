@@ -1,0 +1,9 @@
+@@ -107,7 +107,7 @@ public String append(URI resourceId, JsonObject data) {
+                 throw new RuntimeException("Unable to save change: " + sc + " - " + EntityUtils.toString(res.getEntity()));
+             }
+ 
+-            log.info("POST {}: success", resourceId);
++            log.debug("POST {}: success", resourceId);
+ 
+             return EntityUtils.toString(res.getEntity());
+         } catch (IOException e) {

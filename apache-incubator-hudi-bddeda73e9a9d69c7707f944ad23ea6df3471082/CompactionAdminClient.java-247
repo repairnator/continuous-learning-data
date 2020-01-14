@@ -1,0 +1,9 @@
+@@ -247,7 +247,7 @@ private static HoodieCompactionPlan getCompactionPlan(HoodieTableMetaClient meta
+     List<HoodieLogFile> logFilesToBeMoved =
+         merged.getLogFiles().filter(lf -> lf.getLogVersion() > maxVersion).collect(Collectors.toList());
+     return logFilesToBeMoved.stream().map(lf -> {
+-      Preconditions.checkArgument(lf.getLogVersion() - maxVersion > 0, "Expect new log version to be sane");
++      ValidationUtils.checkArgument(lf.getLogVersion() - maxVersion > 0, "Expect new log version to be sane");
+       HoodieLogFile newLogFile = new HoodieLogFile(new Path(lf.getPath().getParent(),
+           FSUtils.makeLogFileName(lf.getFileId(), "." + FSUtils.getFileExtensionFromLog(lf.getPath()),
+               compactionInstant, lf.getLogVersion() - maxVersion, HoodieLogFormat.UNKNOWN_WRITE_TOKEN)));

@@ -1,0 +1,9 @@
+@@ -31,7 +31,7 @@
+ import javax.xml.namespace.QName;
+ 
+ /**
+- * This class loads configurations with regard the OIDC session management from repository/conf/identity/identity.xml
++ * This class loads configurations with regard the OIDC session management from repository/conf/identity/identity.xml.
+  */
+ public class OIDCSessionManagementConfiguration {
+ 

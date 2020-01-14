@@ -1,0 +1,9 @@
+@@ -141,7 +141,7 @@ public ClassSizeInfo load(Class<?> clazz) {
+    * @param memoryLayoutSpecification a description of the JVM memory layout.
+    */
+   public ObjectSizeCalculator(MemoryLayoutSpecification memoryLayoutSpecification) {
+-    Preconditions.checkNotNull(memoryLayoutSpecification);
++    Objects.requireNonNull(memoryLayoutSpecification);
+     arrayHeaderSize = memoryLayoutSpecification.getArrayHeaderSize();
+     objectHeaderSize = memoryLayoutSpecification.getObjectHeaderSize();
+     objectPadding = memoryLayoutSpecification.getObjectPadding();

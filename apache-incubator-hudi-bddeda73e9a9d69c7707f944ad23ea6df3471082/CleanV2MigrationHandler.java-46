@@ -1,0 +1,9 @@
+@@ -46,7 +46,7 @@ public Integer getManagedVersion() {
+ 
+   @Override
+   public HoodieCleanMetadata upgradeFrom(HoodieCleanMetadata input) {
+-    Preconditions.checkArgument(input.getVersion() == 1,
++    ValidationUtils.checkArgument(input.getVersion() == 1,
+         "Input version is " + input.getVersion() + ". Must be 1");
+     HoodieCleanMetadata metadata = new HoodieCleanMetadata();
+     metadata.setEarliestCommitToRetain(input.getEarliestCommitToRetain());

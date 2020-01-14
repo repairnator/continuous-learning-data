@@ -1,0 +1,9 @@
+@@ -2815,7 +2815,7 @@ public boolean accept(Element e, TypeMirror t) {
+                 return;
+             }
+             TypeMirror tm = controller.getTrees().getTypeMirror(exPath);
+-            switch (e.getKind()) {
++            switch (simplifyElementKind(e.getKind())) {
+                 case ANNOTATION_TYPE:
+                 case CLASS:
+                 case ENUM:

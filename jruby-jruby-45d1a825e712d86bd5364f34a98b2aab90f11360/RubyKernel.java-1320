@@ -1,0 +1,9 @@
+@@ -1320,7 +1320,7 @@ private static RubyString buildWarnMessage(ThreadContext context, final int uple
+         return (RubyString) message.op_plus19(context, arg.asString());
+     }
+ 
+-    @JRubyMethod(module = true)
++    @JRubyMethod(module = true, alias = "then")
+     public static IRubyObject yield_self(ThreadContext context, IRubyObject recv, Block block) {
+         if (block.isGiven()) {
+             return block.yield(context, recv);

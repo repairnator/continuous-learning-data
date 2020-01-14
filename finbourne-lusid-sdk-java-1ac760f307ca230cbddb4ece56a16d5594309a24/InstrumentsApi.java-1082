@@ -1,0 +1,9 @@
+@@ -1082,7 +1082,7 @@ public UpsertInstrumentsResponse upsertInstruments(Map<String, InstrumentDefinit
+         final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+         localVarHeaderParams.put("Content-Type", localVarContentType);
+         localVarHeaderParams.put("X-LUSID-SDK-Language", "Java");
+-        localVarHeaderParams.put("X-LUSID-SDK-Version", "0.10.1017");
++        localVarHeaderParams.put("X-LUSID-SDK-Version", "0.10.1019");
+ 
+         String[] localVarAuthNames = new String[] { "oauth2" };
+         return localVarApiClient.buildCall(localVarPath, "POST", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarFormParams, localVarAuthNames, _callback);

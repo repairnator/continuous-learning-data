@@ -1,0 +1,9 @@
+@@ -226,7 +226,7 @@ public void onPartitionBecomeBootstrapFromOffline(String partitionName) {
+         // no matter this is an existing replica or new added one, it should be present in storage manager because new
+         // replica is added into storage manager first.
+         throw new StateTransitionException("Replica " + partitionName + " is not found on current node",
+-            StateTransitionException.TransitionErrorCode.ReplicaNotFound);
++            ReplicaNotFound);
+       }
+ 
+       if (!partitionToPartitionInfo.containsKey(replica.getPartitionId())) {

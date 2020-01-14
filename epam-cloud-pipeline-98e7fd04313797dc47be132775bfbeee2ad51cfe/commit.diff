@@ -1,0 +1,2134 @@
+diff --git a/api/src/test/java/com/epam/pipeline/util/TestUtils.java b/api/src/test/java/com/epam/pipeline/util/TestUtils.java
+index 5ee2e3d6b..aae04e45f 100644
+--- a/api/src/test/java/com/epam/pipeline/util/TestUtils.java
++++ b/api/src/test/java/com/epam/pipeline/util/TestUtils.java
+@@ -55,10 +55,6 @@
+     public static final String LATEST_TAG = "latest";
+     public static final long DOCKER_SIZE = 123456L;
+ 
+-    private TestUtils() {
+-        // No-op
+-    }
+-
+     /**
+      * Helper method for mocking DockerClient functionality
+      * @param dockerClientMock a {@link DockerClient} mock object
+diff --git a/billing-report-agent/build.gradle b/billing-report-agent/build.gradle
+index fd8ed54e6..04bfab43b 100644
+--- a/billing-report-agent/build.gradle
++++ b/billing-report-agent/build.gradle
+@@ -56,6 +56,9 @@ dependencies {
+     implementation group: "org.apache.commons", name: "commons-lang3", version: apacheCommonsLangVersion
+     implementation group: "org.apache.commons", name: "commons-collections4", version: apacheCommonsCollectionsVersion
+ 
++    // AWS
++    compile group: 'com.amazonaws', name: 'aws-java-sdk-pricing', version: awsSdkVersion
++
+     //Lombok
+     implementation group: "org.projectlombok", name: "lombok", version: lombokVersion
+ 
+diff --git a/billing-report-agent/gradle.properties b/billing-report-agent/gradle.properties
+index 331ac5991..3b88876c7 100644
+--- a/billing-report-agent/gradle.properties
++++ b/billing-report-agent/gradle.properties
+@@ -13,6 +13,8 @@ apacheCommonsIOVersion=2.6
+ apacheCommonsLangVersion=3.8.1
+ apacheCommonsCollectionsVersion=4.2
+ 
++awsSdkVersion=1.11.699
++
+ junitVersion=5.2.0
+ mockitoVersion=2.21.0
+ hamcrestVersion=1.3
+diff --git a/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/app/CommonSyncConfiguration.java b/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/app/CommonSyncConfiguration.java
+index 21588b568..0864d18d7 100644
+--- a/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/app/CommonSyncConfiguration.java
++++ b/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/app/CommonSyncConfiguration.java
+@@ -16,13 +16,20 @@
+ 
+ package com.epam.pipeline.billingreportagent.app;
+ 
++import com.epam.pipeline.billingreportagent.model.StorageType;
+ import com.epam.pipeline.billingreportagent.service.ElasticsearchServiceClient;
+ import com.epam.pipeline.billingreportagent.service.ElasticsearchSynchronizer;
+ import com.epam.pipeline.billingreportagent.service.impl.BulkRequestSender;
+ import com.epam.pipeline.billingreportagent.service.impl.ElasticIndexService;
+-import com.epam.pipeline.billingreportagent.service.impl.PipelineRunSynchronizer;
+-import com.epam.pipeline.billingreportagent.service.impl.converter.run.PipelineRunLoader;
+-import com.epam.pipeline.billingreportagent.service.impl.converter.run.BillingMapper;
++import com.epam.pipeline.billingreportagent.service.impl.synchronizer.PipelineRunSynchronizer;
++import com.epam.pipeline.billingreportagent.service.impl.synchronizer.StorageSynchronizer;
++import com.epam.pipeline.billingreportagent.service.impl.converter.AwsStorageToBillingRequestConverter;
++import com.epam.pipeline.billingreportagent.service.impl.loader.PipelineRunLoader;
++import com.epam.pipeline.billingreportagent.service.impl.loader.StorageLoader;
++import com.epam.pipeline.billingreportagent.service.impl.mapper.RunBillingMapper;
++import com.epam.pipeline.billingreportagent.service.impl.mapper.StorageBillingMapper;
++import com.epam.pipeline.entity.datastorage.DataStorageType;
++import com.epam.pipeline.entity.search.SearchDocumentType;
+ import org.springframework.beans.factory.annotation.Value;
+ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+ import org.springframework.context.annotation.Bean;
+@@ -32,9 +39,13 @@
+ public class CommonSyncConfiguration {
+ 
+     private static final String FALSE = "false";
++
+     @Value("${sync.index.common.prefix}")
+     private String commonIndexPrefix;
+ 
++    @Value("${sync.bulk.insert.size:1000}")
++    private int bulkSize;
++
+     @Bean
+     public BulkRequestSender bulkRequestSender(
+         final ElasticsearchServiceClient elasticsearchClient) {
+@@ -44,7 +55,7 @@ public BulkRequestSender bulkRequestSender(
+     @Bean
+     @ConditionalOnProperty(value = "sync.run.disable", matchIfMissing = true, havingValue = FALSE)
+     public ElasticsearchSynchronizer pipelineRunSynchronizer(
+-        final BillingMapper mapper,
++        final RunBillingMapper mapper,
+         final PipelineRunLoader loader,
+         final ElasticIndexService indexService,
+         final ElasticsearchServiceClient elasticsearchClient,
+@@ -60,4 +71,44 @@ public ElasticsearchSynchronizer pipelineRunSynchronizer(
+                                            mapper,
+                                            loader);
+     }
++
++    @Bean
++    @ConditionalOnProperty(value = "sync.s3.storage.disable", matchIfMissing = true, havingValue = FALSE)
++    public StorageSynchronizer s3Synchronizer(final @Value("${sync.run.index.mapping}") String runMapping,
++                                              final @Value("${sync.storage.index.name}") String indexName,
++                                              final StorageLoader loader,
++                                              final ElasticIndexService indexService,
++                                              final ElasticsearchServiceClient elasticsearchClient) {
++        final StorageBillingMapper mapper = new StorageBillingMapper(SearchDocumentType.S3_STORAGE);
++        return new StorageSynchronizer(runMapping,
++                                       commonIndexPrefix,
++                                       indexName,
++                                       bulkSize,
++                                       elasticsearchClient,
++                                       loader,
++                                       indexService,
++                                       new AwsStorageToBillingRequestConverter(mapper, elasticsearchClient, "AmazonS3",
++                                                                               StorageType.OBJECT_STORAGE),
++                                       DataStorageType.S3);
++    }
++
++    @Bean
++    @ConditionalOnProperty(value = "sync.nfs.storage.disable", matchIfMissing = true, havingValue = FALSE)
++    public StorageSynchronizer efsSynchronizer(final @Value("${sync.run.index.mapping}") String runMapping,
++                                              final @Value("${sync.storage.index.name}") String indexName,
++                                              final StorageLoader loader,
++                                              final ElasticIndexService indexService,
++                                              final ElasticsearchServiceClient elasticsearchClient) {
++        final StorageBillingMapper mapper = new StorageBillingMapper(SearchDocumentType.NFS_STORAGE);
++        return new StorageSynchronizer(runMapping,
++                                       commonIndexPrefix,
++                                       indexName,
++                                       bulkSize,
++                                       elasticsearchClient,
++                                       loader,
++                                       indexService,
++                                       new AwsStorageToBillingRequestConverter(mapper, elasticsearchClient, "AmazonEFS",
++                                                                               StorageType.FILE_STORAGE),
++                                       DataStorageType.NFS);
++    }
+ }
+diff --git a/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/model/ResourceType.java b/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/model/ResourceType.java
+index ea9c8f29e..459dbeb4a 100644
+--- a/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/model/ResourceType.java
++++ b/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/model/ResourceType.java
+@@ -17,5 +17,6 @@
+ package com.epam.pipeline.billingreportagent.model;
+ 
+ public enum ResourceType {
+-    COMPUTE
++    COMPUTE,
++    STORAGE
+ }
+diff --git a/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/model/StorageType.java b/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/model/StorageType.java
+new file mode 100644
+index 000000000..fc95e1236
+--- /dev/null
++++ b/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/model/StorageType.java
+@@ -0,0 +1,22 @@
++/*
++ * Copyright 2017-2019 EPAM Systems, Inc. (https://www.epam.com/)
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package com.epam.pipeline.billingreportagent.model;
++
++public enum StorageType {
++    OBJECT_STORAGE,
++    FILE_STORAGE
++}
+diff --git a/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/model/PipelineRunBillingInfo.java b/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/model/billing/AbstractBillingInfo.java
+similarity index 78%
+rename from billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/model/PipelineRunBillingInfo.java
+rename to billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/model/billing/AbstractBillingInfo.java
+index 699041e9e..53498399e 100644
+--- a/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/model/PipelineRunBillingInfo.java
++++ b/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/model/billing/AbstractBillingInfo.java
+@@ -14,25 +14,22 @@
+  * limitations under the License.
+  */
+ 
+-package com.epam.pipeline.billingreportagent.model;
++package com.epam.pipeline.billingreportagent.model.billing;
+ 
+-import com.epam.pipeline.entity.pipeline.PipelineRun;
++import com.epam.pipeline.billingreportagent.model.ResourceType;
+ import lombok.AllArgsConstructor;
+-import lombok.Builder;
+ import lombok.Data;
+ import lombok.NoArgsConstructor;
+ 
+ import java.time.LocalDate;
+ 
+ @Data
+-@Builder
+ @AllArgsConstructor
+ @NoArgsConstructor
+-public class PipelineRunBillingInfo {
++public abstract class AbstractBillingInfo<T> {
+ 
+     private LocalDate date;
+-    private PipelineRun pipelineRun;
++    private T entity;
+     private Long cost;
+-    private Long usageMinutes;
+     private ResourceType resourceType;
+ }
+diff --git a/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/model/billing/PipelineRunBillingInfo.java b/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/model/billing/PipelineRunBillingInfo.java
+new file mode 100644
+index 000000000..fcccac3f0
+--- /dev/null
++++ b/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/model/billing/PipelineRunBillingInfo.java
+@@ -0,0 +1,39 @@
++/*
++ * Copyright 2017-2019 EPAM Systems, Inc. (https://www.epam.com/)
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package com.epam.pipeline.billingreportagent.model.billing;
++
++import com.epam.pipeline.billingreportagent.model.ResourceType;
++import com.epam.pipeline.entity.pipeline.PipelineRun;
++import lombok.Builder;
++import lombok.Data;
++import lombok.EqualsAndHashCode;
++
++import java.time.LocalDate;
++
++@Data
++@EqualsAndHashCode(callSuper = true)
++public class PipelineRunBillingInfo extends AbstractBillingInfo<PipelineRun> {
++
++    private Long usageMinutes;
++
++    @Builder
++    public PipelineRunBillingInfo(final LocalDate date, final PipelineRun run,
++                                  final Long cost, final Long usageMinutes) {
++        super(date, run, cost, ResourceType.COMPUTE);
++        this.usageMinutes = usageMinutes;
++    }
++}
+diff --git a/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/model/billing/StorageBillingInfo.java b/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/model/billing/StorageBillingInfo.java
+new file mode 100644
+index 000000000..2164ae134
+--- /dev/null
++++ b/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/model/billing/StorageBillingInfo.java
+@@ -0,0 +1,44 @@
++/*
++ * Copyright 2017-2019 EPAM Systems, Inc. (https://www.epam.com/)
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package com.epam.pipeline.billingreportagent.model.billing;
++
++import com.epam.pipeline.billingreportagent.model.ResourceType;
++import com.epam.pipeline.billingreportagent.model.StorageType;
++import com.epam.pipeline.entity.datastorage.AbstractDataStorage;
++import lombok.Builder;
++import lombok.Data;
++import lombok.EqualsAndHashCode;
++
++import java.time.LocalDate;
++
++@Data
++@EqualsAndHashCode(callSuper = true)
++public class StorageBillingInfo extends AbstractBillingInfo<AbstractDataStorage> {
++
++    private Long usageBytes;
++    private StorageType storageType;
++    private String regionName;
++
++    @Builder
++    public StorageBillingInfo(final LocalDate date, final AbstractDataStorage storage, final Long cost,
++                              final Long usageBytes, final StorageType storageType, final String regionName) {
++        super(date, storage, cost, ResourceType.STORAGE);
++        this.usageBytes = usageBytes;
++        this.storageType = storageType;
++        this.regionName = regionName;
++    }
++}
+diff --git a/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/model/billing/StoragePricing.java b/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/model/billing/StoragePricing.java
+new file mode 100644
+index 000000000..b57746870
+--- /dev/null
++++ b/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/model/billing/StoragePricing.java
+@@ -0,0 +1,42 @@
++/*
++ * Copyright 2017-2020 EPAM Systems, Inc. (https://www.epam.com/)
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package com.epam.pipeline.billingreportagent.model.billing;
++
++import lombok.Getter;
++import lombok.Value;
++
++import java.math.BigDecimal;
++import java.util.ArrayList;
++import java.util.List;
++
++@Getter
++public class StoragePricing {
++
++    private final List<StoragePricingEntity> prices = new ArrayList<>();
++
++    public void addPrice(final StoragePricingEntity entity) {
++        prices.add(entity);
++    }
++
++    @Value
++    public static class StoragePricingEntity {
++
++        private Long beginRangeBytes;
++        private Long endRangeBytes;
++        private BigDecimal priceCentsPerGb;
++    }
++}
+diff --git a/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/service/ElasticsearchAgentService.java b/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/service/ElasticsearchAgentService.java
+index fa1795ab6..442194990 100644
+--- a/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/service/ElasticsearchAgentService.java
++++ b/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/service/ElasticsearchAgentService.java
+@@ -21,8 +21,6 @@
+ import org.springframework.beans.factory.annotation.Value;
+ import org.springframework.scheduling.annotation.Scheduled;
+ import org.springframework.stereotype.Service;
+-import org.springframework.transaction.annotation.Propagation;
+-import org.springframework.transaction.annotation.Transactional;
+ import org.springframework.util.StringUtils;
+ 
+ import java.io.File;
+@@ -70,7 +68,6 @@ public ElasticsearchAgentService(final ExecutorService elasticsearchAgentThreadP
+      * documents inside Elasticsearch
+      */
+     @Scheduled(cron = "${sync.billing.schedule}")
+-    @Transactional(propagation = Propagation.REQUIRED)
+     public void startElasticsearchAgent() {
+         log.debug("Start synchronising billing data...");
+ 
+diff --git a/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/service/EntityToBillingRequestConverter.java b/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/service/EntityToBillingRequestConverter.java
+index f284659e9..585e7df0a 100644
+--- a/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/service/EntityToBillingRequestConverter.java
++++ b/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/service/EntityToBillingRequestConverter.java
+@@ -23,6 +23,7 @@
+ import java.time.LocalDateTime;
+ import java.time.format.DateTimeFormatter;
+ import java.util.List;
++import java.util.stream.Collectors;
+ 
+ public interface EntityToBillingRequestConverter<T> {
+ 
+@@ -35,6 +36,16 @@
+                                                   LocalDateTime previousSync,
+                                                   LocalDateTime syncStart);
+ 
++    default List<DocWriteRequest> convertEntitiesToRequests(List<EntityContainer<T>> entityContainers,
++                                                            String indexName,
++                                                            LocalDateTime previousSync,
++                                                            LocalDateTime syncStart) {
++        return entityContainers.stream()
++            .map(entityContainer -> convertEntityToRequests(entityContainer, indexName, previousSync, syncStart))
++            .flatMap(List::stream)
++            .collect(Collectors.toList());
++    }
++
+     default String parseDateToString(final LocalDate date) {
+         if (date == null) {
+             return null;
+diff --git a/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/service/impl/CloudPipelineAPIClient.java b/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/service/impl/CloudPipelineAPIClient.java
+index 92e74357c..26abee97f 100644
+--- a/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/service/impl/CloudPipelineAPIClient.java
++++ b/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/service/impl/CloudPipelineAPIClient.java
+@@ -18,6 +18,7 @@
+ 
+ import com.epam.pipeline.client.pipeline.CloudPipelineAPI;
+ import com.epam.pipeline.client.pipeline.CloudPipelineApiBuilder;
++import com.epam.pipeline.entity.datastorage.AbstractDataStorage;
+ import com.epam.pipeline.entity.pipeline.PipelineRun;
+ 
+ import com.epam.pipeline.entity.user.PipelineUser;
+@@ -47,4 +48,9 @@ public CloudPipelineAPIClient(@Value("${cloud.pipeline.host}") String cloudPipel
+     public List<PipelineRun> loadAllPipelineRunsActiveInPeriod(final LocalDateTime from, final LocalDateTime to) {
+         return QueryUtils.execute(cloudPipelineAPI.loadRunsActivityStats(from, to));
+     }
++
++    public List<AbstractDataStorage> loadAllDataStorages() {
++        return QueryUtils.execute(cloudPipelineAPI.loadAllDataStorages());
++    }
++
+ }
+diff --git a/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/service/impl/converter/AwsStorageServicePricing.java b/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/service/impl/converter/AwsStorageServicePricing.java
+new file mode 100644
+index 000000000..1358484e6
+--- /dev/null
++++ b/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/service/impl/converter/AwsStorageServicePricing.java
+@@ -0,0 +1,162 @@
++/*
++ * Copyright 2017-2020 EPAM Systems, Inc. (https://www.epam.com/)
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package com.epam.pipeline.billingreportagent.service.impl.converter;
++
++import com.amazonaws.regions.Regions;
++import com.amazonaws.services.pricing.AWSPricing;
++import com.amazonaws.services.pricing.AWSPricingClientBuilder;
++import com.amazonaws.services.pricing.model.Filter;
++import com.amazonaws.services.pricing.model.GetProductsRequest;
++import com.amazonaws.services.pricing.model.GetProductsResult;
++import com.epam.pipeline.billingreportagent.model.billing.StoragePricing;
++import com.fasterxml.jackson.databind.JsonNode;
++import com.fasterxml.jackson.databind.ObjectMapper;
++import lombok.extern.slf4j.Slf4j;
++import org.apache.commons.lang3.StringUtils;
++
++import java.io.IOException;
++import java.math.BigDecimal;
++import java.math.MathContext;
++import java.util.ArrayList;
++import java.util.Comparator;
++import java.util.HashMap;
++import java.util.List;
++import java.util.Map;
++import java.util.Optional;
++
++@Slf4j
++public class AwsStorageServicePricing {
++
++    private static final int CENTS_IN_DOLLAR = 100;
++
++    private final Map<Regions, StoragePricing> storagePriceListGb = new HashMap<>();
++
++    /**
++     * Storage service name (either "AmazonS3" or "AmazonEFS")
++     */
++    private final String awsStorageServiceName;
++
++    /**
++     * The highest price all over available regions
++     */
++    private BigDecimal defaultPriceGb;
++
++    public AwsStorageServicePricing(final String awsStorageServiceName) {
++        this.awsStorageServiceName = awsStorageServiceName;
++        updatePrices();
++    }
++
++    public AwsStorageServicePricing(final String awsStorageServiceName,
++                                    final Map<Regions, StoragePricing> initialPriceList) {
++        this.awsStorageServiceName = awsStorageServiceName;
++        this.storagePriceListGb.putAll(initialPriceList);
++        this.defaultPriceGb = calculateDefaultPriceGb();
++    }
++
++    public void updatePrices() {
++        loadFullPriceList(awsStorageServiceName).forEach(price -> {
++            try {
++                final JsonNode regionInfo = new ObjectMapper().readTree(price);
++                final String regionName = regionInfo.path("product").path("attributes").path("location").asText();
++                getRegionFromFullLocation(regionName).ifPresent(region -> fillPricingInfoForRegion(region, regionInfo));
++            } catch (IOException e) {
++                log.error("Can't instantiate AWS storage price list!");
++            }
++        });
++        defaultPriceGb = calculateDefaultPriceGb();
++    }
++
++    public BigDecimal getDefaultPriceGb() {
++        return defaultPriceGb;
++    }
++
++    public StoragePricing getRegionPricing(final Regions region) {
++        return storagePriceListGb.get(region);
++    }
++
++    private void fillPricingInfoForRegion(final Regions region, final JsonNode regionInfo) {
++        final StoragePricing pricing = new StoragePricing();
++        regionInfo.findParents("pricePerUnit").stream()
++            .map(this::extractPricingFromJson)
++            .forEach(pricing::addPrice);
++        storagePriceListGb.put(region, pricing);
++    }
++
++    private BigDecimal calculateDefaultPriceGb() {
++        return storagePriceListGb.values()
++            .stream()
++            .flatMap(pricing -> pricing.getPrices().stream())
++            .map(StoragePricing.StoragePricingEntity::getPriceCentsPerGb)
++            .filter(price -> !BigDecimal.ZERO.equals(price))
++            .max(Comparator.naturalOrder())
++            .orElseThrow(() -> new IllegalStateException("No AWS storage prices loaded!"));
++    }
++
++    private List<String> loadFullPriceList(final String awsStorageServiceName) {
++        final List<String> allPrices = new ArrayList<>();
++        final Filter filter = new Filter();
++        filter.setType("TERM_MATCH");
++        filter.setField("productFamily");
++        filter.setValue("Storage");
++        filter.setField("storageClass");
++        filter.setValue("General Purpose");
++
++        String nextToken = StringUtils.EMPTY;
++        do {
++            final GetProductsRequest request = new GetProductsRequest()
++                .withServiceCode(awsStorageServiceName)
++                .withFilters(filter)
++                .withNextToken(nextToken)
++                .withFormatVersion("aws_v1");
++
++            final AWSPricing awsPricingService = AWSPricingClientBuilder
++                .standard()
++                .withRegion(Regions.US_EAST_1)
++                .build();
++
++            final GetProductsResult result = awsPricingService.getProducts(request);
++            allPrices.addAll(result.getPriceList());
++            nextToken = result.getNextToken();
++        } while (nextToken != null);
++        return allPrices;
++    }
++
++    private Optional<Regions> getRegionFromFullLocation(final String location) {
++        for (Regions region : Regions.values()) {
++            if (region.getDescription().equals(location)) {
++                return Optional.of(region);
++            }
++        }
++        log.warn("Can't parse location: " + location);
++        return Optional.empty();
++    }
++
++    private StoragePricing.StoragePricingEntity extractPricingFromJson(final JsonNode priceDimension) {
++        final BigDecimal priceGb =
++            new BigDecimal(priceDimension.path("pricePerUnit").path("USD").asDouble(), new MathContext(
++                AwsStorageToBillingRequestConverter.PRECISION))
++                .multiply(BigDecimal.valueOf(CENTS_IN_DOLLAR));
++        final long beginRange =
++            priceDimension.path("beginRange").asLong() * AwsStorageToBillingRequestConverter.BYTES_TO_GB;
++        final long endRange = priceDimension.path("endRange").asLong();
++        return new StoragePricing.StoragePricingEntity(beginRange,
++                                                       endRange == 0
++                                                       ? Long.MAX_VALUE
++                                                       : endRange * AwsStorageToBillingRequestConverter.BYTES_TO_GB,
++                                                       priceGb);
++    }
++}
+diff --git a/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/service/impl/converter/AwsStorageToBillingRequestConverter.java b/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/service/impl/converter/AwsStorageToBillingRequestConverter.java
+new file mode 100644
+index 000000000..68cf73b6c
+--- /dev/null
++++ b/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/service/impl/converter/AwsStorageToBillingRequestConverter.java
+@@ -0,0 +1,217 @@
++/*
++ * Copyright 2017-2020 EPAM Systems, Inc. (https://www.epam.com/)
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package com.epam.pipeline.billingreportagent.service.impl.converter;
++
++import com.amazonaws.regions.Regions;
++import com.epam.pipeline.billingreportagent.model.EntityContainer;
++import com.epam.pipeline.billingreportagent.model.StorageType;
++import com.epam.pipeline.billingreportagent.model.billing.StorageBillingInfo;
++import com.epam.pipeline.billingreportagent.service.ElasticsearchServiceClient;
++import com.epam.pipeline.billingreportagent.service.EntityMapper;
++import com.epam.pipeline.billingreportagent.service.EntityToBillingRequestConverter;
++import com.epam.pipeline.entity.datastorage.AbstractDataStorage;
++import com.epam.pipeline.entity.datastorage.DataStorageType;
++import com.epam.pipeline.entity.user.PipelineUser;
++import lombok.extern.slf4j.Slf4j;
++import org.elasticsearch.action.DocWriteRequest;
++import org.elasticsearch.action.index.IndexRequest;
++import org.elasticsearch.action.search.SearchRequest;
++import org.elasticsearch.action.search.SearchResponse;
++import org.elasticsearch.search.aggregations.AggregationBuilders;
++import org.elasticsearch.search.aggregations.metrics.sum.ParsedSum;
++import org.elasticsearch.search.aggregations.metrics.sum.SumAggregationBuilder;
++import org.elasticsearch.search.builder.SearchSourceBuilder;
++
++import java.math.BigDecimal;
++import java.math.RoundingMode;
++import java.time.LocalDate;
++import java.time.LocalDateTime;
++import java.time.YearMonth;
++import java.util.Collections;
++import java.util.List;
++import java.util.Optional;
++
++@Slf4j
++@SuppressWarnings("checkstyle:MagicNumber")
++public class AwsStorageToBillingRequestConverter implements EntityToBillingRequestConverter<AbstractDataStorage> {
++
++    public static final int BYTES_TO_GB = 1 << 30;
++    public static final int PRECISION = 5;
++    private static final String STORAGE_SIZE_AGG_NAME = "sizeSumSearch";
++    private static final String SIZE_FIELD = "size";
++    private static final String REGION_FIELD = "storage_region";
++    private static final String ES_FILE_INDEX_PATTERN = "cp-%s-file-%d";
++    private static final String INDEX_PATTERN = "%s-daily-%s";
++    private static final RoundingMode ROUNDING_MODE = RoundingMode.CEILING;
++
++    private final EntityMapper<StorageBillingInfo> mapper;
++    private final ElasticsearchServiceClient elasticsearchService;
++    private final StorageType storageType;
++    private final AwsStorageServicePricing storagePricing;
++
++    public AwsStorageToBillingRequestConverter(final EntityMapper<StorageBillingInfo> mapper,
++                                               final ElasticsearchServiceClient elasticsearchService,
++                                               final String awsStorageServiceName,
++                                               final StorageType storageType) {
++        this.mapper = mapper;
++        this.elasticsearchService = elasticsearchService;
++        this.storageType = storageType;
++        this.storagePricing = new AwsStorageServicePricing(awsStorageServiceName);
++    }
++
++    public AwsStorageToBillingRequestConverter(final EntityMapper<StorageBillingInfo> mapper,
++                                               final ElasticsearchServiceClient elasticsearchService,
++                                               final StorageType storageType,
++                                               final AwsStorageServicePricing storagePricing) {
++        this.mapper = mapper;
++        this.elasticsearchService = elasticsearchService;
++        this.storageType = storageType;
++        this.storagePricing = storagePricing;
++    }
++
++    @Override
++    public List<DocWriteRequest> convertEntityToRequests(final EntityContainer<AbstractDataStorage> storageContainer,
++                                                         final String indexName,
++                                                         final LocalDateTime previousSync,
++                                                         final LocalDateTime syncStart) {
++        final Long storageId = storageContainer.getEntity().getId();
++        final DataStorageType storageType = storageContainer.getEntity().getType();
++        final LocalDate reportDate = syncStart.toLocalDate().minusDays(1);
++        final String fullIndex = String.format(INDEX_PATTERN, indexName, parseDateToString(reportDate));
++        return requestSumAggregationForStorage(storageId, storageType)
++            .map(searchResponse -> buildRequestFromAggregation(storageContainer, syncStart, searchResponse, fullIndex))
++            .orElse(Collections.emptyList());
++    }
++
++    @Override
++    public List<DocWriteRequest> convertEntitiesToRequests(final List<EntityContainer<AbstractDataStorage>> containers,
++                                                           final String indexName,
++                                                           final LocalDateTime previousSync,
++                                                           final LocalDateTime syncStart) {
++        storagePricing.updatePrices();
++        return EntityToBillingRequestConverter.super
++            .convertEntitiesToRequests(containers, indexName, previousSync, syncStart);
++    }
++
++    private Optional<SearchResponse> requestSumAggregationForStorage(final Long storageId,
++                                                                     final DataStorageType storageType) {
++        final String searchIndex =
++            String.format(ES_FILE_INDEX_PATTERN, storageType.toString().toLowerCase(), storageId);
++        if (elasticsearchService.isIndexExists(searchIndex)) {
++            final SearchRequest searchRequest = new SearchRequest();
++            searchRequest.indices(searchIndex);
++            final SumAggregationBuilder sizeSumAgg = AggregationBuilders.sum(STORAGE_SIZE_AGG_NAME).field(SIZE_FIELD);
++            final SearchSourceBuilder sizeSumSearch = new SearchSourceBuilder().aggregation(sizeSumAgg);
++            searchRequest.source(sizeSumSearch);
++            return Optional.of(elasticsearchService.search(searchRequest));
++        } else {
++            return Optional.empty();
++        }
++    }
++
++    private List<DocWriteRequest> buildRequestFromAggregation(final EntityContainer<AbstractDataStorage> container,
++                                                              final LocalDateTime syncStart,
++                                                              final SearchResponse response,
++                                                              final String fullIndex) {
++        return extractStorageSize(response).map(storageSize -> {
++            final String regionLocation =
++                (String) response.getHits().getAt(0).getSourceAsMap().get(REGION_FIELD);
++            return createBilling(container, storageSize, regionLocation, syncStart.toLocalDate().minusDays(1));
++        })
++            .map(billing -> getDocWriteRequest(fullIndex, container.getOwner(), billing))
++            .map(Collections::singletonList)
++            .orElse(Collections.emptyList());
++    }
++
++    private Optional<Long> extractStorageSize(final SearchResponse response) {
++        final ParsedSum sumAggResult = response.getAggregations().get(STORAGE_SIZE_AGG_NAME);
++        final long storageSize = new Double(sumAggResult.getValue()).longValue();
++        final long totalMatches = response.getHits().getTotalHits();
++        return (storageSize == 0 || totalMatches == 0)
++               ? Optional.empty()
++               : Optional.of(storageSize);
++    }
++
++    private DocWriteRequest getDocWriteRequest(final String fullIndex,
++                                               final PipelineUser owner,
++                                               final StorageBillingInfo billing) {
++        final EntityContainer<StorageBillingInfo> entity = EntityContainer.<StorageBillingInfo>builder()
++            .owner(owner)
++            .entity(billing)
++            .build();
++        return new IndexRequest(fullIndex, INDEX_TYPE).source(mapper.map(entity));
++    }
++
++    private StorageBillingInfo createBilling(final EntityContainer<AbstractDataStorage> storageContainer,
++                                             final Long byteSize,
++                                             final String regionLocation,
++                                             final LocalDate billingDate) {
++        final StorageBillingInfo.StorageBillingInfoBuilder billing =
++            StorageBillingInfo.builder()
++                .storage(storageContainer.getEntity())
++                .usageBytes(byteSize)
++                .date(billingDate)
++                .storageType(storageType);
++
++        try {
++            final Regions region = Regions.fromName(regionLocation);
++            billing
++                .regionName(region.getName())
++                .cost(calculateDailyCost(byteSize, region, billingDate));
++        } catch (IllegalArgumentException e) {
++            billing.cost(calculateDailyCost(byteSize, storagePricing.getDefaultPriceGb(), billingDate));
++        }
++
++        return billing.build();
++    }
++
++    /**
++     * Calculate daily spending on files storing in hundredths of a cent. The minimal result, possibly returned by this
++     * function is 1, due to hundredths of cents granularity.
++     *
++     * @param sizeBytes      storage size
++     * @param monthlyPriceGb price Gb/month in cents
++     * @param date           billing date
++     * @return daily cost
++     */
++    Long calculateDailyCost(final Long sizeBytes, final BigDecimal monthlyPriceGb, final LocalDate date) {
++        final BigDecimal sizeGb = BigDecimal.valueOf(sizeBytes)
++            .divide(BigDecimal.valueOf(BYTES_TO_GB), PRECISION, ROUNDING_MODE);
++
++        final int daysInMonth = YearMonth.of(date.getYear(), date.getMonthValue()).lengthOfMonth();
++
++        final long hundredthsOfCentPrice = sizeGb.multiply(monthlyPriceGb)
++            .divide(BigDecimal.valueOf(daysInMonth), ROUNDING_MODE)
++            .scaleByPowerOfTen(2)
++            .longValue();
++        return hundredthsOfCentPrice == 0
++               ? 1
++               : hundredthsOfCentPrice;
++    }
++
++    Long calculateDailyCost(final Long sizeBytes, final Regions region, final LocalDate date) {
++        return storagePricing.getRegionPricing(region).getPrices().stream()
++            .filter(entity -> entity.getBeginRangeBytes() <= sizeBytes)
++            .mapToLong(entity -> {
++                final Long beginRange = entity.getBeginRangeBytes();
++                final Long endRange = entity.getEndRangeBytes();
++                final long bytesForCurrentTierPrice = Math.min(sizeBytes - beginRange,
++                                                               endRange - beginRange);
++                return calculateDailyCost(bytesForCurrentTierPrice, entity.getPriceCentsPerGb(), date);
++            }).sum();
++    }
++}
+diff --git a/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/service/impl/converter/RunToBillingRequestConverter.java b/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/service/impl/converter/RunToBillingRequestConverter.java
+index 8f4f4b6c1..e869f0c49 100644
+--- a/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/service/impl/converter/RunToBillingRequestConverter.java
++++ b/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/service/impl/converter/RunToBillingRequestConverter.java
+@@ -17,8 +17,7 @@
+ package com.epam.pipeline.billingreportagent.service.impl.converter;
+ 
+ import com.epam.pipeline.billingreportagent.model.EntityContainer;
+-import com.epam.pipeline.billingreportagent.model.PipelineRunBillingInfo;
+-import com.epam.pipeline.billingreportagent.model.ResourceType;
++import com.epam.pipeline.billingreportagent.model.billing.PipelineRunBillingInfo;
+ import com.epam.pipeline.billingreportagent.service.EntityMapper;
+ import com.epam.pipeline.billingreportagent.service.EntityToBillingRequestConverter;
+ import com.epam.pipeline.entity.pipeline.PipelineRun;
+@@ -26,6 +25,7 @@
+ import com.epam.pipeline.entity.pipeline.run.RunStatus;
+ import com.epam.pipeline.entity.user.PipelineUser;
+ import lombok.Data;
++import lombok.RequiredArgsConstructor;
+ import lombok.extern.slf4j.Slf4j;
+ import org.apache.commons.collections4.CollectionUtils;
+ import org.elasticsearch.action.DocWriteRequest;
+@@ -47,17 +47,11 @@
+ 
+ @Data
+ @Slf4j
++@RequiredArgsConstructor
+ public class RunToBillingRequestConverter implements EntityToBillingRequestConverter<PipelineRun> {
+ 
+-    private final String indexPrefix;
+     private final EntityMapper<PipelineRunBillingInfo> mapper;
+ 
+-    public RunToBillingRequestConverter(final String indexPrefix,
+-                                        final EntityMapper<PipelineRunBillingInfo> mapper) {
+-        this.indexPrefix = indexPrefix;
+-        this.mapper = mapper;
+-    }
+-
+     /**
+      * Creates billing requests for given run
+      *
+@@ -85,7 +79,7 @@ public RunToBillingRequestConverter(final String indexPrefix,
+                                                         syncStart);
+ 
+         return createBillingsForPeriod(runContainer.getEntity(), pricePerHour, statuses).stream()
+-            .filter(billing -> billing.getCost().equals(0L))
++            .filter(billing -> !billing.getCost().equals(0L))
+             .collect(Collectors.toMap(PipelineRunBillingInfo::getDate,
+                                       Function.identity(),
+                                       this::mergeBillings))
+@@ -154,11 +148,12 @@ private PipelineRunBillingInfo mergeBillings(final PipelineRunBillingInfo billin
+         for (int i = 0; i < timePoints.size() - 1; i++) {
+             final Duration durationSeconds = Duration.between(timePoints.get(i), timePoints.get(i + 1));
+             final Long cost = calculateCostsForPeriod(durationSeconds.getSeconds(), pricePerHour);
+-            billings.add(new PipelineRunBillingInfo(timePoints.get(i).toLocalDate(),
+-                                                    run,
+-                                                    cost,
+-                                                    durationSeconds.plusMinutes(1).toMinutes(),
+-                                                    ResourceType.COMPUTE));
++            billings.add(PipelineRunBillingInfo.builder()
++                             .date(timePoints.get(i).toLocalDate())
++                             .run(run)
++                             .cost(cost)
++                             .usageMinutes(durationSeconds.plusMinutes(1).toMinutes())
++                             .build());
+         }
+         return billings;
+     }
+diff --git a/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/service/impl/converter/run/PipelineRunLoader.java b/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/service/impl/loader/PipelineRunLoader.java
+similarity index 96%
+rename from billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/service/impl/converter/run/PipelineRunLoader.java
+rename to billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/service/impl/loader/PipelineRunLoader.java
+index 0d9814f5b..6d364e8ef 100644
+--- a/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/service/impl/converter/run/PipelineRunLoader.java
++++ b/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/service/impl/loader/PipelineRunLoader.java
+@@ -14,7 +14,7 @@
+  * limitations under the License.
+  */
+ 
+-package com.epam.pipeline.billingreportagent.service.impl.converter.run;
++package com.epam.pipeline.billingreportagent.service.impl.loader;
+ 
+ import com.epam.pipeline.billingreportagent.model.EntityContainer;
+ import com.epam.pipeline.billingreportagent.service.EntityLoader;
+diff --git a/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/service/impl/loader/StorageLoader.java b/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/service/impl/loader/StorageLoader.java
+new file mode 100644
+index 000000000..c4d0d4c1a
+--- /dev/null
++++ b/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/service/impl/loader/StorageLoader.java
+@@ -0,0 +1,58 @@
++/*
++ * Copyright 2017-2019 EPAM Systems, Inc. (https://www.epam.com/)
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++package com.epam.pipeline.billingreportagent.service.impl.loader;
++
++import com.epam.pipeline.billingreportagent.model.EntityContainer;
++import com.epam.pipeline.billingreportagent.service.EntityLoader;
++import com.epam.pipeline.billingreportagent.service.impl.CloudPipelineAPIClient;
++import com.epam.pipeline.entity.datastorage.AbstractDataStorage;
++import com.epam.pipeline.entity.user.PipelineUser;
++import org.springframework.stereotype.Component;
++
++import java.time.LocalDateTime;
++import java.util.List;
++import java.util.Map;
++import java.util.function.Function;
++import java.util.stream.Collectors;
++
++@Component
++public class StorageLoader implements EntityLoader<AbstractDataStorage> {
++
++    private final CloudPipelineAPIClient apiClient;
++
++    public StorageLoader(final CloudPipelineAPIClient apiClient) {
++        this.apiClient = apiClient;
++    }
++
++    @Override
++    public List<EntityContainer<AbstractDataStorage>> loadAllEntities() {
++        final Map<String, PipelineUser> users =
++            apiClient.loadAllUsers().stream().collect(Collectors.toMap(PipelineUser::getUserName, Function.identity()));
++        return apiClient.loadAllDataStorages()
++            .stream()
++            .map(storage -> EntityContainer.<AbstractDataStorage>builder()
++                .entity(storage)
++                .owner(users.get(storage.getOwner()))
++                .build())
++            .collect(Collectors.toList());
++    }
++
++    @Override
++    public List<EntityContainer<AbstractDataStorage>> loadAllEntitiesActiveInPeriod(final LocalDateTime from,
++                                                                                    final LocalDateTime to) {
++        return loadAllEntities();
++    }
++}
+diff --git a/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/service/impl/converter/run/BillingMapper.java b/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/service/impl/mapper/RunBillingMapper.java
+similarity index 89%
+rename from billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/service/impl/converter/run/BillingMapper.java
+rename to billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/service/impl/mapper/RunBillingMapper.java
+index 6c7172f09..57e599ffb 100644
+--- a/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/service/impl/converter/run/BillingMapper.java
++++ b/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/service/impl/mapper/RunBillingMapper.java
+@@ -14,12 +14,12 @@
+  * limitations under the License.
+  */
+ 
+-package com.epam.pipeline.billingreportagent.service.impl.converter.run;
++package com.epam.pipeline.billingreportagent.service.impl.mapper;
+ 
+ import static com.epam.pipeline.billingreportagent.service.ElasticsearchSynchronizer.DOC_TYPE_FIELD;
+ 
+ import com.epam.pipeline.billingreportagent.model.EntityContainer;
+-import com.epam.pipeline.billingreportagent.model.PipelineRunBillingInfo;
++import com.epam.pipeline.billingreportagent.model.billing.PipelineRunBillingInfo;
+ import com.epam.pipeline.billingreportagent.service.EntityMapper;
+ import com.epam.pipeline.entity.pipeline.PipelineRun;
+ import com.epam.pipeline.entity.pipeline.RunInstance;
+@@ -33,13 +33,13 @@
+ 
+ @Component
+ @NoArgsConstructor
+-public class BillingMapper implements EntityMapper<PipelineRunBillingInfo> {
++public class RunBillingMapper implements EntityMapper<PipelineRunBillingInfo> {
+ 
+     @Override
+     public XContentBuilder map(final EntityContainer<PipelineRunBillingInfo> container) {
+         try (XContentBuilder jsonBuilder = XContentFactory.jsonBuilder()) {
+             final PipelineRunBillingInfo billingInfo = container.getEntity();
+-            final PipelineRun run = billingInfo.getPipelineRun();
++            final PipelineRun run = billingInfo.getEntity();
+             jsonBuilder
+                 .startObject()
+                 .field(DOC_TYPE_FIELD, SearchDocumentType.PIPELINE_RUN.name())
+@@ -53,7 +53,7 @@ public XContentBuilder map(final EntityContainer<PipelineRunBillingInfo> contain
+                 .field("usage", billingInfo.getUsageMinutes())
+                 .field("run_price", run.getPricePerHour().unscaledValue().longValue())
+                 .field("cloudRegionId", run.getInstance().getCloudRegionId())
+-                .field("billingCenter", "TBD");
++                .field("billing_center", "TBD");
+             buildUserContent(container.getOwner(), jsonBuilder);
+             jsonBuilder.endObject();
+             return jsonBuilder;
+diff --git a/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/service/impl/mapper/StorageBillingMapper.java b/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/service/impl/mapper/StorageBillingMapper.java
+new file mode 100644
+index 000000000..7a1a65d31
+--- /dev/null
++++ b/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/service/impl/mapper/StorageBillingMapper.java
+@@ -0,0 +1,62 @@
++/*
++ * Copyright 2017-2019 EPAM Systems, Inc. (https://www.epam.com/)
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package com.epam.pipeline.billingreportagent.service.impl.mapper;
++
++import static com.epam.pipeline.billingreportagent.service.ElasticsearchSynchronizer.DOC_TYPE_FIELD;
++
++import com.epam.pipeline.billingreportagent.model.EntityContainer;
++import com.epam.pipeline.billingreportagent.model.billing.StorageBillingInfo;
++import com.epam.pipeline.billingreportagent.service.EntityMapper;
++import com.epam.pipeline.entity.datastorage.AbstractDataStorage;
++import com.epam.pipeline.entity.search.SearchDocumentType;
++import lombok.RequiredArgsConstructor;
++import org.elasticsearch.common.xcontent.XContentBuilder;
++import org.elasticsearch.common.xcontent.XContentFactory;
++
++import java.io.IOException;
++
++@RequiredArgsConstructor
++public class StorageBillingMapper implements EntityMapper<StorageBillingInfo> {
++
++    private final SearchDocumentType documentType;
++
++    @Override
++    public XContentBuilder map(final EntityContainer<StorageBillingInfo> container) {
++        try (XContentBuilder jsonBuilder = XContentFactory.jsonBuilder()) {
++            final StorageBillingInfo billingInfo = container.getEntity();
++            final AbstractDataStorage storage = billingInfo.getEntity();
++            jsonBuilder
++                .startObject()
++                .field(DOC_TYPE_FIELD, documentType.name())
++                .field("id", storage.getId())
++                .field("resource_type", billingInfo.getResourceType())
++                .field("region", billingInfo.getRegionName())
++                .field("provider", storage.getType())
++                .field("storage_type", billingInfo.getStorageType())
++                .field("billing_center", "TBD")
++                .field("usage", billingInfo.getUsageBytes())
++                .field("cost", billingInfo.getCost())
++                .field("created_date", billingInfo.getDate());
++            buildUserContent(container.getOwner(), jsonBuilder);
++            jsonBuilder.endObject();
++            return jsonBuilder;
++        } catch (IOException e) {
++            throw new IllegalArgumentException("Failed to create elasticsearch document for data storage: ", e);
++        }
++    }
++}
++
+diff --git a/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/service/impl/PipelineRunSynchronizer.java b/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/service/impl/synchronizer/PipelineRunSynchronizer.java
+similarity index 89%
+rename from billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/service/impl/PipelineRunSynchronizer.java
+rename to billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/service/impl/synchronizer/PipelineRunSynchronizer.java
+index 92d7886ab..57d0888cd 100644
+--- a/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/service/impl/PipelineRunSynchronizer.java
++++ b/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/service/impl/synchronizer/PipelineRunSynchronizer.java
+@@ -14,7 +14,7 @@
+  * limitations under the License.
+  */
+ 
+-package com.epam.pipeline.billingreportagent.service.impl;
++package com.epam.pipeline.billingreportagent.service.impl.synchronizer;
+ 
+ import com.epam.pipeline.billingreportagent.exception.ElasticClientException;
+ import com.epam.pipeline.billingreportagent.model.EntityContainer;
+@@ -22,16 +22,16 @@
+ import com.epam.pipeline.billingreportagent.service.ElasticsearchServiceClient;
+ import com.epam.pipeline.billingreportagent.service.EntityLoader;
+ import com.epam.pipeline.billingreportagent.service.EntityToBillingRequestConverter;
++import com.epam.pipeline.billingreportagent.service.impl.BulkRequestSender;
++import com.epam.pipeline.billingreportagent.service.impl.ElasticIndexService;
+ import com.epam.pipeline.billingreportagent.service.impl.converter.RunToBillingRequestConverter;
+-import com.epam.pipeline.billingreportagent.service.impl.converter.run.BillingMapper;
++import com.epam.pipeline.billingreportagent.service.impl.mapper.RunBillingMapper;
+ import com.epam.pipeline.entity.pipeline.PipelineRun;
+ import lombok.Data;
+ import lombok.extern.slf4j.Slf4j;
+ import org.apache.commons.collections4.CollectionUtils;
+ import org.elasticsearch.action.DocWriteRequest;
+ import org.springframework.beans.factory.annotation.Value;
+-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+-import org.springframework.stereotype.Service;
+ 
+ import java.time.LocalDateTime;
+ import java.util.Collection;
+@@ -40,12 +40,9 @@
+ import java.util.stream.Collectors;
+ 
+ @Data
+-@Service
+ @Slf4j
+-@ConditionalOnProperty(value = "sync.run.disable", matchIfMissing = true, havingValue = "false")
+ public class PipelineRunSynchronizer implements ElasticsearchSynchronizer {
+ 
+-    private final ElasticsearchServiceClient elasticsearchClient;
+     private final ElasticIndexService indexService;
+     private final String indexPrefix;
+     private final String pipelineRunIndexMappingFile;
+@@ -57,19 +54,18 @@
+     public PipelineRunSynchronizer(final @Value("${sync.run.index.mapping}") String pipelineRunIndexMappingFile,
+                                    final @Value("${sync.index.common.prefix}") String indexPrefix,
+                                    final @Value("${sync.run.index.name}") String pipelineRunIndexName,
+-                                   final @Value("${sync.run.bulk.insert.size:1000}") Integer bulkInsertSize,
++                                   final @Value("${sync.bulk.insert.size:1000}") Integer bulkInsertSize,
+                                    final ElasticsearchServiceClient elasticsearchServiceClient,
+                                    final ElasticIndexService indexService,
+-                                   final BillingMapper mapper,
++                                   final RunBillingMapper mapper,
+                                    final EntityLoader<PipelineRun> loader) {
+         this.pipelineRunIndexMappingFile = pipelineRunIndexMappingFile;
+-        this.elasticsearchClient = elasticsearchServiceClient;
+         this.indexService = indexService;
+         this.indexPrefix = indexPrefix;
+         this.pipelineRunIndexName = pipelineRunIndexName;
+         this.loader = loader;
+-        this.runToBillingRequestConverter = new RunToBillingRequestConverter(pipelineRunIndexName, mapper);
+-        this.requestSender = new BulkRequestSender(elasticsearchClient, bulkInsertSize);
++        this.runToBillingRequestConverter = new RunToBillingRequestConverter(mapper);
++        this.requestSender = new BulkRequestSender(elasticsearchServiceClient, bulkInsertSize);
+     }
+ 
+     @Override
+diff --git a/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/service/impl/synchronizer/StorageSynchronizer.java b/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/service/impl/synchronizer/StorageSynchronizer.java
+new file mode 100644
+index 000000000..904b775c9
+--- /dev/null
++++ b/billing-report-agent/src/main/java/com/epam/pipeline/billingreportagent/service/impl/synchronizer/StorageSynchronizer.java
+@@ -0,0 +1,115 @@
++/*
++ * Copyright 2017-2019 EPAM Systems, Inc. (https://www.epam.com/)
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package com.epam.pipeline.billingreportagent.service.impl.synchronizer;
++
++import com.epam.pipeline.billingreportagent.exception.ElasticClientException;
++import com.epam.pipeline.billingreportagent.model.EntityContainer;
++import com.epam.pipeline.billingreportagent.service.ElasticsearchServiceClient;
++import com.epam.pipeline.billingreportagent.service.ElasticsearchSynchronizer;
++import com.epam.pipeline.billingreportagent.service.EntityLoader;
++import com.epam.pipeline.billingreportagent.service.EntityToBillingRequestConverter;
++import com.epam.pipeline.billingreportagent.service.impl.BulkRequestSender;
++import com.epam.pipeline.billingreportagent.service.impl.ElasticIndexService;
++import com.epam.pipeline.entity.datastorage.AbstractDataStorage;
++import com.epam.pipeline.entity.datastorage.DataStorageType;
++import lombok.Data;
++import lombok.extern.slf4j.Slf4j;
++import org.elasticsearch.action.DocWriteRequest;
++import org.springframework.beans.factory.annotation.Value;
++
++import java.time.LocalDateTime;
++import java.util.Collections;
++import java.util.List;
++
++@Data
++@Slf4j
++@SuppressWarnings("PMD.AvoidCatchingGenericException")
++public class StorageSynchronizer implements ElasticsearchSynchronizer {
++
++    private final  String storageIndexMappingFile;
++    private final String indexPrefix;
++    private final String storageIndexName;
++    private final EntityLoader<AbstractDataStorage> loader;
++    private final EntityToBillingRequestConverter<AbstractDataStorage> storageToBillingRequestConverter;
++    private final ElasticIndexService indexService;
++    private final BulkRequestSender requestSender;
++    private final DataStorageType storageType;
++
++    public StorageSynchronizer(final @Value("${sync.storage.index.mapping}") String storageIndexMappingFile,
++                               final @Value("${sync.index.common.prefix}") String indexPrefix,
++                               final @Value("${sync.storage.index.name}") String storageIndexName,
++                               final @Value("${sync.bulk.insert.size:1000}") Integer bulkInsertSize,
++                               final ElasticsearchServiceClient elasticsearchServiceClient,
++                               final EntityLoader<AbstractDataStorage> loader,
++                               final ElasticIndexService indexService,
++                               final EntityToBillingRequestConverter<AbstractDataStorage> storageToBillingReqConverter,
++                               final DataStorageType storageType) {
++        this.storageIndexMappingFile = storageIndexMappingFile;
++        this.indexPrefix = indexPrefix;
++        this.storageIndexName = storageIndexName;
++        this.loader = loader;
++        this.storageToBillingRequestConverter = storageToBillingReqConverter;
++        this.indexService = indexService;
++        this.requestSender = new BulkRequestSender(elasticsearchServiceClient, bulkInsertSize);
++        this.storageType = storageType;
++    }
++
++    @Override
++    public void synchronize(LocalDateTime lastSyncTime, LocalDateTime syncStart) {
++        log.debug("Started {} storage billing synchronization", storageType);
++        final List<EntityContainer<AbstractDataStorage>> entityContainers = loader.loadAllEntities();
++        entityContainers.removeIf(storage -> storage.getEntity().getType() != storageType);
++        final List<DocWriteRequest> storageBillingRequests =
++            createStorageBillingRequest(entityContainers, lastSyncTime, syncStart);
++
++        log.info("{} document requests created", storageBillingRequests.size());
++
++        storageBillingRequests.stream()
++            .map(DocWriteRequest::index)
++            .distinct()
++            .forEach(index -> {
++                try {
++                    indexService.createIndexIfNotExists(index, storageIndexMappingFile);
++                } catch (ElasticClientException e) {
++                    log.warn("Can't create index {}!", index);
++                }
++            });
++
++        requestSender.indexDocuments(storageBillingRequests);
++        log.debug("Successfully finished {} storage billing synchronization.", storageType);
++    }
++
++    private List<DocWriteRequest> createStorageBillingRequest(final List<EntityContainer<AbstractDataStorage>> storages,
++                                                              final LocalDateTime previousSync,
++                                                              final LocalDateTime syncStart) {
++        try {
++            final String commonRunBillingIndexName = indexPrefix + storageIndexName;
++            return buildDocRequests(storages, commonRunBillingIndexName, previousSync, syncStart);
++        } catch (Exception e) {
++            log.error("An error during storage billing synchronization: {}", e.getMessage());
++            return Collections.emptyList();
++        }
++    }
++
++    private List<DocWriteRequest> buildDocRequests(final List<EntityContainer<AbstractDataStorage>> storages,
++                                                   final String indexNameForStorage,
++                                                   final LocalDateTime previousSync,
++                                                   final LocalDateTime syncStart) {
++        return storageToBillingRequestConverter.convertEntitiesToRequests(storages, indexNameForStorage,
++                                                                          previousSync, syncStart);
++    }
++}
+diff --git a/billing-report-agent/src/main/resources/application.properties b/billing-report-agent/src/main/resources/application.properties
+index c6f5e403a..bcc6425cb 100644
+--- a/billing-report-agent/src/main/resources/application.properties
++++ b/billing-report-agent/src/main/resources/application.properties
+@@ -12,9 +12,16 @@ sync.index.common.prefix=cp-billing-
+ sync.last.synchronization.file=lastSynchronizationTime.txt
+ sync.submit.threads=1
+ sync.billing.schedule=0 0 0 ? * *
++sync.bulk.insert.size=1000
+ 
+ #Pipeline Run Settings
+ #sync.run.disable=true
+ sync.run.index.mapping=classpath:/templates/pipeline_run_billing.json
+ sync.run.index.name=pipeline-run
+-sync.run.bulk.insert.size=1000
++
++#Storage Settings
++#sync.storage.disable=true
++sync.storage.index.mapping=classpath:/templates/storage_billing.json
++sync.storage.index.name=storage
++#sync.s3.storage.disable=true
++#sync.nfs.storage.disable=true
+diff --git a/billing-report-agent/src/main/resources/templates/storage_billing.json b/billing-report-agent/src/main/resources/templates/storage_billing.json
+new file mode 100644
+index 000000000..995cae937
+--- /dev/null
++++ b/billing-report-agent/src/main/resources/templates/storage_billing.json
+@@ -0,0 +1,26 @@
++{
++  "mappings": {
++    "_doc": {
++      "properties": {
++        "doc_type": { "type": "keyword", "store": true },
++        "id": { "type": "keyword", "store": true },
++        "resource_type": { "type": "keyword" },
++        "region": { "type": "keyword" },
++        "provider": { "type": "keyword" },
++        "storage_type": { "type": "keyword" },
++        "owner": { "type": "keyword" },
++        "groups": { "type": "keyword" },
++        "billing_center":  { "type": "keyword" },
++        "usage": {"type": "long"},
++        "cost": {"type": "long"},
++        "created_date": {"type": "date"}
++      }
++    }
++  },
++  "settings": {
++    "index": {
++      "number_of_shards" : 1,
++      "number_of_replicas": 0
++    }
++  }
++}
+\ No newline at end of file
+diff --git a/billing-report-agent/src/test/java/com/epam/pipeline/billingreportagent/service/impl/TestUtils.java b/billing-report-agent/src/test/java/com/epam/pipeline/billingreportagent/service/impl/TestUtils.java
+new file mode 100644
+index 000000000..275f3e0cf
+--- /dev/null
++++ b/billing-report-agent/src/test/java/com/epam/pipeline/billingreportagent/service/impl/TestUtils.java
+@@ -0,0 +1,81 @@
++/*
++ * Copyright 2017-2019 EPAM Systems, Inc. (https://www.epam.com/)
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package com.epam.pipeline.billingreportagent.service.impl;
++
++import com.epam.pipeline.entity.pipeline.PipelineRun;
++import com.epam.pipeline.entity.pipeline.RunInstance;
++import com.fasterxml.jackson.core.JsonFactory;
++import org.apache.commons.collections.CollectionUtils;
++import org.elasticsearch.common.Strings;
++import org.elasticsearch.common.xcontent.NamedXContentRegistry;
++import org.elasticsearch.common.xcontent.XContentBuilder;
++import org.elasticsearch.common.xcontent.json.JsonXContentParser;
++import org.junit.Assert;
++
++import java.io.IOException;
++import java.math.BigDecimal;
++import java.util.ArrayList;
++import java.util.Collection;
++import java.util.Map;
++
++public final class TestUtils {
++    private TestUtils() {
++    }
++
++    public static void verifyStringArray(final Collection<String> expected, final Object object) {
++        ArrayList<String> actual = toStringArray(object);
++
++        if (CollectionUtils.isEmpty(expected)) {
++            if (CollectionUtils.isNotEmpty(actual)) {
++                throw new IllegalArgumentException("Expected list is empty but actual not");
++            }
++            return;
++        }
++
++        Assert.assertEquals(expected.size(), actual.size());
++        expected.forEach(element -> Assert.assertTrue(actual.contains(element)));
++    }
++
++    public static Map<String, Object> getPuttedObject(final XContentBuilder contentBuilder) throws IOException {
++        JsonFactory factory = new JsonFactory();
++        JsonXContentParser parser = new JsonXContentParser(NamedXContentRegistry.EMPTY, null,
++                                                           factory.createParser(Strings.toString(contentBuilder)));
++        return parser.map();
++    }
++
++    private static ArrayList<String> toStringArray(final Object object) {
++        return new ArrayList<>((Collection<? extends String>) object);
++    }
++
++    public static PipelineRun createTestPipelineRun(final Long runId, final String pipeline, final String tool,
++                                              final BigDecimal price, final RunInstance instance) {
++        final PipelineRun run = new PipelineRun();
++        run.setId(runId);
++        run.setPipelineName(pipeline);
++        run.setDockerImage(tool);
++        run.setPricePerHour(price);
++        run.setInstance(instance);
++        return run;
++    }
++
++    public static RunInstance createTestInstance(final Long regionId, final String nodeType) {
++        final RunInstance instance = new RunInstance();
++        instance.setCloudRegionId(regionId);
++        instance.setNodeType(nodeType);
++        return instance;
++    }
++}
+diff --git a/billing-report-agent/src/test/java/com/epam/pipeline/billingreportagent/service/impl/converter/AwsStorageServicePricingTest.java b/billing-report-agent/src/test/java/com/epam/pipeline/billingreportagent/service/impl/converter/AwsStorageServicePricingTest.java
+new file mode 100644
+index 000000000..f4b9c16e7
+--- /dev/null
++++ b/billing-report-agent/src/test/java/com/epam/pipeline/billingreportagent/service/impl/converter/AwsStorageServicePricingTest.java
+@@ -0,0 +1,60 @@
++/*
++ * Copyright 2017-2020 EPAM Systems, Inc. (https://www.epam.com/)
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package com.epam.pipeline.billingreportagent.service.impl.converter;
++
++import com.amazonaws.regions.Regions;
++import com.epam.pipeline.billingreportagent.model.billing.StoragePricing;
++import org.apache.commons.lang3.StringUtils;
++import org.junit.Assert;
++import org.junit.jupiter.api.Test;
++
++import java.math.BigDecimal;
++import java.util.HashMap;
++import java.util.Map;
++
++public class AwsStorageServicePricingTest {
++
++    private static final long STORAGE_LIMIT_TIER_1 = 51200L;
++    private static final long STORAGE_LIMIT_TIER_2 = STORAGE_LIMIT_TIER_1 * 10;
++
++    @Test
++    public void testDefaultPriceCalculation() {
++        final StoragePricing pricingUsEast1 = new StoragePricing();
++        pricingUsEast1.addPrice(new StoragePricing.StoragePricingEntity(0L,
++                                                                        STORAGE_LIMIT_TIER_1,
++                                                                        BigDecimal.TEN));
++        final StoragePricing pricingUsEast2 = new StoragePricing();
++        final long endRangeBytesTier1 = STORAGE_LIMIT_TIER_1;
++        final long endRangeBytesTier2 = STORAGE_LIMIT_TIER_2;
++        pricingUsEast2.addPrice(new StoragePricing.StoragePricingEntity(0L,
++                                                                        endRangeBytesTier1,
++                                                                        BigDecimal.valueOf(7)));
++        pricingUsEast2.addPrice(new StoragePricing.StoragePricingEntity(endRangeBytesTier1,
++                                                                        endRangeBytesTier2,
++                                                                        BigDecimal.valueOf(5)));
++        pricingUsEast2.addPrice(new StoragePricing.StoragePricingEntity(endRangeBytesTier2,
++                                                                        Long.MAX_VALUE,
++                                                                        BigDecimal.ONE));
++        final Map<Regions, StoragePricing> testPriceList = new HashMap<>();
++        testPriceList.put(Regions.US_EAST_1, pricingUsEast1);
++        testPriceList.put(Regions.US_EAST_2, pricingUsEast2);
++        final AwsStorageServicePricing testStoragePricing =
++            new AwsStorageServicePricing(StringUtils.EMPTY, testPriceList);
++
++        Assert.assertEquals(BigDecimal.TEN, testStoragePricing.getDefaultPriceGb());
++    }
++}
+diff --git a/billing-report-agent/src/test/java/com/epam/pipeline/billingreportagent/service/impl/converter/AwsStorageToRequestConverterTest.java b/billing-report-agent/src/test/java/com/epam/pipeline/billingreportagent/service/impl/converter/AwsStorageToRequestConverterTest.java
+new file mode 100644
+index 000000000..21186c3ec
+--- /dev/null
++++ b/billing-report-agent/src/test/java/com/epam/pipeline/billingreportagent/service/impl/converter/AwsStorageToRequestConverterTest.java
+@@ -0,0 +1,309 @@
++/*
++ * Copyright 2017-2020 EPAM Systems, Inc. (https://www.epam.com/)
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package com.epam.pipeline.billingreportagent.service.impl.converter;
++
++import com.amazonaws.regions.Regions;
++import com.epam.pipeline.billingreportagent.model.EntityContainer;
++import com.epam.pipeline.billingreportagent.model.ResourceType;
++import com.epam.pipeline.billingreportagent.model.StorageType;
++import com.epam.pipeline.billingreportagent.model.billing.StoragePricing;
++import com.epam.pipeline.billingreportagent.model.billing.StoragePricing.StoragePricingEntity;
++import com.epam.pipeline.billingreportagent.service.ElasticsearchServiceClient;
++import com.epam.pipeline.billingreportagent.service.ElasticsearchSynchronizer;
++import com.epam.pipeline.billingreportagent.service.impl.TestUtils;
++import com.epam.pipeline.billingreportagent.service.impl.mapper.StorageBillingMapper;
++import com.epam.pipeline.entity.datastorage.AbstractDataStorage;
++import com.epam.pipeline.entity.datastorage.DataStorageType;
++import com.epam.pipeline.entity.datastorage.NFSDataStorage;
++import com.epam.pipeline.entity.datastorage.S3bucketDataStorage;
++import com.epam.pipeline.entity.search.SearchDocumentType;
++import com.epam.pipeline.entity.user.PipelineUser;
++import org.apache.commons.lang3.StringUtils;
++import org.assertj.core.util.Arrays;
++import org.elasticsearch.action.DocWriteRequest;
++import org.elasticsearch.action.index.IndexRequest;
++import org.elasticsearch.action.search.SearchResponse;
++import org.elasticsearch.common.bytes.BytesReference;
++import org.elasticsearch.common.text.Text;
++import org.elasticsearch.common.xcontent.DeprecationHandler;
++import org.elasticsearch.common.xcontent.NamedXContentRegistry;
++import org.elasticsearch.common.xcontent.XContentBuilder;
++import org.elasticsearch.common.xcontent.XContentFactory;
++import org.elasticsearch.common.xcontent.XContentParser;
++import org.elasticsearch.common.xcontent.XContentType;
++import org.elasticsearch.search.SearchHit;
++import org.elasticsearch.search.SearchHits;
++import org.elasticsearch.search.aggregations.Aggregations;
++import org.elasticsearch.search.aggregations.metrics.sum.ParsedSum;
++import org.junit.Assert;
++import org.junit.jupiter.api.BeforeEach;
++import org.junit.jupiter.api.Test;
++import org.junit.runner.RunWith;
++import org.mockito.Mockito;
++import org.mockito.junit.MockitoJUnitRunner;
++
++import java.io.IOException;
++import java.math.BigDecimal;
++import java.time.LocalDate;
++import java.time.LocalDateTime;
++import java.time.YearMonth;
++import java.util.Collections;
++import java.util.HashMap;
++import java.util.List;
++import java.util.Map;
++
++@RunWith(MockitoJUnitRunner.class)
++@SuppressWarnings("checkstyle:MagicNumber")
++public class AwsStorageToRequestConverterTest {
++
++    private static final String INDEX_S3 = "cp-test-index-s3";
++    private static final String INDEX_EFS = "cp-test-index-efs";
++    private static final Long STORAGE_ID = 1L;
++    private static final String STORAGE_NAME = "TestStorage";
++    private static final int DOC_ID = 2;
++
++    private static final long BYTES_IN_1_GB = 1L << 30;
++    private static final String SIZE_SUM_SEARCH = "sizeSumSearch";
++    private static final String REGION_FIELD = "storage_region";
++    private static final String INDEX_PATTERN = "%s-daily-%s";
++
++    private static final String VALUE_RESULT_PATTERN_JSON = "{\"value\" : \"%d\"}";
++    private static final String UNKNOWN_REGION = "unknownRegion";
++    private static final String USER_NAME = "TestUser";
++    private static final String GROUP_1 = "TestGroup1";
++    private static final String GROUP_2 = "TestGroup2";
++    private static final List<String> USER_GROUPS = java.util.Arrays.asList(GROUP_1, GROUP_2);
++    private static final long STORAGE_LIMIT_TIER_1 = 51200L;
++    private static final long STORAGE_LIMIT_TIER_2 = STORAGE_LIMIT_TIER_1 * 10;
++    private static final LocalDateTime SYNC_END = LocalDateTime.of(2019, 11, 2, 0, 0);
++    private static final LocalDateTime SYNC_START = SYNC_END.minusDays(1);
++    private static final BigDecimal DAYS_IN_SYNC_MONTH = BigDecimal.valueOf(30);
++    private static final String US_EAST_1 = Regions.US_EAST_1.getName().toLowerCase();
++
++    private final PipelineUser testUser = PipelineUser.builder()
++        .userName(USER_NAME)
++        .groups(USER_GROUPS)
++        .build();
++
++    private ElasticsearchServiceClient elasticsearchClient = Mockito.mock(ElasticsearchServiceClient.class);
++    private AwsStorageToBillingRequestConverter s3Converter;
++    private AwsStorageToBillingRequestConverter nfsConverter;
++    private final EntityContainer<AbstractDataStorage> s3StorageContainer =
++        getStorageContainer(STORAGE_ID, STORAGE_NAME, STORAGE_NAME, DataStorageType.S3);
++    private final EntityContainer<AbstractDataStorage> nfsStorageContainer =
++        getStorageContainer(STORAGE_ID, STORAGE_NAME, STORAGE_NAME, DataStorageType.NFS);
++
++    @BeforeEach
++    public void init() {
++        final StoragePricing pricingUsEast1 = new StoragePricing();
++        pricingUsEast1.addPrice(new StoragePricingEntity(0L,
++                                                         STORAGE_LIMIT_TIER_1 * BYTES_IN_1_GB,
++                                                         BigDecimal.ONE.multiply(DAYS_IN_SYNC_MONTH)));
++        final StoragePricing pricingUsEast2 = new StoragePricing();
++        final long endRangeBytesTier1 = STORAGE_LIMIT_TIER_1 * BYTES_IN_1_GB;
++        final long endRangeBytesTier2 = STORAGE_LIMIT_TIER_2 * BYTES_IN_1_GB;
++        pricingUsEast2.addPrice(new StoragePricingEntity(0L,
++                                                         endRangeBytesTier1,
++                                                         BigDecimal.TEN.multiply(DAYS_IN_SYNC_MONTH)));
++        pricingUsEast2.addPrice(new StoragePricingEntity(endRangeBytesTier1,
++                                                         endRangeBytesTier2,
++                                                         BigDecimal.valueOf(5).multiply(DAYS_IN_SYNC_MONTH)));
++        pricingUsEast2.addPrice(new StoragePricingEntity(endRangeBytesTier2,
++                                                         Long.MAX_VALUE,
++                                                         BigDecimal.ONE.multiply(DAYS_IN_SYNC_MONTH)));
++
++        final Map<Regions, StoragePricing> testPriceList = new HashMap<>();
++        testPriceList.put(Regions.US_EAST_1, pricingUsEast1);
++        testPriceList.put(Regions.US_EAST_2, pricingUsEast2);
++
++        final AwsStorageServicePricing testStoragePricing =
++            Mockito.spy(new AwsStorageServicePricing(StringUtils.EMPTY, testPriceList));
++        Mockito.doNothing().when(testStoragePricing).updatePrices();
++
++        s3Converter = new AwsStorageToBillingRequestConverter(new StorageBillingMapper(SearchDocumentType.S3_STORAGE),
++                                                              elasticsearchClient,
++                                                              StorageType.OBJECT_STORAGE,
++                                                              testStoragePricing);
++        nfsConverter = new AwsStorageToBillingRequestConverter(new StorageBillingMapper(SearchDocumentType.NFS_STORAGE),
++                                                               elasticsearchClient,
++                                                               StorageType.FILE_STORAGE,
++                                                               testStoragePricing);
++    }
++
++    @Test
++    public void testCalculateDailyCostWithGivenPrice() {
++        final LocalDate syncDate = SYNC_END.toLocalDate();
++        final BigDecimal priceGbMonth = BigDecimal.TEN.multiply(BigDecimal.valueOf(DAYS_IN_SYNC_MONTH.longValue()));
++        final long dailyCost1Gb = s3Converter.calculateDailyCost(BYTES_IN_1_GB, priceGbMonth, syncDate);
++        Assert.assertEquals(BigDecimal.TEN.scaleByPowerOfTen(2).longValue(), dailyCost1Gb);
++
++        final long dailyCost1Byte = s3Converter.calculateDailyCost(1L, priceGbMonth, syncDate);
++        Assert.assertEquals(BigDecimal.ONE.longValue(), dailyCost1Byte);
++    }
++
++    @Test
++    public void testCalculateDailyCostWithPricingList() {
++        final LocalDate syncDate = LocalDate.of(2019, 11, 2);
++        final int daysInMonth = YearMonth.of(syncDate.getYear(), syncDate.getMonthValue()).lengthOfMonth();
++        Assert.assertEquals(30, daysInMonth);
++
++        final long totalSize = 3 * STORAGE_LIMIT_TIER_2;
++        final long storageUsedTier2 = STORAGE_LIMIT_TIER_2 - STORAGE_LIMIT_TIER_1;
++        final long storageUsedTier3 = totalSize - STORAGE_LIMIT_TIER_2;
++
++        final BigDecimal expectedPrice = BigDecimal.TEN.multiply(BigDecimal.valueOf(STORAGE_LIMIT_TIER_1))
++            .add(BigDecimal.valueOf(5).multiply(BigDecimal.valueOf(storageUsedTier2)))
++            .add(BigDecimal.ONE.multiply(BigDecimal.valueOf(storageUsedTier3)));
++
++        final long dailyCostForTotalSize =
++            s3Converter.calculateDailyCost(totalSize * BYTES_IN_1_GB, Regions.US_EAST_2, syncDate);
++
++        Assert.assertEquals(expectedPrice.scaleByPowerOfTen(2).longValue(), dailyCostForTotalSize);
++    }
++
++    @Test
++    public void testS3StorageConverting() throws IOException {
++        final AbstractDataStorage s3Storage = s3StorageContainer.getEntity();
++        createElasticsearchSearchContext(BYTES_IN_1_GB, false, US_EAST_1);
++        final DocWriteRequest request = s3Converter.convertEntityToRequests(s3StorageContainer, INDEX_S3,
++                                                                            SYNC_START, SYNC_END).get(0);
++        final String expectedIndex = String.format(INDEX_PATTERN,
++                                                   INDEX_S3,
++                                                   s3Converter.parseDateToString(SYNC_START.toLocalDate()));
++        final Map<String, Object> requestFieldsMap = ((IndexRequest) request).sourceAsMap();
++        Assert.assertEquals(expectedIndex, request.index());
++        Assert.assertEquals(SearchDocumentType.S3_STORAGE.name(),
++                            requestFieldsMap.get(ElasticsearchSynchronizer.DOC_TYPE_FIELD));
++        assertFields(s3Storage, requestFieldsMap, US_EAST_1, StorageType.OBJECT_STORAGE,
++                     BYTES_IN_1_GB, BigDecimal.ONE.scaleByPowerOfTen(2).longValue());
++    }
++
++    @Test
++    public void testEFSStorageConverting() throws IOException {
++        final AbstractDataStorage nfsStorage = nfsStorageContainer.getEntity();
++        createElasticsearchSearchContext(BYTES_IN_1_GB, false, US_EAST_1);
++
++        final DocWriteRequest request = nfsConverter.convertEntityToRequests(nfsStorageContainer, INDEX_EFS,
++                                                                             SYNC_START, SYNC_END).get(0);
++        final String expectedIndex = String.format(INDEX_PATTERN,
++                                                   INDEX_EFS,
++                                                   nfsConverter.parseDateToString(SYNC_START.toLocalDate()));
++        final Map<String, Object> requestFieldsMap = ((IndexRequest) request).sourceAsMap();
++        Assert.assertEquals(expectedIndex, request.index());
++        Assert.assertEquals(SearchDocumentType.NFS_STORAGE.name(),
++                            requestFieldsMap.get(ElasticsearchSynchronizer.DOC_TYPE_FIELD));
++        assertFields(nfsStorage, requestFieldsMap, US_EAST_1, StorageType.FILE_STORAGE,
++                     BYTES_IN_1_GB, BigDecimal.ONE.scaleByPowerOfTen(2).longValue());
++    }
++
++    @Test
++    public void testStorageWithUnknownRegionConverting() throws IOException {
++        final AbstractDataStorage s3Storage = s3StorageContainer.getEntity();
++        createElasticsearchSearchContext(BYTES_IN_1_GB, false, UNKNOWN_REGION);
++        final DocWriteRequest request = s3Converter.convertEntityToRequests(s3StorageContainer, INDEX_S3,
++                                                                            SYNC_START, SYNC_END).get(0);
++        final String expectedIndex = String.format(INDEX_PATTERN,
++                                                   INDEX_S3,
++                                                   s3Converter.parseDateToString(SYNC_START.toLocalDate()));
++        final Map<String, Object> requestFieldsMap = ((IndexRequest) request).sourceAsMap();
++        Assert.assertEquals(expectedIndex, request.index());
++        Assert.assertEquals(SearchDocumentType.S3_STORAGE.name(),
++                            requestFieldsMap.get(ElasticsearchSynchronizer.DOC_TYPE_FIELD));
++        assertFields(s3Storage, requestFieldsMap, null, StorageType.OBJECT_STORAGE, BYTES_IN_1_GB,
++                     BigDecimal.TEN.scaleByPowerOfTen(2).longValue());
++    }
++
++    @Test
++    public void testInvalidResponseConverting() throws IOException {
++        final EntityContainer<AbstractDataStorage> s3StorageContainer =
++            getStorageContainer(STORAGE_ID, STORAGE_NAME, STORAGE_NAME, DataStorageType.S3);
++        createElasticsearchSearchContext(0L, true, UNKNOWN_REGION);
++        final List<DocWriteRequest> requests = s3Converter.convertEntityToRequests(s3StorageContainer, INDEX_S3,
++                                                                                   SYNC_START, SYNC_END);
++        Assert.assertEquals(0, requests.size());
++    }
++
++    @Test
++    public void testStorageWithNoInfoConverting() throws IOException {
++        final EntityContainer<AbstractDataStorage> s3StorageContainer =
++            getStorageContainer(STORAGE_ID, STORAGE_NAME, STORAGE_NAME, DataStorageType.S3);
++        createElasticsearchSearchContext(0L, false, US_EAST_1);
++        Mockito.when(elasticsearchClient.isIndexExists(Mockito.anyString())).thenReturn(false);
++        final List<DocWriteRequest> requests = s3Converter.convertEntityToRequests(s3StorageContainer, INDEX_S3,
++                                                                                   SYNC_START, SYNC_END);
++        Assert.assertEquals(0, requests.size());
++    }
++
++    private void createElasticsearchSearchContext(final Long storageSize,
++                                                  final boolean isEmptyResponse,
++                                                  final String region) throws IOException {
++        final XContentParser parser =
++            XContentType.JSON.xContent().createParser(NamedXContentRegistry.EMPTY,
++                                                      DeprecationHandler.THROW_UNSUPPORTED_OPERATION,
++                                                      String.format(VALUE_RESULT_PATTERN_JSON, storageSize));
++        final ParsedSum sumAgg = ParsedSum.fromXContent(parser, SIZE_SUM_SEARCH);
++        final Aggregations aggregations = new Aggregations(Collections.singletonList(sumAgg));
++        final SearchHit hit = new SearchHit(DOC_ID,
++                                            StringUtils.EMPTY,
++                                            new Text(StringUtils.EMPTY),
++                                            Collections.emptyMap());
++        final XContentBuilder jsonBuilder = XContentFactory.jsonBuilder()
++            .startObject()
++            .field(REGION_FIELD, region)
++            .endObject();
++
++        hit.sourceRef(BytesReference.bytes(jsonBuilder));
++        final SearchHits hits = isEmptyResponse
++                                ? new SearchHits(new SearchHit[0], 0, 0)
++                                : new SearchHits(Arrays.array(hit), 1, 1);
++
++        final SearchResponse response = Mockito.mock(SearchResponse.class);
++        Mockito.when(response.getAggregations()).thenReturn(aggregations);
++        Mockito.when(response.getHits()).thenReturn(hits);
++        Mockito.when(elasticsearchClient.isIndexExists(Mockito.anyString())).thenReturn(true);
++        Mockito.when(elasticsearchClient.search(Mockito.any())).thenReturn(response);
++    }
++
++    private void assertFields(final AbstractDataStorage storage, final Map<String, Object> fieldMap,
++                              final String region, final StorageType storageType, final Long usage, final Long cost) {
++        Assert.assertEquals(storage.getId().intValue(), fieldMap.get("id"));
++        Assert.assertEquals(ResourceType.STORAGE.toString(), fieldMap.get("resource_type"));
++        Assert.assertEquals(region, fieldMap.get("region"));
++        Assert.assertEquals(storage.getType().toString(), fieldMap.get("provider"));
++        Assert.assertEquals(storageType.toString(), fieldMap.get("storage_type"));
++        Assert.assertEquals(testUser.getUserName(), fieldMap.get("owner"));
++        Assert.assertEquals(usage.intValue(), fieldMap.get("usage"));
++        Assert.assertEquals(cost.intValue(), fieldMap.get("cost"));
++        TestUtils.verifyStringArray(USER_GROUPS, fieldMap.get("groups"));
++    }
++
++    private EntityContainer<AbstractDataStorage> getStorageContainer(final Long id,
++                                                                     final String name,
++                                                                     final String path,
++                                                                     final DataStorageType storageType) {
++        final AbstractDataStorage storage;
++        if (storageType.equals(DataStorageType.S3)) {
++            storage = new S3bucketDataStorage(id, name, path);
++        } else {
++            storage = new NFSDataStorage(id, name, path);
++        }
++        return EntityContainer.<AbstractDataStorage>builder()
++            .entity(storage)
++            .owner(testUser)
++            .build();
++    }
++}
+diff --git a/billing-report-agent/src/test/java/com/epam/pipeline/billingreportagent/service/impl/converter/RunToBillingRequestConverterImplTest.java b/billing-report-agent/src/test/java/com/epam/pipeline/billingreportagent/service/impl/converter/RunToBillingRequestConverterImplTest.java
+index a05cf4d11..a23f6be97 100644
+--- a/billing-report-agent/src/test/java/com/epam/pipeline/billingreportagent/service/impl/converter/RunToBillingRequestConverterImplTest.java
++++ b/billing-report-agent/src/test/java/com/epam/pipeline/billingreportagent/service/impl/converter/RunToBillingRequestConverterImplTest.java
+@@ -17,15 +17,18 @@
+ package com.epam.pipeline.billingreportagent.service.impl.converter;
+ 
+ import com.epam.pipeline.billingreportagent.model.EntityContainer;
+-import com.epam.pipeline.billingreportagent.model.PipelineRunBillingInfo;
+-import com.epam.pipeline.billingreportagent.service.impl.converter.run.BillingMapper;
++import com.epam.pipeline.billingreportagent.model.ResourceType;
++import com.epam.pipeline.billingreportagent.model.billing.PipelineRunBillingInfo;
++import com.epam.pipeline.billingreportagent.service.impl.TestUtils;
++import com.epam.pipeline.billingreportagent.service.impl.mapper.RunBillingMapper;
+ import com.epam.pipeline.entity.pipeline.PipelineRun;
+ import com.epam.pipeline.entity.pipeline.TaskStatus;
+ import com.epam.pipeline.entity.pipeline.run.RunStatus;
++import com.epam.pipeline.entity.user.PipelineUser;
++import org.elasticsearch.action.DocWriteRequest;
++import org.elasticsearch.action.index.IndexRequest;
+ import org.junit.Assert;
+-import org.junit.Test;
+-import org.junit.runner.RunWith;
+-import org.mockito.junit.MockitoJUnitRunner;
++import org.junit.jupiter.api.Test;
+ 
+ import java.math.BigDecimal;
+ import java.time.LocalDate;
+@@ -37,18 +40,30 @@
+ import java.util.function.Function;
+ import java.util.stream.Collectors;
+ 
+-@RunWith(MockitoJUnitRunner.class)
+ @SuppressWarnings("checkstyle:magicnumber")
+ public class RunToBillingRequestConverterImplTest {
+ 
+-    private static final String TEST_INDEX = "test-index-1";
++    private static final long REGION_ID = 1;
++    private static final String NODE_TYPE = "nodetype.medium";
+     private static final Long RUN_ID = 1L;
++    private static final String USER_NAME = "TestUser";
++    private static final String GROUP_1 = "TestGroup1";
++    private static final String GROUP_2 = "TestGroup2";
++    private static final String PIPELINE_NAME = "TestPipeline";
++    private static final String TOOL_IMAGE = "cp/tool:latest";
++    private static final BigDecimal PRICE = BigDecimal.valueOf(4, 2);
++    private static final List<String> USER_GROUPS = java.util.Arrays.asList(GROUP_1, GROUP_2);
++
++    private final PipelineUser testUser = PipelineUser.builder()
++        .userName(USER_NAME)
++        .groups(USER_GROUPS)
++        .build();
+ 
+     private final RunToBillingRequestConverter converter =
+-        new RunToBillingRequestConverter(TEST_INDEX, new BillingMapper());
++        new RunToBillingRequestConverter(new RunBillingMapper());
+ 
+     @Test
+-    public void convertRunBillings() {
++    public void convertRunToBillings() {
+         final PipelineRun run = new PipelineRun();
+         run.setId(RUN_ID);
+         run.setPricePerHour(BigDecimal.valueOf(4, 2));
+@@ -77,7 +92,7 @@ public void convertRunBillings() {
+     }
+ 
+     @Test
+-    public void convertRunBillingWithNoStatuses() {
++    public void convertRunWithNoStatusesToBilling() {
+         final PipelineRun run = new PipelineRun();
+         run.setId(RUN_ID);
+         run.setPricePerHour(BigDecimal.valueOf(4, 2));
+@@ -93,4 +108,35 @@ public void convertRunBillingWithNoStatuses() {
+             billings.stream().collect(Collectors.toMap(PipelineRunBillingInfo::getDate, Function.identity()));
+         Assert.assertEquals(96, reports.get(LocalDate.of(2019, 12, 4)).getCost().longValue());
+     }
++
++    @Test
++    public void testRunConverting() {
++        final PipelineRun run = TestUtils.createTestPipelineRun(RUN_ID, PIPELINE_NAME, TOOL_IMAGE, PRICE,
++                                                                TestUtils.createTestInstance(REGION_ID, NODE_TYPE));
++
++        final EntityContainer<PipelineRun> runContainer =
++            EntityContainer.<PipelineRun>builder()
++                .entity(run)
++                .owner(testUser)
++                .build();
++
++        final LocalDateTime prevSync = LocalDateTime.of(2019, 12, 4, 0, 0);
++        final LocalDateTime syncStart = LocalDateTime.of(2019, 12, 5, 0, 0);
++        final List<DocWriteRequest> billings =
++            converter.convertEntityToRequests(runContainer, "cp-run-test-index", prevSync, syncStart);
++        Assert.assertEquals(1, billings.size());
++
++        final Map<String, Object> requestFieldsMap = ((IndexRequest) billings.get(0)).sourceAsMap();
++        Assert.assertEquals(run.getId().intValue(), requestFieldsMap.get("id"));
++        Assert.assertEquals(ResourceType.COMPUTE.toString(), requestFieldsMap.get("resource_type"));
++        Assert.assertEquals(run.getPipelineName(), requestFieldsMap.get("pipeline"));
++        Assert.assertEquals(run.getDockerImage(), requestFieldsMap.get("tool"));
++        Assert.assertEquals(run.getInstance().getNodeType(), requestFieldsMap.get("instance_type"));
++        Assert.assertEquals(96, requestFieldsMap.get("cost"));
++        Assert.assertEquals(1441, requestFieldsMap.get("usage"));
++        Assert.assertEquals(PRICE.unscaledValue().intValue(), requestFieldsMap.get("run_price"));
++        Assert.assertEquals(run.getInstance().getCloudRegionId().intValue(), requestFieldsMap.get("cloudRegionId"));
++        Assert.assertEquals(USER_NAME, requestFieldsMap.get("owner"));
++        TestUtils.verifyStringArray(USER_GROUPS, requestFieldsMap.get("groups"));
++    }
+ }
+\ No newline at end of file
+diff --git a/billing-report-agent/src/test/java/com/epam/pipeline/billingreportagent/service/impl/mapper/RunBillingMapperTest.java b/billing-report-agent/src/test/java/com/epam/pipeline/billingreportagent/service/impl/mapper/RunBillingMapperTest.java
+new file mode 100644
+index 000000000..e2541b50e
+--- /dev/null
++++ b/billing-report-agent/src/test/java/com/epam/pipeline/billingreportagent/service/impl/mapper/RunBillingMapperTest.java
+@@ -0,0 +1,91 @@
++/*
++ * Copyright 2017-2019 EPAM Systems, Inc. (https://www.epam.com/)
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package com.epam.pipeline.billingreportagent.service.impl.mapper;
++
++import com.epam.pipeline.billingreportagent.model.EntityContainer;
++import com.epam.pipeline.billingreportagent.model.ResourceType;
++import com.epam.pipeline.billingreportagent.model.billing.PipelineRunBillingInfo;
++import com.epam.pipeline.billingreportagent.service.impl.TestUtils;
++import com.epam.pipeline.entity.pipeline.PipelineRun;
++import com.epam.pipeline.entity.user.PipelineUser;
++import org.elasticsearch.common.xcontent.XContentBuilder;
++import org.junit.Assert;
++import org.junit.jupiter.api.Test;
++
++import java.io.IOException;
++import java.math.BigDecimal;
++import java.time.LocalDate;
++import java.util.Arrays;
++import java.util.List;
++import java.util.Map;
++
++public class RunBillingMapperTest {
++
++    private static final String TEST_PIPELINE = "TestPipeline";
++    private static final String TEST_USER_NAME = "User";
++    private static final String TEST_TOOL_IMAGE = "cp/tool:latest";
++    private static final String TEST_NODE_TYPE = "nodetype.medium";
++    private static final String TEST_GROUP_1 = "TestGroup1";
++    private static final String TEST_GROUP_2 = "TestGroup2";
++    private static final long TEST_COST = 10;
++    private static final long TEST_RUN_ID = 1;
++    private static final long TEST_REGION_ID = 1;
++    private static final BigDecimal TEST_PRICE = BigDecimal.ONE;
++    private static final long TEST_USAGE_MINUTES = 600;
++    private static final List<String> TEST_GROUPS = Arrays.asList(TEST_GROUP_1, TEST_GROUP_2);
++    private static final LocalDate TEST_DATE = LocalDate.now();
++
++    private final RunBillingMapper mapper = new RunBillingMapper();
++    private final PipelineUser testUser = PipelineUser.builder()
++        .userName(TEST_USER_NAME)
++        .groups(TEST_GROUPS)
++        .build();
++
++    @Test
++    public void testRunMapperMap() throws IOException {
++        final PipelineRun run =
++            TestUtils.createTestPipelineRun(TEST_RUN_ID, TEST_PIPELINE, TEST_TOOL_IMAGE, TEST_PRICE,
++                                            TestUtils.createTestInstance(TEST_REGION_ID, TEST_NODE_TYPE));
++        final PipelineRunBillingInfo billing = PipelineRunBillingInfo.builder()
++            .run(run)
++            .date(TEST_DATE)
++            .cost(TEST_COST)
++            .usageMinutes(TEST_USAGE_MINUTES)
++            .build();
++        final EntityContainer<PipelineRunBillingInfo> billingContainer =
++            EntityContainer.<PipelineRunBillingInfo>builder()
++            .entity(billing)
++            .owner(testUser)
++            .build();
++
++        final XContentBuilder mappedBilling = mapper.map(billingContainer);
++
++        final Map<String, Object> mappedFields = TestUtils.getPuttedObject(mappedBilling);
++
++        Assert.assertEquals(run.getId().intValue(), mappedFields.get("id"));
++        Assert.assertEquals(ResourceType.COMPUTE.toString(), mappedFields.get("resource_type"));
++        Assert.assertEquals(run.getPipelineName(), mappedFields.get("pipeline"));
++        Assert.assertEquals(run.getDockerImage(), mappedFields.get("tool"));
++        Assert.assertEquals(run.getInstance().getNodeType(), mappedFields.get("instance_type"));
++        Assert.assertEquals(billing.getCost().intValue(), mappedFields.get("cost"));
++        Assert.assertEquals(billing.getUsageMinutes().intValue(), mappedFields.get("usage"));
++        Assert.assertEquals(run.getPricePerHour().intValue(), mappedFields.get("run_price"));
++        Assert.assertEquals(run.getInstance().getCloudRegionId().intValue(), mappedFields.get("cloudRegionId"));
++        Assert.assertEquals(TEST_USER_NAME, mappedFields.get("owner"));
++        TestUtils.verifyStringArray(TEST_GROUPS, mappedFields.get("groups"));
++    }
++}
+diff --git a/billing-report-agent/src/test/java/com/epam/pipeline/billingreportagent/service/impl/mapper/StorageBillingMapperTest.java b/billing-report-agent/src/test/java/com/epam/pipeline/billingreportagent/service/impl/mapper/StorageBillingMapperTest.java
+new file mode 100644
+index 000000000..f3729546b
+--- /dev/null
++++ b/billing-report-agent/src/test/java/com/epam/pipeline/billingreportagent/service/impl/mapper/StorageBillingMapperTest.java
+@@ -0,0 +1,121 @@
++/*
++ * Copyright 2017-2019 EPAM Systems, Inc. (https://www.epam.com/)
++ *
++ * Licensed under the Apache License, Version 2.0 (the "License");
++ * you may not use this file except in compliance with the License.
++ * You may obtain a copy of the License at
++ *
++ *     http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing, software
++ * distributed under the License is distributed on an "AS IS" BASIS,
++ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ * See the License for the specific language governing permissions and
++ * limitations under the License.
++ */
++
++package com.epam.pipeline.billingreportagent.service.impl.mapper;
++
++import com.epam.pipeline.billingreportagent.model.EntityContainer;
++import com.epam.pipeline.billingreportagent.model.ResourceType;
++import com.epam.pipeline.billingreportagent.model.StorageType;
++import com.epam.pipeline.billingreportagent.model.billing.StorageBillingInfo;
++import com.epam.pipeline.billingreportagent.service.ElasticsearchSynchronizer;
++import com.epam.pipeline.billingreportagent.service.impl.TestUtils;
++import com.epam.pipeline.entity.datastorage.NFSDataStorage;
++import com.epam.pipeline.entity.datastorage.S3bucketDataStorage;
++import com.epam.pipeline.entity.search.SearchDocumentType;
++import com.epam.pipeline.entity.user.PipelineUser;
++import org.elasticsearch.common.xcontent.XContentBuilder;
++import org.junit.Assert;
++import org.junit.jupiter.api.Test;
++
++import java.io.IOException;
++import java.util.Arrays;
++import java.util.List;
++import java.util.Map;
++
++public class StorageBillingMapperTest {
++
++    private static final String TEST_USER_NAME = "User";
++    private static final String TEST_GROUP_1 = "TestGroup1";
++    private static final String TEST_GROUP_2 = "TestGroup2";
++    private static final String TEST_REGION = "region-1";
++    private static final long TEST_COST = 10;
++    private static final long TEST_USAGE_BYTES = 600;
++    private static final List<String> TEST_GROUPS = Arrays.asList(TEST_GROUP_1, TEST_GROUP_2);
++
++    private final StorageBillingMapper s3Mapper = new StorageBillingMapper(SearchDocumentType.S3_STORAGE);
++    private final StorageBillingMapper efsMapper = new StorageBillingMapper(SearchDocumentType.NFS_STORAGE);
++
++    private final PipelineUser testUser = PipelineUser.builder()
++        .userName(TEST_USER_NAME)
++        .groups(TEST_GROUPS)
++        .build();
++
++    @Test
++    public void testStorageMapperMapS3Storage() throws IOException {
++        final S3bucketDataStorage s3Storage = new S3bucketDataStorage();
++        final StorageBillingInfo billing = StorageBillingInfo.builder()
++            .storage(s3Storage)
++            .storageType(StorageType.OBJECT_STORAGE)
++            .regionName(TEST_REGION)
++            .usageBytes(TEST_USAGE_BYTES)
++            .cost(TEST_COST)
++            .build();
++
++        final EntityContainer<StorageBillingInfo> billingContainer = EntityContainer.<StorageBillingInfo>builder()
++            .entity(billing)
++            .owner(testUser)
++            .build();
++
++        final XContentBuilder mappedBilling = s3Mapper.map(billingContainer);
++
++        final Map<String, Object> mappedFields = TestUtils.getPuttedObject(mappedBilling);
++
++        Assert.assertEquals(SearchDocumentType.S3_STORAGE.name(),
++                            mappedFields.get(ElasticsearchSynchronizer.DOC_TYPE_FIELD));
++        Assert.assertEquals(s3Storage.getId(), mappedFields.get("id"));
++        Assert.assertEquals(ResourceType.STORAGE.toString(), mappedFields.get("resource_type"));
++        Assert.assertEquals(billing.getRegionName(), mappedFields.get("region"));
++        Assert.assertEquals(s3Storage.getType().toString(), mappedFields.get("provider"));
++        Assert.assertEquals(StorageType.OBJECT_STORAGE.toString(), mappedFields.get("storage_type"));
++        Assert.assertEquals(testUser.getUserName(), mappedFields.get("owner"));
++        Assert.assertEquals(billing.getUsageBytes().intValue(), mappedFields.get("usage"));
++        Assert.assertEquals(billing.getCost().intValue(), mappedFields.get("cost"));
++        TestUtils.verifyStringArray(TEST_GROUPS, mappedFields.get("groups"));
++    }
++
++    @Test
++    public void testStorageMapperMapEFSStorage() throws IOException {
++        final NFSDataStorage efsStorage = new NFSDataStorage();
++        final StorageBillingInfo billing = StorageBillingInfo.builder()
++            .storage(efsStorage)
++            .storageType(StorageType.FILE_STORAGE)
++            .regionName(TEST_REGION)
++            .usageBytes(TEST_USAGE_BYTES)
++            .cost(TEST_COST)
++            .build();
++
++        final EntityContainer<StorageBillingInfo> billingContainer = EntityContainer.<StorageBillingInfo>builder()
++            .entity(billing)
++            .owner(testUser)
++            .build();
++
++        final XContentBuilder mappedBilling = efsMapper.map(billingContainer);
++
++        final Map<String, Object> mappedFields = TestUtils.getPuttedObject(mappedBilling);
++
++        Assert.assertEquals(SearchDocumentType.NFS_STORAGE.name(),
++                            mappedFields.get(ElasticsearchSynchronizer.DOC_TYPE_FIELD));
++        Assert.assertEquals(efsStorage.getId(), mappedFields.get("id"));
++        Assert.assertEquals(ResourceType.STORAGE.toString(), mappedFields.get("resource_type"));
++        Assert.assertEquals(billing.getRegionName(), mappedFields.get("region"));
++        Assert.assertEquals(efsStorage.getType().toString(), mappedFields.get("provider"));
++        Assert.assertEquals(StorageType.FILE_STORAGE.toString(), mappedFields.get("storage_type"));
++        Assert.assertEquals(testUser.getUserName(), mappedFields.get("owner"));
++        Assert.assertEquals(billing.getUsageBytes().intValue(), mappedFields.get("usage"));
++        Assert.assertEquals(billing.getCost().intValue(), mappedFields.get("cost"));
++        TestUtils.verifyStringArray(TEST_GROUPS, mappedFields.get("groups"));
++    }
++}

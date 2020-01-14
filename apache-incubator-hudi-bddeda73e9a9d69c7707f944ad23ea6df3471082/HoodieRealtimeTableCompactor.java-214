@@ -1,0 +1,9 @@
+@@ -214,7 +214,7 @@ public HoodieCompactionPlan generateCompactionPlan(JavaSparkContext jsc, HoodieT
+     // compactions only
+     HoodieCompactionPlan compactionPlan = config.getCompactionStrategy().generateCompactionPlan(config, operations,
+         CompactionUtils.getAllPendingCompactionPlans(metaClient).stream().map(Pair::getValue).collect(toList()));
+-    Preconditions.checkArgument(
++    ValidationUtils.checkArgument(
+         compactionPlan.getOperations().stream().noneMatch(
+             op -> fgIdsInPendingCompactions.contains(new HoodieFileGroupId(op.getPartitionPath(), op.getFileId()))),
+         "Bad Compaction Plan. FileId MUST NOT have multiple pending compactions. "

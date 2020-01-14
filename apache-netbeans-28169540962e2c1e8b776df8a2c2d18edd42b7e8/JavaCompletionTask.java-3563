@@ -1,0 +1,9 @@
+@@ -3563,7 +3563,7 @@ private void addMembers(final Env env, final TypeMirror type, final Element elem
+         ElementUtilities.ElementAcceptor acceptor = new ElementUtilities.ElementAcceptor() {
+             @Override
+             public boolean accept(Element e, TypeMirror t) {
+-                switch (e.getKind()) {
++                switch (simplifyElementKind(e.getKind())) {
+                     case FIELD:
+                         if (!startsWith(env, e.getSimpleName().toString())) {
+                             return false;

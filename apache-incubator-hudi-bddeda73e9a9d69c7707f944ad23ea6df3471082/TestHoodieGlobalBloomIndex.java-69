@@ -1,0 +1,9 @@
+@@ -69,7 +69,7 @@ public void setUp() throws Exception {
+     initSparkContexts("TestHoodieGlobalBloomIndex");
+     initPath();
+     // We have some records to be tagged (two different partitions)
+-    schemaStr = FileIOUtils.readAsUTFString(getClass().getResourceAsStream("/exampleSchema.txt"));
++    String schemaStr = FileIOUtils.readAsUTFString(getClass().getResourceAsStream("/exampleSchema.txt"));
+     schema = HoodieAvroUtils.addMetadataFields(new Schema.Parser().parse(schemaStr));
+     initMetaClient();
+   }

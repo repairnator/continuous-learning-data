@@ -1,0 +1,9 @@
+@@ -31,7 +31,7 @@
+     final MaxThroughputPerSecondAccumulator startMaxThroughputPerSecondAcc = new MaxThroughputPerSecondAccumulator();
+     final MaxThroughputPerSecondAccumulator stopMaxThroughputPerSecondAcc = new MaxThroughputPerSecondAccumulator();
+ 
+-    final AtomicInteger numberOfActiveCallsToTrackAndKeepBetweenReports;
++    final AtomicInteger numberOfLongestActiveCallsToTrack;
+ 
+     final LongAdder activeCallsCountSumAdder = new LongAdder();
+     final Set<AggregatingCall> activeCalls = ConcurrentHashMap.newKeySet();

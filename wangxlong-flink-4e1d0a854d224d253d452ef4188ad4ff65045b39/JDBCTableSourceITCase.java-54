@@ -1,0 +1,9 @@
+@@ -54,7 +54,7 @@
+ 		")";
+ 
+ 	static {
+-		tEnv.sqlUpdate(sql);
++		tEnv.sqlUpdate(TABLE_SOURCE_SQL);
+ 	}
+ 
+ 	@Test

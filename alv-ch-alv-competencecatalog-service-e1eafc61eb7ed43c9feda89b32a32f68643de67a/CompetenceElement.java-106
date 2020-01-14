@@ -1,0 +1,9 @@
+@@ -106,7 +106,7 @@ public void update(CompetenceElementUpdater updater) {
+             updater.setDraft(true);
+         }
+         if (updater.changedSections.contains(CompetenceElementUpdater.Section.STATUS)) {
+-            changeLog.merge(updateStatus(updater.draft, updater.published));
++            changeLog.merge(updateStatus(updater));
+         }
+ 
+         if (changeLog.hasChanges()) {

@@ -1,0 +1,9 @@
+@@ -123,7 +123,7 @@ public void byteClientTest() throws IOException {
+                                                                            .clientConfig(Utils.buildClientConfig(controllerURI)).build(),
+                 connectionFactory.getInternalExecutor());
+         @Cleanup
+-        ClientFactory clientFactory = new ClientFactoryImpl(SCOPE, controller);
++        EventStreamClientFactory clientFactory = new ClientFactoryImpl(SCOPE, controller);
+         log.info("Invoking byteClientTest test with Controller URI: {}", controllerURI);
+         @Cleanup
+         ByteStreamClientFactory byteStreamClient = new ByteStreamClientImpl(SCOPE, controller, connectionFactory);

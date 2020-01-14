@@ -1,0 +1,9 @@
+@@ -96,7 +96,7 @@ void getById() {
+     @Test
+     void save() {
+         //given
+-        when(categoryRepository.save(any(Category.class))).thenReturn(categoryEntity);
++        when(categoryRepository.saveAndFlush(any())).thenReturn(categoryEntity);
+ 
+         //when
+         CategoryResponse response = categoryService.save(categoryRequest);

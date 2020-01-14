@@ -1,0 +1,1536 @@
+diff --git a/src/main/java/pl/exsio/querydsl/entityql/QColumnMetadataFactory.java b/src/main/java/pl/exsio/querydsl/entityql/QColumnMetadataFactory.java
+index 657e606..7027adc 100644
+--- a/src/main/java/pl/exsio/querydsl/entityql/QColumnMetadataFactory.java
++++ b/src/main/java/pl/exsio/querydsl/entityql/QColumnMetadataFactory.java
+@@ -13,9 +13,9 @@ static ColumnMetadata create(QEntityColumnMetadata column, int sqlType) {
+         return metadata;
+     }
+ 
+-    public static ColumnMetadata create(String name, int idx, int sqlType, boolean nullable) {
+-        ColumnMetadata metadata = ColumnMetadata.named(name).withIndex(idx).ofType(sqlType);
+-        if (!nullable) {
++    public static ColumnMetadata create(QPathConfig config) {
++        ColumnMetadata metadata = ColumnMetadata.named(config.getName()).withIndex(config.getIdx()).ofType(config.getSqlType());
++        if (!config.isNullable()) {
+             metadata = metadata.notNull();
+         }
+         return metadata;
+diff --git a/src/main/java/pl/exsio/querydsl/entityql/QField.java b/src/main/java/pl/exsio/querydsl/entityql/QField.java
+deleted file mode 100644
+index d13870f..0000000
+--- a/src/main/java/pl/exsio/querydsl/entityql/QField.java
++++ /dev/null
+@@ -1,25 +0,0 @@
+-package pl.exsio.querydsl.entityql;
+-
+-import javax.persistence.EnumType;
+-import javax.persistence.Enumerated;
+-import java.lang.reflect.Array;
+-import java.lang.reflect.Field;
+-
+-public abstract class QField {
+-
+-    public static Class<?> getType(Field field) {
+-        Class<?> type = field.getType();
+-        if (type.isArray()) {
+-            type = Array.class;
+-        } else if (type.isEnum()) {
+-            Enumerated enumerated = field.getDeclaredAnnotation(Enumerated.class);
+-            if (enumerated != null) {
+-                type = enumerated.value().equals(EnumType.ORDINAL) ? Integer.class : Enum.class;
+-            } else {
+-                type = Integer.class;
+-            }
+-        }
+-        return type;
+-    }
+-
+-}
+diff --git a/src/main/java/pl/exsio/querydsl/entityql/QPathConfig.java b/src/main/java/pl/exsio/querydsl/entityql/QPathConfig.java
+index d3275a8..e7f988f 100644
+--- a/src/main/java/pl/exsio/querydsl/entityql/QPathConfig.java
++++ b/src/main/java/pl/exsio/querydsl/entityql/QPathConfig.java
+@@ -4,7 +4,7 @@
+ 
+     private final Class<?> originalFieldType;
+ 
+-    private final Class<?> fieldType;
++    private final Class<?> computedFieldType;
+ 
+     private final String name;
+ 
+@@ -14,9 +14,9 @@
+ 
+     private final int sqlType;
+ 
+-    public QPathConfig(Class<?> originalFieldType, Class<?> fieldType, String name, boolean nullable, int idx, int sqlType) {
++    public QPathConfig(Class<?> originalFieldType, Class<?> computedFieldType, String name, boolean nullable, int idx, int sqlType) {
+         this.originalFieldType = originalFieldType;
+-        this.fieldType = fieldType;
++        this.computedFieldType = computedFieldType;
+         this.name = name;
+         this.nullable = nullable;
+         this.idx = idx;
+@@ -27,8 +27,8 @@ public QPathConfig(Class<?> originalFieldType, Class<?> fieldType, String name,
+         return originalFieldType;
+     }
+ 
+-    public Class<?> getFieldType() {
+-        return fieldType;
++    public Class<?> getComputedFieldType() {
++        return computedFieldType;
+     }
+ 
+     public String getName() {
+diff --git a/src/main/java/pl/exsio/querydsl/entityql/QPathFactory.java b/src/main/java/pl/exsio/querydsl/entityql/QPathFactory.java
+index 18f3bb8..a7367e1 100644
+--- a/src/main/java/pl/exsio/querydsl/entityql/QPathFactory.java
++++ b/src/main/java/pl/exsio/querydsl/entityql/QPathFactory.java
+@@ -47,12 +47,12 @@
+ 
+     @SuppressWarnings(value = "unchecked")
+     private static QEnumPath<?> createEnumeratedPath(QBase<?> q, QPathConfig config) {
+-        return new QEnumPath(config.getFieldType(), q, config.getName());
++        return new QEnumPath(config.getComputedFieldType(), q, config.getName());
+     }
+ 
+     @SuppressWarnings(value = "unchecked")
+     private static Class<Object> getType(QPathConfig config) {
+-        return (Class<Object>) config.getFieldType();
++        return (Class<Object>) config.getComputedFieldType();
+     }
+ 
+     @SuppressWarnings(value = "unchecked")
+@@ -61,17 +61,17 @@
+     }
+ 
+     static QPath create(Q<?> q, QEntityColumnMetadata column, int sqlType) {
+-        Class<?> fieldType = column.getComputedFieldType();
+-        if (!pathFactory.containsKey(fieldType)) {
+-            fieldType = Object.class;
++        Class<?> computedFieldType = column.getComputedFieldType();
++        if (!pathFactory.containsKey(computedFieldType)) {
++            computedFieldType = Object.class;
+         }
+-        return pathFactory.get(fieldType).createExpression(q, new QPathConfig(column.getOriginalFieldType(), fieldType,
++        return pathFactory.get(computedFieldType).createExpression(q, new QPathConfig(column.getOriginalFieldType(), computedFieldType,
+                 column.getColumnName(), column.isNullable(), column.getIdx(), sqlType));
+     }
+ 
+     @SuppressWarnings(value = "unchecked")
+     public static <R> R create(QBase<?> q, QPathConfig config) {
+-        return (R) pathFactory.get(config.getFieldType()).createExpression(q, config).get();
++        return (R) pathFactory.get(config.getComputedFieldType()).createExpression(q, config).get();
+     }
+ 
+     private interface PathFactory {
+diff --git a/src/main/resources/staticTemplate.twig b/src/main/resources/staticTemplate.twig
+index ad4f759..0930fb7 100644
+--- a/src/main/resources/staticTemplate.twig
++++ b/src/main/resources/staticTemplate.twig
+@@ -46,8 +46,9 @@ public final class {{ className }} extends QStaticModel<{{entityName}}> {
+ 
+         {% for name, path in q.columns %}
+         {{name}}: {
+-            this.{{name}} = QPathFactory.<{{macros.printColumnType(path)}}>create(this, new QPathConfig({{macros.printOriginalType(path)}},{{path.config.fieldType.name}}.class,"{{path.config.name}}",{{path.config.nullable}},{{path.config.idx}},{{path.config.sqlType}}));
+-            addMetadata(this.{{name}}, QColumnMetadataFactory.create("{{path.config.name}}",{{path.config.idx}},{{path.config.sqlType}},{{path.config.nullable}}));
++            QPathConfig config = new QPathConfig({{macros.printOriginalType(path)}},{{path.config.computedFieldType.name}}.class,"{{path.config.name}}",{{path.config.nullable}},{{path.config.idx}},{{path.config.sqlType}});
++            this.{{name}} = QPathFactory.<{{macros.printColumnType(path)}}>create(this, config);
++            addMetadata(this.{{name}}, QColumnMetadataFactory.create(config));
+         }
+         {% endfor %}
+ 
+@@ -57,8 +58,9 @@ public final class {{ className }} extends QStaticModel<{{entityName}}> {
+                     List paths = new ArrayList();
+                     List<String> foreignColumnNames = new ArrayList<>();
+                     {% for fkPath in fk.getPaths().keySet() %}
+-                        Path<?> {{name}}{{loop.index0}}  = QPathFactory.<Path>create(this, new QPathConfig({{macros.printOriginalType(fkPath)}},{{fkPath.config.fieldType.name}}.class,"{{fkPath.config.name}}",{{fkPath.config.nullable}},{{fkPath.config.idx}},{{fkPath.config.sqlType}}));
+-                        addMetadata({{name}}{{loop.index0}}, QColumnMetadataFactory.create("{{fkPath.config.name}}",{{fkPath.config.idx}},{{fkPath.config.sqlType}},{{fkPath.config.nullable}}));
++                        QPathConfig config{{loop.index0}} = new QPathConfig({{macros.printOriginalType(fkPath)}},{{fkPath.config.computedFieldType.name}}.class,"{{fkPath.config.name}}",{{fkPath.config.nullable}},{{fkPath.config.idx}},{{fkPath.config.sqlType}});
++                        Path<?> {{name}}{{loop.index0}}  = QPathFactory.<Path>create(this, config{{loop.index0}});
++                        addMetadata({{name}}{{loop.index0}}, QColumnMetadataFactory.create(config{{loop.index0}}));
+                         paths.add({{name}}{{loop.index0}});
+                     {% endfor %}
+                     {% for fcName in fk.foreignColumnNames %}
+diff --git a/src/test/groovy/pl/exsio/querydsl/entityql/config/entity/it/generated/QBook.groovy b/src/test/groovy/pl/exsio/querydsl/entityql/config/entity/it/generated/QBook.groovy
+index 7e8292a..66e805f 100644
+--- a/src/test/groovy/pl/exsio/querydsl/entityql/config/entity/it/generated/QBook.groovy
++++ b/src/test/groovy/pl/exsio/querydsl/entityql/config/entity/it/generated/QBook.groovy
+@@ -39,44 +39,43 @@ public final class QBook extends QStaticModel<pl.exsio.querydsl.entityql.config.
+ 
+     id:
+     {
+-      this.id =
+-          QPathFactory.<NumberPath<java.lang.Long>>create(
+-              this,
+-              new QPathConfig(java.lang.Long.class, java.lang.Long.class, "BOOK_ID", true, 1, -5));
++      QPathConfig config =
++          new QPathConfig(java.lang.Long.class, java.lang.Long.class, "BOOK_ID", true, 1, -5);
+ 
+-      addMetadata(this.id, QColumnMetadataFactory.create("BOOK_ID", 1, -5, true));
++      this.id = QPathFactory.<NumberPath<java.lang.Long>>create(this, config);
++
++      addMetadata(this.id, QColumnMetadataFactory.create(config));
+     }
+ 
+     name:
+     {
+-      this.name =
+-          QPathFactory.<StringPath>create(
+-              this,
+-              new QPathConfig(java.lang.String.class, java.lang.String.class, "NAME", true, 2, 12));
++      QPathConfig config =
++          new QPathConfig(java.lang.String.class, java.lang.String.class, "NAME", true, 2, 12);
++
++      this.name = QPathFactory.<StringPath>create(this, config);
+ 
+-      addMetadata(this.name, QColumnMetadataFactory.create("NAME", 2, 12, true));
++      addMetadata(this.name, QColumnMetadataFactory.create(config));
+     }
+ 
+     desc:
+     {
+-      this.desc =
+-          QPathFactory.<StringPath>create(
+-              this,
+-              new QPathConfig(
+-                  java.lang.String.class, java.lang.String.class, "DESC", true, 3, 2005));
++      QPathConfig config =
++          new QPathConfig(java.lang.String.class, java.lang.String.class, "DESC", true, 3, 2005);
+ 
+-      addMetadata(this.desc, QColumnMetadataFactory.create("DESC", 3, 2005, true));
++      this.desc = QPathFactory.<StringPath>create(this, config);
++
++      addMetadata(this.desc, QColumnMetadataFactory.create(config));
+     }
+ 
+     price:
+     {
+-      this.price =
+-          QPathFactory.<NumberPath<java.math.BigDecimal>>create(
+-              this,
+-              new QPathConfig(
+-                  java.math.BigDecimal.class, java.math.BigDecimal.class, "PRICE", true, 4, 3));
++      QPathConfig config =
++          new QPathConfig(
++              java.math.BigDecimal.class, java.math.BigDecimal.class, "PRICE", true, 4, 3);
++
++      this.price = QPathFactory.<NumberPath<java.math.BigDecimal>>create(this, config);
+ 
+-      addMetadata(this.price, QColumnMetadataFactory.create("PRICE", 4, 3, true));
++      addMetadata(this.price, QColumnMetadataFactory.create(config));
+     }
+ 
+     _primaryKey:
+diff --git a/src/test/groovy/pl/exsio/querydsl/entityql/config/entity/it/generated/QCompositeFk.groovy b/src/test/groovy/pl/exsio/querydsl/entityql/config/entity/it/generated/QCompositeFk.groovy
+index ed1b00d..d0fda7b 100644
+--- a/src/test/groovy/pl/exsio/querydsl/entityql/config/entity/it/generated/QCompositeFk.groovy
++++ b/src/test/groovy/pl/exsio/querydsl/entityql/config/entity/it/generated/QCompositeFk.groovy
+@@ -45,21 +45,22 @@ public final class QCompositeFk
+ 
+     id:
+     {
+-      this.id =
+-          QPathFactory.<NumberPath<java.lang.Long>>create(
+-              this, new QPathConfig(java.lang.Long.class, java.lang.Long.class, "ID", true, 1, -5));
++      QPathConfig config =
++          new QPathConfig(java.lang.Long.class, java.lang.Long.class, "ID", true, 1, -5);
+ 
+-      addMetadata(this.id, QColumnMetadataFactory.create("ID", 1, -5, true));
++      this.id = QPathFactory.<NumberPath<java.lang.Long>>create(this, config);
++
++      addMetadata(this.id, QColumnMetadataFactory.create(config));
+     }
+ 
+     desc:
+     {
+-      this.desc =
+-          QPathFactory.<StringPath>create(
+-              this,
+-              new QPathConfig(java.lang.String.class, java.lang.String.class, "DESC", true, 4, 12));
++      QPathConfig config =
++          new QPathConfig(java.lang.String.class, java.lang.String.class, "DESC", true, 4, 12);
++
++      this.desc = QPathFactory.<StringPath>create(this, config);
+ 
+-      addMetadata(this.desc, QColumnMetadataFactory.create("DESC", 4, 12, true));
++      addMetadata(this.desc, QColumnMetadataFactory.create(config));
+     }
+ 
+     compositePk:
+@@ -67,22 +68,18 @@ public final class QCompositeFk
+       List paths = new ArrayList();
+       List<String> foreignColumnNames = new ArrayList<>();
+ 
+-      Path<?> compositePk0 =
+-          QPathFactory.<Path>create(
+-              this,
+-              new QPathConfig(
+-                  java.lang.Long.class, java.lang.Long.class, "CPK_ID_1", false, 2, -5));
++      QPathConfig config0 =
++          new QPathConfig(java.lang.Long.class, java.lang.Long.class, "CPK_ID_1", false, 2, -5);
+ 
+-      addMetadata(compositePk0, QColumnMetadataFactory.create("CPK_ID_1", 2, -5, false));
++      Path<?> compositePk0 = QPathFactory.<Path>create(this, config0);
++      addMetadata(compositePk0, QColumnMetadataFactory.create(config0));
+       paths.add(compositePk0);
+ 
+-      Path<?> compositePk1 =
+-          QPathFactory.<Path>create(
+-              this,
+-              new QPathConfig(
+-                  java.lang.String.class, java.lang.String.class, "CPK_ID_2", false, 2, 12));
++      QPathConfig config1 =
++          new QPathConfig(java.lang.String.class, java.lang.String.class, "CPK_ID_2", false, 2, 12);
+ 
+-      addMetadata(compositePk1, QColumnMetadataFactory.create("CPK_ID_2", 2, 12, false));
++      Path<?> compositePk1 = QPathFactory.<Path>create(this, config1);
++      addMetadata(compositePk1, QColumnMetadataFactory.create(config1));
+       paths.add(compositePk1);
+ 
+       foreignColumnNames.add("ID_1");
+@@ -99,22 +96,18 @@ public final class QCompositeFk
+       List paths = new ArrayList();
+       List<String> foreignColumnNames = new ArrayList<>();
+ 
+-      Path<?> singularPk0 =
+-          QPathFactory.<Path>create(
+-              this,
+-              new QPathConfig(
+-                  java.lang.Long.class, java.lang.Long.class, "SPK_ID_1", false, 3, -5));
++      QPathConfig config0 =
++          new QPathConfig(java.lang.Long.class, java.lang.Long.class, "SPK_ID_1", false, 3, -5);
+ 
+-      addMetadata(singularPk0, QColumnMetadataFactory.create("SPK_ID_1", 3, -5, false));
++      Path<?> singularPk0 = QPathFactory.<Path>create(this, config0);
++      addMetadata(singularPk0, QColumnMetadataFactory.create(config0));
+       paths.add(singularPk0);
+ 
+-      Path<?> singularPk1 =
+-          QPathFactory.<Path>create(
+-              this,
+-              new QPathConfig(
+-                  java.lang.String.class, java.lang.String.class, "SPK_ID_2", false, 3, 12));
++      QPathConfig config1 =
++          new QPathConfig(java.lang.String.class, java.lang.String.class, "SPK_ID_2", false, 3, 12);
+ 
+-      addMetadata(singularPk1, QColumnMetadataFactory.create("SPK_ID_2", 3, 12, false));
++      Path<?> singularPk1 = QPathFactory.<Path>create(this, config1);
++      addMetadata(singularPk1, QColumnMetadataFactory.create(config1));
+       paths.add(singularPk1);
+ 
+       foreignColumnNames.add("ID_1");
+diff --git a/src/test/groovy/pl/exsio/querydsl/entityql/config/entity/it/generated/QCompositePk.groovy b/src/test/groovy/pl/exsio/querydsl/entityql/config/entity/it/generated/QCompositePk.groovy
+index d172210..38d7974 100644
+--- a/src/test/groovy/pl/exsio/querydsl/entityql/config/entity/it/generated/QCompositePk.groovy
++++ b/src/test/groovy/pl/exsio/querydsl/entityql/config/entity/it/generated/QCompositePk.groovy
+@@ -42,32 +42,32 @@ public final class QCompositePk
+ 
+     id1:
+     {
+-      this.id1 =
+-          QPathFactory.<NumberPath<java.lang.Long>>create(
+-              this,
+-              new QPathConfig(java.lang.Long.class, java.lang.Long.class, "ID_1", true, 1, -5));
++      QPathConfig config =
++          new QPathConfig(java.lang.Long.class, java.lang.Long.class, "ID_1", true, 1, -5);
+ 
+-      addMetadata(this.id1, QColumnMetadataFactory.create("ID_1", 1, -5, true));
++      this.id1 = QPathFactory.<NumberPath<java.lang.Long>>create(this, config);
++
++      addMetadata(this.id1, QColumnMetadataFactory.create(config));
+     }
+ 
+     id2:
+     {
+-      this.id2 =
+-          QPathFactory.<StringPath>create(
+-              this,
+-              new QPathConfig(java.lang.String.class, java.lang.String.class, "ID_2", true, 2, 12));
++      QPathConfig config =
++          new QPathConfig(java.lang.String.class, java.lang.String.class, "ID_2", true, 2, 12);
++
++      this.id2 = QPathFactory.<StringPath>create(this, config);
+ 
+-      addMetadata(this.id2, QColumnMetadataFactory.create("ID_2", 2, 12, true));
++      addMetadata(this.id2, QColumnMetadataFactory.create(config));
+     }
+ 
+     desc:
+     {
+-      this.desc =
+-          QPathFactory.<StringPath>create(
+-              this,
+-              new QPathConfig(java.lang.String.class, java.lang.String.class, "DESC", true, 3, 12));
++      QPathConfig config =
++          new QPathConfig(java.lang.String.class, java.lang.String.class, "DESC", true, 3, 12);
++
++      this.desc = QPathFactory.<StringPath>create(this, config);
+ 
+-      addMetadata(this.desc, QColumnMetadataFactory.create("DESC", 3, 12, true));
++      addMetadata(this.desc, QColumnMetadataFactory.create(config));
+     }
+ 
+     _primaryKey:
+diff --git a/src/test/groovy/pl/exsio/querydsl/entityql/config/entity/it/generated/QGroup.groovy b/src/test/groovy/pl/exsio/querydsl/entityql/config/entity/it/generated/QGroup.groovy
+index 30d1991..0f3fa16 100644
+--- a/src/test/groovy/pl/exsio/querydsl/entityql/config/entity/it/generated/QGroup.groovy
++++ b/src/test/groovy/pl/exsio/querydsl/entityql/config/entity/it/generated/QGroup.groovy
+@@ -40,33 +40,33 @@ public final class QGroup extends QStaticModel<pl.exsio.querydsl.entityql.config
+ 
+     id:
+     {
+-      this.id =
+-          QPathFactory.<NumberPath<java.lang.Long>>create(
+-              this,
+-              new QPathConfig(java.lang.Long.class, java.lang.Long.class, "GROUP_ID", true, 1, -5));
++      QPathConfig config =
++          new QPathConfig(java.lang.Long.class, java.lang.Long.class, "GROUP_ID", true, 1, -5);
+ 
+-      addMetadata(this.id, QColumnMetadataFactory.create("GROUP_ID", 1, -5, true));
++      this.id = QPathFactory.<NumberPath<java.lang.Long>>create(this, config);
++
++      addMetadata(this.id, QColumnMetadataFactory.create(config));
+     }
+ 
+     name:
+     {
+-      this.name =
+-          QPathFactory.<StringPath>create(
+-              this,
+-              new QPathConfig(java.lang.String.class, java.lang.String.class, "NAME", true, 2, 12));
++      QPathConfig config =
++          new QPathConfig(java.lang.String.class, java.lang.String.class, "NAME", true, 2, 12);
++
++      this.name = QPathFactory.<StringPath>create(this, config);
+ 
+-      addMetadata(this.name, QColumnMetadataFactory.create("NAME", 2, 12, true));
++      addMetadata(this.name, QColumnMetadataFactory.create(config));
+     }
+ 
+     adminId:
+     {
+-      this.adminId =
+-          QPathFactory.<StringPath>create(
+-              this,
+-              new QPathConfig(
+-                  java.lang.String.class, java.lang.String.class, "ADMIN_NAME", false, 4, 12));
++      QPathConfig config =
++          new QPathConfig(
++              java.lang.String.class, java.lang.String.class, "ADMIN_NAME", false, 4, 12);
++
++      this.adminId = QPathFactory.<StringPath>create(this, config);
+ 
+-      addMetadata(this.adminId, QColumnMetadataFactory.create("ADMIN_NAME", 4, 12, false));
++      addMetadata(this.adminId, QColumnMetadataFactory.create(config));
+     }
+ 
+     admin:
+diff --git a/src/test/groovy/pl/exsio/querydsl/entityql/config/entity/it/generated/QGroupAdmin.groovy b/src/test/groovy/pl/exsio/querydsl/entityql/config/entity/it/generated/QGroupAdmin.groovy
+index eeae012..a420b83 100644
+--- a/src/test/groovy/pl/exsio/querydsl/entityql/config/entity/it/generated/QGroupAdmin.groovy
++++ b/src/test/groovy/pl/exsio/querydsl/entityql/config/entity/it/generated/QGroupAdmin.groovy
+@@ -37,22 +37,22 @@ public final class QGroupAdmin
+ 
+     id:
+     {
+-      this.id =
+-          QPathFactory.<NumberPath<java.lang.Long>>create(
+-              this,
+-              new QPathConfig(java.lang.Long.class, java.lang.Long.class, "GA_ID", true, 1, -5));
++      QPathConfig config =
++          new QPathConfig(java.lang.Long.class, java.lang.Long.class, "GA_ID", true, 1, -5);
+ 
+-      addMetadata(this.id, QColumnMetadataFactory.create("GA_ID", 1, -5, true));
++      this.id = QPathFactory.<NumberPath<java.lang.Long>>create(this, config);
++
++      addMetadata(this.id, QColumnMetadataFactory.create(config));
+     }
+ 
+     name:
+     {
+-      this.name =
+-          QPathFactory.<StringPath>create(
+-              this,
+-              new QPathConfig(java.lang.String.class, java.lang.String.class, "NAME", true, 2, 12));
++      QPathConfig config =
++          new QPathConfig(java.lang.String.class, java.lang.String.class, "NAME", true, 2, 12);
++
++      this.name = QPathFactory.<StringPath>create(this, config);
+ 
+-      addMetadata(this.name, QColumnMetadataFactory.create("NAME", 2, 12, true));
++      addMetadata(this.name, QColumnMetadataFactory.create(config));
+     }
+ 
+     _primaryKey:
+diff --git a/src/test/groovy/pl/exsio/querydsl/entityql/config/entity/it/generated/QOrder.groovy b/src/test/groovy/pl/exsio/querydsl/entityql/config/entity/it/generated/QOrder.groovy
+index 8b887d6..b49a201 100644
+--- a/src/test/groovy/pl/exsio/querydsl/entityql/config/entity/it/generated/QOrder.groovy
++++ b/src/test/groovy/pl/exsio/querydsl/entityql/config/entity/it/generated/QOrder.groovy
+@@ -37,22 +37,22 @@ public final class QOrder extends QStaticModel<pl.exsio.querydsl.entityql.config
+ 
+     id:
+     {
+-      this.id =
+-          QPathFactory.<NumberPath<java.lang.Long>>create(
+-              this,
+-              new QPathConfig(java.lang.Long.class, java.lang.Long.class, "ORDER_ID", true, 1, -5));
++      QPathConfig config =
++          new QPathConfig(java.lang.Long.class, java.lang.Long.class, "ORDER_ID", true, 1, -5);
+ 
+-      addMetadata(this.id, QColumnMetadataFactory.create("ORDER_ID", 1, -5, true));
++      this.id = QPathFactory.<NumberPath<java.lang.Long>>create(this, config);
++
++      addMetadata(this.id, QColumnMetadataFactory.create(config));
+     }
+ 
+     userId:
+     {
+-      this.userId =
+-          QPathFactory.<NumberPath<java.lang.Long>>create(
+-              this,
+-              new QPathConfig(java.lang.Long.class, java.lang.Long.class, "USER_ID", false, 2, -5));
++      QPathConfig config =
++          new QPathConfig(java.lang.Long.class, java.lang.Long.class, "USER_ID", false, 2, -5);
++
++      this.userId = QPathFactory.<NumberPath<java.lang.Long>>create(this, config);
+ 
+-      addMetadata(this.userId, QColumnMetadataFactory.create("USER_ID", 2, -5, false));
++      addMetadata(this.userId, QColumnMetadataFactory.create(config));
+     }
+ 
+     user:
+diff --git a/src/test/groovy/pl/exsio/querydsl/entityql/config/entity/it/generated/QOrderItem.groovy b/src/test/groovy/pl/exsio/querydsl/entityql/config/entity/it/generated/QOrderItem.groovy
+index 4e7405d..056ef30 100644
+--- a/src/test/groovy/pl/exsio/querydsl/entityql/config/entity/it/generated/QOrderItem.groovy
++++ b/src/test/groovy/pl/exsio/querydsl/entityql/config/entity/it/generated/QOrderItem.groovy
+@@ -44,44 +44,42 @@ public final class QOrderItem
+ 
+     id:
+     {
+-      this.id =
+-          QPathFactory.<NumberPath<java.lang.Long>>create(
+-              this,
+-              new QPathConfig(
+-                  java.lang.Long.class, java.lang.Long.class, "ORDER_ITEM_ID", true, 1, -5));
++      QPathConfig config =
++          new QPathConfig(java.lang.Long.class, java.lang.Long.class, "ORDER_ITEM_ID", true, 1, -5);
+ 
+-      addMetadata(this.id, QColumnMetadataFactory.create("ORDER_ITEM_ID", 1, -5, true));
++      this.id = QPathFactory.<NumberPath<java.lang.Long>>create(this, config);
++
++      addMetadata(this.id, QColumnMetadataFactory.create(config));
+     }
+ 
+     quantity:
+     {
+-      this.quantity =
+-          QPathFactory.<NumberPath<java.lang.Long>>create(
+-              this,
+-              new QPathConfig(java.lang.Long.class, java.lang.Long.class, "QTY", false, 4, -5));
++      QPathConfig config =
++          new QPathConfig(java.lang.Long.class, java.lang.Long.class, "QTY", false, 4, -5);
++
++      this.quantity = QPathFactory.<NumberPath<java.lang.Long>>create(this, config);
+ 
+-      addMetadata(this.quantity, QColumnMetadataFactory.create("QTY", 4, -5, false));
++      addMetadata(this.quantity, QColumnMetadataFactory.create(config));
+     }
+ 
+     bookId:
+     {
+-      this.bookId =
+-          QPathFactory.<NumberPath<java.lang.Long>>create(
+-              this,
+-              new QPathConfig(java.lang.Long.class, java.lang.Long.class, "BOOK_ID", false, 2, -5));
++      QPathConfig config =
++          new QPathConfig(java.lang.Long.class, java.lang.Long.class, "BOOK_ID", false, 2, -5);
+ 
+-      addMetadata(this.bookId, QColumnMetadataFactory.create("BOOK_ID", 2, -5, false));
++      this.bookId = QPathFactory.<NumberPath<java.lang.Long>>create(this, config);
++
++      addMetadata(this.bookId, QColumnMetadataFactory.create(config));
+     }
+ 
+     orderId:
+     {
+-      this.orderId =
+-          QPathFactory.<NumberPath<java.lang.Long>>create(
+-              this,
+-              new QPathConfig(
+-                  java.lang.Long.class, java.lang.Long.class, "ORDER_ID", false, 3, -5));
++      QPathConfig config =
++          new QPathConfig(java.lang.Long.class, java.lang.Long.class, "ORDER_ID", false, 3, -5);
++
++      this.orderId = QPathFactory.<NumberPath<java.lang.Long>>create(this, config);
+ 
+-      addMetadata(this.orderId, QColumnMetadataFactory.create("ORDER_ID", 3, -5, false));
++      addMetadata(this.orderId, QColumnMetadataFactory.create(config));
+     }
+ 
+     book:
+diff --git a/src/test/groovy/pl/exsio/querydsl/entityql/config/entity/it/generated/QSingularPk.groovy b/src/test/groovy/pl/exsio/querydsl/entityql/config/entity/it/generated/QSingularPk.groovy
+index 235e5d6..4fdb57a 100644
+--- a/src/test/groovy/pl/exsio/querydsl/entityql/config/entity/it/generated/QSingularPk.groovy
++++ b/src/test/groovy/pl/exsio/querydsl/entityql/config/entity/it/generated/QSingularPk.groovy
+@@ -39,32 +39,32 @@ public final class QSingularPk
+ 
+     id1:
+     {
+-      this.id1 =
+-          QPathFactory.<NumberPath<java.lang.Long>>create(
+-              this,
+-              new QPathConfig(java.lang.Long.class, java.lang.Long.class, "ID_1", true, 1, -5));
++      QPathConfig config =
++          new QPathConfig(java.lang.Long.class, java.lang.Long.class, "ID_1", true, 1, -5);
+ 
+-      addMetadata(this.id1, QColumnMetadataFactory.create("ID_1", 1, -5, true));
++      this.id1 = QPathFactory.<NumberPath<java.lang.Long>>create(this, config);
++
++      addMetadata(this.id1, QColumnMetadataFactory.create(config));
+     }
+ 
+     id2:
+     {
+-      this.id2 =
+-          QPathFactory.<StringPath>create(
+-              this,
+-              new QPathConfig(java.lang.String.class, java.lang.String.class, "ID_2", true, 2, 12));
++      QPathConfig config =
++          new QPathConfig(java.lang.String.class, java.lang.String.class, "ID_2", true, 2, 12);
++
++      this.id2 = QPathFactory.<StringPath>create(this, config);
+ 
+-      addMetadata(this.id2, QColumnMetadataFactory.create("ID_2", 2, 12, true));
++      addMetadata(this.id2, QColumnMetadataFactory.create(config));
+     }
+ 
+     desc:
+     {
+-      this.desc =
+-          QPathFactory.<StringPath>create(
+-              this,
+-              new QPathConfig(java.lang.String.class, java.lang.String.class, "DESC", true, 3, 12));
++      QPathConfig config =
++          new QPathConfig(java.lang.String.class, java.lang.String.class, "DESC", true, 3, 12);
++
++      this.desc = QPathFactory.<StringPath>create(this, config);
+ 
+-      addMetadata(this.desc, QColumnMetadataFactory.create("DESC", 3, 12, true));
++      addMetadata(this.desc, QColumnMetadataFactory.create(config));
+     }
+ 
+     _primaryKey:
+diff --git a/src/test/groovy/pl/exsio/querydsl/entityql/config/entity/it/generated/QUploadedFile.groovy b/src/test/groovy/pl/exsio/querydsl/entityql/config/entity/it/generated/QUploadedFile.groovy
+index c2b6b8b..7a61621 100644
+--- a/src/test/groovy/pl/exsio/querydsl/entityql/config/entity/it/generated/QUploadedFile.groovy
++++ b/src/test/groovy/pl/exsio/querydsl/entityql/config/entity/it/generated/QUploadedFile.groovy
+@@ -40,22 +40,22 @@ public final class QUploadedFile
+ 
+     id:
+     {
+-      this.id =
+-          QPathFactory.<QUuidPath>create(
+-              this,
+-              new QPathConfig(java.util.UUID.class, java.util.UUID.class, "FILE_ID", false, 1, 12));
++      QPathConfig config =
++          new QPathConfig(java.util.UUID.class, java.util.UUID.class, "FILE_ID", false, 1, 12);
+ 
+-      addMetadata(this.id, QColumnMetadataFactory.create("FILE_ID", 1, 12, false));
++      this.id = QPathFactory.<QUuidPath>create(this, config);
++
++      addMetadata(this.id, QColumnMetadataFactory.create(config));
+     }
+ 
+     data:
+     {
+-      this.data =
+-          QPathFactory.<ArrayPath<byte[], java.lang.Byte>>create(
+-              this,
+-              new QPathConfig(byte[].class, java.lang.reflect.Array.class, "DATA", false, 2, 2003));
++      QPathConfig config =
++          new QPathConfig(byte[].class, java.lang.reflect.Array.class, "DATA", false, 2, 2003);
++
++      this.data = QPathFactory.<ArrayPath<byte[], java.lang.Byte>>create(this, config);
+ 
+-      addMetadata(this.data, QColumnMetadataFactory.create("DATA", 2, 2003, false));
++      addMetadata(this.data, QColumnMetadataFactory.create(config));
+     }
+ 
+     _primaryKey:
+diff --git a/src/test/groovy/pl/exsio/querydsl/entityql/config/entity/it/generated/QUser.groovy b/src/test/groovy/pl/exsio/querydsl/entityql/config/entity/it/generated/QUser.groovy
+index 18befa3..0afa2e0 100644
+--- a/src/test/groovy/pl/exsio/querydsl/entityql/config/entity/it/generated/QUser.groovy
++++ b/src/test/groovy/pl/exsio/querydsl/entityql/config/entity/it/generated/QUser.groovy
+@@ -47,89 +47,90 @@ public final class QUser extends QStaticModel<pl.exsio.querydsl.entityql.config.
+ 
+     id:
+     {
+-      this.id =
+-          QPathFactory.<NumberPath<java.lang.Long>>create(
+-              this,
+-              new QPathConfig(java.lang.Long.class, java.lang.Long.class, "USER_ID", true, 1, -5));
++      QPathConfig config =
++          new QPathConfig(java.lang.Long.class, java.lang.Long.class, "USER_ID", true, 1, -5);
+ 
+-      addMetadata(this.id, QColumnMetadataFactory.create("USER_ID", 1, -5, true));
++      this.id = QPathFactory.<NumberPath<java.lang.Long>>create(this, config);
++
++      addMetadata(this.id, QColumnMetadataFactory.create(config));
+     }
+ 
+     name:
+     {
+-      this.name =
+-          QPathFactory.<StringPath>create(
+-              this,
+-              new QPathConfig(java.lang.String.class, java.lang.String.class, "NAME", true, 2, 12));
++      QPathConfig config =
++          new QPathConfig(java.lang.String.class, java.lang.String.class, "NAME", true, 2, 12);
++
++      this.name = QPathFactory.<StringPath>create(this, config);
+ 
+-      addMetadata(this.name, QColumnMetadataFactory.create("NAME", 2, 12, true));
++      addMetadata(this.name, QColumnMetadataFactory.create(config));
+     }
+ 
+     typeStr:
+     {
++      QPathConfig config =
++          new QPathConfig(
++              pl.exsio.querydsl.entityql.config.entity.it.User.Type.class,
++              java.lang.Enum.class,
++              "USER_TYPE",
++              false,
++              4,
++              12);
+       this.typeStr =
+           QPathFactory.<QEnumPath<pl.exsio.querydsl.entityql.config.entity.it.User.Type>>create(
+-              this,
+-              new QPathConfig(
+-                  pl.exsio.querydsl.entityql.config.entity.it.User.Type.class,
+-                  java.lang.Enum.class,
+-                  "USER_TYPE",
+-                  false,
+-                  4,
+-                  12));
+-      addMetadata(this.typeStr, QColumnMetadataFactory.create("USER_TYPE", 4, 12, false));
++              this, config);
++      addMetadata(this.typeStr, QColumnMetadataFactory.create(config));
+     }
+ 
+     typeOrd:
+     {
+-      this.typeOrd =
+-          QPathFactory.<NumberPath<java.lang.Integer>>create(
+-              this,
+-              new QPathConfig(
+-                  pl.exsio.querydsl.entityql.config.entity.it.User.Type.class,
+-                  java.lang.Integer.class,
+-                  "USER_TYPE_ORD",
+-                  false,
+-                  5,
+-                  4));
+-      addMetadata(this.typeOrd, QColumnMetadataFactory.create("USER_TYPE_ORD", 5, 4, false));
++      QPathConfig config =
++          new QPathConfig(
++              pl.exsio.querydsl.entityql.config.entity.it.User.Type.class,
++              java.lang.Integer.class,
++              "USER_TYPE_ORD",
++              false,
++              5,
++              4);
++      this.typeOrd = QPathFactory.<NumberPath<java.lang.Integer>>create(this, config);
++
++      addMetadata(this.typeOrd, QColumnMetadataFactory.create(config));
+     }
+ 
+     typeDef:
+     {
+-      this.typeDef =
+-          QPathFactory.<NumberPath<java.lang.Integer>>create(
+-              this,
+-              new QPathConfig(
+-                  pl.exsio.querydsl.entityql.config.entity.it.User.Type.class,
+-                  java.lang.Integer.class,
+-                  "USER_TYPE_DEF",
+-                  false,
+-                  6,
+-                  4));
+-      addMetadata(this.typeDef, QColumnMetadataFactory.create("USER_TYPE_DEF", 6, 4, false));
++      QPathConfig config =
++          new QPathConfig(
++              pl.exsio.querydsl.entityql.config.entity.it.User.Type.class,
++              java.lang.Integer.class,
++              "USER_TYPE_DEF",
++              false,
++              6,
++              4);
++      this.typeDef = QPathFactory.<NumberPath<java.lang.Integer>>create(this, config);
++
++      addMetadata(this.typeDef, QColumnMetadataFactory.create(config));
+     }
+ 
+     createdBy:
+     {
+-      this.createdBy =
+-          QPathFactory.<QObjectPath<java.lang.Object>>create(
+-              this,
+-              new QPathConfig(
+-                  java.lang.Object.class, java.lang.Object.class, "CREATED_BY", true, 7, 1111));
++      QPathConfig config =
++          new QPathConfig(
++              java.lang.Object.class, java.lang.Object.class, "CREATED_BY", true, 7, 1111);
+ 
+-      addMetadata(this.createdBy, QColumnMetadataFactory.create("CREATED_BY", 7, 1111, true));
++      this.createdBy = QPathFactory.<QObjectPath<java.lang.Object>>create(this, config);
++
++      addMetadata(this.createdBy, QColumnMetadataFactory.create(config));
+     }
+ 
+     createdAt:
+     {
+-      this.createdAt =
+-          QPathFactory.<QObjectPath<java.util.Date>>create(
+-              this,
+-              new QPathConfig(
+-                  java.util.Date.class, java.lang.Object.class, "CREATED_AT", true, 8, 1111));
++      QPathConfig config =
++          new QPathConfig(
++              java.util.Date.class, java.lang.Object.class, "CREATED_AT", true, 8, 1111);
++
++      this.createdAt = QPathFactory.<QObjectPath<java.util.Date>>create(this, config);
+ 
+-      addMetadata(this.createdAt, QColumnMetadataFactory.create("CREATED_AT", 8, 1111, true));
++      addMetadata(this.createdAt, QColumnMetadataFactory.create(config));
+     }
+ 
+     _primaryKey:
+diff --git a/src/test/groovy/pl/exsio/querydsl/entityql/config/entity/it/generated/QUserGroup.groovy b/src/test/groovy/pl/exsio/querydsl/entityql/config/entity/it/generated/QUserGroup.groovy
+index 963416b..e8342a1 100644
+--- a/src/test/groovy/pl/exsio/querydsl/entityql/config/entity/it/generated/QUserGroup.groovy
++++ b/src/test/groovy/pl/exsio/querydsl/entityql/config/entity/it/generated/QUserGroup.groovy
+@@ -41,22 +41,22 @@ public final class QUserGroup
+ 
+     groupId:
+     {
+-      this.groupId =
+-          QPathFactory.<NumberPath<java.lang.Long>>create(
+-              this,
+-              new QPathConfig(java.lang.Long.class, java.lang.Long.class, "GROUP_ID", true, 3, -5));
++      QPathConfig config =
++          new QPathConfig(java.lang.Long.class, java.lang.Long.class, "GROUP_ID", true, 3, -5);
+ 
+-      addMetadata(this.groupId, QColumnMetadataFactory.create("GROUP_ID", 3, -5, true));
++      this.groupId = QPathFactory.<NumberPath<java.lang.Long>>create(this, config);
++
++      addMetadata(this.groupId, QColumnMetadataFactory.create(config));
+     }
+ 
+     userId:
+     {
+-      this.userId =
+-          QPathFactory.<NumberPath<java.lang.Long>>create(
+-              this,
+-              new QPathConfig(java.lang.Long.class, java.lang.Long.class, "USER_ID", true, 4, -5));
++      QPathConfig config =
++          new QPathConfig(java.lang.Long.class, java.lang.Long.class, "USER_ID", true, 4, -5);
++
++      this.userId = QPathFactory.<NumberPath<java.lang.Long>>create(this, config);
+ 
+-      addMetadata(this.userId, QColumnMetadataFactory.create("USER_ID", 4, -5, true));
++      addMetadata(this.userId, QColumnMetadataFactory.create(config));
+     }
+ 
+     group:
+diff --git a/src/test/java/pl/exsio/querydsl/entityql/config/entity/generated/QJBook.java b/src/test/java/pl/exsio/querydsl/entityql/config/entity/generated/QJBook.java
+index 11c51f8..a748880 100644
+--- a/src/test/java/pl/exsio/querydsl/entityql/config/entity/generated/QJBook.java
++++ b/src/test/java/pl/exsio/querydsl/entityql/config/entity/generated/QJBook.java
+@@ -41,44 +41,43 @@ public QJBook(String variable) {
+ 
+     id:
+     {
+-      this.id =
+-          QPathFactory.<NumberPath<java.lang.Long>>create(
+-              this,
+-              new QPathConfig(java.lang.Long.class, java.lang.Long.class, "BOOK_ID", true, 1, -5));
++      QPathConfig config =
++          new QPathConfig(java.lang.Long.class, java.lang.Long.class, "BOOK_ID", true, 1, -5);
+ 
+-      addMetadata(this.id, QColumnMetadataFactory.create("BOOK_ID", 1, -5, true));
++      this.id = QPathFactory.<NumberPath<java.lang.Long>>create(this, config);
++
++      addMetadata(this.id, QColumnMetadataFactory.create(config));
+     }
+ 
+     name:
+     {
+-      this.name =
+-          QPathFactory.<StringPath>create(
+-              this,
+-              new QPathConfig(java.lang.String.class, java.lang.String.class, "NAME", true, 2, 12));
++      QPathConfig config =
++          new QPathConfig(java.lang.String.class, java.lang.String.class, "NAME", true, 2, 12);
++
++      this.name = QPathFactory.<StringPath>create(this, config);
+ 
+-      addMetadata(this.name, QColumnMetadataFactory.create("NAME", 2, 12, true));
++      addMetadata(this.name, QColumnMetadataFactory.create(config));
+     }
+ 
+     desc:
+     {
+-      this.desc =
+-          QPathFactory.<StringPath>create(
+-              this,
+-              new QPathConfig(
+-                  java.lang.String.class, java.lang.String.class, "DESC", true, 3, 2005));
++      QPathConfig config =
++          new QPathConfig(java.lang.String.class, java.lang.String.class, "DESC", true, 3, 2005);
+ 
+-      addMetadata(this.desc, QColumnMetadataFactory.create("DESC", 3, 2005, true));
++      this.desc = QPathFactory.<StringPath>create(this, config);
++
++      addMetadata(this.desc, QColumnMetadataFactory.create(config));
+     }
+ 
+     price:
+     {
+-      this.price =
+-          QPathFactory.<NumberPath<java.math.BigDecimal>>create(
+-              this,
+-              new QPathConfig(
+-                  java.math.BigDecimal.class, java.math.BigDecimal.class, "PRICE", true, 4, 3));
++      QPathConfig config =
++          new QPathConfig(
++              java.math.BigDecimal.class, java.math.BigDecimal.class, "PRICE", true, 4, 3);
++
++      this.price = QPathFactory.<NumberPath<java.math.BigDecimal>>create(this, config);
+ 
+-      addMetadata(this.price, QColumnMetadataFactory.create("PRICE", 4, 3, true));
++      addMetadata(this.price, QColumnMetadataFactory.create(config));
+     }
+ 
+     _primaryKey:
+diff --git a/src/test/java/pl/exsio/querydsl/entityql/config/entity/generated/QJCompositeFk.java b/src/test/java/pl/exsio/querydsl/entityql/config/entity/generated/QJCompositeFk.java
+index e627f0e..f5a7f0c 100644
+--- a/src/test/java/pl/exsio/querydsl/entityql/config/entity/generated/QJCompositeFk.java
++++ b/src/test/java/pl/exsio/querydsl/entityql/config/entity/generated/QJCompositeFk.java
+@@ -44,21 +44,22 @@ public QJCompositeFk(String variable) {
+ 
+     id:
+     {
+-      this.id =
+-          QPathFactory.<NumberPath<java.lang.Long>>create(
+-              this, new QPathConfig(java.lang.Long.class, java.lang.Long.class, "ID", true, 1, -5));
++      QPathConfig config =
++          new QPathConfig(java.lang.Long.class, java.lang.Long.class, "ID", true, 1, -5);
+ 
+-      addMetadata(this.id, QColumnMetadataFactory.create("ID", 1, -5, true));
++      this.id = QPathFactory.<NumberPath<java.lang.Long>>create(this, config);
++
++      addMetadata(this.id, QColumnMetadataFactory.create(config));
+     }
+ 
+     desc:
+     {
+-      this.desc =
+-          QPathFactory.<StringPath>create(
+-              this,
+-              new QPathConfig(java.lang.String.class, java.lang.String.class, "DESC", true, 4, 12));
++      QPathConfig config =
++          new QPathConfig(java.lang.String.class, java.lang.String.class, "DESC", true, 4, 12);
++
++      this.desc = QPathFactory.<StringPath>create(this, config);
+ 
+-      addMetadata(this.desc, QColumnMetadataFactory.create("DESC", 4, 12, true));
++      addMetadata(this.desc, QColumnMetadataFactory.create(config));
+     }
+ 
+     compositePk:
+@@ -66,22 +67,18 @@ public QJCompositeFk(String variable) {
+       List paths = new ArrayList();
+       List<String> foreignColumnNames = new ArrayList<>();
+ 
+-      Path<?> compositePk0 =
+-          QPathFactory.<Path>create(
+-              this,
+-              new QPathConfig(
+-                  java.lang.Long.class, java.lang.Long.class, "CPK_ID_1", false, 2, -5));
++      QPathConfig config0 =
++          new QPathConfig(java.lang.Long.class, java.lang.Long.class, "CPK_ID_1", false, 2, -5);
+ 
+-      addMetadata(compositePk0, QColumnMetadataFactory.create("CPK_ID_1", 2, -5, false));
++      Path<?> compositePk0 = QPathFactory.<Path>create(this, config0);
++      addMetadata(compositePk0, QColumnMetadataFactory.create(config0));
+       paths.add(compositePk0);
+ 
+-      Path<?> compositePk1 =
+-          QPathFactory.<Path>create(
+-              this,
+-              new QPathConfig(
+-                  java.lang.String.class, java.lang.String.class, "CPK_ID_2", false, 2, 12));
++      QPathConfig config1 =
++          new QPathConfig(java.lang.String.class, java.lang.String.class, "CPK_ID_2", false, 2, 12);
+ 
+-      addMetadata(compositePk1, QColumnMetadataFactory.create("CPK_ID_2", 2, 12, false));
++      Path<?> compositePk1 = QPathFactory.<Path>create(this, config1);
++      addMetadata(compositePk1, QColumnMetadataFactory.create(config1));
+       paths.add(compositePk1);
+ 
+       foreignColumnNames.add("ID_1");
+@@ -98,22 +95,18 @@ public QJCompositeFk(String variable) {
+       List paths = new ArrayList();
+       List<String> foreignColumnNames = new ArrayList<>();
+ 
+-      Path<?> singularPk0 =
+-          QPathFactory.<Path>create(
+-              this,
+-              new QPathConfig(
+-                  java.lang.Long.class, java.lang.Long.class, "SPK_ID_1", false, 3, -5));
++      QPathConfig config0 =
++          new QPathConfig(java.lang.Long.class, java.lang.Long.class, "SPK_ID_1", false, 3, -5);
+ 
+-      addMetadata(singularPk0, QColumnMetadataFactory.create("SPK_ID_1", 3, -5, false));
++      Path<?> singularPk0 = QPathFactory.<Path>create(this, config0);
++      addMetadata(singularPk0, QColumnMetadataFactory.create(config0));
+       paths.add(singularPk0);
+ 
+-      Path<?> singularPk1 =
+-          QPathFactory.<Path>create(
+-              this,
+-              new QPathConfig(
+-                  java.lang.String.class, java.lang.String.class, "SPK_ID_2", false, 3, 12));
++      QPathConfig config1 =
++          new QPathConfig(java.lang.String.class, java.lang.String.class, "SPK_ID_2", false, 3, 12);
+ 
+-      addMetadata(singularPk1, QColumnMetadataFactory.create("SPK_ID_2", 3, 12, false));
++      Path<?> singularPk1 = QPathFactory.<Path>create(this, config1);
++      addMetadata(singularPk1, QColumnMetadataFactory.create(config1));
+       paths.add(singularPk1);
+ 
+       foreignColumnNames.add("ID_1");
+diff --git a/src/test/java/pl/exsio/querydsl/entityql/config/entity/generated/QJCompositePk.java b/src/test/java/pl/exsio/querydsl/entityql/config/entity/generated/QJCompositePk.java
+index 18ab8b9..2d7f77c 100644
+--- a/src/test/java/pl/exsio/querydsl/entityql/config/entity/generated/QJCompositePk.java
++++ b/src/test/java/pl/exsio/querydsl/entityql/config/entity/generated/QJCompositePk.java
+@@ -41,32 +41,32 @@ public QJCompositePk(String variable) {
+ 
+     id1:
+     {
+-      this.id1 =
+-          QPathFactory.<NumberPath<java.lang.Long>>create(
+-              this,
+-              new QPathConfig(java.lang.Long.class, java.lang.Long.class, "ID_1", true, 1, -5));
++      QPathConfig config =
++          new QPathConfig(java.lang.Long.class, java.lang.Long.class, "ID_1", true, 1, -5);
+ 
+-      addMetadata(this.id1, QColumnMetadataFactory.create("ID_1", 1, -5, true));
++      this.id1 = QPathFactory.<NumberPath<java.lang.Long>>create(this, config);
++
++      addMetadata(this.id1, QColumnMetadataFactory.create(config));
+     }
+ 
+     id2:
+     {
+-      this.id2 =
+-          QPathFactory.<StringPath>create(
+-              this,
+-              new QPathConfig(java.lang.String.class, java.lang.String.class, "ID_2", true, 2, 12));
++      QPathConfig config =
++          new QPathConfig(java.lang.String.class, java.lang.String.class, "ID_2", true, 2, 12);
++
++      this.id2 = QPathFactory.<StringPath>create(this, config);
+ 
+-      addMetadata(this.id2, QColumnMetadataFactory.create("ID_2", 2, 12, true));
++      addMetadata(this.id2, QColumnMetadataFactory.create(config));
+     }
+ 
+     desc:
+     {
+-      this.desc =
+-          QPathFactory.<StringPath>create(
+-              this,
+-              new QPathConfig(java.lang.String.class, java.lang.String.class, "DESC", true, 3, 12));
++      QPathConfig config =
++          new QPathConfig(java.lang.String.class, java.lang.String.class, "DESC", true, 3, 12);
++
++      this.desc = QPathFactory.<StringPath>create(this, config);
+ 
+-      addMetadata(this.desc, QColumnMetadataFactory.create("DESC", 3, 12, true));
++      addMetadata(this.desc, QColumnMetadataFactory.create(config));
+     }
+ 
+     _primaryKey:
+diff --git a/src/test/java/pl/exsio/querydsl/entityql/config/entity/generated/QJGroup.java b/src/test/java/pl/exsio/querydsl/entityql/config/entity/generated/QJGroup.java
+index dcfdc10..bcefc14 100644
+--- a/src/test/java/pl/exsio/querydsl/entityql/config/entity/generated/QJGroup.java
++++ b/src/test/java/pl/exsio/querydsl/entityql/config/entity/generated/QJGroup.java
+@@ -42,33 +42,33 @@ public QJGroup(String variable) {
+ 
+     id:
+     {
+-      this.id =
+-          QPathFactory.<NumberPath<java.lang.Long>>create(
+-              this,
+-              new QPathConfig(java.lang.Long.class, java.lang.Long.class, "GROUP_ID", true, 1, -5));
++      QPathConfig config =
++          new QPathConfig(java.lang.Long.class, java.lang.Long.class, "GROUP_ID", true, 1, -5);
+ 
+-      addMetadata(this.id, QColumnMetadataFactory.create("GROUP_ID", 1, -5, true));
++      this.id = QPathFactory.<NumberPath<java.lang.Long>>create(this, config);
++
++      addMetadata(this.id, QColumnMetadataFactory.create(config));
+     }
+ 
+     name:
+     {
+-      this.name =
+-          QPathFactory.<StringPath>create(
+-              this,
+-              new QPathConfig(java.lang.String.class, java.lang.String.class, "NAME", true, 2, 12));
++      QPathConfig config =
++          new QPathConfig(java.lang.String.class, java.lang.String.class, "NAME", true, 2, 12);
++
++      this.name = QPathFactory.<StringPath>create(this, config);
+ 
+-      addMetadata(this.name, QColumnMetadataFactory.create("NAME", 2, 12, true));
++      addMetadata(this.name, QColumnMetadataFactory.create(config));
+     }
+ 
+     adminId:
+     {
+-      this.adminId =
+-          QPathFactory.<StringPath>create(
+-              this,
+-              new QPathConfig(
+-                  java.lang.String.class, java.lang.String.class, "ADMIN_NAME", false, 4, 12));
++      QPathConfig config =
++          new QPathConfig(
++              java.lang.String.class, java.lang.String.class, "ADMIN_NAME", false, 4, 12);
++
++      this.adminId = QPathFactory.<StringPath>create(this, config);
+ 
+-      addMetadata(this.adminId, QColumnMetadataFactory.create("ADMIN_NAME", 4, 12, false));
++      addMetadata(this.adminId, QColumnMetadataFactory.create(config));
+     }
+ 
+     admin:
+diff --git a/src/test/java/pl/exsio/querydsl/entityql/config/entity/generated/QJGroupAdmin.java b/src/test/java/pl/exsio/querydsl/entityql/config/entity/generated/QJGroupAdmin.java
+index 84f31fe..9fb714c 100644
+--- a/src/test/java/pl/exsio/querydsl/entityql/config/entity/generated/QJGroupAdmin.java
++++ b/src/test/java/pl/exsio/querydsl/entityql/config/entity/generated/QJGroupAdmin.java
+@@ -39,22 +39,22 @@ public QJGroupAdmin(String variable) {
+ 
+     id:
+     {
+-      this.id =
+-          QPathFactory.<NumberPath<java.lang.Long>>create(
+-              this,
+-              new QPathConfig(java.lang.Long.class, java.lang.Long.class, "GA_ID", true, 1, -5));
++      QPathConfig config =
++          new QPathConfig(java.lang.Long.class, java.lang.Long.class, "GA_ID", true, 1, -5);
+ 
+-      addMetadata(this.id, QColumnMetadataFactory.create("GA_ID", 1, -5, true));
++      this.id = QPathFactory.<NumberPath<java.lang.Long>>create(this, config);
++
++      addMetadata(this.id, QColumnMetadataFactory.create(config));
+     }
+ 
+     name:
+     {
+-      this.name =
+-          QPathFactory.<StringPath>create(
+-              this,
+-              new QPathConfig(java.lang.String.class, java.lang.String.class, "NAME", true, 2, 12));
++      QPathConfig config =
++          new QPathConfig(java.lang.String.class, java.lang.String.class, "NAME", true, 2, 12);
++
++      this.name = QPathFactory.<StringPath>create(this, config);
+ 
+-      addMetadata(this.name, QColumnMetadataFactory.create("NAME", 2, 12, true));
++      addMetadata(this.name, QColumnMetadataFactory.create(config));
+     }
+ 
+     _primaryKey:
+diff --git a/src/test/java/pl/exsio/querydsl/entityql/config/entity/generated/QJOrder.java b/src/test/java/pl/exsio/querydsl/entityql/config/entity/generated/QJOrder.java
+index 451afa9..deafd4b 100644
+--- a/src/test/java/pl/exsio/querydsl/entityql/config/entity/generated/QJOrder.java
++++ b/src/test/java/pl/exsio/querydsl/entityql/config/entity/generated/QJOrder.java
+@@ -39,22 +39,22 @@ public QJOrder(String variable) {
+ 
+     id:
+     {
+-      this.id =
+-          QPathFactory.<NumberPath<java.lang.Long>>create(
+-              this,
+-              new QPathConfig(java.lang.Long.class, java.lang.Long.class, "ORDER_ID", true, 1, -5));
++      QPathConfig config =
++          new QPathConfig(java.lang.Long.class, java.lang.Long.class, "ORDER_ID", true, 1, -5);
+ 
+-      addMetadata(this.id, QColumnMetadataFactory.create("ORDER_ID", 1, -5, true));
++      this.id = QPathFactory.<NumberPath<java.lang.Long>>create(this, config);
++
++      addMetadata(this.id, QColumnMetadataFactory.create(config));
+     }
+ 
+     userId:
+     {
+-      this.userId =
+-          QPathFactory.<NumberPath<java.lang.Long>>create(
+-              this,
+-              new QPathConfig(java.lang.Long.class, java.lang.Long.class, "USER_ID", false, 2, -5));
++      QPathConfig config =
++          new QPathConfig(java.lang.Long.class, java.lang.Long.class, "USER_ID", false, 2, -5);
++
++      this.userId = QPathFactory.<NumberPath<java.lang.Long>>create(this, config);
+ 
+-      addMetadata(this.userId, QColumnMetadataFactory.create("USER_ID", 2, -5, false));
++      addMetadata(this.userId, QColumnMetadataFactory.create(config));
+     }
+ 
+     user:
+diff --git a/src/test/java/pl/exsio/querydsl/entityql/config/entity/generated/QJOrderItem.java b/src/test/java/pl/exsio/querydsl/entityql/config/entity/generated/QJOrderItem.java
+index 33ff273..42d8190 100644
+--- a/src/test/java/pl/exsio/querydsl/entityql/config/entity/generated/QJOrderItem.java
++++ b/src/test/java/pl/exsio/querydsl/entityql/config/entity/generated/QJOrderItem.java
+@@ -46,44 +46,42 @@ public QJOrderItem(String variable) {
+ 
+     id:
+     {
+-      this.id =
+-          QPathFactory.<NumberPath<java.lang.Long>>create(
+-              this,
+-              new QPathConfig(
+-                  java.lang.Long.class, java.lang.Long.class, "ORDER_ITEM_ID", true, 1, -5));
++      QPathConfig config =
++          new QPathConfig(java.lang.Long.class, java.lang.Long.class, "ORDER_ITEM_ID", true, 1, -5);
+ 
+-      addMetadata(this.id, QColumnMetadataFactory.create("ORDER_ITEM_ID", 1, -5, true));
++      this.id = QPathFactory.<NumberPath<java.lang.Long>>create(this, config);
++
++      addMetadata(this.id, QColumnMetadataFactory.create(config));
+     }
+ 
+     quantity:
+     {
+-      this.quantity =
+-          QPathFactory.<NumberPath<java.lang.Long>>create(
+-              this,
+-              new QPathConfig(java.lang.Long.class, java.lang.Long.class, "QTY", false, 4, -5));
++      QPathConfig config =
++          new QPathConfig(java.lang.Long.class, java.lang.Long.class, "QTY", false, 4, -5);
++
++      this.quantity = QPathFactory.<NumberPath<java.lang.Long>>create(this, config);
+ 
+-      addMetadata(this.quantity, QColumnMetadataFactory.create("QTY", 4, -5, false));
++      addMetadata(this.quantity, QColumnMetadataFactory.create(config));
+     }
+ 
+     bookId:
+     {
+-      this.bookId =
+-          QPathFactory.<NumberPath<java.lang.Long>>create(
+-              this,
+-              new QPathConfig(java.lang.Long.class, java.lang.Long.class, "BOOK_ID", false, 2, -5));
++      QPathConfig config =
++          new QPathConfig(java.lang.Long.class, java.lang.Long.class, "BOOK_ID", false, 2, -5);
+ 
+-      addMetadata(this.bookId, QColumnMetadataFactory.create("BOOK_ID", 2, -5, false));
++      this.bookId = QPathFactory.<NumberPath<java.lang.Long>>create(this, config);
++
++      addMetadata(this.bookId, QColumnMetadataFactory.create(config));
+     }
+ 
+     orderId:
+     {
+-      this.orderId =
+-          QPathFactory.<NumberPath<java.lang.Long>>create(
+-              this,
+-              new QPathConfig(
+-                  java.lang.Long.class, java.lang.Long.class, "ORDER_ID", false, 3, -5));
++      QPathConfig config =
++          new QPathConfig(java.lang.Long.class, java.lang.Long.class, "ORDER_ID", false, 3, -5);
++
++      this.orderId = QPathFactory.<NumberPath<java.lang.Long>>create(this, config);
+ 
+-      addMetadata(this.orderId, QColumnMetadataFactory.create("ORDER_ID", 3, -5, false));
++      addMetadata(this.orderId, QColumnMetadataFactory.create(config));
+     }
+ 
+     book:
+diff --git a/src/test/java/pl/exsio/querydsl/entityql/config/entity/generated/QJSingularPk.java b/src/test/java/pl/exsio/querydsl/entityql/config/entity/generated/QJSingularPk.java
+index a692224..35c3bc1 100644
+--- a/src/test/java/pl/exsio/querydsl/entityql/config/entity/generated/QJSingularPk.java
++++ b/src/test/java/pl/exsio/querydsl/entityql/config/entity/generated/QJSingularPk.java
+@@ -40,32 +40,32 @@ public QJSingularPk(String variable) {
+ 
+     id1:
+     {
+-      this.id1 =
+-          QPathFactory.<NumberPath<java.lang.Long>>create(
+-              this,
+-              new QPathConfig(java.lang.Long.class, java.lang.Long.class, "ID_1", true, 1, -5));
++      QPathConfig config =
++          new QPathConfig(java.lang.Long.class, java.lang.Long.class, "ID_1", true, 1, -5);
+ 
+-      addMetadata(this.id1, QColumnMetadataFactory.create("ID_1", 1, -5, true));
++      this.id1 = QPathFactory.<NumberPath<java.lang.Long>>create(this, config);
++
++      addMetadata(this.id1, QColumnMetadataFactory.create(config));
+     }
+ 
+     id2:
+     {
+-      this.id2 =
+-          QPathFactory.<StringPath>create(
+-              this,
+-              new QPathConfig(java.lang.String.class, java.lang.String.class, "ID_2", true, 2, 12));
++      QPathConfig config =
++          new QPathConfig(java.lang.String.class, java.lang.String.class, "ID_2", true, 2, 12);
++
++      this.id2 = QPathFactory.<StringPath>create(this, config);
+ 
+-      addMetadata(this.id2, QColumnMetadataFactory.create("ID_2", 2, 12, true));
++      addMetadata(this.id2, QColumnMetadataFactory.create(config));
+     }
+ 
+     desc:
+     {
+-      this.desc =
+-          QPathFactory.<StringPath>create(
+-              this,
+-              new QPathConfig(java.lang.String.class, java.lang.String.class, "DESC", true, 3, 12));
++      QPathConfig config =
++          new QPathConfig(java.lang.String.class, java.lang.String.class, "DESC", true, 3, 12);
++
++      this.desc = QPathFactory.<StringPath>create(this, config);
+ 
+-      addMetadata(this.desc, QColumnMetadataFactory.create("DESC", 3, 12, true));
++      addMetadata(this.desc, QColumnMetadataFactory.create(config));
+     }
+ 
+     _primaryKey:
+diff --git a/src/test/java/pl/exsio/querydsl/entityql/config/entity/generated/QJUploadedFile.java b/src/test/java/pl/exsio/querydsl/entityql/config/entity/generated/QJUploadedFile.java
+index 659e54c..93b684b 100644
+--- a/src/test/java/pl/exsio/querydsl/entityql/config/entity/generated/QJUploadedFile.java
++++ b/src/test/java/pl/exsio/querydsl/entityql/config/entity/generated/QJUploadedFile.java
+@@ -42,22 +42,22 @@ public QJUploadedFile(String variable) {
+ 
+     id:
+     {
+-      this.id =
+-          QPathFactory.<QUuidPath>create(
+-              this,
+-              new QPathConfig(java.util.UUID.class, java.util.UUID.class, "FILE_ID", false, 1, 12));
++      QPathConfig config =
++          new QPathConfig(java.util.UUID.class, java.util.UUID.class, "FILE_ID", false, 1, 12);
+ 
+-      addMetadata(this.id, QColumnMetadataFactory.create("FILE_ID", 1, 12, false));
++      this.id = QPathFactory.<QUuidPath>create(this, config);
++
++      addMetadata(this.id, QColumnMetadataFactory.create(config));
+     }
+ 
+     data:
+     {
+-      this.data =
+-          QPathFactory.<ArrayPath<byte[], java.lang.Byte>>create(
+-              this,
+-              new QPathConfig(byte[].class, java.lang.reflect.Array.class, "DATA", false, 2, 2003));
++      QPathConfig config =
++          new QPathConfig(byte[].class, java.lang.reflect.Array.class, "DATA", false, 2, 2003);
++
++      this.data = QPathFactory.<ArrayPath<byte[], java.lang.Byte>>create(this, config);
+ 
+-      addMetadata(this.data, QColumnMetadataFactory.create("DATA", 2, 2003, false));
++      addMetadata(this.data, QColumnMetadataFactory.create(config));
+     }
+ 
+     _primaryKey:
+diff --git a/src/test/java/pl/exsio/querydsl/entityql/config/entity/generated/QJUser.java b/src/test/java/pl/exsio/querydsl/entityql/config/entity/generated/QJUser.java
+index 4113312..1f16caf 100644
+--- a/src/test/java/pl/exsio/querydsl/entityql/config/entity/generated/QJUser.java
++++ b/src/test/java/pl/exsio/querydsl/entityql/config/entity/generated/QJUser.java
+@@ -49,89 +49,90 @@ public QJUser(String variable) {
+ 
+     id:
+     {
+-      this.id =
+-          QPathFactory.<NumberPath<java.lang.Long>>create(
+-              this,
+-              new QPathConfig(java.lang.Long.class, java.lang.Long.class, "USER_ID", true, 1, -5));
++      QPathConfig config =
++          new QPathConfig(java.lang.Long.class, java.lang.Long.class, "USER_ID", true, 1, -5);
+ 
+-      addMetadata(this.id, QColumnMetadataFactory.create("USER_ID", 1, -5, true));
++      this.id = QPathFactory.<NumberPath<java.lang.Long>>create(this, config);
++
++      addMetadata(this.id, QColumnMetadataFactory.create(config));
+     }
+ 
+     name:
+     {
+-      this.name =
+-          QPathFactory.<StringPath>create(
+-              this,
+-              new QPathConfig(java.lang.String.class, java.lang.String.class, "NAME", true, 2, 12));
++      QPathConfig config =
++          new QPathConfig(java.lang.String.class, java.lang.String.class, "NAME", true, 2, 12);
++
++      this.name = QPathFactory.<StringPath>create(this, config);
+ 
+-      addMetadata(this.name, QColumnMetadataFactory.create("NAME", 2, 12, true));
++      addMetadata(this.name, QColumnMetadataFactory.create(config));
+     }
+ 
+     typeStr:
+     {
++      QPathConfig config =
++          new QPathConfig(
++              pl.exsio.querydsl.entityql.config.entity.JUser.Type.class,
++              java.lang.Enum.class,
++              "USER_TYPE",
++              false,
++              4,
++              12);
+       this.typeStr =
+           QPathFactory.<QEnumPath<pl.exsio.querydsl.entityql.config.entity.JUser.Type>>create(
+-              this,
+-              new QPathConfig(
+-                  pl.exsio.querydsl.entityql.config.entity.JUser.Type.class,
+-                  java.lang.Enum.class,
+-                  "USER_TYPE",
+-                  false,
+-                  4,
+-                  12));
+-      addMetadata(this.typeStr, QColumnMetadataFactory.create("USER_TYPE", 4, 12, false));
++              this, config);
++      addMetadata(this.typeStr, QColumnMetadataFactory.create(config));
+     }
+ 
+     typeOrd:
+     {
+-      this.typeOrd =
+-          QPathFactory.<NumberPath<java.lang.Integer>>create(
+-              this,
+-              new QPathConfig(
+-                  pl.exsio.querydsl.entityql.config.entity.JUser.Type.class,
+-                  java.lang.Integer.class,
+-                  "USER_TYPE_ORD",
+-                  false,
+-                  5,
+-                  4));
+-      addMetadata(this.typeOrd, QColumnMetadataFactory.create("USER_TYPE_ORD", 5, 4, false));
++      QPathConfig config =
++          new QPathConfig(
++              pl.exsio.querydsl.entityql.config.entity.JUser.Type.class,
++              java.lang.Integer.class,
++              "USER_TYPE_ORD",
++              false,
++              5,
++              4);
++      this.typeOrd = QPathFactory.<NumberPath<java.lang.Integer>>create(this, config);
++
++      addMetadata(this.typeOrd, QColumnMetadataFactory.create(config));
+     }
+ 
+     typeDef:
+     {
+-      this.typeDef =
+-          QPathFactory.<NumberPath<java.lang.Integer>>create(
+-              this,
+-              new QPathConfig(
+-                  pl.exsio.querydsl.entityql.config.entity.JUser.Type.class,
+-                  java.lang.Integer.class,
+-                  "USER_TYPE_DEF",
+-                  false,
+-                  6,
+-                  4));
+-      addMetadata(this.typeDef, QColumnMetadataFactory.create("USER_TYPE_DEF", 6, 4, false));
++      QPathConfig config =
++          new QPathConfig(
++              pl.exsio.querydsl.entityql.config.entity.JUser.Type.class,
++              java.lang.Integer.class,
++              "USER_TYPE_DEF",
++              false,
++              6,
++              4);
++      this.typeDef = QPathFactory.<NumberPath<java.lang.Integer>>create(this, config);
++
++      addMetadata(this.typeDef, QColumnMetadataFactory.create(config));
+     }
+ 
+     createdBy:
+     {
+-      this.createdBy =
+-          QPathFactory.<QObjectPath<java.lang.Object>>create(
+-              this,
+-              new QPathConfig(
+-                  java.lang.Object.class, java.lang.Object.class, "CREATED_BY", true, 7, 1111));
++      QPathConfig config =
++          new QPathConfig(
++              java.lang.Object.class, java.lang.Object.class, "CREATED_BY", true, 7, 1111);
+ 
+-      addMetadata(this.createdBy, QColumnMetadataFactory.create("CREATED_BY", 7, 1111, true));
++      this.createdBy = QPathFactory.<QObjectPath<java.lang.Object>>create(this, config);
++
++      addMetadata(this.createdBy, QColumnMetadataFactory.create(config));
+     }
+ 
+     createdAt:
+     {
+-      this.createdAt =
+-          QPathFactory.<QObjectPath<java.util.Date>>create(
+-              this,
+-              new QPathConfig(
+-                  java.util.Date.class, java.lang.Object.class, "CREATED_AT", true, 8, 1111));
++      QPathConfig config =
++          new QPathConfig(
++              java.util.Date.class, java.lang.Object.class, "CREATED_AT", true, 8, 1111);
++
++      this.createdAt = QPathFactory.<QObjectPath<java.util.Date>>create(this, config);
+ 
+-      addMetadata(this.createdAt, QColumnMetadataFactory.create("CREATED_AT", 8, 1111, true));
++      addMetadata(this.createdAt, QColumnMetadataFactory.create(config));
+     }
+ 
+     _primaryKey:
+diff --git a/src/test/java/pl/exsio/querydsl/entityql/config/entity/generated/QJUserGroup.java b/src/test/java/pl/exsio/querydsl/entityql/config/entity/generated/QJUserGroup.java
+index 5357698..184093a 100644
+--- a/src/test/java/pl/exsio/querydsl/entityql/config/entity/generated/QJUserGroup.java
++++ b/src/test/java/pl/exsio/querydsl/entityql/config/entity/generated/QJUserGroup.java
+@@ -42,22 +42,22 @@ public QJUserGroup(String variable) {
+ 
+     groupId:
+     {
+-      this.groupId =
+-          QPathFactory.<NumberPath<java.lang.Long>>create(
+-              this,
+-              new QPathConfig(java.lang.Long.class, java.lang.Long.class, "GROUP_ID", true, 3, -5));
++      QPathConfig config =
++          new QPathConfig(java.lang.Long.class, java.lang.Long.class, "GROUP_ID", true, 3, -5);
+ 
+-      addMetadata(this.groupId, QColumnMetadataFactory.create("GROUP_ID", 3, -5, true));
++      this.groupId = QPathFactory.<NumberPath<java.lang.Long>>create(this, config);
++
++      addMetadata(this.groupId, QColumnMetadataFactory.create(config));
+     }
+ 
+     userId:
+     {
+-      this.userId =
+-          QPathFactory.<NumberPath<java.lang.Long>>create(
+-              this,
+-              new QPathConfig(java.lang.Long.class, java.lang.Long.class, "USER_ID", true, 4, -5));
++      QPathConfig config =
++          new QPathConfig(java.lang.Long.class, java.lang.Long.class, "USER_ID", true, 4, -5);
++
++      this.userId = QPathFactory.<NumberPath<java.lang.Long>>create(this, config);
+ 
+-      addMetadata(this.userId, QColumnMetadataFactory.create("USER_ID", 4, -5, true));
++      addMetadata(this.userId, QColumnMetadataFactory.create(config));
+     }
+ 
+     group:

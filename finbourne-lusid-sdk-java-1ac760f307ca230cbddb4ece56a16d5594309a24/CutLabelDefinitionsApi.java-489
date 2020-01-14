@@ -1,0 +1,9 @@
+@@ -489,7 +489,7 @@ public CutLabelDefinition getCutLabelDefinition(String code, OffsetDateTime asAt
+         final String localVarContentType = localVarApiClient.selectHeaderContentType(localVarContentTypes);
+         localVarHeaderParams.put("Content-Type", localVarContentType);
+         localVarHeaderParams.put("X-LUSID-SDK-Language", "Java");
+-        localVarHeaderParams.put("X-LUSID-SDK-Version", "0.10.1017");
++        localVarHeaderParams.put("X-LUSID-SDK-Version", "0.10.1019");
+ 
+         String[] localVarAuthNames = new String[] { "oauth2" };
+         return localVarApiClient.buildCall(localVarPath, "GET", localVarQueryParams, localVarCollectionQueryParams, localVarPostBody, localVarHeaderParams, localVarFormParams, localVarAuthNames, _callback);

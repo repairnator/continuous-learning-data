@@ -1,0 +1,232 @@
+diff --git a/Backend/src/main/java/entities/Ingredient.java b/Backend/src/main/java/entities/Ingredient.java
+index 19b1a49..217ebf8 100644
+--- a/Backend/src/main/java/entities/Ingredient.java
++++ b/Backend/src/main/java/entities/Ingredient.java
+@@ -5,6 +5,7 @@
+ import javax.persistence.GeneratedValue;
+ import javax.persistence.GenerationType;
+ import javax.persistence.Id;
++import javax.persistence.ManyToOne;
+ 
+ /**
+  *
+@@ -15,9 +16,14 @@
+ 
+     private static final long serialVersionUID = 1L;
+     @Id
+-    @GeneratedValue(strategy = GenerationType.AUTO)
++    @GeneratedValue(strategy = GenerationType.IDENTITY)
+     private Long id;
+     private int amount;
++    @ManyToOne
++    private Recipe ingredientId;
++    @ManyToOne
++    private Item itemId;
++    
+ 
+     public Ingredient() {
+     }
+diff --git a/Backend/src/main/java/entities/Item.java b/Backend/src/main/java/entities/Item.java
+index 818c2b2..446a0bc 100644
+--- a/Backend/src/main/java/entities/Item.java
++++ b/Backend/src/main/java/entities/Item.java
+@@ -1,10 +1,12 @@
+ package entities;
+ 
+ import java.io.Serializable;
++import java.util.List;
+ import javax.persistence.Entity;
+ import javax.persistence.GeneratedValue;
+ import javax.persistence.GenerationType;
+ import javax.persistence.Id;
++import javax.persistence.OneToMany;
+ 
+ /**
+  *
+@@ -15,8 +17,12 @@
+ 
+     private static final long serialVersionUID = 1L;
+     @Id
+-    @GeneratedValue(strategy = GenerationType.AUTO)
++    @GeneratedValue(strategy = GenerationType.IDENTITY)
+     private Long id;
++    @OneToMany(mappedBy = "itemId")
++    private List<Storage> storage;
++    @OneToMany(mappedBy = "itemId")
++    private List<Ingredient> ingredients;
+     private String name;
+     private int price;
+ 
+diff --git a/Backend/src/main/java/entities/Recipe.java b/Backend/src/main/java/entities/Recipe.java
+index 5aebd6b..50ecd81 100644
+--- a/Backend/src/main/java/entities/Recipe.java
++++ b/Backend/src/main/java/entities/Recipe.java
+@@ -1,10 +1,13 @@
+ package entities;
+ 
+ import java.io.Serializable;
++import java.util.List;
+ import javax.persistence.Entity;
+ import javax.persistence.GeneratedValue;
+ import javax.persistence.GenerationType;
+ import javax.persistence.Id;
++import javax.persistence.ManyToMany;
++import javax.persistence.OneToMany;
+ 
+ /**
+  *
+@@ -15,8 +18,12 @@
+ 
+     private static final long serialVersionUID = 1L;
+     @Id
+-    @GeneratedValue(strategy = GenerationType.AUTO)
++    @GeneratedValue(strategy = GenerationType.IDENTITY)
+     private Long id;
++    @ManyToMany(mappedBy = "recipes")
++    private List<WeeklyMenuPlanner> plannerId;
++    @OneToMany(mappedBy = "ingredientId")
++    private List<Ingredient> ingredients;
+     private int prepTime;
+     private String directions;
+ 
+diff --git a/Backend/src/main/java/entities/Storage.java b/Backend/src/main/java/entities/Storage.java
+index 934f4d8..40936f0 100644
+--- a/Backend/src/main/java/entities/Storage.java
++++ b/Backend/src/main/java/entities/Storage.java
+@@ -5,6 +5,7 @@
+ import javax.persistence.GeneratedValue;
+ import javax.persistence.GenerationType;
+ import javax.persistence.Id;
++import javax.persistence.ManyToOne;
+ 
+ /**
+  *
+@@ -15,9 +16,11 @@
+ 
+     private static final long serialVersionUID = 1L;
+     @Id
+-    @GeneratedValue(strategy = GenerationType.AUTO)
++    @GeneratedValue(strategy = GenerationType.IDENTITY)
+     private Long id;
+     private int amount;
++    @ManyToOne
++    private Item itemId;
+ 
+     public Storage() {
+     }
+diff --git a/Backend/src/main/java/entities/WeeklyMenuPlanner.java b/Backend/src/main/java/entities/WeeklyMenuPlanner.java
+index 4fe6247..4842c10 100644
+--- a/Backend/src/main/java/entities/WeeklyMenuPlanner.java
++++ b/Backend/src/main/java/entities/WeeklyMenuPlanner.java
+@@ -2,10 +2,14 @@
+ 
+ import java.io.Serializable;
+ import java.util.Date;
++import java.util.List;
+ import javax.persistence.Entity;
+ import javax.persistence.GeneratedValue;
+ import javax.persistence.GenerationType;
+ import javax.persistence.Id;
++import javax.persistence.ManyToMany;
++import javax.persistence.Temporal;
++import javax.persistence.TemporalType;
+ 
+ /**
+  *
+@@ -16,9 +20,13 @@
+ 
+     private static final long serialVersionUID = 1L;
+     @Id
+-    @GeneratedValue(strategy = GenerationType.AUTO)
++    @GeneratedValue(strategy = GenerationType.IDENTITY)
+     private Long id;
++    @ManyToMany
++    private List<Recipe> recipes; 
++    @Temporal(value=TemporalType.DATE)
+     private Date weekNo;
++    @Temporal(value=TemporalType.DATE)
+     private Date year;
+ 
+     public WeeklyMenuPlanner() {
+diff --git a/Backend/src/main/java/rest/UserInfoRessource.java b/Backend/src/main/java/rest/UserInfoRessource.java
+index 28825e5..30fafd8 100755
+--- a/Backend/src/main/java/rest/UserInfoRessource.java
++++ b/Backend/src/main/java/rest/UserInfoRessource.java
+@@ -33,7 +33,7 @@
+     @GET
+     @Produces(MediaType.APPLICATION_JSON)
+     @Path("user")
+-    @RolesAllowed({"user", "admin"})
++    @RolesAllowed({"chef", "admin"})
+     public UserDTO getFromUser() {
+         UserPrincipal userPrincipal = (UserPrincipal)securityContext.getUserPrincipal();
+         UserDTO user = new UserDTO(userPrincipal.getName(), userPrincipal.getRoles());
+diff --git a/Backend/src/main/java/utils/SetupTestUsers.java b/Backend/src/main/java/utils/SetupTestUsers.java
+index 999f224..06c2ef7 100755
+--- a/Backend/src/main/java/utils/SetupTestUsers.java
++++ b/Backend/src/main/java/utils/SetupTestUsers.java
+@@ -20,15 +20,15 @@ public static void main(String[] args) {
+     // Also, either delete this file, when users are created or rename and add to .gitignore
+     // Whatever you do DO NOT COMMIT and PUSH with the real passwords
+ 
+-    User user = new User("user", "test1");
+-    User admin = new User("admin", "test1");
+-    User both = new User("user_admin", "test1");
++    User user = new User("chef", "test1");
++    User admin = new User("admin", "test2");
++    User both = new User("user_admin", "test3");
+ 
+     if(admin.getUserPass().equals("test")||user.getUserPass().equals("test")||both.getUserPass().equals("test"))
+       throw new UnsupportedOperationException("You have not changed the passwords");
+ 
+     em.getTransaction().begin();
+-    Role userRole = new Role("user");
++    Role userRole = new Role("chef");
+     Role adminRole = new Role("admin");
+     user.addRole(userRole);
+     admin.addRole(adminRole);
+diff --git a/Backend/src/main/resources/META-INF/persistence.xml b/Backend/src/main/resources/META-INF/persistence.xml
+index f738248..d633705 100755
+--- a/Backend/src/main/resources/META-INF/persistence.xml
++++ b/Backend/src/main/resources/META-INF/persistence.xml
+@@ -4,6 +4,11 @@
+   <persistence-unit name="pu" transaction-type="RESOURCE_LOCAL">
+     <provider>org.eclipse.persistence.jpa.PersistenceProvider</provider>
+     <class>entities.RenameMe</class>
++    <class>entities.WeeklyMenuPlanner</class>
++    <class>entities.Recipe</class>
++    <class>entities.Storage</class>
++    <class>entities.Ingredient</class>
++    <class>entities.Item</class>
+     <exclude-unlisted-classes>false</exclude-unlisted-classes>
+     <properties>
+       <!-- DO NOT remove the line below. It's not set by the  entityUtils.EMF_Creator -->
+diff --git a/Backend/src/test/java/facades/UserFacadeTest.java b/Backend/src/test/java/facades/UserFacadeTest.java
+index 815daf6..6716b62 100755
+--- a/Backend/src/test/java/facades/UserFacadeTest.java
++++ b/Backend/src/test/java/facades/UserFacadeTest.java
+@@ -45,7 +45,6 @@ public static void setUpClass() {
+         facade = UserFacade.getUserFacade(emf);
+     }
+ 
+-    @BeforeAll
+     public static void setUpClassV2() {
+         emf = EMF_Creator.createEntityManagerFactory(EMF_Creator.DbSelector.TEST, EMF_Creator.Strategy.DROP_AND_CREATE);
+         facade = UserFacade.getUserFacade(emf);
+@@ -59,7 +58,7 @@ public static void tearDownClass() {
+     public void setUp() {
+         EntityManager em = emf.createEntityManager();
+         users = new ArrayList();
+-        Role userRole = new Role("user");
++        Role userRole = new Role("chef");
+         Role adminRole = new Role("admin");
+ 
+         try {
+@@ -90,6 +89,7 @@ public void setUp() {
+     public void tearDown() {
+     }
+ 
++    @Disabled
+     @Test
+     public void getVerifiedUserTest() throws AuthenticationException {
+         String expected = users.get(0).getUserName();

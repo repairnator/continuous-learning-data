@@ -1,0 +1,1368 @@
+diff --git a/.travis.yml b/.travis.yml
+index 6be2840..10c9570 100644
+--- a/.travis.yml
++++ b/.travis.yml
+@@ -2,12 +2,13 @@ language: java
+ before_script:
+ - unset _JAVA_OPTIONS
+ - cd finish
++- chmod +x ../scripts/travisTest.sh
+ script:
+-- mvn -q clean install
++- ../scripts/travisTest.sh
+ - serverName=$(target/liberty/wlp/bin/server list | cut -d '.' -f2| tr -d '\n');
+ - build=$(grep "Open Liberty" target/liberty/wlp/usr/servers/"$serverName"/logs/console.log
+   | cut -d' ' -f5 | cut -d')' -f1 ); release=$( echo "$build" | cut -d'/' -f1); number=$(
+-  echo "$build" | cut -d'/' -f2); ol_jv=$(grep -i "on java" target/liberty/wlp/usr/servers/"$serverName"/logs/console.log);
++  echo "$build" | cut -d'/' -f2); ol_jv=$(grep -i "version" target/liberty/wlp/usr/servers/"$serverName"/logs/console.log);
+   jv=$(printf '%s\n' "${ol_jv//$' on '/$'\n'}" | sed '2q;d'); echo -e "\n"; echo -e  "\033[1;34mOpen
+   Liberty release:\033[0m \033[1;36m$release\033[0m"; echo -e "\033[1;34mOpen Liberty
+   build number:\033[0m \033[1;36m$number\033[0m"; echo -e "\033[1;34mJava version:\033[0m
+@@ -15,7 +16,8 @@ script:
+ - cd target/liberty/wlp/usr/servers/"$serverName"/logs/; repo_name=$(echo "$TRAVIS_REPO_SLUG"
+   | sed -e "s/\//-/g"); if [ "$TRAVIS_TEST_RESULT" -eq 0 ]; then result="passed";
+   else result="failed"; fi; serverlogsarchive="$repo_name-$TRAVIS_BUILD_NUMBER-$result.zip";zip
+-  -r "$serverlogsarchive" .; curl -H "$JFROG_TOKEN" -T "$serverlogsarchive" "https://na.artifactory.swg-devops.com/artifactory/hyc-openliberty-guides-files-generic-local/";
++  -r "$serverlogsarchive" .; curl -H "$JFROG_TOKEN" -T "$serverlogsarchive" 
++  "https://na.artifactory.swg-devops.com/artifactory/hyc-openliberty-guides-files-generic-local/";
+ notifications:
+   slack:
+     template:
+diff --git a/README.adoc b/README.adoc
+index 539a6f3..f7f1e07 100644
+--- a/README.adoc
++++ b/README.adoc
+@@ -17,6 +17,8 @@
+ :page-related-guides: ['cdi-intro', 'microprofile-config']
+ :common-includes: https://raw.githubusercontent.com/OpenLiberty/guides-common/master
+ :source-highlighter: prettify
++:page-seo-title: Documenting RESTful APIs using MicroProfile OpenAPI
++:page-seo-description: A tutorial on how to document and filter RESTful APIs by using MicroProfile OpenAPI
+ :guide-author: Open Liberty
+ = Documenting RESTful APIs
+ 
+@@ -59,32 +61,18 @@ as the behaviour for handling multiple applications is currently undefined.
+ [role='command']
+ include::{common-includes}/gitclone.adoc[]
+ 
+-
+-=== Try what you'll build
+-
+-The `finish` directory in the root directory of this guide contains the fully documented `inventory`
+-service. Feel free to give it a try before you proceed.
+-
+-To try out the service, navigate to the `finish` directory and then run the Maven `install` and
+-`liberty:start-server` goals to build and run the service in Open Liberty:
+-
++// =================================================================================================
++// Try what you'll build
++// =================================================================================================
+ [role='command']
+-```
+-mvn install liberty:start-server
+-```
++include::{common-includes}/twyb-intro.adoc[]
+ 
+-// I think here I can say "you'll see" because its still part of the same sentence and its assumed that the user
+-// will finish reading the sentence first before doing anything. If it were two sentences, then it would be "You see".
+ Next, point your browser to the {openapi-url}[{openapi-url}^] URL and you'll see the RESTful APIs of the `inventory`
+ service. You can also point to the {openapi-url}/ui[{openapi-url}/ui^] URL for a more interactive view of the deployed APIs.
+ This UI is built from the https://swagger.io/tools/swagger-ui/[Open Source Swagger UI^] and renders the generated `/openapi` document into a very user friendly page.
+ 
+-When you are done checking out the service and its APIs, stop Open Liberty:
+ [role='command']
+-```
+-mvn liberty:stop-server
+-```
+-
++include::{common-includes}/twyb-end.adoc[]
+ 
+ // =================================================================================================
+ // Generating APIs
+@@ -98,17 +86,10 @@ OpenAPI annotations to enrich your APIs with a minimal amount of work. Second, y
+ models to manually create all elements of the OpenAPI tree. Finally, you can filter various elements of the
+ OpenAPI tree, changing them to your liking or removing them entirely.
+ 
+-Before you proceed, deploy the `inventory` service to see the bare-bones OpenAPI document that is generated.
+-To deploy the `inventory` service, navigate to the `start` directory and run the Maven `install` phase and the `liberty:start-server` goal:
++Navigate to the `start` directory to begin.
+ 
+ [role='command']
+-```
+-mvn install liberty:start-server
+-```
+-
+-The `install` phase builds the application and packages it into the `target/mp-openapi.war` file.
+-It also downloads Open Liberty into the `target/liberty/wlp` directory and configures it to run the
+-application. The `liberty:start-server` goal starts an Open Liberty server instance.
++include::{common-includes}/devmode-start.adoc[]
+ 
+ Because the JAX-RS framework handles basic API generation for JAX-RS annotations, a skeleton OpenAPI
+ tree will be generated from the `inventory` service. You can use this tree as a starting point and
+@@ -154,12 +135,8 @@ optional, but it can be helpful to organize a method with multiple responses.
+ | [hotspot=48-52 file=0]`@Parameter`    | Describes a single operation parameter.
+ |===
+ 
+-At this point, you can run the the following command to rebuild the application.
+-[role='command']
+-```
+-mvn compile
+-```
+-Then, refresh the {openapi-url}[{openapi-url}^]
++Since the Open Liberty server was started in development mode at the beginning of the guide, your changes were automatically picked up.
++Refresh the {openapi-url}[{openapi-url}^]
+ URL to see the updated OpenAPI tree. The two endpoints at which your JAX-RS methods are
+ served are now more meaningful:
+ 
+@@ -181,8 +158,7 @@ served are now more meaningful:
+       example: foo
+     responses:
+       404:
+-        description: Invalid hostname or the system service may not be running on
+-          the particular host.
++        description: Missing description
+         content:
+           text/plain: {}
+       200:
+@@ -244,11 +220,7 @@ SystemData.java
+ include::finish/src/main/java/io/openliberty/guides/inventory/model/SystemData.java[tags=**;!copyright]
+ ----
+ 
+-Again, run the following command and refresh the {openapi-url}[{openapi-url}^] URL to see the updated OpenAPI tree.
+-[role='command']
+-```
+-mvn compile
+-```
++Refresh the {openapi-url}[{openapi-url}^] URL to see the updated OpenAPI tree:
+ 
+ [source, YAML, role="no_copy"]
+ ----
+@@ -339,11 +311,8 @@ include::finish/src/main/webapp/META-INF/microprofile-config.properties[tags=con
+ This configuration file is picked up automatically by MicroProfile Config and registers your filter
+ by passing in the fully qualified name of the filter class into the [hotspot=1 file=1]`mp.openapi.filter` property.
+ 
+-Finally, run the following command and refresh the {openapi-url}[{openapi-url}^] URL to see the updated OpenAPI tree.
+-[role='command']
+-```
+-mvn compile
+-```
++Refresh the {openapi-url}[{openapi-url}^] URL to see the updated OpenAPI tree:
++
+ [source, yaml, role="no_copy"]
+ ----
+ info:
+@@ -428,11 +397,7 @@ microprofile-config.properties
+ include::finish/src/main/webapp/META-INF/microprofile-config.properties[tags=**]
+ ----
+ 
+-Run the following command and refresh the {openapi-url}[{openapi-url}^] URL to see the updated OpenAPI tree.
+-[role='command']
+-```
+-mvn compile
+-```
++Refresh the {openapi-url}[{openapi-url}^] URL to see the updated OpenAPI tree:
+ 
+ [source, yml, role="no_copy"]
+ ----
+@@ -462,23 +427,31 @@ verify the document by visiting the {openapi-url}[{openapi-url}^] or the {openap
+ 
+ A few tests are included for you to test the basic functionality of the `inventory` service. If a test
+ failure occurs, then you might have introduced a bug into the code. These tests will run automatically
+-as a part of the Maven build process when you run the following command.
+-[role='command']
+-```
+-mvn install
+-```
+-You can also run these
+-tests separately from the build by using the following command, but first make sure that the server is stopped. If the server is still running from the previous steps, stop it using the Maven `liberty:stop-server` goal from command line in the `start` directory:
++as a part of the integration test suite.
++
+ [role='command']
+-```
+-mvn liberty:stop-server
+-```
++include::{common-includes}/devmode-test.adoc[]
++
++You will see the following output:
++
++[source, role="no_copy"]
++----
++-------------------------------------------------------
++ T E S T S
++-------------------------------------------------------
++Running it.io.openliberty.guides.system.SystemEndpointIT
++Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.4 sec - in it.io.openliberty.guides.system.SystemEndpointIT
++Running it.io.openliberty.guides.inventory.InventoryEndpointIT
++Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.264 sec - in it.io.openliberty.guides.inventory.InventoryEndpointIT
++
++Results :
++
++Tests run: 4, Failures: 0, Errors: 0, Skipped: 0
++----
+ 
+-Then, verify that the tests pass using the Maven `verify` goal:
+ [role='command']
+-```
+-mvn verify
+-```
++include::{common-includes}/devmode-quit.adoc[]
++
+ 
+ // =================================================================================================
+ // Great work! You're done!
+diff --git a/finish/pom.xml b/finish/pom.xml
+index 45560c5..ed13c5a 100644
+--- a/finish/pom.xml
++++ b/finish/pom.xml
+@@ -2,14 +2,8 @@
+ <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+     <modelVersion>4.0.0</modelVersion>
+ 
+-    <parent>
+-        <groupId>net.wasdev.wlp.maven.parent</groupId>
+-        <artifactId>liberty-maven-app-parent</artifactId>
+-        <version>RELEASE</version>
+-    </parent>
+-
+     <groupId>io.openliberty.guides</groupId>
+-    <artifactId>mp-openapi</artifactId>
++    <artifactId>guide-microprofile-openapi</artifactId>
+     <version>1.0-SNAPSHOT</version>
+     <packaging>war</packaging>
+ 
+@@ -18,100 +12,56 @@
+         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+         <maven.compiler.source>1.8</maven.compiler.source>
+         <maven.compiler.target>1.8</maven.compiler.target>
+-
+-        <!-- Plugins -->
+-        <version.maven-war-plugin>3.2.2</version.maven-war-plugin>
+-        <version.download-maven-plugin>1.4.0</version.download-maven-plugin>
+-        <!-- Tests -->
+-        <version.exec-maven-plugin>1.6.0</version.exec-maven-plugin>
+-        <version.maven-surefire-plugin>3.0.0-M1</version.maven-surefire-plugin>
+-        <version.maven-failsafe-plugin>3.0.0-M1</version.maven-failsafe-plugin>
+-        <!-- OpenLiberty runtime -->
+-        <version.openliberty-runtime>RELEASE</version.openliberty-runtime>
+-        <lib.http.port>9080</lib.http.port>
+-        <lib.https.port>9443</lib.https.port>
++        <failOnMissingWebXml>false</failOnMissingWebXml>
++        <!-- Plugin versions -->
++        <version.liberty-maven-plugin>3.1</version.liberty-maven-plugin>
++        <version.maven-failsafe-plugin>2.22.2</version.maven-failsafe-plugin>
++        <version.maven-war-plugin>3.2.3</version.maven-war-plugin>
++        <version.maven-surefire-plugin>2.22.2</version.maven-surefire-plugin>
++        <!-- Liberty configuration -->
++        <liberty.var.default.http.port>9080</liberty.var.default.http.port>
++        <liberty.var.default.https.port>9443</liberty.var.default.https.port>
+     </properties>
+ 
+-    <dependencyManagement>
+-        <dependencies>
+-            <dependency>
+-                <groupId>io.openliberty.features</groupId>
+-                <artifactId>features-bom</artifactId>
+-                <version>RELEASE</version>
+-                <type>pom</type>
+-                <scope>import</scope>
+-            </dependency>
+-        </dependencies>
+-    </dependencyManagement>
+-
+     <dependencies>
+-        <!-- Open Liberty features -->
+-        <dependency>
+-            <groupId>io.openliberty.features</groupId>
+-            <artifactId>jaxrs-2.1</artifactId>
+-            <type>esa</type>
+-            <scope>provided</scope>
+-        </dependency>
+-        <dependency>
+-            <groupId>io.openliberty.features</groupId>
+-            <artifactId>jsonp-1.1</artifactId>
+-            <type>esa</type>
+-            <scope>provided</scope>
+-        </dependency>
+-        <dependency>
+-            <groupId>io.openliberty.features</groupId>
+-            <artifactId>cdi-2.0</artifactId>
+-            <type>esa</type>
+-            <scope>provided</scope>
+-        </dependency>
+-        <dependency>
+-            <groupId>io.openliberty.features</groupId>
+-            <artifactId>mpConfig-1.3</artifactId>
+-            <type>esa</type>
+-            <scope>provided</scope>
+-        </dependency>
+-        <dependency>
+-            <groupId>io.openliberty.features</groupId>
+-            <artifactId>mpRestClient-1.3</artifactId>
+-            <type>esa</type>
+-            <scope>provided</scope>
+-        </dependency>
++         <!-- Provided dependencies -->
+         <dependency>
+-            <groupId>io.openliberty.features</groupId>
+-            <artifactId>mpOpenAPI-1.1</artifactId>
+-            <type>esa</type>
++            <groupId>org.eclipse.microprofile</groupId>
++            <artifactId>microprofile</artifactId>
++            <version>3.0</version>
++            <type>pom</type>
+             <scope>provided</scope>
+         </dependency>
+         <!-- For tests -->
+         <dependency>
+-            <groupId>junit</groupId>
+-            <artifactId>junit</artifactId>
+-            <version>4.12</version>
++            <groupId>org.junit.jupiter</groupId>
++            <artifactId>junit-jupiter-engine</artifactId>
++            <version>5.5.2</version>
+             <scope>test</scope>
+         </dependency>
+         <dependency>
+             <groupId>org.apache.cxf</groupId>
+             <artifactId>cxf-rt-rs-client</artifactId>
+-            <version>3.2.6</version>
++            <version>3.3.4</version>
+             <scope>test</scope>
+         </dependency>
+         <dependency>
+             <groupId>org.apache.cxf</groupId>
+             <artifactId>cxf-rt-rs-extension-providers</artifactId>
+-            <version>3.2.6</version>
++            <version>3.3.4</version>
+             <scope>test</scope>
+         </dependency>
+         <dependency>
+             <groupId>org.glassfish</groupId>
+             <artifactId>javax.json</artifactId>
+-            <version>1.0.4</version>
++            <version>1.1.4</version>
+             <scope>test</scope>
+         </dependency>
+         <!-- Java utility classes -->
+         <dependency>
+             <groupId>org.apache.commons</groupId>
+             <artifactId>commons-lang3</artifactId>
+-            <version>3.0</version>
++            <version>3.9</version>
+         </dependency>
+         <!-- Support for JDK 9 and above -->
+         <dependency>
+@@ -123,91 +73,33 @@
+     </dependencies>
+ 
+     <build>
++        <finalName>${project.artifactId}</finalName>
+         <plugins>
+             <plugin>
+                 <groupId>org.apache.maven.plugins</groupId>
+                 <artifactId>maven-war-plugin</artifactId>
+                 <version>${version.maven-war-plugin}</version>
+             </plugin>
+-            <!-- Liberty plugin -->
+-            <plugin>
+-                <groupId>net.wasdev.wlp.maven.plugins</groupId>
+-                <artifactId>liberty-maven-plugin</artifactId>
+-                <configuration>
+-                    <assemblyArtifact>
+-                        <groupId>io.openliberty</groupId>
+-                        <artifactId>openliberty-runtime</artifactId>
+-                        <version>${version.openliberty-runtime}</version>
+-                        <type>zip</type>
+-                    </assemblyArtifact>
+-                    <configFile>src/main/liberty/config/server.xml</configFile>
+-                    <include>usr</include>
+-                    <bootstrapProperties>
+-                        <default.http.port>${lib.http.port}</default.http.port>
+-                        <default.https.port>${lib.https.port}</default.https.port>
+-                    </bootstrapProperties>
+-                </configuration>
+-                <executions>
+-                    <execution>
+-                        <id>install-apps</id>
+-                        <configuration>
+-                            <appsDirectory>apps</appsDirectory>
+-                            <stripVersion>true</stripVersion>
+-                            <installAppPackages>project</installAppPackages>
+-                            <looseApplication>true</looseApplication>
+-                        </configuration>
+-                    </execution>
+-                </executions>
+-            </plugin>
+             <!-- Plugin to run unit tests -->
+             <plugin>
+                 <groupId>org.apache.maven.plugins</groupId>
+                 <artifactId>maven-surefire-plugin</artifactId>
+                 <version>${version.maven-surefire-plugin}</version>
+-                <executions>
+-                    <execution>
+-                        <phase>test</phase>
+-                        <id>default-test</id>
+-                        <configuration>
+-                            <excludes>
+-                                <exclude>**/it/**</exclude>
+-                            </excludes>
+-                            <reportsDirectory>${project.build.directory}/test-reports/unit</reportsDirectory>
+-                        </configuration>
+-                    </execution>
+-                </executions>
++            </plugin>
++            <plugin>
++                <groupId>io.openliberty.tools</groupId>
++                <artifactId>liberty-maven-plugin</artifactId>
++                <version>${version.liberty-maven-plugin}</version>
+             </plugin>
+             <!-- Plugin to run functional tests -->
+             <plugin>
+                 <groupId>org.apache.maven.plugins</groupId>
+                 <artifactId>maven-failsafe-plugin</artifactId>
+                 <version>${version.maven-failsafe-plugin}</version>
+-                <executions>
+-                    <execution>
+-                        <phase>integration-test</phase>
+-                        <id>integration-test</id>
+-                        <goals>
+-                            <goal>integration-test</goal>
+-                        </goals>
+-                        <configuration>
+-                            <includes>
+-                                <include>**/it/**</include>
+-                            </includes>
+-                            <systemPropertyVariables>
+-                                <liberty.test.port>${lib.http.port}</liberty.test.port>
+-                            </systemPropertyVariables>
+-                        </configuration>
+-                    </execution>
+-                    <execution>
+-                        <id>verify-results</id>
+-                        <goals>
+-                            <goal>verify</goal>
+-                        </goals>
+-                    </execution>
+-                </executions>
+                 <configuration>
+-                    <summaryFile>${project.build.directory}/test-reports/it/failsafe-summary.xml</summaryFile>
+-                    <reportsDirectory>${project.build.directory}/test-reports/it</reportsDirectory>
++                    <systemPropertyVariables>
++                        <http.port>${liberty.var.default.http.port}</http.port>
++                    </systemPropertyVariables>
+                 </configuration>
+             </plugin>
+         </plugins>
+diff --git a/finish/src/main/java/io/openliberty/guides/inventory/InventoryManager.java b/finish/src/main/java/io/openliberty/guides/inventory/InventoryManager.java
+index a8e02c1..2e5ce60 100755
+--- a/finish/src/main/java/io/openliberty/guides/inventory/InventoryManager.java
++++ b/finish/src/main/java/io/openliberty/guides/inventory/InventoryManager.java
+@@ -1,6 +1,6 @@
+ // tag::copyright[]
+ /*******************************************************************************
+- * Copyright (c) 2017, 2018 IBM Corporation and others.
++ * Copyright (c) 2017, 2019 IBM Corporation and others.
+  * All rights reserved. This program and the accompanying materials
+  * are made available under the terms of the Eclipse Public License v1.0
+  * which accompanies this distribution, and is available at
+@@ -18,7 +18,6 @@
+ import java.util.Properties;
+ import javax.enterprise.context.ApplicationScoped;
+ import io.openliberty.guides.inventory.model.*;
+-import javax.enterprise.context.ApplicationScoped;
+ 
+ @ApplicationScoped
+ public class InventoryManager {
+diff --git a/finish/src/main/java/io/openliberty/guides/inventory/InventoryUtils.java b/finish/src/main/java/io/openliberty/guides/inventory/InventoryUtils.java
+index db46db9..878797e 100644
+--- a/finish/src/main/java/io/openliberty/guides/inventory/InventoryUtils.java
++++ b/finish/src/main/java/io/openliberty/guides/inventory/InventoryUtils.java
+@@ -1,6 +1,6 @@
+ // tag::copyright[]
+ /*******************************************************************************
+- * Copyright (c) 2017, 2018 IBM Corporation and others.
++ * Copyright (c) 2017, 2019 IBM Corporation and others.
+  * All rights reserved. This program and the accompanying materials
+  * are made available under the terms of the Eclipse Public License v1.0
+  * which accompanies this distribution, and is available at
+@@ -25,7 +25,7 @@
+ 
+ public class InventoryUtils {
+ 
+-  private final String SYSTEM_PORT = System.getProperty("default.http.port");
++  private final String SYSTEM_PORT = System.getProperty("default.http.port", "9080");
+   
+     public Properties getProperties(String hostname) {
+         try {
+diff --git a/finish/src/main/java/io/openliberty/guides/inventory/client/SystemClient.java b/finish/src/main/java/io/openliberty/guides/inventory/client/SystemClient.java
+index 4a07852..f619add 100644
+--- a/finish/src/main/java/io/openliberty/guides/inventory/client/SystemClient.java
++++ b/finish/src/main/java/io/openliberty/guides/inventory/client/SystemClient.java
+@@ -1,6 +1,6 @@
+ // tag::copyright[]
+ /*******************************************************************************
+- * Copyright (c) 2017, 2018 IBM Corporation and others.
++ * Copyright (c) 2017, 2019 IBM Corporation and others.
+  * All rights reserved. This program and the accompanying materials
+  * are made available under the terms of the Eclipse Public License v1.0
+  * which accompanies this distribution, and is available at
+@@ -13,7 +13,6 @@
+ package io.openliberty.guides.inventory.client;
+ 
+ import java.util.Properties;
+-import javax.enterprise.context.Dependent;
+ import javax.ws.rs.ProcessingException;
+ import javax.ws.rs.GET;
+ import javax.ws.rs.Path;
+diff --git a/finish/src/main/java/io/openliberty/guides/inventory/client/UnknownUrlExceptionMapper.java b/finish/src/main/java/io/openliberty/guides/inventory/client/UnknownUrlExceptionMapper.java
+index cd40d54..42dca0b 100644
+--- a/finish/src/main/java/io/openliberty/guides/inventory/client/UnknownUrlExceptionMapper.java
++++ b/finish/src/main/java/io/openliberty/guides/inventory/client/UnknownUrlExceptionMapper.java
+@@ -20,7 +20,7 @@
+ 
+ @Provider
+ public class UnknownUrlExceptionMapper implements ResponseExceptionMapper<UnknownUrlException> {
+-  
++
+   Logger LOG = Logger.getLogger(UnknownUrlExceptionMapper.class.getName());
+ 
+   @Override
+diff --git a/finish/src/main/liberty/config/server.xml b/finish/src/main/liberty/config/server.xml
+index 2b1eef7..93cb614 100755
+--- a/finish/src/main/liberty/config/server.xml
++++ b/finish/src/main/liberty/config/server.xml
+@@ -9,11 +9,14 @@
+     <feature>mpOpenAPI-1.1</feature>
+   </featureManager>
+ 
++  <variable name="default.http.port" defaultValue="9080"/>
++  <variable name="default.https.port" defaultValue="9443"/>
++
+   <httpEndpoint httpPort="${default.http.port}" httpsPort="${default.https.port}"
+       id="defaultHttpEndpoint" host="*" />
+ 
+   <!-- <logging traceSpecification="com.ibm.ws.microprofile.openapi.*=all"/> -->
+ 
+-  <webApplication location="mp-openapi.war" contextRoot="/" />
++  <webApplication location="guide-microprofile-openapi.war" contextRoot="/" />
+ 
+ </server>
+diff --git a/finish/src/test/java/it/io/openliberty/guides/inventory/InventoryEndpointTest.java b/finish/src/test/java/it/io/openliberty/guides/inventory/InventoryEndpointIT.java
+similarity index 73%
+rename from finish/src/test/java/it/io/openliberty/guides/inventory/InventoryEndpointTest.java
+rename to finish/src/test/java/it/io/openliberty/guides/inventory/InventoryEndpointIT.java
+index f70d1ff..1e5b206 100755
+--- a/finish/src/test/java/it/io/openliberty/guides/inventory/InventoryEndpointTest.java
++++ b/finish/src/test/java/it/io/openliberty/guides/inventory/InventoryEndpointIT.java
+@@ -1,6 +1,6 @@
+ // tag::copyright[]
+ /*******************************************************************************
+- * Copyright (c) 2017, 2018 IBM Corporation and others.
++ * Copyright (c) 2017, 2019 IBM Corporation and others.
+  * All rights reserved. This program and the accompanying materials
+  * are made available under the terms of the Eclipse Public License v1.0
+  * which accompanies this distribution, and is available at
+@@ -13,9 +13,10 @@
+ // tag::testClass[]
+ package it.io.openliberty.guides.inventory;
+ 
+-import static org.junit.Assert.assertEquals;
+-import static org.junit.Assert.assertTrue;
++import static org.junit.jupiter.api.Assertions.assertEquals;
++import static org.junit.jupiter.api.Assertions.assertTrue;
+ 
++import javax.json.JsonArray;
+ import javax.json.JsonObject;
+ import javax.ws.rs.client.Client;
+ import javax.ws.rs.client.ClientBuilder;
+@@ -23,12 +24,16 @@
+ import javax.ws.rs.core.Response;
+ 
+ import org.apache.cxf.jaxrs.provider.jsrjsonp.JsrJsonpProvider;
+-import org.junit.After;
+-import org.junit.Before;
+-import org.junit.BeforeClass;
+-import org.junit.Test;
++import org.junit.jupiter.api.AfterEach;
++import org.junit.jupiter.api.BeforeEach;
++import org.junit.jupiter.api.BeforeAll;
++import org.junit.jupiter.api.MethodOrderer.OrderAnnotation;
++import org.junit.jupiter.api.Order;
++import org.junit.jupiter.api.Test;
++import org.junit.jupiter.api.TestMethodOrder;
+ 
+-public class InventoryEndpointTest {
++@TestMethodOrder(OrderAnnotation.class)
++public class InventoryEndpointIT {
+ 
+     private static String port;
+     private static String baseUrl;
+@@ -38,44 +43,25 @@
+     private final String INVENTORY_PROPERTIES = "inventory/properties";
+     private final String INVENTORY_SYSTEMS = "inventory/systems";
+ 
+-    @BeforeClass
++    @BeforeAll
+     public static void oneTimeSetup() {
+-        port = System.getProperty("liberty.test.port");
++        port = System.getProperty("http.port");
+         baseUrl = "http://localhost:" + port + "/";
+     }
+ 
+-    @Before
++    @BeforeEach
+     public void setup() {
+         client = ClientBuilder.newClient();
+         client.register(JsrJsonpProvider.class);
+     }
+ 
+-    @After
++    @AfterEach
+     public void teardown() {
+         client.close();
+     }
+ 
+     @Test
+-    public void testSuite() {
+-        this.testEmptyInventory();
+-        this.testHostRegistration();
+-        this.testSystemPropertiesMatch();
+-        this.testUnknownHost();
+-    }
+-
+-    public void testEmptyInventory() {
+-        Response response = this.getResponse(baseUrl + INVENTORY_SYSTEMS);
+-        this.assertResponse(baseUrl, response);
+-
+-        JsonObject obj = response.readEntity(JsonObject.class);
+-
+-        int expected = 0;
+-        int actual = obj.getInt("total");
+-        assertEquals("The inventory should be empty on application start but it wasn't", expected, actual);
+-
+-        response.close();
+-    }
+-
++    @Order(1)
+     public void testHostRegistration() {
+         this.visitLocalhost();
+ 
+@@ -84,18 +70,24 @@ public void testHostRegistration() {
+ 
+         JsonObject obj = response.readEntity(JsonObject.class);
+ 
+-        int expected = 1;
+-        int actual = obj.getInt("total");
+-        assertEquals("The inventory should have one entry for localhost", expected, actual);
++        JsonArray systems = obj.getJsonArray("systems");
+ 
+-        boolean localhostExists = obj.getJsonArray("systems").getJsonObject(0)
+-                                                             .get("hostname").toString()
+-                                                             .contains("localhost");
+-        assertTrue("A host was registered, but it was not localhost", localhostExists);
++        boolean localhostExists = false;
++        for (int n = 0; n < systems.size(); n++) {
++            localhostExists = systems.getJsonObject(n)
++                                .get("hostname").toString()
++                                .contains("localhost");
++            if (localhostExists) {
++                break;
++            }
++        }
++        assertTrue(localhostExists, "A host was registered, but it was not localhost");
+ 
+         response.close();
+     }
+ 
++    @Test
++    @Order(2)
+     public void testSystemPropertiesMatch() {
+         Response invResponse = this.getResponse(baseUrl + INVENTORY_SYSTEMS);
+         Response sysResponse = this.getResponse(baseUrl + INVENTORY_PROPERTIES);
+@@ -122,6 +114,8 @@ public void testSystemPropertiesMatch() {
+         sysResponse.close();
+     }
+ 
++    @Test
++    @Order(3)
+     public void testUnknownHost() {
+         Response response = this.getResponse(baseUrl + INVENTORY_SYSTEMS);
+         this.assertResponse(baseUrl, response);
+@@ -132,7 +126,7 @@ public void testUnknownHost() {
+         String obj = badResponse.readEntity(String.class);
+ 
+         boolean isError = obj.contains("ERROR");
+-        assertTrue("badhostname is not a valid host but it didn't raise an error", isError);
++        assertTrue(isError, "badhostname is not a valid host but it didn't raise an error");
+ 
+         response.close();
+         badResponse.close();
+@@ -162,7 +156,7 @@ private Response getResponse(String url) {
+      *          - response received from the target URL.
+      */
+     private void assertResponse(String url, Response response) {
+-        assertEquals("Incorrect response code from " + url, 200, response.getStatus());
++        assertEquals(200, response.getStatus(), "Incorrect response code from " + url);
+     }
+ 
+     /**
+@@ -179,9 +173,9 @@ private void assertResponse(String url, Response response) {
+      *          - actual name.
+      */
+     private void assertProperty(String propertyName, String hostname, String expected, String actual) {
+-        assertEquals("JVM system property [" + propertyName + "] "
++        assertEquals(expected, actual, "JVM system property [" + propertyName + "] "
+                 + "in the system service does not match the one stored in "
+-                + "the inventory service for " + hostname, expected, actual);
++                + "the inventory service for " + hostname);
+     }
+ 
+     /**
+diff --git a/finish/src/test/java/it/io/openliberty/guides/system/SystemEndpointTest.java b/finish/src/test/java/it/io/openliberty/guides/system/SystemEndpointIT.java
+similarity index 70%
+rename from finish/src/test/java/it/io/openliberty/guides/system/SystemEndpointTest.java
+rename to finish/src/test/java/it/io/openliberty/guides/system/SystemEndpointIT.java
+index 13ddfbd..68982aa 100644
+--- a/finish/src/test/java/it/io/openliberty/guides/system/SystemEndpointTest.java
++++ b/finish/src/test/java/it/io/openliberty/guides/system/SystemEndpointIT.java
+@@ -1,6 +1,6 @@
+ // tag::copyright[]
+ /*******************************************************************************
+- * Copyright (c) 2017 IBM Corporation and others.
++ * Copyright (c) 2017, 2019 IBM Corporation and others.
+  * All rights reserved. This program and the accompanying materials
+  * are made available under the terms of the Eclipse Public License v1.0
+  * which accompanies this distribution, and is available at
+@@ -12,9 +12,9 @@
+  // end::copyright[]
+ package it.io.openliberty.guides.system;
+ 
+-import static org.junit.Assert.assertEquals;
++import static org.junit.jupiter.api.Assertions.assertEquals;
+ 
+-import org.junit.Test;
++import org.junit.jupiter.api.Test;
+ 
+ import javax.json.JsonObject;
+ 
+@@ -25,11 +25,11 @@
+ 
+ import org.apache.cxf.jaxrs.provider.jsrjsonp.JsrJsonpProvider;
+ 
+-public class SystemEndpointTest {
++public class SystemEndpointIT {
+ 
+     @Test
+     public void testGetProperties() {
+-        String port = System.getProperty("liberty.test.port");
++        String port = System.getProperty("http.port");
+         String url = "http://localhost:" + port + "/";
+ 
+         Client client = ClientBuilder.newClient();
+@@ -38,13 +38,13 @@ public void testGetProperties() {
+         WebTarget target = client.target(url + "inventory/properties");
+         Response response = target.request().get();
+ 
+-        assertEquals("Incorrect response code from " + url, 200, response.getStatus());
++        assertEquals(200, response.getStatus(), "Incorrect response code from " + url);
+ 
+         JsonObject obj = response.readEntity(JsonObject.class);
+ 
+-        assertEquals("The system property for the local and remote JVM should match",
+-                     System.getProperty("os.name"),
+-                     obj.getString("os.name"));
++        assertEquals(System.getProperty("os.name"),
++                     obj.getString("os.name"), 
++                     "The system property for the local and remote JVM should match");
+         
+         response.close();
+     }
+diff --git a/scripts/travisTest.sh b/scripts/travisTest.sh
+new file mode 100644
+index 0000000..65fb9eb
+--- /dev/null
++++ b/scripts/travisTest.sh
+@@ -0,0 +1,29 @@
++#!/bin/bash
++set -euxo pipefail
++
++##############################################################################
++##
++##  Travis CI test script
++##
++##############################################################################
++
++# LMP 3.0+ goals are listed here: https://github.com/OpenLiberty/ci.maven#goals
++
++## Rebuild the application
++#       package                   - Take the compiled code and package it in its distributable format.
++#       liberty:create            - Create a Liberty server.
++#       liberty:install-feature   - Install a feature packaged as a Subsystem Archive (esa) to the Liberty runtime.
++#       liberty:deploy            - Copy applications to the Liberty server's dropins or apps directory. 
++mvn -q clean package liberty:create liberty:install-feature liberty:deploy
++
++
++## Run the tests
++# These commands are separated because if one of the commands fail, the test script will fail and exit. 
++# e.g if liberty:start fails, then there is no need to run the failsafe commands. 
++#       liberty:start             - Start a Liberty server in the background.
++#       failsafe:integration-test - Runs the integration tests of an application.
++#       liberty:stop              - Stop a Liberty server.
++#       failsafe:verify           - Verifies that the integration tests of an application passed.
++mvn liberty:start
++mvn failsafe:integration-test liberty:stop
++mvn failsafe:verify
+diff --git a/start/pom.xml b/start/pom.xml
+index 45560c5..ed13c5a 100644
+--- a/start/pom.xml
++++ b/start/pom.xml
+@@ -2,14 +2,8 @@
+ <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+     <modelVersion>4.0.0</modelVersion>
+ 
+-    <parent>
+-        <groupId>net.wasdev.wlp.maven.parent</groupId>
+-        <artifactId>liberty-maven-app-parent</artifactId>
+-        <version>RELEASE</version>
+-    </parent>
+-
+     <groupId>io.openliberty.guides</groupId>
+-    <artifactId>mp-openapi</artifactId>
++    <artifactId>guide-microprofile-openapi</artifactId>
+     <version>1.0-SNAPSHOT</version>
+     <packaging>war</packaging>
+ 
+@@ -18,100 +12,56 @@
+         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+         <maven.compiler.source>1.8</maven.compiler.source>
+         <maven.compiler.target>1.8</maven.compiler.target>
+-
+-        <!-- Plugins -->
+-        <version.maven-war-plugin>3.2.2</version.maven-war-plugin>
+-        <version.download-maven-plugin>1.4.0</version.download-maven-plugin>
+-        <!-- Tests -->
+-        <version.exec-maven-plugin>1.6.0</version.exec-maven-plugin>
+-        <version.maven-surefire-plugin>3.0.0-M1</version.maven-surefire-plugin>
+-        <version.maven-failsafe-plugin>3.0.0-M1</version.maven-failsafe-plugin>
+-        <!-- OpenLiberty runtime -->
+-        <version.openliberty-runtime>RELEASE</version.openliberty-runtime>
+-        <lib.http.port>9080</lib.http.port>
+-        <lib.https.port>9443</lib.https.port>
++        <failOnMissingWebXml>false</failOnMissingWebXml>
++        <!-- Plugin versions -->
++        <version.liberty-maven-plugin>3.1</version.liberty-maven-plugin>
++        <version.maven-failsafe-plugin>2.22.2</version.maven-failsafe-plugin>
++        <version.maven-war-plugin>3.2.3</version.maven-war-plugin>
++        <version.maven-surefire-plugin>2.22.2</version.maven-surefire-plugin>
++        <!-- Liberty configuration -->
++        <liberty.var.default.http.port>9080</liberty.var.default.http.port>
++        <liberty.var.default.https.port>9443</liberty.var.default.https.port>
+     </properties>
+ 
+-    <dependencyManagement>
+-        <dependencies>
+-            <dependency>
+-                <groupId>io.openliberty.features</groupId>
+-                <artifactId>features-bom</artifactId>
+-                <version>RELEASE</version>
+-                <type>pom</type>
+-                <scope>import</scope>
+-            </dependency>
+-        </dependencies>
+-    </dependencyManagement>
+-
+     <dependencies>
+-        <!-- Open Liberty features -->
+-        <dependency>
+-            <groupId>io.openliberty.features</groupId>
+-            <artifactId>jaxrs-2.1</artifactId>
+-            <type>esa</type>
+-            <scope>provided</scope>
+-        </dependency>
+-        <dependency>
+-            <groupId>io.openliberty.features</groupId>
+-            <artifactId>jsonp-1.1</artifactId>
+-            <type>esa</type>
+-            <scope>provided</scope>
+-        </dependency>
+-        <dependency>
+-            <groupId>io.openliberty.features</groupId>
+-            <artifactId>cdi-2.0</artifactId>
+-            <type>esa</type>
+-            <scope>provided</scope>
+-        </dependency>
+-        <dependency>
+-            <groupId>io.openliberty.features</groupId>
+-            <artifactId>mpConfig-1.3</artifactId>
+-            <type>esa</type>
+-            <scope>provided</scope>
+-        </dependency>
+-        <dependency>
+-            <groupId>io.openliberty.features</groupId>
+-            <artifactId>mpRestClient-1.3</artifactId>
+-            <type>esa</type>
+-            <scope>provided</scope>
+-        </dependency>
++         <!-- Provided dependencies -->
+         <dependency>
+-            <groupId>io.openliberty.features</groupId>
+-            <artifactId>mpOpenAPI-1.1</artifactId>
+-            <type>esa</type>
++            <groupId>org.eclipse.microprofile</groupId>
++            <artifactId>microprofile</artifactId>
++            <version>3.0</version>
++            <type>pom</type>
+             <scope>provided</scope>
+         </dependency>
+         <!-- For tests -->
+         <dependency>
+-            <groupId>junit</groupId>
+-            <artifactId>junit</artifactId>
+-            <version>4.12</version>
++            <groupId>org.junit.jupiter</groupId>
++            <artifactId>junit-jupiter-engine</artifactId>
++            <version>5.5.2</version>
+             <scope>test</scope>
+         </dependency>
+         <dependency>
+             <groupId>org.apache.cxf</groupId>
+             <artifactId>cxf-rt-rs-client</artifactId>
+-            <version>3.2.6</version>
++            <version>3.3.4</version>
+             <scope>test</scope>
+         </dependency>
+         <dependency>
+             <groupId>org.apache.cxf</groupId>
+             <artifactId>cxf-rt-rs-extension-providers</artifactId>
+-            <version>3.2.6</version>
++            <version>3.3.4</version>
+             <scope>test</scope>
+         </dependency>
+         <dependency>
+             <groupId>org.glassfish</groupId>
+             <artifactId>javax.json</artifactId>
+-            <version>1.0.4</version>
++            <version>1.1.4</version>
+             <scope>test</scope>
+         </dependency>
+         <!-- Java utility classes -->
+         <dependency>
+             <groupId>org.apache.commons</groupId>
+             <artifactId>commons-lang3</artifactId>
+-            <version>3.0</version>
++            <version>3.9</version>
+         </dependency>
+         <!-- Support for JDK 9 and above -->
+         <dependency>
+@@ -123,91 +73,33 @@
+     </dependencies>
+ 
+     <build>
++        <finalName>${project.artifactId}</finalName>
+         <plugins>
+             <plugin>
+                 <groupId>org.apache.maven.plugins</groupId>
+                 <artifactId>maven-war-plugin</artifactId>
+                 <version>${version.maven-war-plugin}</version>
+             </plugin>
+-            <!-- Liberty plugin -->
+-            <plugin>
+-                <groupId>net.wasdev.wlp.maven.plugins</groupId>
+-                <artifactId>liberty-maven-plugin</artifactId>
+-                <configuration>
+-                    <assemblyArtifact>
+-                        <groupId>io.openliberty</groupId>
+-                        <artifactId>openliberty-runtime</artifactId>
+-                        <version>${version.openliberty-runtime}</version>
+-                        <type>zip</type>
+-                    </assemblyArtifact>
+-                    <configFile>src/main/liberty/config/server.xml</configFile>
+-                    <include>usr</include>
+-                    <bootstrapProperties>
+-                        <default.http.port>${lib.http.port}</default.http.port>
+-                        <default.https.port>${lib.https.port}</default.https.port>
+-                    </bootstrapProperties>
+-                </configuration>
+-                <executions>
+-                    <execution>
+-                        <id>install-apps</id>
+-                        <configuration>
+-                            <appsDirectory>apps</appsDirectory>
+-                            <stripVersion>true</stripVersion>
+-                            <installAppPackages>project</installAppPackages>
+-                            <looseApplication>true</looseApplication>
+-                        </configuration>
+-                    </execution>
+-                </executions>
+-            </plugin>
+             <!-- Plugin to run unit tests -->
+             <plugin>
+                 <groupId>org.apache.maven.plugins</groupId>
+                 <artifactId>maven-surefire-plugin</artifactId>
+                 <version>${version.maven-surefire-plugin}</version>
+-                <executions>
+-                    <execution>
+-                        <phase>test</phase>
+-                        <id>default-test</id>
+-                        <configuration>
+-                            <excludes>
+-                                <exclude>**/it/**</exclude>
+-                            </excludes>
+-                            <reportsDirectory>${project.build.directory}/test-reports/unit</reportsDirectory>
+-                        </configuration>
+-                    </execution>
+-                </executions>
++            </plugin>
++            <plugin>
++                <groupId>io.openliberty.tools</groupId>
++                <artifactId>liberty-maven-plugin</artifactId>
++                <version>${version.liberty-maven-plugin}</version>
+             </plugin>
+             <!-- Plugin to run functional tests -->
+             <plugin>
+                 <groupId>org.apache.maven.plugins</groupId>
+                 <artifactId>maven-failsafe-plugin</artifactId>
+                 <version>${version.maven-failsafe-plugin}</version>
+-                <executions>
+-                    <execution>
+-                        <phase>integration-test</phase>
+-                        <id>integration-test</id>
+-                        <goals>
+-                            <goal>integration-test</goal>
+-                        </goals>
+-                        <configuration>
+-                            <includes>
+-                                <include>**/it/**</include>
+-                            </includes>
+-                            <systemPropertyVariables>
+-                                <liberty.test.port>${lib.http.port}</liberty.test.port>
+-                            </systemPropertyVariables>
+-                        </configuration>
+-                    </execution>
+-                    <execution>
+-                        <id>verify-results</id>
+-                        <goals>
+-                            <goal>verify</goal>
+-                        </goals>
+-                    </execution>
+-                </executions>
+                 <configuration>
+-                    <summaryFile>${project.build.directory}/test-reports/it/failsafe-summary.xml</summaryFile>
+-                    <reportsDirectory>${project.build.directory}/test-reports/it</reportsDirectory>
++                    <systemPropertyVariables>
++                        <http.port>${liberty.var.default.http.port}</http.port>
++                    </systemPropertyVariables>
+                 </configuration>
+             </plugin>
+         </plugins>
+diff --git a/start/src/main/java/io/openliberty/guides/inventory/InventoryManager.java b/start/src/main/java/io/openliberty/guides/inventory/InventoryManager.java
+index a8e02c1..2e5ce60 100755
+--- a/start/src/main/java/io/openliberty/guides/inventory/InventoryManager.java
++++ b/start/src/main/java/io/openliberty/guides/inventory/InventoryManager.java
+@@ -1,6 +1,6 @@
+ // tag::copyright[]
+ /*******************************************************************************
+- * Copyright (c) 2017, 2018 IBM Corporation and others.
++ * Copyright (c) 2017, 2019 IBM Corporation and others.
+  * All rights reserved. This program and the accompanying materials
+  * are made available under the terms of the Eclipse Public License v1.0
+  * which accompanies this distribution, and is available at
+@@ -18,7 +18,6 @@
+ import java.util.Properties;
+ import javax.enterprise.context.ApplicationScoped;
+ import io.openliberty.guides.inventory.model.*;
+-import javax.enterprise.context.ApplicationScoped;
+ 
+ @ApplicationScoped
+ public class InventoryManager {
+diff --git a/start/src/main/java/io/openliberty/guides/inventory/InventoryUtils.java b/start/src/main/java/io/openliberty/guides/inventory/InventoryUtils.java
+index db46db9..878797e 100644
+--- a/start/src/main/java/io/openliberty/guides/inventory/InventoryUtils.java
++++ b/start/src/main/java/io/openliberty/guides/inventory/InventoryUtils.java
+@@ -1,6 +1,6 @@
+ // tag::copyright[]
+ /*******************************************************************************
+- * Copyright (c) 2017, 2018 IBM Corporation and others.
++ * Copyright (c) 2017, 2019 IBM Corporation and others.
+  * All rights reserved. This program and the accompanying materials
+  * are made available under the terms of the Eclipse Public License v1.0
+  * which accompanies this distribution, and is available at
+@@ -25,7 +25,7 @@
+ 
+ public class InventoryUtils {
+ 
+-  private final String SYSTEM_PORT = System.getProperty("default.http.port");
++  private final String SYSTEM_PORT = System.getProperty("default.http.port", "9080");
+   
+     public Properties getProperties(String hostname) {
+         try {
+diff --git a/start/src/main/java/io/openliberty/guides/inventory/client/SystemClient.java b/start/src/main/java/io/openliberty/guides/inventory/client/SystemClient.java
+index 4a07852..f619add 100644
+--- a/start/src/main/java/io/openliberty/guides/inventory/client/SystemClient.java
++++ b/start/src/main/java/io/openliberty/guides/inventory/client/SystemClient.java
+@@ -1,6 +1,6 @@
+ // tag::copyright[]
+ /*******************************************************************************
+- * Copyright (c) 2017, 2018 IBM Corporation and others.
++ * Copyright (c) 2017, 2019 IBM Corporation and others.
+  * All rights reserved. This program and the accompanying materials
+  * are made available under the terms of the Eclipse Public License v1.0
+  * which accompanies this distribution, and is available at
+@@ -13,7 +13,6 @@
+ package io.openliberty.guides.inventory.client;
+ 
+ import java.util.Properties;
+-import javax.enterprise.context.Dependent;
+ import javax.ws.rs.ProcessingException;
+ import javax.ws.rs.GET;
+ import javax.ws.rs.Path;
+diff --git a/start/src/main/liberty/config/server.xml b/start/src/main/liberty/config/server.xml
+index 2b1eef7..93cb614 100755
+--- a/start/src/main/liberty/config/server.xml
++++ b/start/src/main/liberty/config/server.xml
+@@ -9,11 +9,14 @@
+     <feature>mpOpenAPI-1.1</feature>
+   </featureManager>
+ 
++  <variable name="default.http.port" defaultValue="9080"/>
++  <variable name="default.https.port" defaultValue="9443"/>
++
+   <httpEndpoint httpPort="${default.http.port}" httpsPort="${default.https.port}"
+       id="defaultHttpEndpoint" host="*" />
+ 
+   <!-- <logging traceSpecification="com.ibm.ws.microprofile.openapi.*=all"/> -->
+ 
+-  <webApplication location="mp-openapi.war" contextRoot="/" />
++  <webApplication location="guide-microprofile-openapi.war" contextRoot="/" />
+ 
+ </server>
+diff --git a/start/src/test/java/it/io/openliberty/guides/inventory/InventoryEndpointTest.java b/start/src/test/java/it/io/openliberty/guides/inventory/InventoryEndpointIT.java
+similarity index 73%
+rename from start/src/test/java/it/io/openliberty/guides/inventory/InventoryEndpointTest.java
+rename to start/src/test/java/it/io/openliberty/guides/inventory/InventoryEndpointIT.java
+index f70d1ff..1e5b206 100755
+--- a/start/src/test/java/it/io/openliberty/guides/inventory/InventoryEndpointTest.java
++++ b/start/src/test/java/it/io/openliberty/guides/inventory/InventoryEndpointIT.java
+@@ -1,6 +1,6 @@
+ // tag::copyright[]
+ /*******************************************************************************
+- * Copyright (c) 2017, 2018 IBM Corporation and others.
++ * Copyright (c) 2017, 2019 IBM Corporation and others.
+  * All rights reserved. This program and the accompanying materials
+  * are made available under the terms of the Eclipse Public License v1.0
+  * which accompanies this distribution, and is available at
+@@ -13,9 +13,10 @@
+ // tag::testClass[]
+ package it.io.openliberty.guides.inventory;
+ 
+-import static org.junit.Assert.assertEquals;
+-import static org.junit.Assert.assertTrue;
++import static org.junit.jupiter.api.Assertions.assertEquals;
++import static org.junit.jupiter.api.Assertions.assertTrue;
+ 
++import javax.json.JsonArray;
+ import javax.json.JsonObject;
+ import javax.ws.rs.client.Client;
+ import javax.ws.rs.client.ClientBuilder;
+@@ -23,12 +24,16 @@
+ import javax.ws.rs.core.Response;
+ 
+ import org.apache.cxf.jaxrs.provider.jsrjsonp.JsrJsonpProvider;
+-import org.junit.After;
+-import org.junit.Before;
+-import org.junit.BeforeClass;
+-import org.junit.Test;
++import org.junit.jupiter.api.AfterEach;
++import org.junit.jupiter.api.BeforeEach;
++import org.junit.jupiter.api.BeforeAll;
++import org.junit.jupiter.api.MethodOrderer.OrderAnnotation;
++import org.junit.jupiter.api.Order;
++import org.junit.jupiter.api.Test;
++import org.junit.jupiter.api.TestMethodOrder;
+ 
+-public class InventoryEndpointTest {
++@TestMethodOrder(OrderAnnotation.class)
++public class InventoryEndpointIT {
+ 
+     private static String port;
+     private static String baseUrl;
+@@ -38,44 +43,25 @@
+     private final String INVENTORY_PROPERTIES = "inventory/properties";
+     private final String INVENTORY_SYSTEMS = "inventory/systems";
+ 
+-    @BeforeClass
++    @BeforeAll
+     public static void oneTimeSetup() {
+-        port = System.getProperty("liberty.test.port");
++        port = System.getProperty("http.port");
+         baseUrl = "http://localhost:" + port + "/";
+     }
+ 
+-    @Before
++    @BeforeEach
+     public void setup() {
+         client = ClientBuilder.newClient();
+         client.register(JsrJsonpProvider.class);
+     }
+ 
+-    @After
++    @AfterEach
+     public void teardown() {
+         client.close();
+     }
+ 
+     @Test
+-    public void testSuite() {
+-        this.testEmptyInventory();
+-        this.testHostRegistration();
+-        this.testSystemPropertiesMatch();
+-        this.testUnknownHost();
+-    }
+-
+-    public void testEmptyInventory() {
+-        Response response = this.getResponse(baseUrl + INVENTORY_SYSTEMS);
+-        this.assertResponse(baseUrl, response);
+-
+-        JsonObject obj = response.readEntity(JsonObject.class);
+-
+-        int expected = 0;
+-        int actual = obj.getInt("total");
+-        assertEquals("The inventory should be empty on application start but it wasn't", expected, actual);
+-
+-        response.close();
+-    }
+-
++    @Order(1)
+     public void testHostRegistration() {
+         this.visitLocalhost();
+ 
+@@ -84,18 +70,24 @@ public void testHostRegistration() {
+ 
+         JsonObject obj = response.readEntity(JsonObject.class);
+ 
+-        int expected = 1;
+-        int actual = obj.getInt("total");
+-        assertEquals("The inventory should have one entry for localhost", expected, actual);
++        JsonArray systems = obj.getJsonArray("systems");
+ 
+-        boolean localhostExists = obj.getJsonArray("systems").getJsonObject(0)
+-                                                             .get("hostname").toString()
+-                                                             .contains("localhost");
+-        assertTrue("A host was registered, but it was not localhost", localhostExists);
++        boolean localhostExists = false;
++        for (int n = 0; n < systems.size(); n++) {
++            localhostExists = systems.getJsonObject(n)
++                                .get("hostname").toString()
++                                .contains("localhost");
++            if (localhostExists) {
++                break;
++            }
++        }
++        assertTrue(localhostExists, "A host was registered, but it was not localhost");
+ 
+         response.close();
+     }
+ 
++    @Test
++    @Order(2)
+     public void testSystemPropertiesMatch() {
+         Response invResponse = this.getResponse(baseUrl + INVENTORY_SYSTEMS);
+         Response sysResponse = this.getResponse(baseUrl + INVENTORY_PROPERTIES);
+@@ -122,6 +114,8 @@ public void testSystemPropertiesMatch() {
+         sysResponse.close();
+     }
+ 
++    @Test
++    @Order(3)
+     public void testUnknownHost() {
+         Response response = this.getResponse(baseUrl + INVENTORY_SYSTEMS);
+         this.assertResponse(baseUrl, response);
+@@ -132,7 +126,7 @@ public void testUnknownHost() {
+         String obj = badResponse.readEntity(String.class);
+ 
+         boolean isError = obj.contains("ERROR");
+-        assertTrue("badhostname is not a valid host but it didn't raise an error", isError);
++        assertTrue(isError, "badhostname is not a valid host but it didn't raise an error");
+ 
+         response.close();
+         badResponse.close();
+@@ -162,7 +156,7 @@ private Response getResponse(String url) {
+      *          - response received from the target URL.
+      */
+     private void assertResponse(String url, Response response) {
+-        assertEquals("Incorrect response code from " + url, 200, response.getStatus());
++        assertEquals(200, response.getStatus(), "Incorrect response code from " + url);
+     }
+ 
+     /**
+@@ -179,9 +173,9 @@ private void assertResponse(String url, Response response) {
+      *          - actual name.
+      */
+     private void assertProperty(String propertyName, String hostname, String expected, String actual) {
+-        assertEquals("JVM system property [" + propertyName + "] "
++        assertEquals(expected, actual, "JVM system property [" + propertyName + "] "
+                 + "in the system service does not match the one stored in "
+-                + "the inventory service for " + hostname, expected, actual);
++                + "the inventory service for " + hostname);
+     }
+ 
+     /**
+diff --git a/start/src/test/java/it/io/openliberty/guides/system/SystemEndpointTest.java b/start/src/test/java/it/io/openliberty/guides/system/SystemEndpointIT.java
+similarity index 70%
+rename from start/src/test/java/it/io/openliberty/guides/system/SystemEndpointTest.java
+rename to start/src/test/java/it/io/openliberty/guides/system/SystemEndpointIT.java
+index 13ddfbd..68982aa 100644
+--- a/start/src/test/java/it/io/openliberty/guides/system/SystemEndpointTest.java
++++ b/start/src/test/java/it/io/openliberty/guides/system/SystemEndpointIT.java
+@@ -1,6 +1,6 @@
+ // tag::copyright[]
+ /*******************************************************************************
+- * Copyright (c) 2017 IBM Corporation and others.
++ * Copyright (c) 2017, 2019 IBM Corporation and others.
+  * All rights reserved. This program and the accompanying materials
+  * are made available under the terms of the Eclipse Public License v1.0
+  * which accompanies this distribution, and is available at
+@@ -12,9 +12,9 @@
+  // end::copyright[]
+ package it.io.openliberty.guides.system;
+ 
+-import static org.junit.Assert.assertEquals;
++import static org.junit.jupiter.api.Assertions.assertEquals;
+ 
+-import org.junit.Test;
++import org.junit.jupiter.api.Test;
+ 
+ import javax.json.JsonObject;
+ 
+@@ -25,11 +25,11 @@
+ 
+ import org.apache.cxf.jaxrs.provider.jsrjsonp.JsrJsonpProvider;
+ 
+-public class SystemEndpointTest {
++public class SystemEndpointIT {
+ 
+     @Test
+     public void testGetProperties() {
+-        String port = System.getProperty("liberty.test.port");
++        String port = System.getProperty("http.port");
+         String url = "http://localhost:" + port + "/";
+ 
+         Client client = ClientBuilder.newClient();
+@@ -38,13 +38,13 @@ public void testGetProperties() {
+         WebTarget target = client.target(url + "inventory/properties");
+         Response response = target.request().get();
+ 
+-        assertEquals("Incorrect response code from " + url, 200, response.getStatus());
++        assertEquals(200, response.getStatus(), "Incorrect response code from " + url);
+ 
+         JsonObject obj = response.readEntity(JsonObject.class);
+ 
+-        assertEquals("The system property for the local and remote JVM should match",
+-                     System.getProperty("os.name"),
+-                     obj.getString("os.name"));
++        assertEquals(System.getProperty("os.name"),
++                     obj.getString("os.name"), 
++                     "The system property for the local and remote JVM should match");
+         
+         response.close();
+     }

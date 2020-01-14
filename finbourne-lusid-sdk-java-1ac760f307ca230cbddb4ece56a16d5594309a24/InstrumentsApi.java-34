@@ -1,0 +1,9 @@
+@@ -34,7 +34,7 @@
+ import com.finbourne.lusid.model.LusidProblemDetails;
+ import com.finbourne.lusid.model.LusidValidationProblemDetails;
+ import java.time.OffsetDateTime;
+-import com.finbourne.lusid.model.ResourceListOfInstrument;
++import com.finbourne.lusid.model.PagedResourceListOfInstrument;
+ import com.finbourne.lusid.model.ResourceListOfInstrumentIdTypeDescriptor;
+ import com.finbourne.lusid.model.UpdateInstrumentIdentifierRequest;
+ import com.finbourne.lusid.model.UpsertInstrumentPropertiesResponse;

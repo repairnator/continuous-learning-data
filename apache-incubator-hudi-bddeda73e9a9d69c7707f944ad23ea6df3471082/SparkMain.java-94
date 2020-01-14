@@ -1,0 +1,9 @@
+@@ -94,7 +94,7 @@ public static void main(String[] args) throws Exception {
+       case COMPACT_RUN:
+         assert (args.length >= 9);
+         propsFilePath = null;
+-        if (!Strings.isNullOrEmpty(args[8])) {
++        if (!StringUtils.isNullOrEmpty(args[8])) {
+           propsFilePath = args[8];
+         }
+         configs = new ArrayList<>();

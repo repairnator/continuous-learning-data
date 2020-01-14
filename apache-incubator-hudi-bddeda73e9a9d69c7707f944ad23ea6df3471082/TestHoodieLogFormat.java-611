@@ -1,0 +1,9 @@
+@@ -611,7 +611,7 @@ public void testAvroLogRecordReaderWithRollbackTombstone()
+     List<IndexedRecord> records1 = SchemaTestUtil.generateHoodieTestRecords(0, 100);
+     List<IndexedRecord> copyOfRecords1 = records1.stream()
+         .map(record -> HoodieAvroUtils.rewriteRecord((GenericRecord) record, schema)).collect(Collectors.toList());
+-    Map<HoodieLogBlock.HeaderMetadataType, String> header = Maps.newHashMap();
++    Map<HoodieLogBlock.HeaderMetadataType, String> header = new HashMap<>();
+     header.put(HoodieLogBlock.HeaderMetadataType.INSTANT_TIME, "100");
+ 
+     header.put(HoodieLogBlock.HeaderMetadataType.SCHEMA, schema.toString());

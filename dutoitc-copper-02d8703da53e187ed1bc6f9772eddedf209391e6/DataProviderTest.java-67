@@ -1,0 +1,9 @@
+@@ -67,7 +67,7 @@ public StoryGrammar getGrammar() {
+         }
+ 
+         @Override
+-        public Story buildStory(FileInputStream fileInputStream, String storyName) throws IOException, ConnectorException {
++        public Story buildStory(FileInputStream fileInputStream, String storyName) {
+             return null;
+         }
+ 

@@ -1,0 +1,9 @@
+@@ -75,7 +75,7 @@ public final long count() {
+ 
+     @Override
+     public final double doubleValue(final long index) {
+-        return this.doubleValue((int) index);
++        return this.doubleValue(Math.toIntExact(index));
+     }
+ 
+     @Override

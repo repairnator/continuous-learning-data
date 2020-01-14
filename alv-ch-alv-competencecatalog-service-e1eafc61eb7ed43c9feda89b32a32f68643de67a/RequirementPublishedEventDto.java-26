@@ -1,0 +1,9 @@
+@@ -26,7 +26,7 @@ public String getEventType() {
+         return eventType;
+     }
+ 
+-    public RequirementPublishedEventDto setEventType(final String eventType) {
++    public RequirementPublishedEventDto setEventType(String eventType) {
+         this.eventType = eventType;
+         return this;
+     }

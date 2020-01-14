@@ -1,0 +1,9 @@
+@@ -361,7 +361,7 @@ public void testReaderWithNestedAndComplexSchema() throws Exception {
+     String logFilePath = writer.getLogFile().getPath().toString();
+     HoodieRealtimeFileSplit split = new HoodieRealtimeFileSplit(
+         new FileSplit(new Path(partitionDir + "/fileid0_1-0-1_" + commitTime + ".parquet"), 0, 1, jobConf),
+-        basePath.getRoot().getPath(), Arrays.asList(logFilePath), newCommitTime);
++        basePath.getRoot().getPath(), Collections.singletonList(logFilePath), newCommitTime);
+ 
+     // create a RecordReader to be used by HoodieRealtimeRecordReader
+     RecordReader<NullWritable, ArrayWritable> reader = new MapredParquetInputFormat().getRecordReader(

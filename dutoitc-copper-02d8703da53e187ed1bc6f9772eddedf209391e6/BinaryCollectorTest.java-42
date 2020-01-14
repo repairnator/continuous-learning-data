@@ -1,0 +1,9 @@
+@@ -42,7 +42,7 @@ public void testCheckByPathOnExistant() throws ConnectorException, IOException {
+     }
+ 
+     @Test
+-    public void testWhichOnInexistant() throws ConnectorException {
++    public void testWhichOnInexistant() {
+         BinaryCollectorWrapper collector = BinaryCollectorWrapper.buildCollector(storyGrammar,
+                 "BINARY_CHECK\nCHECK_BY_WHICH dummy123 AS DUMMY_AVAILABLE\n");
+         Assert.assertEquals("DUMMY_AVAILABLE", collector.getAs().get(0));

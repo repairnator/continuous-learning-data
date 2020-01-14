@@ -1,0 +1,9 @@
+@@ -3358,7 +3358,7 @@ private void addChainedMembers(final Env env, final Iterable<? extends Element>
+             for (Element localElement : locals) {
+                 TypeMirror localElementType = null;
+                 TypeMirror type = null;
+-                switch (localElement.getKind()) {
++                switch (simplifyElementKind(localElement.getKind())) {
+                     case EXCEPTION_PARAMETER:
+                     case LOCAL_VARIABLE:
+                     case RESOURCE_VARIABLE:

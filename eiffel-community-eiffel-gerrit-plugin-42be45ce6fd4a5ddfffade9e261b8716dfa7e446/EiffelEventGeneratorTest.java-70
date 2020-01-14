@@ -1,0 +1,9 @@
+@@ -70,7 +70,7 @@
+     private static final int SIZE_DELETIONS = 1;
+     private static final int DEFAULT_PORT = 29418;
+ 
+-    private Gson gson = new Gson();
++    private final Gson gson = new Gson();
+ 
+     private PatchSetCreatedEvent patchSetCreatedEvent;
+     private ChangeMergedEvent changeMergedEvent;

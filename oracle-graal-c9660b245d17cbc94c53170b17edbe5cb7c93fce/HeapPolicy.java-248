@@ -1,0 +1,9 @@
+@@ -248,7 +248,7 @@ public static UnsignedWord getMaximumHeapSize() {
+             HeapPolicy.setMaximumHeapSize(WordFactory.unsigned(xmx.getValue()));
+             return maximumHeapSize;
+         }
+-        long hostedValue = SubstrateOptions.hostedMaxHeapSize();
++        long hostedValue = SubstrateOptions.MaxHeapSize.getHostedValue();
+         if (hostedValue != 0) {
+             return WordFactory.unsigned(hostedValue);
+         }

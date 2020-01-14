@@ -1,0 +1,22 @@
+diff --git a/packages/solid-server-java-sdk/src/main/java/io/yodata/ldp/solid/server/model/client/SimpleSolidClient.java b/packages/solid-server-java-sdk/src/main/java/io/yodata/ldp/solid/server/model/client/SimpleSolidClient.java
+index 6120024..4a465ae 100644
+--- a/packages/solid-server-java-sdk/src/main/java/io/yodata/ldp/solid/server/model/client/SimpleSolidClient.java
++++ b/packages/solid-server-java-sdk/src/main/java/io/yodata/ldp/solid/server/model/client/SimpleSolidClient.java
+@@ -90,7 +90,7 @@ public void put(URI resourceId, JsonObject data) {
+                 throw new RuntimeException("Unable to save change: " + sc + " - " + EntityUtils.toString(res.getEntity()));
+             }
+ 
+-            log.info("PUT {}: success", resourceId);
++            log.debug("PUT {}: success", resourceId);
+         } catch (IOException e) {
+             throw new RuntimeException("Unable to save change", e);
+         }
+@@ -107,7 +107,7 @@ public String append(URI resourceId, JsonObject data) {
+                 throw new RuntimeException("Unable to save change: " + sc + " - " + EntityUtils.toString(res.getEntity()));
+             }
+ 
+-            log.info("POST {}: success", resourceId);
++            log.debug("POST {}: success", resourceId);
+ 
+             return EntityUtils.toString(res.getEntity());
+         } catch (IOException e) {

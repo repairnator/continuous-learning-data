@@ -1,0 +1,9 @@
+@@ -156,7 +156,7 @@ public static Cookie getOPBrowserStateCookie(HttpServletRequest request) {
+     }
+ 
+     /**
+-     * Adds the browser state cookie to the response
++     * Adds the browser state cookie to the response.
+      *
+      * @param response
+      * @return Cookie

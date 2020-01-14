@@ -1,0 +1,9 @@
+@@ -4,7 +4,7 @@
+ import org.springframework.util.StringUtils;
+ import org.tron.common.crypto.ECKey;
+ import org.tron.common.crypto.Hash;
+-import org.tron.common.crypto.Sha256Hash;
++import org.tron.common.crypto.Sha256Sm3Hash;
+ import org.tron.common.utils.Base58;
+ import org.tron.common.utils.ByteArray;
+ import org.tron.common.utils.Utils;

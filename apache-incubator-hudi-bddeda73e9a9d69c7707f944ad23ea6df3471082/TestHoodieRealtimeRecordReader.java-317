@@ -1,0 +1,9 @@
+@@ -317,7 +317,7 @@ public void testUnMergedReader() throws Exception {
+         numRecordsAtCommit2++;
+         Assert.assertTrue(gotKey > firstBatchLastRecordKey);
+         Assert.assertTrue(gotKey <= secondBatchLastRecordKey);
+-        assertEquals((int) gotKey, lastSeenKeyFromLog + 1);
++        assertEquals(gotKey, lastSeenKeyFromLog + 1);
+         lastSeenKeyFromLog++;
+       } else {
+         numRecordsAtCommit1++;

@@ -1,0 +1,9 @@
+@@ -181,7 +181,7 @@ public String getError() {
+     }
+ 
+ 
+-    private class When {
++    private static class When {
+         private final String variable;
+         private final String operator;
+         private final String value;

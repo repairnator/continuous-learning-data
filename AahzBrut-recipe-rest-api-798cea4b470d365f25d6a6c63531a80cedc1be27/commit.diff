@@ -1,0 +1,564 @@
+diff --git a/postman/RecipeRestApi.postman_collection.json b/postman/RecipeRestApi.postman_collection.json
+new file mode 100644
+index 0000000..721ad01
+--- /dev/null
++++ b/postman/RecipeRestApi.postman_collection.json
+@@ -0,0 +1,118 @@
++{
++	"info": {
++		"_postman_id": "73b28711-1779-4796-80f9-3ff2e8d1d30c",
++		"name": "RecipeRestApi",
++		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
++	},
++	"item": [
++		{
++			"name": "Categories",
++			"item": [
++				{
++					"name": "Add Category",
++					"request": {
++						"method": "POST",
++						"header": [
++							{
++								"key": "Content-Type",
++								"name": "Content-Type",
++								"value": "application/json",
++								"type": "text"
++							}
++						],
++						"body": {
++							"mode": "raw",
++							"raw": "{\r\n  \"description\": \"Vegetables\",\r\n  \"name\": \"Avocado\"\r\n}",
++							"options": {
++								"raw": {
++									"language": "json"
++								}
++							}
++						},
++						"url": {
++							"raw": "http://localhost:8080/api/v1/categories",
++							"protocol": "http",
++							"host": [
++								"localhost"
++							],
++							"port": "8080",
++							"path": [
++								"api",
++								"v1",
++								"categories"
++							]
++						}
++					},
++					"response": []
++				},
++				{
++					"name": "Get all Categories",
++					"request": {
++						"method": "GET",
++						"header": [],
++						"url": {
++							"raw": ""
++						}
++					},
++					"response": []
++				}
++			],
++			"protocolProfileBehavior": {}
++		},
++		{
++			"name": "UOMs",
++			"item": [
++				{
++					"name": "Create new UOM",
++					"request": {
++						"method": "POST",
++						"header": [
++							{
++								"key": "Content-Type",
++								"name": "Content-Type",
++								"value": "application/json",
++								"type": "text"
++							}
++						],
++						"body": {
++							"mode": "raw",
++							"raw": "{\r\n  \"description\": \"kilogram\",\r\n  \"name\": \"kilogram\"\r\n}",
++							"options": {
++								"raw": {
++									"language": "json"
++								}
++							}
++						},
++						"url": {
++							"raw": "http://localhost:8080/api/v1/uoms",
++							"protocol": "http",
++							"host": [
++								"localhost"
++							],
++							"port": "8080",
++							"path": [
++								"api",
++								"v1",
++								"uoms"
++							]
++						}
++					},
++					"response": []
++				},
++				{
++					"name": "Get all UOMs",
++					"request": {
++						"method": "GET",
++						"header": [],
++						"url": {
++							"raw": ""
++						}
++					},
++					"response": []
++				}
++			],
++			"protocolProfileBehavior": {}
++		}
++	],
++	"protocolProfileBehavior": {}
++}
+\ No newline at end of file
+diff --git a/src/main/java/ru/aahzbrut/reciperestapi/controllers/v1/CategoryController.java b/src/main/java/ru/aahzbrut/reciperestapi/controllers/v1/CategoryController.java
+index 1d3c77c..faec90f 100644
+--- a/src/main/java/ru/aahzbrut/reciperestapi/controllers/v1/CategoryController.java
++++ b/src/main/java/ru/aahzbrut/reciperestapi/controllers/v1/CategoryController.java
+@@ -5,15 +5,18 @@
+ import lombok.RequiredArgsConstructor;
+ import lombok.extern.slf4j.Slf4j;
+ import org.springframework.http.HttpStatus;
+-import org.springframework.http.MediaType;
+ import org.springframework.web.bind.annotation.GetMapping;
+ import org.springframework.web.bind.annotation.PathVariable;
++import org.springframework.web.bind.annotation.PostMapping;
++import org.springframework.web.bind.annotation.RequestBody;
+ import org.springframework.web.bind.annotation.ResponseStatus;
+ import org.springframework.web.bind.annotation.RestController;
++import ru.aahzbrut.reciperestapi.dto.requests.CategoryRequest;
+ import ru.aahzbrut.reciperestapi.dto.responses.CategoryList;
+ import ru.aahzbrut.reciperestapi.dto.responses.CategoryResponse;
+ import ru.aahzbrut.reciperestapi.services.CategoryService;
+ 
++import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
+ import static ru.aahzbrut.reciperestapi.utils.DebugStrings.FINISH;
+ import static ru.aahzbrut.reciperestapi.utils.DebugStrings.START;
+ import static ru.aahzbrut.reciperestapi.utils.ReflectionUtils.getCurrentMethodName;
+@@ -31,7 +34,7 @@
+     @ApiOperation(value = "Get Category by id")
+     @ResponseStatus(HttpStatus.OK)
+     @GetMapping(value = API_V1_CATEGORY_BY_ID,
+-            produces = MediaType.APPLICATION_JSON_VALUE)
++            produces = APPLICATION_JSON_VALUE)
+     public CategoryResponse getCategoryById(@PathVariable long id) {
+         log.info(START + getCurrentMethodName());
+ 
+@@ -44,7 +47,7 @@ public CategoryResponse getCategoryById(@PathVariable long id) {
+     @ApiOperation(value = "Get all Categories")
+     @ResponseStatus(HttpStatus.OK)
+     @GetMapping(value = API_V1_ALL_CATEGORIES,
+-            produces = MediaType.APPLICATION_JSON_VALUE)
++            produces = APPLICATION_JSON_VALUE)
+     public CategoryList getAllCategories() {
+         log.info(START + getCurrentMethodName());
+ 
+@@ -55,4 +58,19 @@ public CategoryList getAllCategories() {
+         return response;
+     }
+ 
++    @ApiOperation(value = "Create new category")
++    @ResponseStatus(HttpStatus.OK)
++    @PostMapping(value = API_V1_ALL_CATEGORIES,
++            consumes = APPLICATION_JSON_VALUE,
++            produces = APPLICATION_JSON_VALUE)
++    public CategoryResponse createNewCategory(@RequestBody CategoryRequest categoryRequest) {
++        log.info(START + getCurrentMethodName());
++
++        CategoryResponse response = categoryService.save(categoryRequest);
++
++        log.info(FINISH + getCurrentMethodName());
++        return response;
++    }
++
++
+ }
+diff --git a/src/main/java/ru/aahzbrut/reciperestapi/controllers/v1/UOMController.java b/src/main/java/ru/aahzbrut/reciperestapi/controllers/v1/UOMController.java
+index c4a317d..aedafed 100644
+--- a/src/main/java/ru/aahzbrut/reciperestapi/controllers/v1/UOMController.java
++++ b/src/main/java/ru/aahzbrut/reciperestapi/controllers/v1/UOMController.java
+@@ -33,7 +33,6 @@
+     public static final String API_V1_ALL_UOMS = "/api/v1/uoms";
+     public static final String API_V1_UOM_BY_ID = "/api/v1/uoms/{id}";
+     public static final String API_V1_UOM_SAVE = "/api/v1/uoms/save";
+-    public static final String API_V1_UOM_CREATE = "/api/v1/uoms/create";
+ 
+     private final UOMService uomService;
+ 
+@@ -80,7 +79,7 @@ public UOMResponse updateUom(@RequestBody UOMResponse uomResponse) {
+ 
+     @ApiOperation(value = "Create new UOM")
+     @ResponseStatus(OK)
+-    @PostMapping(value = API_V1_UOM_CREATE,
++    @PostMapping(value = API_V1_ALL_UOMS,
+             consumes = APPLICATION_JSON_VALUE,
+             produces = APPLICATION_JSON_VALUE)
+     public UOMResponse createUom(@RequestBody UOMRequest uomRequest) {
+diff --git a/src/main/java/ru/aahzbrut/reciperestapi/domain/entities/Category.java b/src/main/java/ru/aahzbrut/reciperestapi/domain/entities/Category.java
+index a0891f9..acd853c 100644
+--- a/src/main/java/ru/aahzbrut/reciperestapi/domain/entities/Category.java
++++ b/src/main/java/ru/aahzbrut/reciperestapi/domain/entities/Category.java
+@@ -5,13 +5,14 @@
+ import lombok.NoArgsConstructor;
+ import lombok.Setter;
+ import lombok.ToString;
++import org.hibernate.annotations.GenericGenerator;
++import org.hibernate.annotations.Parameter;
+ import ru.aahzbrut.reciperestapi.domain.BaseEntity;
+ 
+ import javax.persistence.AttributeOverride;
+ import javax.persistence.Column;
+ import javax.persistence.Entity;
+ import javax.persistence.ManyToMany;
+-import javax.persistence.SequenceGenerator;
+ import javax.persistence.Table;
+ import java.util.LinkedList;
+ import java.util.List;
+@@ -22,7 +23,10 @@
+ @NoArgsConstructor
+ @ToString(onlyExplicitlyIncluded = true)
+ @EqualsAndHashCode(callSuper = true, onlyExplicitlyIncluded = true)
+-@SequenceGenerator(name = "default_gen", sequenceName = "CATEGORY_SEQ", allocationSize = 1)
++@GenericGenerator(
++        name = "default_gen",
++        strategy = "org.hibernate.id.enhanced.SequenceStyleGenerator",
++        parameters = {@Parameter(name="sequence_name", value = "CATEGORY_SEQ")})
+ @AttributeOverride(name = "id", column = @Column(name = "CATEGORY_ID"))
+ @Table(name = "CATEGORY")
+ public class Category extends BaseEntity {
+diff --git a/src/main/java/ru/aahzbrut/reciperestapi/domain/entities/Ingredient.java b/src/main/java/ru/aahzbrut/reciperestapi/domain/entities/Ingredient.java
+index a215a10..eb8adee 100644
+--- a/src/main/java/ru/aahzbrut/reciperestapi/domain/entities/Ingredient.java
++++ b/src/main/java/ru/aahzbrut/reciperestapi/domain/entities/Ingredient.java
+@@ -4,6 +4,8 @@
+ import lombok.Getter;
+ import lombok.NoArgsConstructor;
+ import lombok.Setter;
++import org.hibernate.annotations.GenericGenerator;
++import org.hibernate.annotations.Parameter;
+ import ru.aahzbrut.reciperestapi.domain.BaseEntity;
+ 
+ import javax.persistence.AttributeOverride;
+@@ -11,7 +13,6 @@
+ import javax.persistence.Column;
+ import javax.persistence.Entity;
+ import javax.persistence.OneToMany;
+-import javax.persistence.SequenceGenerator;
+ import javax.persistence.Table;
+ import java.util.LinkedList;
+ import java.util.List;
+@@ -21,7 +22,10 @@
+ @Setter
+ @NoArgsConstructor
+ @EqualsAndHashCode(callSuper = true, onlyExplicitlyIncluded = true)
+-@SequenceGenerator(name = "default_gen", sequenceName = "INGREDIENT_SEQ", allocationSize = 1)
++@GenericGenerator(
++        name = "default_gen",
++        strategy = "org.hibernate.id.enhanced.SequenceStyleGenerator",
++        parameters = {@Parameter(name="sequence_name", value = "INGREDIENT_SEQ")})
+ @AttributeOverride(name = "id", column = @Column(name = "INGREDIENT_ID"))
+ @Table(name = "INGREDIENT")
+ public class Ingredient extends BaseEntity {
+diff --git a/src/main/java/ru/aahzbrut/reciperestapi/domain/entities/Note.java b/src/main/java/ru/aahzbrut/reciperestapi/domain/entities/Note.java
+index 96159c0..1b0afe1 100644
+--- a/src/main/java/ru/aahzbrut/reciperestapi/domain/entities/Note.java
++++ b/src/main/java/ru/aahzbrut/reciperestapi/domain/entities/Note.java
+@@ -4,6 +4,8 @@
+ import lombok.Getter;
+ import lombok.NoArgsConstructor;
+ import lombok.Setter;
++import org.hibernate.annotations.GenericGenerator;
++import org.hibernate.annotations.Parameter;
+ import ru.aahzbrut.reciperestapi.domain.BaseEntity;
+ 
+ import javax.persistence.AttributeOverride;
+@@ -13,7 +15,6 @@
+ import javax.persistence.JoinColumn;
+ import javax.persistence.Lob;
+ import javax.persistence.ManyToOne;
+-import javax.persistence.SequenceGenerator;
+ import javax.persistence.Table;
+ 
+ @Entity
+@@ -21,7 +22,10 @@
+ @Setter
+ @NoArgsConstructor
+ @EqualsAndHashCode(callSuper = true, onlyExplicitlyIncluded = true)
+-@SequenceGenerator(name = "default_gen", sequenceName = "NOTE_SEQ", allocationSize = 1)
++@GenericGenerator(
++        name = "default_gen",
++        strategy = "org.hibernate.id.enhanced.SequenceStyleGenerator",
++        parameters = {@Parameter(name="sequence_name", value = "NOTE_SEQ")})
+ @AttributeOverride(name = "id", column = @Column(name = "NOTE_ID"))
+ @Table(name = "NOTE")
+ public class Note extends BaseEntity {
+diff --git a/src/main/java/ru/aahzbrut/reciperestapi/domain/entities/Recipe.java b/src/main/java/ru/aahzbrut/reciperestapi/domain/entities/Recipe.java
+index 7758d9b..6277aff 100644
+--- a/src/main/java/ru/aahzbrut/reciperestapi/domain/entities/Recipe.java
++++ b/src/main/java/ru/aahzbrut/reciperestapi/domain/entities/Recipe.java
+@@ -4,6 +4,8 @@
+ import lombok.Getter;
+ import lombok.NoArgsConstructor;
+ import lombok.Setter;
++import org.hibernate.annotations.GenericGenerator;
++import org.hibernate.annotations.Parameter;
+ import ru.aahzbrut.reciperestapi.domain.BaseEntity;
+ import ru.aahzbrut.reciperestapi.domain.Difficulty;
+ 
+@@ -18,7 +20,6 @@
+ import javax.persistence.Lob;
+ import javax.persistence.ManyToMany;
+ import javax.persistence.OneToMany;
+-import javax.persistence.SequenceGenerator;
+ import javax.persistence.Table;
+ import java.util.LinkedList;
+ import java.util.List;
+@@ -28,7 +29,10 @@
+ @Setter
+ @NoArgsConstructor
+ @EqualsAndHashCode(callSuper = true, onlyExplicitlyIncluded = true)
+-@SequenceGenerator(name = "default_gen", sequenceName = "RECIPE_SEQ", allocationSize = 1)
++@GenericGenerator(
++        name = "default_gen",
++        strategy = "org.hibernate.id.enhanced.SequenceStyleGenerator",
++        parameters = {@Parameter(name="sequence_name", value = "RECIPE_SEQ")})
+ @AttributeOverride(name = "id", column = @Column(name = "RECIPE_ID"))
+ @Table(name = "RECIPE")
+ public class Recipe extends BaseEntity {
+diff --git a/src/main/java/ru/aahzbrut/reciperestapi/domain/entities/RecipeStep.java b/src/main/java/ru/aahzbrut/reciperestapi/domain/entities/RecipeStep.java
+index 62faec9..96b6953 100644
+--- a/src/main/java/ru/aahzbrut/reciperestapi/domain/entities/RecipeStep.java
++++ b/src/main/java/ru/aahzbrut/reciperestapi/domain/entities/RecipeStep.java
+@@ -4,6 +4,8 @@
+ import lombok.Getter;
+ import lombok.NoArgsConstructor;
+ import lombok.Setter;
++import org.hibernate.annotations.GenericGenerator;
++import org.hibernate.annotations.Parameter;
+ import ru.aahzbrut.reciperestapi.domain.BaseEntity;
+ 
+ import javax.persistence.AttributeOverride;
+@@ -12,7 +14,6 @@
+ import javax.persistence.FetchType;
+ import javax.persistence.JoinColumn;
+ import javax.persistence.ManyToOne;
+-import javax.persistence.SequenceGenerator;
+ import javax.persistence.Table;
+ 
+ @Entity
+@@ -20,7 +21,10 @@
+ @Setter
+ @NoArgsConstructor
+ @EqualsAndHashCode(callSuper = true, onlyExplicitlyIncluded = true)
+-@SequenceGenerator(name = "default_gen", sequenceName = "RECIPE_STEP_SEQ", allocationSize = 1)
++@GenericGenerator(
++        name = "default_gen",
++        strategy = "org.hibernate.id.enhanced.SequenceStyleGenerator",
++        parameters = {@Parameter(name="sequence_name", value = "RECIPE_STEP_SEQ")})
+ @AttributeOverride(name = "id", column = @Column(name = "RECIPE_STEP_ID"))
+ @Table(name = "RECIPE_STEP")
+ public class RecipeStep extends BaseEntity {
+diff --git a/src/main/java/ru/aahzbrut/reciperestapi/domain/entities/Step.java b/src/main/java/ru/aahzbrut/reciperestapi/domain/entities/Step.java
+index e5db195..f8fea6b 100644
+--- a/src/main/java/ru/aahzbrut/reciperestapi/domain/entities/Step.java
++++ b/src/main/java/ru/aahzbrut/reciperestapi/domain/entities/Step.java
+@@ -4,6 +4,8 @@
+ import lombok.Getter;
+ import lombok.NoArgsConstructor;
+ import lombok.Setter;
++import org.hibernate.annotations.GenericGenerator;
++import org.hibernate.annotations.Parameter;
+ import ru.aahzbrut.reciperestapi.domain.BaseEntity;
+ 
+ import javax.persistence.AttributeOverride;
+@@ -11,7 +13,6 @@
+ import javax.persistence.Column;
+ import javax.persistence.Entity;
+ import javax.persistence.OneToMany;
+-import javax.persistence.SequenceGenerator;
+ import javax.persistence.Table;
+ import java.util.LinkedList;
+ import java.util.List;
+@@ -21,7 +22,10 @@
+ @Setter
+ @NoArgsConstructor
+ @EqualsAndHashCode(callSuper = true, onlyExplicitlyIncluded = true)
+-@SequenceGenerator(name = "default_gen", sequenceName = "STEP_SEQ", allocationSize = 1)
++@GenericGenerator(
++        name = "default_gen",
++        strategy = "org.hibernate.id.enhanced.SequenceStyleGenerator",
++        parameters = {@Parameter(name="sequence_name", value = "STEP_SEQ")})
+ @AttributeOverride(name = "id", column = @Column(name = "STEP_ID"))
+ @Table(name = "STEP")
+ public class Step extends BaseEntity {
+diff --git a/src/main/java/ru/aahzbrut/reciperestapi/domain/entities/StepIngredient.java b/src/main/java/ru/aahzbrut/reciperestapi/domain/entities/StepIngredient.java
+index 1c7c58f..d67186c 100644
+--- a/src/main/java/ru/aahzbrut/reciperestapi/domain/entities/StepIngredient.java
++++ b/src/main/java/ru/aahzbrut/reciperestapi/domain/entities/StepIngredient.java
+@@ -4,6 +4,8 @@
+ import lombok.Getter;
+ import lombok.NoArgsConstructor;
+ import lombok.Setter;
++import org.hibernate.annotations.GenericGenerator;
++import org.hibernate.annotations.Parameter;
+ import ru.aahzbrut.reciperestapi.domain.BaseEntity;
+ 
+ import javax.persistence.AttributeOverride;
+@@ -12,7 +14,6 @@
+ import javax.persistence.FetchType;
+ import javax.persistence.JoinColumn;
+ import javax.persistence.ManyToOne;
+-import javax.persistence.SequenceGenerator;
+ import javax.persistence.Table;
+ import java.math.BigDecimal;
+ 
+@@ -21,7 +22,10 @@
+ @Setter
+ @NoArgsConstructor
+ @EqualsAndHashCode(callSuper = true, onlyExplicitlyIncluded = true)
+-@SequenceGenerator(name = "default_gen", sequenceName = "STEP_INGREDIENT_SEQ", allocationSize = 1)
++@GenericGenerator(
++        name = "default_gen",
++        strategy = "org.hibernate.id.enhanced.SequenceStyleGenerator",
++        parameters = {@Parameter(name="sequence_name", value = "STEP_INGREDIENT_SEQ")})
+ @AttributeOverride(name = "id", column = @Column(name = "STEP_INGREDIENT_ID"))
+ @Table(name = "STEP_INGREDIENT")
+ public class StepIngredient extends BaseEntity {
+diff --git a/src/main/java/ru/aahzbrut/reciperestapi/domain/entities/UOM.java b/src/main/java/ru/aahzbrut/reciperestapi/domain/entities/UOM.java
+index 03bac4c..6a50c20 100644
+--- a/src/main/java/ru/aahzbrut/reciperestapi/domain/entities/UOM.java
++++ b/src/main/java/ru/aahzbrut/reciperestapi/domain/entities/UOM.java
+@@ -4,12 +4,13 @@
+ import lombok.Getter;
+ import lombok.NoArgsConstructor;
+ import lombok.Setter;
++import org.hibernate.annotations.GenericGenerator;
++import org.hibernate.annotations.Parameter;
+ import ru.aahzbrut.reciperestapi.domain.BaseEntity;
+ 
+ import javax.persistence.AttributeOverride;
+ import javax.persistence.Column;
+ import javax.persistence.Entity;
+-import javax.persistence.SequenceGenerator;
+ import javax.persistence.Table;
+ 
+ @Entity
+@@ -17,7 +18,10 @@
+ @Setter
+ @NoArgsConstructor
+ @EqualsAndHashCode(callSuper = true, onlyExplicitlyIncluded = true)
+-@SequenceGenerator(name = "default_gen", sequenceName = "UOM_SEQ", allocationSize = 1)
++@GenericGenerator(
++        name = "default_gen",
++        strategy = "org.hibernate.id.enhanced.SequenceStyleGenerator",
++        parameters = {@Parameter(name="sequence_name", value = "UOM_SEQ")})
+ @AttributeOverride(name = "id", column = @Column(name = "UOM_ID"))
+ @Table(name = "UOM")
+ public class UOM extends BaseEntity {
+diff --git a/src/main/java/ru/aahzbrut/reciperestapi/services/impl/CategoryServiceImpl.java b/src/main/java/ru/aahzbrut/reciperestapi/services/impl/CategoryServiceImpl.java
+index fb8211b..5c7d935 100644
+--- a/src/main/java/ru/aahzbrut/reciperestapi/services/impl/CategoryServiceImpl.java
++++ b/src/main/java/ru/aahzbrut/reciperestapi/services/impl/CategoryServiceImpl.java
+@@ -48,7 +48,7 @@ public CategoryResponse save(CategoryRequest categoryRequest) {
+         Category categoryEntity = categoryMapper.categoryRequestToCategory(categoryRequest);
+         log.trace("Category before save: " + categoryEntity.toString());
+ 
+-        categoryEntity = categoryRepository.save(categoryEntity);
++        categoryEntity = categoryRepository.saveAndFlush(categoryEntity);
+         log.trace("Category after save: " + categoryEntity.toString());
+ 
+         CategoryResponse categoryResponse = categoryMapper.categoryToCategoryResponse(categoryEntity);
+diff --git a/src/main/java/ru/aahzbrut/reciperestapi/services/impl/UOMServiceImpl.java b/src/main/java/ru/aahzbrut/reciperestapi/services/impl/UOMServiceImpl.java
+index 3b23db2..7a64b90 100644
+--- a/src/main/java/ru/aahzbrut/reciperestapi/services/impl/UOMServiceImpl.java
++++ b/src/main/java/ru/aahzbrut/reciperestapi/services/impl/UOMServiceImpl.java
+@@ -72,7 +72,7 @@ public UOMResponse createUom(UOMRequest uomRequest) {
+ 
+         UOM newUom = uomMapper.uomRequestToUOM(uomRequest);
+ 
+-        newUom = uomRepository.save(newUom);
++        newUom = uomRepository.saveAndFlush(newUom);
+ 
+         UOMResponse result = uomMapper.uomToUomResponse(newUom);
+         log.trace(UOM_TRACE + result);
+diff --git a/src/test/java/ru/aahzbrut/reciperestapi/controllers/v1/UOMControllerTest.java b/src/test/java/ru/aahzbrut/reciperestapi/controllers/v1/UOMControllerTest.java
+index 7acd429..ad1dc2f 100644
+--- a/src/test/java/ru/aahzbrut/reciperestapi/controllers/v1/UOMControllerTest.java
++++ b/src/test/java/ru/aahzbrut/reciperestapi/controllers/v1/UOMControllerTest.java
+@@ -35,7 +35,6 @@
+ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+ import static ru.aahzbrut.reciperestapi.controllers.v1.UOMController.API_V1_ALL_UOMS;
+ import static ru.aahzbrut.reciperestapi.controllers.v1.UOMController.API_V1_UOM_BY_ID;
+-import static ru.aahzbrut.reciperestapi.controllers.v1.UOMController.API_V1_UOM_CREATE;
+ import static ru.aahzbrut.reciperestapi.controllers.v1.UOMController.API_V1_UOM_SAVE;
+ import static ru.aahzbrut.reciperestapi.tools.MatcherHelpers.getLocalDateTimeAsList;
+ 
+@@ -192,7 +191,7 @@ void createUom() throws Exception {
+         when(uomService.createUom(any())).thenReturn(uomResponse);
+ 
+         //then
+-        mockMvc.perform(post(API_V1_UOM_CREATE)
++        mockMvc.perform(post(API_V1_ALL_UOMS)
+                 .accept(APPLICATION_JSON)
+                 .content(parameter)
+                 .contentType(APPLICATION_JSON))
+diff --git a/src/test/java/ru/aahzbrut/reciperestapi/services/impl/CategoryServiceImplTest.java b/src/test/java/ru/aahzbrut/reciperestapi/services/impl/CategoryServiceImplTest.java
+index ec2cda8..3f796e4 100644
+--- a/src/test/java/ru/aahzbrut/reciperestapi/services/impl/CategoryServiceImplTest.java
++++ b/src/test/java/ru/aahzbrut/reciperestapi/services/impl/CategoryServiceImplTest.java
+@@ -96,7 +96,7 @@ void getById() {
+     @Test
+     void save() {
+         //given
+-        when(categoryRepository.save(any(Category.class))).thenReturn(categoryEntity);
++        when(categoryRepository.saveAndFlush(any())).thenReturn(categoryEntity);
+ 
+         //when
+         CategoryResponse response = categoryService.save(categoryRequest);
+@@ -108,9 +108,9 @@ void save() {
+         assertEquals(createdDateTime, response.getCreatedDateTime());
+         assertEquals(updatedDateTime, response.getUpdatedDateTime());
+ 
+-        verify(categoryRepository, times(1)).save(any());
+-        verify(categoryMapper, times(1)).categoryRequestToCategory(any());
+-        verify(categoryMapper, times(1)).categoryToCategoryResponse(any());
++        verify(categoryRepository).saveAndFlush(any());
++        verify(categoryMapper).categoryRequestToCategory(any());
++        verify(categoryMapper).categoryToCategoryResponse(any());
+         verifyNoMoreInteractions(categoryRepository);
+         verifyNoMoreInteractions(categoryMapper);
+     }
+diff --git a/src/test/java/ru/aahzbrut/reciperestapi/services/impl/UOMServiceImplTest.java b/src/test/java/ru/aahzbrut/reciperestapi/services/impl/UOMServiceImplTest.java
+index 2f093ca..3b0ca52 100644
+--- a/src/test/java/ru/aahzbrut/reciperestapi/services/impl/UOMServiceImplTest.java
++++ b/src/test/java/ru/aahzbrut/reciperestapi/services/impl/UOMServiceImplTest.java
+@@ -158,7 +158,7 @@ void createUom() {
+         // given
+ 
+         // when
+-        when(uomRepository.save(any())).thenReturn(uom);
++        when(uomRepository.saveAndFlush(any())).thenReturn(uom);
+         UOMResponse response = uomService.createUom(uomRequest);
+ 
+         // then
+@@ -168,7 +168,7 @@ void createUom() {
+         assertEquals(CREATED_DATE_TIME, response.getCreatedDateTime());
+         assertEquals(UPDATED_DATE_TIME, response.getUpdatedDateTime());
+ 
+-        verify(uomRepository, times(1)).save(any());
++        verify(uomRepository, times(1)).saveAndFlush(any());
+         verify(uomMapper, times(1)).uomRequestToUOM(any());
+         verify(uomMapper, times(1)).uomToUomResponse(any());
+         verifyNoMoreInteractions(uomRepository);

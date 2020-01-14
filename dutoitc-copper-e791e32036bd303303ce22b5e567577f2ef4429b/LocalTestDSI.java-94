@@ -1,0 +1,9 @@
+@@ -94,7 +94,7 @@ public void testLocalPr() throws IOException, ConnectorException {
+ //    }
+ 
+     @Test
+-    public void testLocalRep() throws IOException, ConnectorException {
++    public void testLocalRep() throws IOException {
+         Path path = Paths.get("dsi/RCFACEDbReportByPushover.txt");
+         new Story(grammar, new FileInputStream(path.toFile()), "RCFACEDbReportByPushover.txt");
+     }

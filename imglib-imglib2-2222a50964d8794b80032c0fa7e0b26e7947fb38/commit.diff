@@ -1,0 +1,43 @@
+diff --git a/src/main/java/net/imglib2/util/Intervals.java b/src/main/java/net/imglib2/util/Intervals.java
+index bc074d4e4..b68de4102 100644
+--- a/src/main/java/net/imglib2/util/Intervals.java
++++ b/src/main/java/net/imglib2/util/Intervals.java
+@@ -40,6 +40,7 @@
+ import net.imglib2.FinalRealInterval;
+ import net.imglib2.Interval;
+ import net.imglib2.Localizable;
++import net.imglib2.RandomAccessibleInterval;
+ import net.imglib2.RealInterval;
+ import net.imglib2.RealLocalizable;
+ import net.imglib2.transform.integer.Mixed;
+@@ -1030,6 +1031,17 @@ public static boolean equalDimensions( final Dimensions a, final Dimensions b )
+ 		return min;
+ 	}
+ 
++	/**
++	 * Returns an image, where each pixel value is the position of the pixel
++	 * represented as {@link Localizable}.
++	 *
++	 * @param interval
++	 *            Interval of the returned image.
++	 */
++	public static RandomAccessibleInterval< Localizable > positions( final Interval interval ) {
++		return Localizables.randomAccessibleInterval( interval);
++	}
++
+ 	/**
+ 	 * Returns a string that contains min, max and the dimensions of the
+ 	 * {@link Interval}.
+diff --git a/src/main/java/net/imglib2/util/Localizables.java b/src/main/java/net/imglib2/util/Localizables.java
+index 433b7e4e9..fbf69afdf 100644
+--- a/src/main/java/net/imglib2/util/Localizables.java
++++ b/src/main/java/net/imglib2/util/Localizables.java
+@@ -58,7 +58,7 @@
+ 		return new LocationRandomAccessible( n );
+ 	}
+ 
+-	public RandomAccessibleInterval< Localizable > randomAccessibleInterval( final Interval interval ) {
++	public static RandomAccessibleInterval< Localizable > randomAccessibleInterval( final Interval interval ) {
+ 		return Views.interval( randomAccessible( interval.numDimensions() ), interval );
+ 	}
+ 

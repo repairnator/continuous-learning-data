@@ -1,0 +1,28 @@
+diff --git a/chapter_003/src/main/java/ru/job4j/collection/search/PhoneDictionary.java b/chapter_003/src/main/java/ru/job4j/collection/search/PhoneDictionary.java
+index 3d90803..0df9a42 100644
+--- a/chapter_003/src/main/java/ru/job4j/collection/search/PhoneDictionary.java
++++ b/chapter_003/src/main/java/ru/job4j/collection/search/PhoneDictionary.java
+@@ -16,7 +16,7 @@ public void add(Person person) {
+      */
+     public ArrayList<Person> find(String key) {
+         ArrayList<Person> result = new ArrayList<>();
+-        for (Person per : persons) {
++        for (var per : persons) {
+             if (per.getName().contains(key) || per.getSurname().contains(key) || per.getPhone().contains(key) || per.getAddress().contains(key)) {
+                 result.add(per);
+             }
+diff --git a/chapter_003/src/main/java/ru/job4j/collection/search/PriorityQueue.java b/chapter_003/src/main/java/ru/job4j/collection/search/PriorityQueue.java
+index 1922ec1..6de2ddc 100644
+--- a/chapter_003/src/main/java/ru/job4j/collection/search/PriorityQueue.java
++++ b/chapter_003/src/main/java/ru/job4j/collection/search/PriorityQueue.java
+@@ -12,8 +12,8 @@
+      * @param task задача
+      */
+     public void put(Task task) {
+-        int index = 0;
+-        for (Task element : tasks) {
++        var index = 0;
++        for (var element : tasks) {
+             if (element.getPriority() <= task.getPriority()) {
+                 index++;
+             }

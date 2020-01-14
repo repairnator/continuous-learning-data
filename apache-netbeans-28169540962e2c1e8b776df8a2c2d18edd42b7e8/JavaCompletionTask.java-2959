@@ -1,0 +1,9 @@
+@@ -2959,7 +2959,7 @@ public boolean accept(Element e, TypeMirror t) {
+             }
+             return;
+         }
+-        switch (e.getKind()) {
++        switch (simplifyElementKind(e.getKind())) {
+             case ANNOTATION_TYPE:
+             case CLASS:
+             case ENUM:

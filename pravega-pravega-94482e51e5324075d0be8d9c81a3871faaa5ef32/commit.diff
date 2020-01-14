@@ -1,0 +1,1695 @@
+diff --git a/client/src/main/java/io/pravega/client/ClientFactory.java b/client/src/main/java/io/pravega/client/ClientFactory.java
+deleted file mode 100644
+index 559a0bc01c..0000000000
+--- a/client/src/main/java/io/pravega/client/ClientFactory.java
++++ /dev/null
+@@ -1,186 +0,0 @@
+-/**
+- * Copyright (c) 2017 Dell Inc., or its subsidiaries. All Rights Reserved.
+- *
+- * Licensed under the Apache License, Version 2.0 (the "License");
+- * you may not use this file except in compliance with the License.
+- * You may obtain a copy of the License at
+- *
+- *     http://www.apache.org/licenses/LICENSE-2.0
+- */
+-package io.pravega.client;
+-
+-import com.google.common.annotations.Beta;
+-import io.pravega.client.netty.impl.ConnectionFactoryImpl;
+-import io.pravega.client.state.InitialUpdate;
+-import io.pravega.client.state.Revisioned;
+-import io.pravega.client.state.RevisionedStreamClient;
+-import io.pravega.client.state.StateSynchronizer;
+-import io.pravega.client.state.SynchronizerConfig;
+-import io.pravega.client.state.Update;
+-import io.pravega.client.stream.EventRead;
+-import io.pravega.client.stream.EventStreamReader;
+-import io.pravega.client.stream.EventStreamWriter;
+-import io.pravega.client.stream.EventWriterConfig;
+-import io.pravega.client.stream.Position;
+-import io.pravega.client.stream.ReaderConfig;
+-import io.pravega.client.stream.ReaderGroup;
+-import io.pravega.client.stream.Serializer;
+-import io.pravega.client.stream.impl.ClientFactoryImpl;
+-import io.pravega.client.stream.impl.ControllerImpl;
+-import io.pravega.client.stream.impl.ControllerImplConfig;
+-import java.net.URI;
+-import lombok.val;
+-
+-/**
+- * Used to create Writers, Readers, and Synchronizers operating on a stream.
+- * <p>
+- * Events that are written to a stream can be read by a reader. All events can be processed with
+- * exactly once semantics provided the reader has the ability to restore to the correct position
+- * upon failure. See {@link EventRead#getPosition()}
+- * <p>
+- * A note on ordering: Events inside of a stream have a strict order, but may need to be divided
+- * between multiple readers for scaling. In order to process events in parallel on different hosts
+- * and still have some ordering guarantees; events written to a stream have a routingKey see
+- * {@link EventStreamWriter#writeEvent(String, Object)}. Events within a routing key are strictly
+- * ordered (i.e. They must go the the same reader or its replacement). However because
+- * {@link ReaderGroup}s process events in parallel there is no ordering between different readers.
+- *
+- * <p>
+- * A note on scaling: Because a stream can grow in its event rate, streams are divided into
+- * Segments. For the most part this is an implementation detail. However its worth understanding
+- * that the way a stream is divided between multiple readers in a group that wish to split the
+- * messages between them is by giving different segments to different readers.
+- */
+-public interface ClientFactory extends AutoCloseable {
+-
+-    /**
+-     * Creates a new instance of Client Factory.
+-     *
+-     * @param scope The scope string.
+-     * @param controllerUri The URI for controller.
+-     * @return Instance of ClientFactory implementation.
+-     * @deprecated Use {@link #withScope(String, ClientConfig)}
+-     */
+-    @Deprecated
+-    static ClientFactory withScope(String scope, URI controllerUri) {
+-        return withScope(scope, ClientConfig.builder().controllerURI(controllerUri).build());
+-    }
+-
+-    /**
+-     * Creates a new instance of Client Factory.
+-     *
+-     * @param scope The scope string.
+-     * @param config Configuration for the client.
+-     * @return Instance of ClientFactory implementation.
+-     */
+-    static ClientFactory withScope(String scope, ClientConfig config) {
+-        val connectionFactory = new ConnectionFactoryImpl(config);
+-        return new ClientFactoryImpl(scope, new ControllerImpl(ControllerImplConfig.builder().clientConfig(config).build(),
+-                connectionFactory.getInternalExecutor()), connectionFactory);
+-    }
+-
+-    /**
+-     * Creates a new writer that can write to the specified stream.
+-     *
+-     * @param streamName The name of the stream to write to.
+-     * @param config The writer configuration.
+-     * @param s The Serializer.
+-     * @param <T> The type of events.
+-     * @return Newly created writer object
+-     * @deprecated Use {@link EventStreamClientFactory#createEventWriter(String, Serializer, EventWriterConfig)} instead
+-     */
+-    @Deprecated
+-    <T> EventStreamWriter<T> createEventWriter(String streamName, Serializer<T> s, EventWriterConfig config);
+-
+-    /**
+-     * Creates (or recreates) a new reader that is part of a {@link ReaderGroup}. The reader
+-     * will join the group and the members of the group will automatically rebalance among
+-     * themselves.
+-     * <p>
+-     * In the event that the reader dies, the method {@link ReaderGroup#readerOffline(String, Position)}
+-     * should be called, passing the last position of the reader. (Usually done by storing the
+-     * position along with the output when it is processed.) Which will trigger redistribute the
+-     * events among the remaining readers.
+-     * <p>
+-     * Note that calling reader offline while the reader is still online may result in multiple
+-     * reader within the group receiving the same events.
+-     *
+-     * @param readerId A unique name (within the group) for this readers.
+-     * @param readerGroup The name of the group to join.
+-     * @param s The serializer for events.
+-     * @param config The readers configuration.
+-     * @param <T> The type of events.
+-     * @return Newly created reader object that is a part of reader group
+-     * @deprecated Use {@link EventStreamClientFactory#createReader(String, String, Serializer, ReaderConfig)} instead
+-     */
+-    @Deprecated
+-    <T> EventStreamReader<T> createReader(String readerId, String readerGroup, Serializer<T> s, ReaderConfig config);
+-
+-    /**
+-     * Creates a new RevisionedStreamClient that will work with the specified stream.
+-     *
+-     * @param streamName The name of the stream for the synchronizer
+-     * @param serializer The serializer for updates.
+-     * @param config The client configuration
+-     * @param <T> The type of events
+-     * @return Revisioned stream client
+-     * @deprecated Use {@link SynchronizerClientFactory#createRevisionedStreamClient(String, Serializer, SynchronizerConfig)} instead.
+-     */
+-    @Deprecated
+-    <T> RevisionedStreamClient<T> createRevisionedStreamClient(String streamName, Serializer<T> serializer,
+-            SynchronizerConfig config);
+-    
+-    /**
+-     * Creates a new StateSynchronizer that will work on the specified stream.
+-     *
+-     * @param <StateT> The type of the state being synchronized.
+-     * @param <UpdateT> The type of the updates being written.
+-     * @param <InitT> The type of the initial update used.
+-     * @param streamName The name of the stream for the synchronizer
+-     * @param updateSerializer The serializer for updates.
+-     * @param initSerializer The serializer for the initial update.
+-     * @param config The synchronizer configuration
+-     * @return Newly created StateSynchronizer that will work on the given stream
+-     * @deprecated Use {@link SynchronizerClientFactory#createStateSynchronizer(String, Serializer, Serializer, SynchronizerConfig)} instead.
+-     */
+-    @Deprecated
+-    <StateT extends Revisioned, UpdateT extends Update<StateT>, InitT extends InitialUpdate<StateT>>
+-    StateSynchronizer<StateT> createStateSynchronizer(String streamName,
+-                                                      Serializer<UpdateT> updateSerializer,
+-                                                      Serializer<InitT> initSerializer,
+-                                                      SynchronizerConfig config);
+-
+-    /**
+-     * Creates a new ByteStreamClient. The byteStreamClient can create readers and writers that work
+-     * on a stream of bytes. The stream must be pre-created with a single fixed segment. Sharing a
+-     * stream between the byte stream API and the Event stream readers/writers will CORRUPT YOUR
+-     * DATA in an unrecoverable way.
+-     * 
+-     * @return A byteStreamClient
+-     * @deprecated Use {@link ByteStreamClientFactory#withScope(String, ClientConfig)}
+-     */
+-    @Beta
+-    @Deprecated
+-    io.pravega.client.byteStream.ByteStreamClient createByteStreamClient();
+-    
+-    /**
+-     * Create a new batch client. A batch client can be used to perform bulk unordered reads without
+-     * the need to create a reader group.
+-     *
+-     * Please note this is an experimental API.
+-     *
+-     * @return A batch client
+-     * @deprecated Use {@link BatchClientFactory#withScope(String, ClientConfig)}
+-     */
+-    @Beta
+-    @Deprecated
+-    io.pravega.client.batch.BatchClient createBatchClient();
+-
+-    /**
+-     * Closes the client factory. This will close any connections created through it.
+-     * @see java.lang.AutoCloseable#close()
+-     */
+-    @Override
+-    void close();
+-
+-}
+diff --git a/client/src/main/java/io/pravega/client/admin/ReaderGroupManager.java b/client/src/main/java/io/pravega/client/admin/ReaderGroupManager.java
+index ec792b424c..b43c43cf5c 100644
+--- a/client/src/main/java/io/pravega/client/admin/ReaderGroupManager.java
++++ b/client/src/main/java/io/pravega/client/admin/ReaderGroupManager.java
+@@ -10,7 +10,6 @@
+ package io.pravega.client.admin;
+ 
+ import io.pravega.client.ClientConfig;
+-import io.pravega.client.ClientFactory;
+ import io.pravega.client.admin.impl.ReaderGroupManagerImpl;
+ import io.pravega.client.netty.impl.ConnectionFactoryImpl;
+ import io.pravega.client.stream.ReaderConfig;
+diff --git a/client/src/main/java/io/pravega/client/batch/BatchClient.java b/client/src/main/java/io/pravega/client/batch/BatchClient.java
+deleted file mode 100644
+index cdb117e5c3..0000000000
+--- a/client/src/main/java/io/pravega/client/batch/BatchClient.java
++++ /dev/null
+@@ -1,77 +0,0 @@
+-/**
+- * Copyright (c) 2017 Dell Inc., or its subsidiaries. All Rights Reserved.
+- *
+- * Licensed under the Apache License, Version 2.0 (the "License");
+- * you may not use this file except in compliance with the License.
+- * You may obtain a copy of the License at
+- *
+- *     http://www.apache.org/licenses/LICENSE-2.0
+- */
+-package io.pravega.client.batch;
+-
+-import com.google.common.annotations.Beta;
+-import io.pravega.client.BatchClientFactory;
+-import io.pravega.client.segment.impl.NoSuchSegmentException;
+-import io.pravega.client.stream.EventStreamReader;
+-import io.pravega.client.stream.Serializer;
+-import io.pravega.client.stream.Stream;
+-import io.pravega.client.stream.StreamCut;
+-import java.util.concurrent.CompletableFuture;
+-
+-/**
+- * Please note this is an experimental API.
+- * 
+- * Used to get metadata about and read from an existing streams.
+- * <p>
+- * All events written to a stream will be visible to SegmentIterators
+- * <p>
+- * Events within a segment are strictly ordered, but as this API allows for reading from multiple
+- * segments in parallel without adhering to time ordering. This allows for events greater
+- * parallelization at the expense of the ordering guarantees provided by {@link EventStreamReader}.
+- * 
+- * @deprecated {@link BatchClientFactory} instead. 
+- */
+-@Beta
+-@Deprecated
+-public interface BatchClient {
+-
+-    /**
+-     * Get information about a given Stream, {@link StreamInfo}.
+-     * @deprecated
+-     *   Use {@link io.pravega.client.admin.StreamManager#getStreamInfo(String, String)} to fetch StreamInfo.
+-     *
+-     * @param stream the stream.
+-     * @return stream information.
+-     */
+-    @Deprecated
+-    CompletableFuture<StreamInfo> getStreamInfo(Stream stream);
+-
+-    /**
+-     * Provide a list of segments for a given stream between fromStreamCut and toStreamCut.
+-     * Passing StreamCut.UNBOUNDED or null to fromStreamCut and toStreamCut will result in using the current start of
+-     * stream and the current end of stream respectively.
+-     *<p>
+-     * Note: In case of stream truncation: <p>
+-     * - Passing a null to fromStreamCut will result in using the current start of the Stream post truncation.<p>
+-     * - Passing a fromStreamCut which points to the truncated stream will result in a {@link NoSuchSegmentException} while
+-     * iterating over SegmentRange iterator obtained via {@link StreamSegmentsIterator#getIterator()}
+-     *
+-     * @param stream the stream.
+-     * @param fromStreamCut starting stream cut.
+-     * @param toStreamCut end stream cut.
+-     * @return Segment information between the two stream cuts.
+-     */
+-    StreamSegmentsIterator getSegments(Stream stream, StreamCut fromStreamCut, StreamCut toStreamCut);
+-
+-    /**
+-     * Provides a SegmentIterator to read the events in the requested segment starting from the
+-     * beginning of the segment and ending at the current end of the segment.
+-     * 
+-     * @param <T> The type of events written to the segment.
+-     * @param segment The segment to read from
+-     * @param deserializer A deserializer to be used to parse events
+-     * @return A SegmentIterator over the requested segment
+-     */
+-    <T> SegmentIterator<T> readSegment(SegmentRange segment, Serializer<T> deserializer);
+-
+-}
+diff --git a/client/src/main/java/io/pravega/client/batch/StreamInfo.java b/client/src/main/java/io/pravega/client/batch/StreamInfo.java
+deleted file mode 100644
+index 334f1b2c8b..0000000000
+--- a/client/src/main/java/io/pravega/client/batch/StreamInfo.java
++++ /dev/null
+@@ -1,51 +0,0 @@
+-/**
+- * Copyright (c) 2017 Dell Inc., or its subsidiaries. All Rights Reserved.
+- *
+- * Licensed under the Apache License, Version 2.0 (the "License");
+- * you may not use this file except in compliance with the License.
+- * You may obtain a copy of the License at
+- *
+- *     http://www.apache.org/licenses/LICENSE-2.0
+- */
+-package io.pravega.client.batch;
+-
+-import com.google.common.annotations.Beta;
+-import io.pravega.client.stream.StreamCut;
+-import lombok.Data;
+-
+-/**
+- * This class is used to represent Stream information. It currently includes:
+- * <ul>
+- *  <li> - scope of stream. </li>
+- *  <li> - name of stream.  </li>
+- *  <li> - {@link StreamCut} which represents the current TAIL of the stream. </li>
+- *  <li> - {@link StreamCut} which represents the current HEAD of the stream. </li>
+- * </ul>
+- *  @deprecated This class is deprecated and will be removed in the subsequent releases. Use
+- *  {@link io.pravega.client.admin.StreamManager#getStreamInfo(String, String)} to fetch StreamInfo represented
+- *  by {@link io.pravega.client.admin.StreamInfo}.
+- */
+-@Beta
+-@Data
+-@Deprecated
+-public class StreamInfo {
+-    /**
+-     * Scope name of the stream.
+-     */
+-    private final String scope;
+-
+-    /**
+-     * Stream name.
+-     */
+-    private final String streamName;
+-
+-    /**
+-     * {@link StreamCut} representing the current TAIL of the stream.
+-     */
+-    private final StreamCut tailStreamCut;
+-
+-    /**
+-     * {@link StreamCut} representing the current HEAD of the stream.
+-     */
+-    private final StreamCut headStreamCut;
+-}
+diff --git a/client/src/main/java/io/pravega/client/batch/impl/BatchClientFactoryImpl.java b/client/src/main/java/io/pravega/client/batch/impl/BatchClientFactoryImpl.java
+index aaf531f5ff..ecaefd1bcc 100644
+--- a/client/src/main/java/io/pravega/client/batch/impl/BatchClientFactoryImpl.java
++++ b/client/src/main/java/io/pravega/client/batch/impl/BatchClientFactoryImpl.java
+@@ -14,7 +14,6 @@
+ import com.google.common.collect.Iterators;
+ import io.pravega.client.BatchClientFactory;
+ import io.pravega.client.admin.impl.StreamCutHelper;
+-import io.pravega.client.admin.impl.StreamManagerImpl;
+ import io.pravega.client.batch.SegmentIterator;
+ import io.pravega.client.batch.SegmentRange;
+ import io.pravega.client.batch.StreamSegmentsIterator;
+@@ -32,24 +31,23 @@
+ import io.pravega.client.stream.StreamCut;
+ import io.pravega.client.stream.impl.Controller;
+ import io.pravega.client.stream.impl.StreamSegmentSuccessors;
+-import lombok.Cleanup;
+-import lombok.extern.slf4j.Slf4j;
+-import lombok.val;
+-
+-import javax.annotation.concurrent.GuardedBy;
+ import java.util.Iterator;
+ import java.util.Optional;
+ import java.util.SortedSet;
+ import java.util.TreeSet;
+ import java.util.concurrent.CompletableFuture;
+ import java.util.concurrent.atomic.AtomicReference;
++import javax.annotation.concurrent.GuardedBy;
++import lombok.Cleanup;
++import lombok.val;
++import lombok.extern.slf4j.Slf4j;
+ 
+ import static io.pravega.common.concurrent.Futures.getAndHandleExceptions;
+ 
+ @Beta
+ @Slf4j
+ @SuppressWarnings("deprecation")
+-public class BatchClientFactoryImpl implements BatchClientFactory, io.pravega.client.batch.BatchClient {
++public class BatchClientFactoryImpl implements BatchClientFactory {
+ 
+     private final Controller controller;
+     private final ConnectionFactory connectionFactory;
+@@ -69,21 +67,6 @@ public BatchClientFactoryImpl(Controller controller, ConnectionFactory connectio
+         this.latestDelegationToken = new AtomicReference<>();
+     }
+ 
+-    /**
+-     * Used to fetch the StreamInfo of a given stream. This should be removed in time.
+-     * @deprecated Use {@link io.pravega.client.admin.StreamManager#getStreamInfo(String, String)} to fetch StreamInfo.
+-     */
+-    @Override
+-    @Deprecated
+-    public CompletableFuture<io.pravega.client.batch.StreamInfo> getStreamInfo(final Stream stream) {
+-        Preconditions.checkNotNull(stream, "stream");
+-
+-        StreamManagerImpl streamManager = new StreamManagerImpl(this.controller, this.connectionFactory);
+-        return streamManager.getStreamInfo(stream)
+-                            .thenApply(info -> new io.pravega.client.batch.StreamInfo(
+-                                    info.getScope(), info.getStreamName(), info.getTailStreamCut(), info.getHeadStreamCut()));
+-    }
+-
+     @Override
+     public StreamSegmentsIterator getSegments(final Stream stream, final StreamCut fromStreamCut, final StreamCut toStreamCut) {
+         Preconditions.checkNotNull(stream, "stream");
+diff --git a/client/src/main/java/io/pravega/client/byteStream/ByteStreamClient.java b/client/src/main/java/io/pravega/client/byteStream/ByteStreamClient.java
+deleted file mode 100644
+index fc1659d551..0000000000
+--- a/client/src/main/java/io/pravega/client/byteStream/ByteStreamClient.java
++++ /dev/null
+@@ -1,50 +0,0 @@
+-/**
+- * Copyright (c) 2018 Dell Inc., or its subsidiaries. All Rights Reserved.
+- *
+- * Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except
+- * in compliance with the License. You may obtain a copy of the License at
+- *
+- * http://www.apache.org/licenses/LICENSE-2.0
+- */
+-package io.pravega.client.byteStream;
+-
+-import com.google.common.annotations.Beta;
+-import io.pravega.client.ByteStreamClientFactory;
+-import io.pravega.client.admin.StreamManager;
+-import io.pravega.client.stream.ScalingPolicy;
+-
+-/**
+- * Provides a way to read and write raw byte streams. This API is NOT intended to interoperate with
+- * EventStreamReader or EventStreamWriter on the same segment.
+- * 
+- * It is assumed that any stream passed here to read or write from has already been created by
+- * calling
+- * {@link StreamManager#createStream(String, String, io.pravega.client.stream.StreamConfiguration)}
+- * with a configuration specifying a {@link ScalingPolicy#fixed(int)} scaling policy of 1 segment.
+- * 
+- * Reader allows direct reading of the bytes from the one and only segment of the specified stream.
+- * Writer allows for writing raw bytes (with no headers or wrapping information) to the one and only
+- * segment of the stream.
+- * @deprecated Use {@link ByteStreamClientFactory} instead
+- */
+-@Deprecated
+-public interface ByteStreamClient {
+-
+-    /**
+-     * Creates a new ByteStreamReader on the specified stream initialized to offset 0.
+-     * 
+-     * @param streamName the stream to read from.
+-     * @return A new ByteStreamReader
+-     */
+-    @Beta
+-    ByteStreamReader createByteStreamReader(String streamName);
+-
+-    /**
+-     * Creates a new ByteStreamWriter on the specified stream.
+-     * 
+-     * @param streamName The name of the stream to read from.
+-     * @return A new ByteStreamWriter.
+-     */
+-    @Beta
+-    ByteStreamWriter createByteStreamWriter(String streamName);
+-}
+diff --git a/client/src/main/java/io/pravega/client/byteStream/impl/ByteStreamClientImpl.java b/client/src/main/java/io/pravega/client/byteStream/impl/ByteStreamClientImpl.java
+index 3384981fdc..99fa1ae7e7 100644
+--- a/client/src/main/java/io/pravega/client/byteStream/impl/ByteStreamClientImpl.java
++++ b/client/src/main/java/io/pravega/client/byteStream/impl/ByteStreamClientImpl.java
+@@ -30,8 +30,7 @@
+ import lombok.NonNull;
+ 
+ @AllArgsConstructor
+-@SuppressWarnings("deprecation")
+-public class ByteStreamClientImpl implements ByteStreamClientFactory, io.pravega.client.byteStream.ByteStreamClient {
++public class ByteStreamClientImpl implements ByteStreamClientFactory {
+     @NonNull
+     private final String scope;
+     @NonNull
+diff --git a/client/src/main/java/io/pravega/client/stream/EventStreamReader.java b/client/src/main/java/io/pravega/client/stream/EventStreamReader.java
+index 51456d8822..91053b9dbd 100644
+--- a/client/src/main/java/io/pravega/client/stream/EventStreamReader.java
++++ b/client/src/main/java/io/pravega/client/stream/EventStreamReader.java
+@@ -43,7 +43,6 @@
+      * @return An instance of {@link EventRead}, which contains the next event in the stream. In the case the timeout
+      *         is reached, {@link EventRead#getEvent()} returns null.
+      * @throws ReinitializationRequiredException Is thrown in the event that
+-     *             {@link ReaderGroup#resetReadersToCheckpoint(Checkpoint)} or
+      *             {@link ReaderGroup#resetReaderGroup(ReaderGroupConfig)} was called
+      *             which requires readers to be reinitialized.
+      * @throws TruncatedDataException if the data that would be read next has been truncated away
+diff --git a/client/src/main/java/io/pravega/client/stream/EventStreamWriter.java b/client/src/main/java/io/pravega/client/stream/EventStreamWriter.java
+index b400c6e917..9057226f84 100644
+--- a/client/src/main/java/io/pravega/client/stream/EventStreamWriter.java
++++ b/client/src/main/java/io/pravega/client/stream/EventStreamWriter.java
+@@ -9,9 +9,7 @@
+  */
+ package io.pravega.client.stream;
+ 
+-import io.pravega.client.EventStreamClientFactory;
+ import io.pravega.client.stream.EventWriterConfig.EventWriterConfigBuilder;
+-import java.util.UUID;
+ import java.util.concurrent.CompletableFuture;
+ 
+ /**
+@@ -78,26 +76,6 @@
+      */
+     void noteTime(long timestamp);
+ 
+-    /**
+-     * Start a new transaction on this stream. This allows events written to the transaction be written an committed atomically.
+-     * Note that transactions can only be open for {@link StreamConfiguration#getTimestampAggregationTimeout()}.
+-     * 
+-     * @return A transaction through which multiple events can be written atomically.
+-     * @deprecated Use {@link EventStreamClientFactory#createTransactionalEventWriter(String, String, Serializer, EventWriterConfig)} instead
+-     */
+-    @Deprecated
+-    Transaction<Type> beginTxn();
+-
+-    /**
+-     * Returns a previously created transaction.
+-     * 
+-     * @param transactionId The result retained from calling {@link Transaction#getTxnId()}
+-     * @return Transaction object with given UUID
+-     * @deprecated Use {@link EventStreamClientFactory#createTransactionalEventWriter(String, String, Serializer, EventWriterConfig)} instead
+-     */
+-    @Deprecated
+-    Transaction<Type> getTxn(UUID transactionId);
+-
+     /**
+      * Returns the configuration that this writer was create with.
+      *
+diff --git a/client/src/main/java/io/pravega/client/stream/ReaderGroup.java b/client/src/main/java/io/pravega/client/stream/ReaderGroup.java
+index 7b78ecb38b..8179b03135 100644
+--- a/client/src/main/java/io/pravega/client/stream/ReaderGroup.java
++++ b/client/src/main/java/io/pravega/client/stream/ReaderGroup.java
+@@ -10,9 +10,7 @@
+ package io.pravega.client.stream;
+ 
+ import com.google.common.annotations.Beta;
+-import io.pravega.client.ClientFactory;
+ import io.pravega.client.stream.notifications.ReaderGroupNotificationListener;
+-
+ import java.util.Map;
+ import java.util.Set;
+ import java.util.concurrent.CompletableFuture;
+@@ -57,7 +55,7 @@
+      * received the notification and resumed reading the future will return a {@link Checkpoint}
+      * object which contains the StreamCut of the reader group at the time they received the
+      * checkpoint. This can be used to reset the group to this point in the stream by calling
+-     * {@link #resetReadersToCheckpoint(Checkpoint)} if the checkpoint fails or the result cannot be
++     * {@link ReaderGroup#resetReaderGroup(ReaderGroupConfig)} if the checkpoint fails or the result cannot be
+      * obtained an exception will be set on the future.
+      * 
+      * This method can be called and a new checkpoint can be initiated while another is still in
+@@ -72,21 +70,6 @@
+      *         position.
+      */
+     CompletableFuture<Checkpoint> initiateCheckpoint(String checkpointName, ScheduledExecutorService backgroundExecutor);
+-    
+-    /**
+-     * Given a Checkpoint, restore the reader group to the provided checkpoint. All readers in the
+-     * group will encounter a {@link ReinitializationRequiredException} and when they rejoin the
+-     * group they will resume from the position the provided checkpoint was taken. (The mapping of
+-     * segments to readers may not be the same, and the current readers need not be the same ones as
+-     * existed at the time of the checkpoint.)
+-     *
+-     * @deprecated
+-     * Use {@link ReaderGroup#resetReaderGroup(ReaderGroupConfig)} to reset readers to a given Checkpoint.
+-     * 
+-     * @param checkpoint The checkpoint to restore to.
+-     */
+-    @Deprecated
+-    void resetReadersToCheckpoint(Checkpoint checkpoint);
+ 
+     /**
+      * Reset a reader group with the provided {@link ReaderGroupConfig}.
+diff --git a/client/src/main/java/io/pravega/client/stream/StreamConfiguration.java b/client/src/main/java/io/pravega/client/stream/StreamConfiguration.java
+index 35f57af75c..5ef33ce799 100644
+--- a/client/src/main/java/io/pravega/client/stream/StreamConfiguration.java
++++ b/client/src/main/java/io/pravega/client/stream/StreamConfiguration.java
+@@ -46,27 +46,5 @@
+ 
+     public static final class StreamConfigurationBuilder {
+         private ScalingPolicy scalingPolicy = ScalingPolicy.fixed(1);
+-        
+-        /**
+-         * Scope is specified on stream creation.
+-         * @param scope ignored
+-         * @deprecated Does nothing. 
+-         * @return this
+-         */
+-        @Deprecated
+-        public StreamConfigurationBuilder scope(String scope) {
+-            return this;
+-        }
+-        
+-        /**
+-         * Stream name is specified on stream creation.
+-         * @param streamName ignored
+-         * @deprecated Does nothing. 
+-         * @return this
+-         */
+-        @Deprecated
+-        public StreamConfigurationBuilder streamName(String streamName) {
+-            return this;
+-        }
+     }
+ }
+diff --git a/client/src/main/java/io/pravega/client/stream/impl/ClientFactoryImpl.java b/client/src/main/java/io/pravega/client/stream/impl/ClientFactoryImpl.java
+index a8de64846f..c98af96389 100644
+--- a/client/src/main/java/io/pravega/client/stream/impl/ClientFactoryImpl.java
++++ b/client/src/main/java/io/pravega/client/stream/impl/ClientFactoryImpl.java
+@@ -13,15 +13,10 @@
+ import com.google.common.base.Preconditions;
+ import com.google.common.collect.ImmutableMap;
+ import com.google.common.collect.ImmutableMap.Builder;
+-import io.pravega.client.BatchClientFactory;
+-import io.pravega.client.ByteStreamClientFactory;
+ import io.pravega.client.ClientConfig;
+-import io.pravega.client.ClientFactory;
+ import io.pravega.client.EventStreamClientFactory;
+ import io.pravega.client.SynchronizerClientFactory;
+ import io.pravega.client.admin.impl.ReaderGroupManagerImpl;
+-import io.pravega.client.batch.impl.BatchClientFactoryImpl;
+-import io.pravega.client.byteStream.impl.ByteStreamClientImpl;
+ import io.pravega.client.netty.impl.ConnectionFactory;
+ import io.pravega.client.netty.impl.ConnectionFactoryImpl;
+ import io.pravega.client.security.auth.DelegationTokenProvider;
+@@ -60,9 +55,6 @@
+ import io.pravega.common.concurrent.Futures;
+ import io.pravega.shared.NameUtils;
+ import io.pravega.shared.segment.StreamSegmentNameUtils;
+-
+-import static io.pravega.common.concurrent.ExecutorServiceHelpers.newScheduledThreadPool;
+-
+ import java.util.UUID;
+ import java.util.concurrent.ScheduledExecutorService;
+ import java.util.concurrent.ThreadPoolExecutor;
+@@ -70,8 +62,10 @@
+ import lombok.val;
+ import lombok.extern.slf4j.Slf4j;
+ 
++import static io.pravega.common.concurrent.ExecutorServiceHelpers.newScheduledThreadPool;
++
+ @Slf4j
+-public class ClientFactoryImpl implements ClientFactory, EventStreamClientFactory, SynchronizerClientFactory {
++public class ClientFactoryImpl implements EventStreamClientFactory, SynchronizerClientFactory {
+ 
+     private final String scope;
+     private final Controller controller;
+@@ -137,7 +131,6 @@ public ClientFactoryImpl(String scope, Controller controller, ConnectionFactory
+     }
+ 
+     @Override
+-    @SuppressWarnings("deprecation")
+     public <T> EventStreamWriter<T> createEventWriter(String streamName, Serializer<T> s, EventWriterConfig config) {
+         return createEventWriter(UUID.randomUUID().toString(), streamName, s, config);
+     }
+@@ -167,7 +160,6 @@ public ClientFactoryImpl(String scope, Controller controller, ConnectionFactory
+     }
+ 
+     @Override
+-    @SuppressWarnings("deprecation")
+     public <T> EventStreamReader<T> createReader(String readerId, String readerGroup, Serializer<T> s,
+                                                  ReaderConfig config) {
+         log.info("Creating reader: {} under readerGroup: {} with configuration: {}", readerId, readerGroup, config);
+@@ -201,7 +193,6 @@ public ClientFactoryImpl(String scope, Controller controller, ConnectionFactory
+     }
+     
+     @Override
+-    @SuppressWarnings("deprecation")
+     public <T> RevisionedStreamClient<T> createRevisionedStreamClient(String streamName, Serializer<T> serializer,
+                                                                       SynchronizerConfig config) {
+         log.info("Creating revisioned stream client for stream: {} with synchronizer configuration: {}", streamName, config);
+@@ -222,7 +213,6 @@ public ClientFactoryImpl(String scope, Controller controller, ConnectionFactory
+     }
+ 
+     @Override
+-    @SuppressWarnings("deprecation")
+     public <StateT extends Revisioned, UpdateT extends Update<StateT>, InitT extends InitialUpdate<StateT>> StateSynchronizer<StateT>
+         createStateSynchronizer(String streamName,
+                                 Serializer<UpdateT> updateSerializer,
+@@ -243,36 +233,6 @@ private Segment getSegmentForRevisionedClient(String scope, String streamName) {
+         return currentSegments.getSegmentForKey(0.0);
+     }
+ 
+-    /**
+-     * Create a new batch client. A batch client can be used to perform bulk unordered reads without
+-     * the need to create a reader group.
+-     *
+-     * Please note this is an experimental API.
+-     *
+-     * @return A batch client
+-     * @deprecated Use {@link BatchClientFactory#withScope(String, ClientConfig)}
+-     */
+-    @Override
+-    @Deprecated
+-    public BatchClientFactoryImpl createBatchClient() {
+-        return new BatchClientFactoryImpl(controller, connectionFactory);
+-    }
+-    
+-    /**
+-     * Creates a new ByteStreamClient. The byteStreamClient can create readers and writers that work
+-     * on a stream of bytes. The stream must be pre-created with a single fixed segment. Sharing a
+-     * stream between the byte stream API and the Event stream readers/writers will CORRUPT YOUR
+-     * DATA in an unrecoverable way.
+-     * 
+-     * @return A byteStreamClient
+-     * @deprecated Use {@link ByteStreamClientFactory#withScope(String, ClientConfig)}
+-     */
+-    @Override
+-    @Deprecated
+-    public ByteStreamClientImpl createByteStreamClient() {
+-        return new ByteStreamClientImpl(scope, controller, connectionFactory);
+-    }
+-
+     @Override
+     public void close() {
+         controller.close();
+diff --git a/client/src/main/java/io/pravega/client/stream/impl/EventStreamWriterImpl.java b/client/src/main/java/io/pravega/client/stream/impl/EventStreamWriterImpl.java
+index db1a6fc6a4..d46e3dc8a1 100644
+--- a/client/src/main/java/io/pravega/client/stream/impl/EventStreamWriterImpl.java
++++ b/client/src/main/java/io/pravega/client/stream/impl/EventStreamWriterImpl.java
+@@ -20,20 +20,14 @@
+ import io.pravega.client.stream.EventWriterConfig;
+ import io.pravega.client.stream.Serializer;
+ import io.pravega.client.stream.Stream;
+-import io.pravega.client.stream.Transaction;
+-import io.pravega.client.stream.Transaction.Status;
+-import io.pravega.client.stream.TransactionalEventStreamWriter;
+-import io.pravega.client.stream.TxnFailedException;
+ import io.pravega.common.Exceptions;
+ import io.pravega.common.concurrent.ExecutorServiceHelpers;
+ import io.pravega.common.util.ByteBufferUtils;
+ import io.pravega.common.util.Retry;
+ import java.nio.ByteBuffer;
+ import java.util.ArrayList;
+-import java.util.HashMap;
+ import java.util.List;
+ import java.util.Map;
+-import java.util.UUID;
+ import java.util.concurrent.CompletableFuture;
+ import java.util.concurrent.ConcurrentLinkedQueue;
+ import java.util.concurrent.ExecutorService;
+@@ -46,8 +40,6 @@
+ import lombok.ToString;
+ import lombok.extern.slf4j.Slf4j;
+ 
+-import static io.pravega.common.concurrent.Futures.getAndHandleExceptions;
+-
+ /**
+  * This class takes in events, finds out which segment they belong to and then calls write on the appropriate segment.
+  * It deals with segments that are sealed by re-sending the unacked events to the new correct segment.
+@@ -56,7 +48,7 @@
+  */
+ @Slf4j
+ @ToString(of = { "stream", "closed" })
+-public class EventStreamWriterImpl<Type> implements EventStreamWriter<Type>, TransactionalEventStreamWriter<Type> {
++public class EventStreamWriterImpl<Type> implements EventStreamWriter<Type> {
+ 
+     /**
+      * These two locks are used to enforce the following behavior:
+@@ -76,7 +68,6 @@
+     private final Stream stream;
+     private final String writerId;
+     private final Serializer<Type> serializer;
+-    private final SegmentOutputStreamFactory outputStreamFactory;
+     private final Controller controller;
+     private final AtomicBoolean closed = new AtomicBoolean(false);
+     private final EventWriterConfig config;
+@@ -94,7 +85,6 @@
+         this.stream = Preconditions.checkNotNull(stream);
+         this.controller = Preconditions.checkNotNull(controller);
+         this.segmentSealedCallBack = this::handleLogSealed;
+-        this.outputStreamFactory = Preconditions.checkNotNull(outputStreamFactory);
+         this.tokenProvider = DelegationTokenProviderFactory.create(this.controller, this.stream.getScope(), this.stream.getStreamName());
+         this.selector = new SegmentSelector(stream, controller, outputStreamFactory, config, tokenProvider);
+         this.serializer = Preconditions.checkNotNull(serializer);
+@@ -218,168 +208,6 @@ private void resend(List<PendingEvent> toResend) {
+         }
+     }
+ 
+-    private static class TransactionImpl<Type> implements Transaction<Type> {
+-        private final String writerId;
+-        private final Map<Segment, SegmentTransaction<Type>> inner;
+-        private final UUID txId;
+-        private final AtomicBoolean closed = new AtomicBoolean(false);
+-        private final Controller controller;
+-        private final Stream stream;
+-        private final Pinger pinger;
+-        private StreamSegments segments;
+-
+-        TransactionImpl(String writerId, UUID txId, Map<Segment, SegmentTransaction<Type>> transactions, StreamSegments segments,
+-                Controller controller, Stream stream, Pinger pinger) {
+-            this.writerId = writerId;
+-            this.txId = txId;
+-            this.inner = transactions;
+-            this.segments = segments;
+-            this.controller = controller;
+-            this.stream = stream;
+-            this.pinger = pinger;
+-        }
+-        
+-        /**
+-         * Create closed transaction
+-         */
+-        TransactionImpl(String writerId, UUID txId, Controller controller, Stream stream) {
+-            this.writerId = writerId;
+-            this.txId = txId;
+-            this.inner = null;
+-            this.segments = null;
+-            this.controller = controller;
+-            this.stream = stream;
+-            this.pinger = null;
+-            this.closed.set(true);
+-        }
+-
+-        /**
+-         * Uses the transactionId to generate the routing key so that we only need to use one segment.
+-         */
+-        @Override
+-        public void writeEvent(Type event) throws TxnFailedException {
+-            writeEvent(txId.toString(), event);
+-        }
+-        
+-        @Override
+-        public void writeEvent(String routingKey, Type event) throws TxnFailedException {
+-            Preconditions.checkNotNull(event);
+-            throwIfClosed();
+-            Segment s = segments.getSegmentForKey(routingKey);
+-            SegmentTransaction<Type> transaction = inner.get(s);
+-            transaction.writeEvent(event);
+-        }
+-
+-        @Override
+-        public void commit() throws TxnFailedException {
+-            throwIfClosed();
+-            for (SegmentTransaction<Type> tx : inner.values()) {
+-                tx.close();
+-            }
+-            getAndHandleExceptions(controller.commitTransaction(stream, writerId, null, txId), TxnFailedException::new);
+-            pinger.stopPing(txId);
+-            closed.set(true);
+-        }
+-        
+-        @Override
+-        public void commit(long timestamp) throws TxnFailedException {
+-            throwIfClosed();
+-            for (SegmentTransaction<Type> tx : inner.values()) {
+-                tx.close();
+-            }
+-            getAndHandleExceptions(controller.commitTransaction(stream, writerId, timestamp, txId), TxnFailedException::new);
+-            pinger.stopPing(txId);
+-            closed.set(true);
+-        }
+-
+-        @Override
+-        public void abort() {
+-            if (!closed.get()) {
+-                for (SegmentTransaction<Type> tx : inner.values()) {
+-                    try {
+-                        tx.close();
+-                    } catch (TxnFailedException e) {
+-                        log.debug("Got exception while writing to transaction on abort: {}", e.getMessage());
+-                    }
+-                }
+-                pinger.stopPing(txId);
+-                getAndHandleExceptions(controller.abortTransaction(stream, txId), RuntimeException::new);
+-                closed.set(true);
+-            }
+-        }
+-
+-        @Override
+-        public Status checkStatus() {
+-            return getAndHandleExceptions(controller.checkTransactionStatus(stream, txId), RuntimeException::new);
+-        }
+-
+-        @Override
+-        public void flush() throws TxnFailedException {
+-            throwIfClosed();
+-            for (SegmentTransaction<Type> tx : inner.values()) {
+-                tx.flush();
+-            }
+-        }
+-
+-        @Override
+-        public UUID getTxnId() {
+-            return txId;
+-        }
+-        
+-        private void throwIfClosed() throws TxnFailedException {
+-            if (closed.get()) {
+-                throw new TxnFailedException();
+-            }
+-        }
+-
+-    }
+-
+-    /**
+-     * Moved to {@link TransactionalEventStreamWriterImpl}.
+-     * @deprecated Moved to {@link TransactionalEventStreamWriterImpl}
+-     */
+-    @Override
+-    @Deprecated
+-    public Transaction<Type> beginTxn() {
+-        TxnSegments txnSegments = getAndHandleExceptions(controller.createTransaction(stream, config.getTransactionTimeoutTime()),
+-                RuntimeException::new);
+-        UUID txnId = txnSegments.getTxnId();
+-        Map<Segment, SegmentTransaction<Type>> transactions = new HashMap<>();
+-        this.tokenProvider.populateToken(txnSegments.getStreamSegments().getDelegationToken());
+-        for (Segment s : txnSegments.getStreamSegments().getSegments()) {
+-            SegmentOutputStream out = outputStreamFactory.createOutputStreamForTransaction(s, txnId, config, tokenProvider);
+-            SegmentTransactionImpl<Type> impl = new SegmentTransactionImpl<>(txnId, out, serializer);
+-            transactions.put(s, impl);
+-        }
+-        pinger.startPing(txnId);
+-        return new TransactionImpl<Type>(writerId, txnId, transactions, txnSegments.getStreamSegments(), controller, stream, pinger);
+-    }
+-    
+-    /**
+-     * Moved to {@link TransactionalEventStreamWriterImpl}.
+-     * @deprecated Moved to {@link TransactionalEventStreamWriterImpl}
+-     */
+-    @Override
+-    @Deprecated
+-    public Transaction<Type> getTxn(UUID txId) {
+-        StreamSegments segments = getAndHandleExceptions(
+-                controller.getCurrentSegments(stream.getScope(), stream.getStreamName()), RuntimeException::new);
+-        Status status = getAndHandleExceptions(controller.checkTransactionStatus(stream, txId), RuntimeException::new);
+-        if (status != Status.OPEN) {
+-            return new TransactionImpl<>(writerId, txId, controller, stream);
+-        }
+-        
+-        Map<Segment, SegmentTransaction<Type>> transactions = new HashMap<>();
+-        this.tokenProvider.populateToken(segments.getDelegationToken());
+-        for (Segment s : segments.getSegments()) {
+-            SegmentOutputStream out = outputStreamFactory.createOutputStreamForTransaction(s, txId, config, tokenProvider);
+-            SegmentTransactionImpl<Type> impl = new SegmentTransactionImpl<>(txId, out, serializer);
+-            transactions.put(s, impl);
+-        }
+-        return new TransactionImpl<Type>(writerId, txId, transactions, segments, controller, stream, pinger);
+-        
+-    }
+-
+     @Override
+     public void flush() {
+         Preconditions.checkState(!closed.get());
+diff --git a/client/src/main/java/io/pravega/client/stream/impl/ReaderGroupImpl.java b/client/src/main/java/io/pravega/client/stream/impl/ReaderGroupImpl.java
+index 88e31ef26b..638294a882 100644
+--- a/client/src/main/java/io/pravega/client/stream/impl/ReaderGroupImpl.java
++++ b/client/src/main/java/io/pravega/client/stream/impl/ReaderGroupImpl.java
+@@ -182,26 +182,6 @@ private Checkpoint completeCheckpoint(String checkpointName) {
+         return new CheckpointImpl(checkpointName, map);
+     }
+ 
+-    /**
+-     * Used to reset a reset a reader group to a checkpoint. This should be removed in time.
+-     * @deprecated Use {@link ReaderGroup#resetReaderGroup(ReaderGroupConfig)} to reset readers to a given Checkpoint.
+-     */
+-    @Override
+-    @Deprecated
+-    public void resetReadersToCheckpoint(Checkpoint checkpoint) {
+-        synchronizer.updateState((state, updates) -> {
+-            ReaderGroupConfig config = state.getConfig();
+-            Map<SegmentWithRange, Long> positions = new HashMap<>();
+-            for (StreamCut cut : checkpoint.asImpl().getPositions().values()) {
+-                for (Entry<Segment, Long> e : cut.asImpl().getPositions().entrySet()) {
+-                    //TODO watermarking: deal with empty range information.
+-                    positions.put(new SegmentWithRange(e.getKey(), null), e.getValue());
+-                }
+-            }
+-            updates.add(new ReaderGroupStateInit(config, positions, getEndSegmentsForStreams(config)));
+-        });
+-    }
+-
+     @Override
+     public void resetReaderGroup(ReaderGroupConfig config) {
+         Map<SegmentWithRange, Long> segments = getSegmentsForStreams(controller, config);
+diff --git a/client/src/test/java/io/pravega/client/batch/impl/BatchClientImplTest.java b/client/src/test/java/io/pravega/client/batch/impl/BatchClientImplTest.java
+index 9eb3c3e265..657ec525fd 100644
+--- a/client/src/test/java/io/pravega/client/batch/impl/BatchClientImplTest.java
++++ b/client/src/test/java/io/pravega/client/batch/impl/BatchClientImplTest.java
+@@ -22,9 +22,7 @@
+ import io.pravega.client.stream.mock.MockController;
+ import io.pravega.shared.protocol.netty.ConnectionFailedException;
+ import io.pravega.shared.protocol.netty.PravegaNodeUri;
+-import io.pravega.shared.protocol.netty.WireCommands.CreateSegment;
+ import io.pravega.shared.protocol.netty.WireCommands.GetStreamSegmentInfo;
+-import io.pravega.shared.protocol.netty.WireCommands.SegmentCreated;
+ import io.pravega.shared.protocol.netty.WireCommands.StreamSegmentInfo;
+ import java.util.Arrays;
+ import java.util.Iterator;
+@@ -37,7 +35,6 @@
+ 
+ import static org.junit.Assert.assertEquals;
+ import static org.junit.Assert.assertFalse;
+-import static org.junit.Assert.assertNotNull;
+ import static org.junit.Assert.assertTrue;
+ import static org.mockito.Mockito.mock;
+ 
+@@ -103,61 +100,6 @@ public void testGetSegmentsWithNullStreamCut() throws Exception {
+         assertFalse(segments.hasNext());
+     }
+ 
+-    @Test(timeout = 5000)
+-    @SuppressWarnings("deprecation")
+-    public void testStreamInfo() throws Exception {
+-        final String scope = "scope";
+-        final String streamName = STREAM;
+-        final Stream stream = new StreamImpl(scope, streamName);
+-
+-        MockConnectionFactoryImpl connectionFactory = new MockConnectionFactoryImpl();
+-        ClientConnection connection = mock(ClientConnection.class);
+-        PravegaNodeUri location = new PravegaNodeUri("localhost", 0);
+-        Mockito.doAnswer(new Answer<Void>() {
+-            @Override
+-            public Void answer(InvocationOnMock invocation) throws Throwable {
+-                CreateSegment request = (CreateSegment) invocation.getArgument(0);
+-                connectionFactory.getProcessor(location)
+-                                 .process(new SegmentCreated(request.getRequestId(), request.getSegment()));
+-                return null;
+-            }
+-        }).when(connection).sendAsync(Mockito.any(CreateSegment.class),
+-                                      Mockito.any(ClientConnection.CompletedCallback.class));
+-
+-        Mockito.doAnswer(new Answer<Void>() {
+-            @Override
+-            public Void answer(InvocationOnMock invocation) throws Throwable {
+-                GetStreamSegmentInfo request = (GetStreamSegmentInfo) invocation.getArgument(0);
+-                connectionFactory.getProcessor(location)
+-                                 .process(new StreamSegmentInfo(request.getRequestId(), request.getSegmentName(), true,
+-                                         false, false, 0, 0, 0));
+-                return null;
+-            }
+-        }).when(connection).sendAsync(Mockito.any(GetStreamSegmentInfo.class),
+-                                      Mockito.any(ClientConnection.CompletedCallback.class));
+-        connectionFactory.provideConnection(location, connection);
+-        MockController mockController = new MockController(location.getEndpoint(), location.getPort(),
+-                connectionFactory, false);
+-        BatchClientFactoryImpl client = new BatchClientFactoryImpl(mockController, connectionFactory);
+-
+-        mockController.createScope(scope);
+-        mockController.createStream(scope, streamName, StreamConfiguration.builder()
+-                                                       .scalingPolicy(ScalingPolicy.fixed(3))
+-                                                       .build()).join();
+-
+-        io.pravega.client.batch.StreamInfo info = client.getStreamInfo(stream).join();
+-
+-        //validate results.
+-        assertEquals(scope, info.getScope());
+-        assertEquals(streamName, info.getStreamName());
+-        assertNotNull(info.getTailStreamCut());
+-        assertEquals(stream, info.getTailStreamCut().asImpl().getStream());
+-        assertEquals(3, info.getTailStreamCut().asImpl().getPositions().size());
+-        assertNotNull(info.getHeadStreamCut());
+-        assertEquals(stream, info.getHeadStreamCut().asImpl().getStream());
+-        assertEquals(3, info.getHeadStreamCut().asImpl().getPositions().size());
+-    }
+-
+     private Stream createStream(String scope, String streamName, int numSegments, MockController mockController) {
+         Stream stream = new StreamImpl(scope, streamName);
+         mockController.createScope(scope);
+diff --git a/client/src/test/java/io/pravega/client/stream/impl/ClientFactoryTest.java b/client/src/test/java/io/pravega/client/stream/impl/ClientFactoryTest.java
+index 22a975a914..92bf890c73 100644
+--- a/client/src/test/java/io/pravega/client/stream/impl/ClientFactoryTest.java
++++ b/client/src/test/java/io/pravega/client/stream/impl/ClientFactoryTest.java
+@@ -10,7 +10,6 @@
+ package io.pravega.client.stream.impl;
+ 
+ 
+-import io.pravega.client.ClientFactory;
+ import io.pravega.client.netty.impl.ConnectionFactory;
+ import io.pravega.client.stream.EventStreamWriter;
+ import io.pravega.client.stream.EventWriterConfig;
+@@ -37,14 +36,14 @@
+ 
+     @Test
+     public void testCloseWithExternalController() {
+-        ClientFactory clientFactory = new ClientFactoryImpl("scope", controllerClient);
++        ClientFactoryImpl clientFactory = new ClientFactoryImpl("scope", controllerClient);
+         clientFactory.close();
+         verify(controllerClient, times(1)).close();
+     }
+ 
+     @Test
+     public void testCloseWithExternalControllerConnectionFactory() {
+-        ClientFactory clientFactory = new ClientFactoryImpl("scope", controllerClient, connectionFactory);
++        ClientFactoryImpl clientFactory = new ClientFactoryImpl("scope", controllerClient, connectionFactory);
+         clientFactory.close();
+         verify(connectionFactory, times(1)).close();
+         verify(controllerClient, times(1)).close();
+diff --git a/client/src/test/java/io/pravega/client/stream/impl/EventStreamWriterTest.java b/client/src/test/java/io/pravega/client/stream/impl/EventStreamWriterTest.java
+index 26cdc3e1f8..f73b6ddb5d 100644
+--- a/client/src/test/java/io/pravega/client/stream/impl/EventStreamWriterTest.java
++++ b/client/src/test/java/io/pravega/client/stream/impl/EventStreamWriterTest.java
+@@ -20,8 +20,6 @@
+ import io.pravega.client.segment.impl.SegmentTruncatedException;
+ import io.pravega.client.stream.EventStreamWriter;
+ import io.pravega.client.stream.EventWriterConfig;
+-import io.pravega.client.stream.Transaction;
+-import io.pravega.client.stream.TxnFailedException;
+ import io.pravega.client.stream.mock.MockSegmentIoStreams;
+ import io.pravega.common.Exceptions;
+ import io.pravega.common.util.ReusableLatch;
+@@ -37,7 +35,6 @@
+ import java.util.Map;
+ import java.util.NavigableMap;
+ import java.util.TreeMap;
+-import java.util.UUID;
+ import java.util.concurrent.CompletableFuture;
+ import java.util.function.Consumer;
+ import javax.annotation.concurrent.NotThreadSafe;
+@@ -53,7 +50,6 @@
+ import static org.junit.Assert.assertTrue;
+ import static org.junit.Assert.fail;
+ import static org.mockito.ArgumentMatchers.any;
+-import static org.mockito.ArgumentMatchers.anyLong;
+ import static org.mockito.ArgumentMatchers.eq;
+ 
+ public class EventStreamWriterTest extends ThreadPooledTestSuite {
+@@ -378,77 +374,6 @@ public void testNoNextSegment() {
+         fail();
+     }
+ 
+-    @Test
+-    @SuppressWarnings("deprecation")
+-    public void testTxn() throws TxnFailedException {
+-        String scope = "scope";
+-        String streamName = "stream";
+-        StreamImpl stream = new StreamImpl(scope, streamName);
+-        Segment segment = new Segment(scope, streamName, 0);
+-        UUID txid = UUID.randomUUID();
+-        EventWriterConfig config = EventWriterConfig.builder().build();
+-        SegmentOutputStreamFactory streamFactory = Mockito.mock(SegmentOutputStreamFactory.class);
+-        Controller controller = Mockito.mock(Controller.class);
+-        Mockito.when(controller.getCurrentSegments(scope, streamName)).thenReturn(getSegmentsFuture(segment));
+-        FakeSegmentOutputStream outputStream = new FakeSegmentOutputStream(segment);
+-        FakeSegmentOutputStream bad = new FakeSegmentOutputStream(segment);
+-        Mockito.when(controller.createTransaction(eq(stream), anyLong()))
+-               .thenReturn(CompletableFuture.completedFuture(new TxnSegments(getSegments(segment), txid)));
+-        Mockito.when(streamFactory.createOutputStreamForTransaction(eq(segment), eq(txid), any(), any()))
+-                .thenReturn(outputStream);
+-        Mockito.when(streamFactory.createOutputStreamForSegment(eq(segment), any(), any(), any())).thenReturn(bad);
+-
+-        JavaSerializer<String> serializer = new JavaSerializer<>();
+-        @Cleanup
+-        EventStreamWriter<String> writer = new EventStreamWriterImpl<>(stream, "id", controller, streamFactory, serializer,
+-                config, executorService(), executorService());
+-        Transaction<String> txn = writer.beginTxn();
+-        txn.writeEvent("Foo");
+-        Mockito.verify(controller).getCurrentSegments(any(), any());
+-        assertTrue(bad.unacked.isEmpty());
+-        assertEquals(1, outputStream.unacked.size());
+-        outputStream.unacked.get(0).getAckFuture().complete(null);
+-        txn.flush();
+-        assertTrue(bad.unacked.isEmpty());
+-        assertTrue(outputStream.unacked.isEmpty());
+-    }
+-
+-    @Test
+-    @SuppressWarnings("deprecation")
+-    public void testTxnFailed() {
+-        String scope = "scope";
+-        String streamName = "stream";
+-        StreamImpl stream = new StreamImpl(scope, streamName);
+-        Segment segment = new Segment(scope, streamName, 0);
+-        UUID txid = UUID.randomUUID();
+-        EventWriterConfig config = EventWriterConfig.builder().build();
+-        SegmentOutputStreamFactory streamFactory = Mockito.mock(SegmentOutputStreamFactory.class);
+-        Controller controller = Mockito.mock(Controller.class);
+-        Mockito.when(controller.getCurrentSegments(scope, streamName)).thenReturn(getSegmentsFuture(segment));
+-        FakeSegmentOutputStream outputStream = new FakeSegmentOutputStream(segment);
+-        FakeSegmentOutputStream bad = new FakeSegmentOutputStream(segment);
+-        Mockito.when(controller.createTransaction(eq(stream), anyLong()))
+-               .thenReturn(CompletableFuture.completedFuture(new TxnSegments(getSegments(segment), txid)));
+-        Mockito.when(streamFactory.createOutputStreamForTransaction(eq(segment), eq(txid), any(), any()))
+-                .thenReturn(outputStream);
+-        Mockito.when(streamFactory.createOutputStreamForSegment(eq(segment), any(), any(), any())).thenReturn(bad);
+-
+-        JavaSerializer<String> serializer = new JavaSerializer<>();
+-        @Cleanup
+-        EventStreamWriter<String> writer = new EventStreamWriterImpl<>(stream, "id", controller, streamFactory, serializer,
+-                config, executorService(), executorService());
+-        Transaction<String> txn = writer.beginTxn();
+-        outputStream.invokeSealedCallBack();
+-        try {
+-            txn.writeEvent("Foo");
+-        } catch (TxnFailedException e) {
+-            // Expected
+-        }
+-        Mockito.verify(controller).getCurrentSegments(any(), any());
+-        assertTrue(bad.unacked.isEmpty());
+-        assertEquals(1, outputStream.unacked.size());
+-    }
+-
+     @Test
+     public void testFlush() {
+         String scope = "scope";
+diff --git a/controller/src/test/java/io/pravega/controller/mocks/ControllerEventStreamWriterMock.java b/controller/src/test/java/io/pravega/controller/mocks/ControllerEventStreamWriterMock.java
+index 4c19ef2d56..13b410b4c4 100644
+--- a/controller/src/test/java/io/pravega/controller/mocks/ControllerEventStreamWriterMock.java
++++ b/controller/src/test/java/io/pravega/controller/mocks/ControllerEventStreamWriterMock.java
+@@ -11,15 +11,12 @@
+ 
+ import io.pravega.client.stream.EventStreamWriter;
+ import io.pravega.client.stream.EventWriterConfig;
+-import io.pravega.client.stream.Transaction;
+ import io.pravega.common.concurrent.Futures;
+ import io.pravega.controller.server.eventProcessor.requesthandlers.StreamRequestHandler;
+ import io.pravega.shared.controller.event.ControllerEvent;
+-import lombok.Data;
+-
+-import java.util.UUID;
+ import java.util.concurrent.CompletableFuture;
+ import java.util.concurrent.ScheduledExecutorService;
++import lombok.Data;
+ 
+ /**
+  * Mock EventStreamWriter.
+@@ -41,16 +38,6 @@
+         return writeEvent(event);
+     }
+ 
+-    @Override
+-    public Transaction<ControllerEvent> beginTxn() {
+-        return null;
+-    }
+-
+-    @Override
+-    public Transaction<ControllerEvent> getTxn(UUID transactionId) {
+-        return null;
+-    }
+-
+     @Override
+     public EventWriterConfig getConfig() {
+         return null;
+diff --git a/controller/src/test/java/io/pravega/controller/mocks/EventStreamWriterMock.java b/controller/src/test/java/io/pravega/controller/mocks/EventStreamWriterMock.java
+index 22e9f982f5..4850530160 100644
+--- a/controller/src/test/java/io/pravega/controller/mocks/EventStreamWriterMock.java
++++ b/controller/src/test/java/io/pravega/controller/mocks/EventStreamWriterMock.java
+@@ -12,10 +12,8 @@
+ import io.pravega.client.stream.EventStreamReader;
+ import io.pravega.client.stream.EventStreamWriter;
+ import io.pravega.client.stream.EventWriterConfig;
+-import io.pravega.client.stream.Transaction;
+ import java.util.ArrayList;
+ import java.util.List;
+-import java.util.UUID;
+ import java.util.concurrent.BlockingQueue;
+ import java.util.concurrent.CompletableFuture;
+ import java.util.concurrent.LinkedBlockingQueue;
+@@ -39,16 +37,6 @@
+         return CompletableFuture.completedFuture(null);
+     }
+ 
+-    @Override
+-    public Transaction<T> beginTxn() {
+-        throw new NotImplementedException("beginTxn");
+-    }
+-
+-    @Override
+-    public Transaction<T> getTxn(UUID transactionId) {
+-        throw new NotImplementedException("getTxn");
+-    }
+-
+     @Override
+     public EventWriterConfig getConfig() {
+         throw new NotImplementedException("getClientConfig");
+diff --git a/controller/src/test/java/io/pravega/controller/server/eventProcessor/ScaleRequestHandlerTest.java b/controller/src/test/java/io/pravega/controller/server/eventProcessor/ScaleRequestHandlerTest.java
+index 0442c32375..f6c26f0b09 100644
+--- a/controller/src/test/java/io/pravega/controller/server/eventProcessor/ScaleRequestHandlerTest.java
++++ b/controller/src/test/java/io/pravega/controller/server/eventProcessor/ScaleRequestHandlerTest.java
+@@ -17,7 +17,6 @@
+ import io.pravega.client.stream.EventWriterConfig;
+ import io.pravega.client.stream.ScalingPolicy;
+ import io.pravega.client.stream.StreamConfiguration;
+-import io.pravega.client.stream.Transaction;
+ import io.pravega.common.Exceptions;
+ import io.pravega.common.concurrent.ExecutorServiceHelpers;
+ import io.pravega.common.concurrent.Futures;
+@@ -961,16 +960,6 @@ public void testScaleRange() throws ExecutionException, InterruptedException {
+             return CompletableFuture.completedFuture(null);
+         }
+ 
+-        @Override
+-        public Transaction<ControllerEvent> beginTxn() {
+-            return null;
+-        }
+-
+-        @Override
+-        public Transaction<ControllerEvent> getTxn(UUID transactionId) {
+-            return null;
+-        }
+-
+         @Override
+         public EventWriterConfig getConfig() {
+             return null;
+diff --git a/controller/src/test/java/io/pravega/controller/task/Stream/StreamMetadataTasksTest.java b/controller/src/test/java/io/pravega/controller/task/Stream/StreamMetadataTasksTest.java
+index f2e2c6ac2c..064fd5670b 100644
+--- a/controller/src/test/java/io/pravega/controller/task/Stream/StreamMetadataTasksTest.java
++++ b/controller/src/test/java/io/pravega/controller/task/Stream/StreamMetadataTasksTest.java
+@@ -18,7 +18,6 @@
+ import io.pravega.client.stream.RetentionPolicy;
+ import io.pravega.client.stream.ScalingPolicy;
+ import io.pravega.client.stream.StreamConfiguration;
+-import io.pravega.client.stream.Transaction;
+ import io.pravega.common.Exceptions;
+ import io.pravega.common.concurrent.ExecutorServiceHelpers;
+ import io.pravega.common.concurrent.Futures;
+@@ -46,14 +45,14 @@
+ import io.pravega.controller.store.stream.AbstractStreamMetadataStore;
+ import io.pravega.controller.store.stream.BucketStore;
+ import io.pravega.controller.store.stream.OperationContext;
++import io.pravega.controller.store.stream.State;
+ import io.pravega.controller.store.stream.StoreException;
+ import io.pravega.controller.store.stream.StreamMetadataStore;
+ import io.pravega.controller.store.stream.StreamMetadataStoreTestHelper;
+ import io.pravega.controller.store.stream.StreamStoreFactory;
+-import io.pravega.controller.store.stream.VersionedTransactionData;
+ import io.pravega.controller.store.stream.TxnStatus;
+ import io.pravega.controller.store.stream.VersionedMetadata;
+-import io.pravega.controller.store.stream.State;
++import io.pravega.controller.store.stream.VersionedTransactionData;
+ import io.pravega.controller.store.stream.records.ActiveTxnRecord;
+ import io.pravega.controller.store.stream.records.EpochTransitionRecord;
+ import io.pravega.controller.store.stream.records.StreamConfigurationRecord;
+@@ -74,7 +73,6 @@
+ import io.pravega.shared.segment.StreamSegmentNameUtils;
+ import io.pravega.test.common.AssertExtensions;
+ import io.pravega.test.common.TestingServerStarter;
+-
+ import java.time.Duration;
+ import java.util.AbstractMap;
+ import java.util.ArrayList;
+@@ -112,9 +110,14 @@
+ import static org.junit.Assert.assertNull;
+ import static org.junit.Assert.assertTrue;
+ import static org.mockito.ArgumentMatchers.any;
++import static org.mockito.ArgumentMatchers.anyLong;
+ import static org.mockito.ArgumentMatchers.anyString;
+ import static org.mockito.ArgumentMatchers.eq;
+-import static org.mockito.Mockito.*;
++import static org.mockito.Mockito.doAnswer;
++import static org.mockito.Mockito.doReturn;
++import static org.mockito.Mockito.mock;
++import static org.mockito.Mockito.reset;
++import static org.mockito.Mockito.spy;
+ 
+ public abstract class StreamMetadataTasksTest {
+ 
+@@ -1510,16 +1513,6 @@ public void concurrentCreateStreamTest() {
+             return writeEvent(event);
+         }
+ 
+-        @Override
+-        public Transaction<ControllerEvent> beginTxn() {
+-            return null;
+-        }
+-
+-        @Override
+-        public Transaction<ControllerEvent> getTxn(UUID transactionId) {
+-            return null;
+-        }
+-
+         @Override
+         public EventWriterConfig getConfig() {
+             return null;
+diff --git a/controller/src/test/java/io/pravega/controller/task/Stream/StreamTransactionMetadataTasksTest.java b/controller/src/test/java/io/pravega/controller/task/Stream/StreamTransactionMetadataTasksTest.java
+index 4671874dc8..04e297070e 100644
+--- a/controller/src/test/java/io/pravega/controller/task/Stream/StreamTransactionMetadataTasksTest.java
++++ b/controller/src/test/java/io/pravega/controller/task/Stream/StreamTransactionMetadataTasksTest.java
+@@ -18,7 +18,6 @@
+ import io.pravega.client.stream.ReaderGroup;
+ import io.pravega.client.stream.ScalingPolicy;
+ import io.pravega.client.stream.StreamConfiguration;
+-import io.pravega.client.stream.Transaction;
+ import io.pravega.common.Exceptions;
+ import io.pravega.common.concurrent.ExecutorServiceHelpers;
+ import io.pravega.common.concurrent.Futures;
+@@ -84,8 +83,8 @@
+ import java.util.function.Supplier;
+ import lombok.Cleanup;
+ import lombok.SneakyThrows;
+-import lombok.extern.slf4j.Slf4j;
+ import lombok.val;
++import lombok.extern.slf4j.Slf4j;
+ import org.apache.commons.lang3.tuple.ImmutablePair;
+ import org.apache.commons.lang3.tuple.Pair;
+ import org.apache.curator.framework.CuratorFramework;
+@@ -108,10 +107,10 @@
+ import static org.mockito.ArgumentMatchers.anyString;
+ import static org.mockito.ArgumentMatchers.eq;
+ import static org.mockito.Mockito.doAnswer;
++import static org.mockito.Mockito.mock;
+ import static org.mockito.Mockito.spy;
+ import static org.mockito.Mockito.times;
+ import static org.mockito.Mockito.verify;
+-import static org.mockito.Mockito.mock;
+ 
+ /**
+  * Tests for StreamTransactionMetadataTasks.
+@@ -751,16 +750,6 @@ public void writerRoutingKeyTest() throws InterruptedException {
+             return CompletableFuture.completedFuture(null);
+         }
+ 
+-        @Override
+-        public Transaction<T> beginTxn() {
+-            return null;
+-        }
+-
+-        @Override
+-        public Transaction<T> getTxn(UUID transactionId) {
+-            return null;
+-        }
+-
+         @Override
+         public EventWriterConfig getConfig() {
+             return null;
+diff --git a/segmentstore/server/host/src/test/java/io/pravega/segmentstore/server/host/stat/AutoScaleProcessorTest.java b/segmentstore/server/host/src/test/java/io/pravega/segmentstore/server/host/stat/AutoScaleProcessorTest.java
+index a5bdf22b46..83aaebfa89 100644
+--- a/segmentstore/server/host/src/test/java/io/pravega/segmentstore/server/host/stat/AutoScaleProcessorTest.java
++++ b/segmentstore/server/host/src/test/java/io/pravega/segmentstore/server/host/stat/AutoScaleProcessorTest.java
+@@ -12,20 +12,16 @@
+ import io.pravega.client.ClientConfig;
+ import io.pravega.client.stream.EventStreamWriter;
+ import io.pravega.client.stream.EventWriterConfig;
+-import io.pravega.client.stream.Transaction;
+ import io.pravega.common.concurrent.Futures;
+ import io.pravega.shared.controller.event.AutoScaleEvent;
+ import io.pravega.shared.segment.StreamSegmentNameUtils;
+ import io.pravega.test.common.AssertExtensions;
+ import io.pravega.test.common.SecurityConfigDefaults;
+ import io.pravega.test.common.ThreadPooledTestSuite;
+-
+ import java.net.URI;
+ import java.time.Duration;
+-import java.util.UUID;
+ import java.util.concurrent.CompletableFuture;
+ import java.util.function.Consumer;
+-
+ import org.apache.commons.lang3.tuple.ImmutablePair;
+ import org.junit.Test;
+ 
+@@ -224,16 +220,6 @@ public void testPrepareClientConfigWhenTlsIsEnabled() {
+                 return CompletableFuture.<Void>completedFuture(null);
+             }
+ 
+-            @Override
+-            public Transaction<AutoScaleEvent> beginTxn() {
+-                return null;
+-            }
+-
+-            @Override
+-            public Transaction<AutoScaleEvent> getTxn(UUID transactionId) {
+-                return null;
+-            }
+-
+             @Override
+             public EventWriterConfig getConfig() {
+                 return null;
+diff --git a/test/integration/src/test/java/io/pravega/test/integration/BatchClientTest.java b/test/integration/src/test/java/io/pravega/test/integration/BatchClientTest.java
+index 81cd33285c..70ba801b36 100644
+--- a/test/integration/src/test/java/io/pravega/test/integration/BatchClientTest.java
++++ b/test/integration/src/test/java/io/pravega/test/integration/BatchClientTest.java
+@@ -18,7 +18,6 @@
+ import io.pravega.client.admin.StreamManager;
+ import io.pravega.client.batch.SegmentIterator;
+ import io.pravega.client.batch.SegmentRange;
+-import io.pravega.client.batch.impl.BatchClientFactoryImpl;
+ import io.pravega.client.batch.impl.SegmentRangeImpl;
+ import io.pravega.client.segment.impl.Segment;
+ import io.pravega.client.stream.EventStreamWriter;
+@@ -211,20 +210,6 @@ public void testBatchClientWithStreamTruncationPostGetSegments() throws Interrup
+         eventList.addAll(Lists.newArrayList(segmentIterator));
+     }
+ 
+-    @Test(timeout = 50000)
+-    @SuppressWarnings("deprecation")
+-    public void testGetStreamInfoOfImplementation() throws InterruptedException {
+-        createStream();
+-
+-        @Cleanup
+-        BatchClientFactory batchClient = BatchClientFactory.withScope(SCOPE, clientConfig);
+-        BatchClientFactoryImpl batchClientImpl = (BatchClientFactoryImpl) batchClient;
+-
+-        io.pravega.client.batch.StreamInfo info = batchClientImpl.getStreamInfo(Stream.of(SCOPE, STREAM)).join();
+-        assertEquals(SCOPE, info.getScope());
+-        assertEquals(STREAM, info.getStreamName());
+-    }
+-
+     //region Private helper methods
+ 
+     private void listAndReadSegmentsUsingBatchClient() throws InterruptedException, ExecutionException {
+diff --git a/test/integration/src/test/java/io/pravega/test/integration/StreamRecreationTest.java b/test/integration/src/test/java/io/pravega/test/integration/StreamRecreationTest.java
+index 11413d1261..f8806fc10f 100644
+--- a/test/integration/src/test/java/io/pravega/test/integration/StreamRecreationTest.java
++++ b/test/integration/src/test/java/io/pravega/test/integration/StreamRecreationTest.java
+@@ -10,7 +10,7 @@
+ package io.pravega.test.integration;
+ 
+ import io.pravega.client.ClientConfig;
+-import io.pravega.client.ClientFactory;
++import io.pravega.client.EventStreamClientFactory;
+ import io.pravega.client.admin.ReaderGroupManager;
+ import io.pravega.client.admin.StreamManager;
+ import io.pravega.client.stream.EventStreamReader;
+@@ -22,6 +22,7 @@
+ import io.pravega.client.stream.Stream;
+ import io.pravega.client.stream.StreamConfiguration;
+ import io.pravega.client.stream.Transaction;
++import io.pravega.client.stream.TransactionalEventStreamWriter;
+ import io.pravega.client.stream.impl.JavaSerializer;
+ import io.pravega.common.Exceptions;
+ import io.pravega.common.concurrent.ExecutorServiceHelpers;
+@@ -115,19 +116,23 @@ public void testStreamRecreation() throws Exception {
+             StreamConfiguration streamConfiguration = StreamConfiguration.builder()
+                                                                          .scalingPolicy(ScalingPolicy.fixed(i + 1))
+                                                                          .build();
++            EventWriterConfig eventWriterConfig = EventWriterConfig.builder().build();
+             streamManager.createStream(myScope, myStream, streamConfiguration);
+ 
+             // Write a single event.
+             @Cleanup
+-            ClientFactory clientFactory = ClientFactory.withScope(myScope, ClientConfig.builder().controllerURI(controllerURI).build());
++            EventStreamClientFactory clientFactory = EventStreamClientFactory.withScope(myScope, ClientConfig.builder().controllerURI(controllerURI).build());
+             EventStreamWriter<String> writer = clientFactory.createEventWriter(myStream, new JavaSerializer<>(),
+-                    EventWriterConfig.builder().build());
++                                                                               eventWriterConfig);
++            TransactionalEventStreamWriter<String> txnWriter = clientFactory.createTransactionalEventWriter(myStream,
++                                                                                                            new JavaSerializer<>(),
++                                                                                                            eventWriterConfig);
+ 
+             // Write events regularly and with transactions.
+             if (i % 2 == 0) {
+                 writer.writeEvent(eventContent).join();
+             } else {
+-                Transaction<String> myTransaction = writer.beginTxn();
++                Transaction<String> myTransaction = txnWriter.beginTxn();
+                 myTransaction.writeEvent(eventContent);
+                 myTransaction.commit();
+                 while (myTransaction.checkStatus() != Transaction.Status.COMMITTED) {
+diff --git a/test/integration/src/test/java/io/pravega/test/integration/TransactionTest.java b/test/integration/src/test/java/io/pravega/test/integration/TransactionTest.java
+index 4b5108b824..64507e1ad9 100644
+--- a/test/integration/src/test/java/io/pravega/test/integration/TransactionTest.java
++++ b/test/integration/src/test/java/io/pravega/test/integration/TransactionTest.java
+@@ -27,6 +27,7 @@
+ import io.pravega.client.stream.ReinitializationRequiredException;
+ import io.pravega.client.stream.StreamConfiguration;
+ import io.pravega.client.stream.Transaction;
++import io.pravega.client.stream.TransactionalEventStreamWriter;
+ import io.pravega.client.stream.TxnFailedException;
+ import io.pravega.client.stream.impl.JavaSerializer;
+ import io.pravega.client.stream.mock.MockClientFactory;
+@@ -88,13 +89,16 @@ public void testTransactionalWritesOrderedCorrectly() throws TxnFailedException,
+                                                          .disableAutomaticCheckpoints()
+                                                          .build());
+         MockClientFactory clientFactory = streamManager.getClientFactory();
++        EventWriterConfig eventWriterConfig = EventWriterConfig.builder().transactionTimeoutTime(60000).build();
+         @Cleanup
+         EventStreamWriter<String> producer = clientFactory.createEventWriter(streamName, new JavaSerializer<>(),
+-                                                                             EventWriterConfig.builder()
+-                                                                                              .transactionTimeoutTime(60000)
+-                                                                                              .build());
++                                                                                eventWriterConfig);
++        @Cleanup
++        TransactionalEventStreamWriter<String> txnProducer = clientFactory.createTransactionalEventWriter(streamName,
++                                                                                                          new JavaSerializer<>(),
++                                                                                                          eventWriterConfig);
+         producer.writeEvent(routingKey, nonTxEvent);
+-        Transaction<String> transaction = producer.beginTxn();
++        Transaction<String> transaction = txnProducer.beginTxn();
+         producer.writeEvent(routingKey, nonTxEvent);
+         transaction.writeEvent(routingKey, txnEvent);
+         producer.writeEvent(routingKey, nonTxEvent);
+@@ -154,11 +158,13 @@ public void testDoubleCommit() throws TxnFailedException {
+         streamManager.createScope("scope");
+         streamManager.createStream("scope", streamName, null);
+         MockClientFactory clientFactory = streamManager.getClientFactory();
++        EventWriterConfig eventWriterConfig = EventWriterConfig.builder()
++                          .transactionTimeoutTime(60000)
++                          .build();
+         @Cleanup
+-        EventStreamWriter<String> producer = clientFactory.createEventWriter(streamName, new JavaSerializer<>(),
+-                                                                             EventWriterConfig.builder()
+-                                                                                              .transactionTimeoutTime(60000)
+-                                                                                              .build());
++        TransactionalEventStreamWriter<String> producer = clientFactory.createTransactionalEventWriter(streamName,
++                                                                                                       new JavaSerializer<>(),
++                                                                                                       eventWriterConfig);
+         Transaction<String> transaction = producer.beginTxn();
+         transaction.writeEvent(routingKey, event);
+         transaction.commit();
+@@ -191,13 +197,15 @@ public void testDrop() throws TxnFailedException, ReinitializationRequiredExcept
+                                                          .disableAutomaticCheckpoints()
+                                                          .build());
+         MockClientFactory clientFactory = streamManager.getClientFactory();
++        EventWriterConfig eventWriterConfig = EventWriterConfig.builder()
++                          .transactionTimeoutTime(60000)
++                          .build();
+         @Cleanup
+-        EventStreamWriter<String> producer = clientFactory.createEventWriter(streamName, new JavaSerializer<>(),
+-                                                                             EventWriterConfig.builder()
+-                                                                                              .transactionTimeoutTime(60000)
+-                                                                                              .build());
++        TransactionalEventStreamWriter<String> txnProducer = clientFactory.createTransactionalEventWriter(streamName,
++                                                                                                       new JavaSerializer<>(),
++                                                                                                       eventWriterConfig);
+ 
+-        Transaction<String> transaction = producer.beginTxn();
++        Transaction<String> transaction = txnProducer.beginTxn();
+         transaction.writeEvent(routingKey, txnEvent);
+         transaction.flush();
+         transaction.abort();
+@@ -210,6 +218,9 @@ public void testDrop() throws TxnFailedException, ReinitializationRequiredExcept
+                                                                                                  groupName,
+                                                                                                  new JavaSerializer<>(),
+                                                                                                  ReaderConfig.builder().build());
++        @Cleanup
++        EventStreamWriter<String> producer = clientFactory.createEventWriter(streamName, new JavaSerializer<>(),
++                                                                             eventWriterConfig);
+         producer.writeEvent(routingKey, nonTxEvent);
+         producer.flush();
+         assertEquals(nonTxEvent, consumer.readNextEvent(1500).getEvent());
+diff --git a/test/integration/src/test/java/io/pravega/test/integration/endtoendtest/EndToEndStatsTest.java b/test/integration/src/test/java/io/pravega/test/integration/endtoendtest/EndToEndStatsTest.java
+index 7b07f9cdf0..070ca6e771 100644
+--- a/test/integration/src/test/java/io/pravega/test/integration/endtoendtest/EndToEndStatsTest.java
++++ b/test/integration/src/test/java/io/pravega/test/integration/endtoendtest/EndToEndStatsTest.java
+@@ -12,12 +12,13 @@
+ import io.micrometer.core.instrument.Counter;
+ import io.micrometer.core.instrument.Meter;
+ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+-import io.pravega.client.ClientFactory;
++import io.pravega.client.EventStreamClientFactory;
+ import io.pravega.client.stream.EventStreamWriter;
+ import io.pravega.client.stream.EventWriterConfig;
+ import io.pravega.client.stream.ScalingPolicy;
+ import io.pravega.client.stream.StreamConfiguration;
+ import io.pravega.client.stream.Transaction;
++import io.pravega.client.stream.TransactionalEventStreamWriter;
+ import io.pravega.client.stream.impl.ClientFactoryImpl;
+ import io.pravega.client.stream.impl.Controller;
+ import io.pravega.client.stream.impl.JavaSerializer;
+@@ -104,21 +105,25 @@ public void testStatsCount() throws Exception {
+         controllerWrapper.getControllerService().createScope("test").get();
+         controller.createStream("test", "test", config).get();
+         @Cleanup
+-        ClientFactory clientFactory = new ClientFactoryImpl("test", controller);
++        EventStreamClientFactory clientFactory = new ClientFactoryImpl("test", controller);
+ 
++        EventWriterConfig writerConfig = EventWriterConfig.builder().transactionTimeoutTime(10000).build();
+         @Cleanup
+-        EventStreamWriter<String> test = clientFactory.createEventWriter("test", new JavaSerializer<>(),
+-                EventWriterConfig.builder().transactionTimeoutTime(10000).build());
++        EventStreamWriter<String> eventWriter = clientFactory.createEventWriter("test", new JavaSerializer<>(),
++                writerConfig);
++        @Cleanup
++        TransactionalEventStreamWriter<String> txnWriter = clientFactory.createTransactionalEventWriter("test", new JavaSerializer<>(),
++                writerConfig);
+ 
+         String[] tags = segmentTags(StreamSegmentNameUtils.getQualifiedStreamSegmentName("test", "test", 0L));
+ 
+         for (int i = 0; i < 10; i++) {
+-            test.writeEvent("test").get();
++            eventWriter.writeEvent("test").get();
+         }
+         assertEventuallyEquals(10, () -> (int) (statsRecorder.getRegistry().counter(SEGMENT_WRITE_EVENTS, tags).count()), 2000);
+         assertEventuallyEquals(190, () -> (int) (statsRecorder.getRegistry().counter(SEGMENT_WRITE_BYTES, tags).count()), 100);
+ 
+-        Transaction<String> transaction = test.beginTxn();
++        Transaction<String> transaction = txnWriter.beginTxn();
+         for (int i = 0; i < 10; i++) {
+             transaction.writeEvent("0", "txntest1");
+         }
+diff --git a/test/system/src/test/java/io/pravega/test/system/ByteClientTest.java b/test/system/src/test/java/io/pravega/test/system/ByteClientTest.java
+index 8be1c3fec5..aef1ee723a 100644
+--- a/test/system/src/test/java/io/pravega/test/system/ByteClientTest.java
++++ b/test/system/src/test/java/io/pravega/test/system/ByteClientTest.java
+@@ -10,7 +10,7 @@
+ package io.pravega.test.system;
+ 
+ import io.pravega.client.ByteStreamClientFactory;
+-import io.pravega.client.ClientFactory;
++import io.pravega.client.EventStreamClientFactory;
+ import io.pravega.client.admin.StreamManager;
+ import io.pravega.client.byteStream.ByteStreamReader;
+ import io.pravega.client.byteStream.ByteStreamWriter;
+@@ -123,7 +123,7 @@ public void byteClientTest() throws IOException {
+                                                                            .clientConfig(Utils.buildClientConfig(controllerURI)).build(),
+                 connectionFactory.getInternalExecutor());
+         @Cleanup
+-        ClientFactory clientFactory = new ClientFactoryImpl(SCOPE, controller);
++        EventStreamClientFactory clientFactory = new ClientFactoryImpl(SCOPE, controller);
+         log.info("Invoking byteClientTest test with Controller URI: {}", controllerURI);
+         @Cleanup
+         ByteStreamClientFactory byteStreamClient = new ByteStreamClientImpl(SCOPE, controller, connectionFactory);

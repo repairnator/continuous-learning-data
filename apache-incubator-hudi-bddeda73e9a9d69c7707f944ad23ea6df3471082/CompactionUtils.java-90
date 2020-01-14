@@ -1,0 +1,9 @@
+@@ -90,7 +90,7 @@ public static HoodieCompactionPlan buildFromFileSlices(List<Pair<String, FileSli
+       Option<Map<String, String>> extraMetadata,
+       Option<Function<Pair<String, FileSlice>, Map<String, Double>>> metricsCaptureFunction) {
+     HoodieCompactionPlan.Builder builder = HoodieCompactionPlan.newBuilder();
+-    extraMetadata.ifPresent(m -> builder.setExtraMetadata(m));
++    extraMetadata.ifPresent(builder::setExtraMetadata);
+ 
+     builder.setOperations(partitionFileSlicePairs.stream()
+         .map(pfPair -> buildFromFileSlice(pfPair.getKey(), pfPair.getValue(), metricsCaptureFunction))

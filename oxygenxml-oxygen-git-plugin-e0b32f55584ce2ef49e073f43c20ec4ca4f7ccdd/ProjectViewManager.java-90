@@ -1,0 +1,9 @@
+@@ -90,7 +90,7 @@ public static void addPopUpMenuCustomizer(
+ 	 * 
+ 	 * @param pluginWorkspaceAccess  Plug-in workspace access.
+ 	 * 
+-	 * @return the selected files.
++	 * @return the selected files or an empty array. Never null.
+ 	 */
+ 	public static File[] getSelectedFilesAndDirsShallow(StandalonePluginWorkspace pluginWorkspaceAccess) {
+ 	  File[] toReturn = null;

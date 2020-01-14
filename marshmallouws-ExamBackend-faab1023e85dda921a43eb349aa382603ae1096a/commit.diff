@@ -1,0 +1,119 @@
+diff --git a/src/main/java/rest/ApplicationConfig.java b/src/main/java/rest/ApplicationConfig.java
+index d146418..a622060 100644
+--- a/src/main/java/rest/ApplicationConfig.java
++++ b/src/main/java/rest/ApplicationConfig.java
+@@ -25,7 +25,7 @@ private void addRestResourceClasses(Set<Class<?>> resources) {
+         resources.add(errorhandling.GenericExceptionMapper.class);
+         resources.add(org.glassfish.jersey.server.wadl.internal.WadlResource.class);
+         resources.add(rest.DemoResource.class);
+-        resources.add(rest.RenameMeResource.class);
++        resources.add(rest.MovieRessource.class);
+         resources.add(security.JWTAuthenticationFilter.class);
+         resources.add(security.LoginEndpoint.class);
+         resources.add(security.RolesAllowedFilter.class);
+diff --git a/src/main/java/rest/MovieRessource.java b/src/main/java/rest/MovieRessource.java
+new file mode 100644
+index 0000000..5d78b9a
+--- /dev/null
++++ b/src/main/java/rest/MovieRessource.java
+@@ -0,0 +1,53 @@
++package rest;
++
++import com.google.gson.Gson;
++import com.google.gson.GsonBuilder;
++import errorhandling.GenericExceptionMapper;
++import utils.EMF_Creator;
++import facades.FacadeExample;
++import facades.MovieApiFacade;
++import java.util.logging.Level;
++import java.util.logging.Logger;
++import javax.persistence.EntityManagerFactory;
++import javax.ws.rs.GET;
++import javax.ws.rs.Path;
++import javax.ws.rs.PathParam;
++import javax.ws.rs.Produces;
++import javax.ws.rs.core.MediaType;
++import javax.ws.rs.core.Response;
++
++//Todo Remove or change relevant parts before ACTUAL use
++@Path("movies")
++public class MovieRessource {
++    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
++    private static final MovieApiFacade FACADE = MovieApiFacade.getMovieApiFacade();
++            
++    @GET
++    @Produces({MediaType.APPLICATION_JSON})
++    public String demo() {
++        return "{\"msg\":\"Hello World..\"}";
++    }
++    
++    @Path("/movie-info-simple/{title}")
++    @GET
++    @Produces({MediaType.APPLICATION_JSON})
++    public Response getSimple(@PathParam("title") String title) {
++        try {
++            return Response.ok(FACADE.getMoviesSimple(title)).build();
++        } catch (InterruptedException ex) {
++            // TODO catch InterruptedException in facade and throw a custom exception
++            return new GenericExceptionMapper().toResponse(ex);
++        }
++    }
++    
++    @Path("/movie-info-all/{title}") 
++    @GET
++    @Produces(MediaType.APPLICATION_JSON)
++    public Response getAll(@PathParam("title") String title) {
++        try {
++            return Response.ok(FACADE.getMoviesAll(title)).build();
++        } catch (InterruptedException ex) {
++            return new GenericExceptionMapper().toResponse(ex);
++        }
++    }
++}
+diff --git a/src/main/java/rest/RenameMeResource.java b/src/main/java/rest/RenameMeResource.java
+deleted file mode 100644
+index 9ed937b..0000000
+--- a/src/main/java/rest/RenameMeResource.java
++++ /dev/null
+@@ -1,41 +0,0 @@
+-package rest;
+-
+-import com.google.gson.Gson;
+-import com.google.gson.GsonBuilder;
+-import utils.EMF_Creator;
+-import facades.FacadeExample;
+-import javax.persistence.EntityManagerFactory;
+-import javax.ws.rs.GET;
+-import javax.ws.rs.Path;
+-import javax.ws.rs.Produces;
+-import javax.ws.rs.core.MediaType;
+-
+-//Todo Remove or change relevant parts before ACTUAL use
+-@Path("xxx")
+-public class RenameMeResource {
+-
+-    private static final EntityManagerFactory EMF = EMF_Creator.createEntityManagerFactory(
+-                "pu",
+-                "jdbc:mysql://localhost:3307/CA3",
+-                "dev",
+-                "ax2",
+-                EMF_Creator.Strategy.CREATE);
+-    private static final FacadeExample FACADE =  FacadeExample.getFacadeExample(EMF);
+-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+-            
+-    @GET
+-    @Produces({MediaType.APPLICATION_JSON})
+-    public String demo() {
+-        return "{\"msg\":\"Hello World..\"}";
+-    }
+-    
+-    @Path("count")
+-    @GET
+-    @Produces({MediaType.APPLICATION_JSON})
+-    public String getRenameMeCount() {
+-        long count = FACADE.getRenameMeCount();
+-        return "{\"count\":"+count+"}";  //Done manually so no need for a DTO
+-    }
+-
+- 
+-}

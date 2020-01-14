@@ -1,0 +1,9 @@
+@@ -53,7 +53,7 @@
+ import org.wso2.carbon.identity.oidc.session.OIDCSessionConstants;
+ import org.wso2.carbon.identity.oidc.session.OIDCSessionManagementException;
+ import org.wso2.carbon.identity.oidc.session.OIDCSessionState;
+-import org.wso2.carbon.identity.oidc.session.backChannelLogout.LogoutRequestSender;
++import org.wso2.carbon.identity.oidc.session.backchannellogout.LogoutRequestSender;
+ import org.wso2.carbon.identity.oidc.session.cache.OIDCSessionDataCache;
+ import org.wso2.carbon.identity.oidc.session.cache.OIDCSessionDataCacheEntry;
+ import org.wso2.carbon.identity.oidc.session.cache.OIDCSessionDataCacheKey;

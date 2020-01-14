@@ -1,0 +1,9 @@
+@@ -248,7 +248,7 @@ private Requirement initializeWithStatus(final boolean draft, final boolean publ
+         );
+     }
+ 
+-    private RequirementUpdater generateStatusUpdates(final boolean draft, final boolean published) {
++    private RequirementUpdater generateStatusUpdates(boolean draft, boolean published) {
+         return new RequirementUpdater()
+                 .setDescription(TranslatedStringFixture.TS_1)
+                 .setDraft(draft)

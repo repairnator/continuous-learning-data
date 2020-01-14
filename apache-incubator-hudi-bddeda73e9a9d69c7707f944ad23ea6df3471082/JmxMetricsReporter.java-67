@@ -1,0 +1,9 @@
+@@ -67,7 +67,7 @@ public JmxMetricsReporter(HoodieWriteConfig config) {
+   @Override
+   public void start() {
+     try {
+-      Preconditions.checkNotNull(connector, "Cannot start as the jmxReporter is null.");
++      Objects.requireNonNull(connector, "Cannot start as the jmxReporter is null.");
+       connector.start();
+     } catch (Exception e) {
+       throw new HoodieException(e);

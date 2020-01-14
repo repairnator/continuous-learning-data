@@ -1,0 +1,2178 @@
+diff --git a/components/org.wso2.carbon.identity.oidc.session/pom.xml b/components/org.wso2.carbon.identity.oidc.session/pom.xml
+index 28a2de14d..adc9cefae 100644
+--- a/components/org.wso2.carbon.identity.oidc.session/pom.xml
++++ b/components/org.wso2.carbon.identity.oidc.session/pom.xml
+@@ -263,9 +263,6 @@
+             <plugin>
+                 <groupId>org.apache.maven.plugins</groupId>
+                 <artifactId>maven-checkstyle-plugin</artifactId>
+-                <configuration>
+-                    <skip>true</skip>
+-                </configuration>
+             </plugin>
+             <plugin>
+                 <groupId>org.codehaus.mojo</groupId>
+diff --git a/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/DefaultOIDCSessionStateManager.java b/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/DefaultOIDCSessionStateManager.java
+index 4979429dd..62d2a7a0d 100644
+--- a/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/DefaultOIDCSessionStateManager.java
++++ b/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/DefaultOIDCSessionStateManager.java
+@@ -24,18 +24,22 @@
+ import java.security.NoSuchAlgorithmException;
+ import java.security.SecureRandom;
+ import java.util.UUID;
++
+ import javax.servlet.http.Cookie;
+ import javax.servlet.http.HttpServletResponse;
+ 
+ import static org.wso2.carbon.identity.oidc.session.util.OIDCSessionManagementUtil.getOrigin;
+ 
++/**
++ * Manager class for default OIDC session state.
++ */
+ public class DefaultOIDCSessionStateManager implements OIDCSessionStateManager {
+ 
+     private static final String RANDOM_ALG_SHA1 = "SHA1PRNG";
+     private static final String DIGEST_ALG_SHA256 = "SHA-256";
+ 
+     /**
+-     * Generates a session state using the provided client id, client callback url and browser state cookie id
++     * Generates a session state using the provided client id, client callback url and browser state cookie id.
+      *
+      * @param clientId
+      * @param rpCallBackUrl
+@@ -58,7 +62,7 @@ public String getSessionStateParam(String clientId, String rpCallBackUrl, String
+     }
+ 
+     /**
+-     * Adds the browser state cookie to the response
++     * Adds the browser state cookie to the response.
+      *
+      * @param response
+      * @return Cookie
+diff --git a/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/OIDCSessionConstants.java b/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/OIDCSessionConstants.java
+index 270e16cbf..b7e180796 100644
+--- a/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/OIDCSessionConstants.java
++++ b/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/OIDCSessionConstants.java
+@@ -18,6 +18,9 @@
+ 
+ package org.wso2.carbon.identity.oidc.session;
+ 
++/**
++ * Contains the constants related to OIDC session.
++ */
+ public class OIDCSessionConstants {
+ 
+     public static final String OPBS_COOKIE_ID = "opbs";
+@@ -31,7 +34,7 @@
+     public static final String OIDC_POST_LOGOUT_REDIRECT_URI_PARAM = "post_logout_redirect_uri";
+     public static final String OIDC_STATE_PARAM = "state";
+     public static final String OIDC_SESSION_DATA_KEY_PARAM = "sessionDataKey";
+-    public static final String OIDC_LOGOUT_CONSENT_DENIAL_REDIRECT_URL =  "OAuth.OpenIDConnect" +
++    public static final String OIDC_LOGOUT_CONSENT_DENIAL_REDIRECT_URL = "OAuth.OpenIDConnect" +
+             ".RedirectToPostLogoutUriOnConsentDenial";
+ 
+     public static final String OIDC_CACHE_CLIENT_ID_PARAM = "client_id";
+@@ -39,18 +42,27 @@
+ 
+     public static final String OIDC_ID_TOKEN_AZP_CLAIM = "azp";
+ 
++    /**
++     * Contains the constants related to OIDC config elements.
++     */
+     public static class OIDCConfigElements {
++
+         public static final String OIDC_LOGOUT_CONSENT_PAGE_URL = "OIDCLogoutConsentPage";
+         public static final String OIDC_LOGOUT_PAGE_URL = "OIDCLogoutPage";
+         public static final String HANDLE_ALREADY_LOGGED_OUT_SESSIONS_GRACEFULLY =
+                 "HandleAlreadyLoggedOutSessionsGracefully";
+     }
+ 
++    /**
++     * Contains the constants related to OIDC endpoints.
++     */
+     public static class OIDCEndpoints {
++
+         public static final String OIDC_SESSION_IFRAME_ENDPOINT = "/oidc/checksession";
+         public static final String OIDC_LOGOUT_ENDPOINT = "/oidc/logout";
+     }
+ 
+     private OIDCSessionConstants() {
++
+     }
+ }
+diff --git a/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/OIDCSessionManagementException.java b/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/OIDCSessionManagementException.java
+index e27e3b263..506347a26 100644
+--- a/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/OIDCSessionManagementException.java
++++ b/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/OIDCSessionManagementException.java
+@@ -20,6 +20,9 @@
+ 
+ import org.wso2.carbon.identity.base.IdentityException;
+ 
++/**
++ * Handles the OIDC session management exceptions.
++ */
+ public class OIDCSessionManagementException extends IdentityException {
+ 
+     public OIDCSessionManagementException(String message) {
+diff --git a/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/OIDCSessionManager.java b/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/OIDCSessionManager.java
+index 4befa72c6..7a34bbf2d 100644
+--- a/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/OIDCSessionManager.java
++++ b/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/OIDCSessionManager.java
+@@ -23,14 +23,14 @@
+ import org.wso2.carbon.identity.oidc.session.cache.OIDCSessionParticipantCacheKey;
+ 
+ /**
+- * This class provides session state CRUD operations
++ * This class provides session state CRUD operations.
+  */
+ public class OIDCSessionManager {
+ 
+     /**
+-     * Stores the session state against the provided session id
++     * Stores the session state against the provided session id.
+      *
+-     * @param sessionId session id value
++     * @param sessionId    session id value
+      * @param sessionState OIDCSessionState instance
+      */
+     public void storeOIDCSessionState(String sessionId, OIDCSessionState sessionState) {
+@@ -45,7 +45,7 @@ public void storeOIDCSessionState(String sessionId, OIDCSessionState sessionStat
+     }
+ 
+     /**
+-     * Retrieves session state for the given session id
++     * Retrieves session state for the given session id.
+      *
+      * @param sessionId session id value
+      * @return OIDCSessionState instance
+@@ -62,7 +62,7 @@ public OIDCSessionState getOIDCSessionState(String sessionId) {
+     }
+ 
+     /**
+-     * Removes the session against the old session id and restore against the provided new session id
++     * Removes the session against the old session id and restore against the provided new session id.
+      *
+      * @param oldSessionId
+      * @param newSessionId
+@@ -75,7 +75,7 @@ public void restoreOIDCSessionState(String oldSessionId, String newSessionId, OI
+     }
+ 
+     /**
+-     * Removes the session against the given session id
++     * Removes the session against the given session id.
+      *
+      * @param sessionId session id value
+      */
+@@ -88,12 +88,13 @@ public void removeOIDCSessionState(String sessionId) {
+     }
+ 
+     /**
+-     * Checks if there is a session exists for the gives session id
++     * Checks if there is a session exists for the gives session id.
+      *
+      * @param sessionId session id value
+      * @return true if session exists
+      */
+     public boolean sessionExists(String sessionId) {
++
+         return getOIDCSessionState(sessionId) != null;
+     }
+ }
+diff --git a/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/OIDCSessionManagerException.java b/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/OIDCSessionManagerException.java
+index f2aeb2e5c..4fa85b7b1 100644
+--- a/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/OIDCSessionManagerException.java
++++ b/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/OIDCSessionManagerException.java
+@@ -18,24 +18,30 @@
+ 
+ package org.wso2.carbon.identity.oidc.session;
+ 
+-
+ import org.wso2.carbon.identity.base.IdentityException;
+ 
++/**
++ * Handles the OIDC Session Manager exceptions.
++ */
+ public class OIDCSessionManagerException extends IdentityException {
+ 
+     public OIDCSessionManagerException(String message) {
++
+         super(message);
+     }
+ 
+     public OIDCSessionManagerException(String errorCode, String message) {
++
+         super(errorCode, message);
+     }
+ 
+     public OIDCSessionManagerException(String message, Throwable cause) {
++
+         super(message, cause);
+     }
+ 
+     public OIDCSessionManagerException(String errorCode, String message, Throwable cause) {
++
+         super(errorCode, message, cause);
+     }
+ }
+diff --git a/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/OIDCSessionState.java b/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/OIDCSessionState.java
+index d286d529f..d3cbc13b9 100644
+--- a/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/OIDCSessionState.java
++++ b/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/OIDCSessionState.java
+@@ -41,6 +41,7 @@
+      * @return authenticated user
+      */
+     public String getAuthenticatedUser() {
++
+         return authenticatedUser;
+     }
+ 
+@@ -50,6 +51,7 @@ public String getAuthenticatedUser() {
+      * @param authenticatedUser
+      */
+     public void setAuthenticatedUser(String authenticatedUser) {
++
+         this.authenticatedUser = authenticatedUser;
+     }
+ 
+@@ -59,6 +61,7 @@ public void setAuthenticatedUser(String authenticatedUser) {
+      * @return a set of client ids
+      */
+     public Set<String> getSessionParticipants() {
++
+         return sessionParticipants;
+     }
+ 
+@@ -68,6 +71,7 @@ public void setAuthenticatedUser(String authenticatedUser) {
+      * @param sessionParticipants
+      */
+     public void setSessionParticipants(Set<String> sessionParticipants) {
++
+         this.sessionParticipants = sessionParticipants;
+     }
+ 
+@@ -78,6 +82,7 @@ public void setSessionParticipants(Set<String> sessionParticipants) {
+      * @return true if successfully added and false if not added and is being duplicated
+      */
+     public boolean addSessionParticipant(String clientId) {
++
+         return sessionParticipants.add(clientId);
+     }
+ 
+@@ -87,6 +92,7 @@ public boolean addSessionParticipant(String clientId) {
+      * @return authenticated flag
+      */
+     public boolean isAuthenticated() {
++
+         return isAuthenticated;
+     }
+ 
+@@ -96,6 +102,7 @@ public boolean isAuthenticated() {
+      * @param isAuthenticated
+      */
+     public void setAuthenticated(boolean isAuthenticated) {
++
+         this.isAuthenticated = isAuthenticated;
+     }
+ 
+@@ -105,6 +112,7 @@ public void setAuthenticated(boolean isAuthenticated) {
+      * @return add session state flag
+      */
+     public boolean isAddSessionState() {
++
+         return addSessionState;
+     }
+ 
+@@ -115,6 +123,7 @@ public boolean isAddSessionState() {
+      * @param addSessionState
+      */
+     public void setAddSessionState(boolean addSessionState) {
++
+         this.addSessionState = addSessionState;
+     }
+ 
+diff --git a/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/OIDCSessionStateManager.java b/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/OIDCSessionStateManager.java
+index 35edf5db7..75c75e084 100644
+--- a/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/OIDCSessionStateManager.java
++++ b/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/OIDCSessionStateManager.java
+@@ -21,10 +21,13 @@
+ import javax.servlet.http.Cookie;
+ import javax.servlet.http.HttpServletResponse;
+ 
++/**
++ * Manages the OIDC session state.
++ */
+ public interface OIDCSessionStateManager {
+ 
+     /**
+-     * Generates a session state using the provided client id, client callback url and browser state cookie id
++     * Generates a session state using the provided client id, client callback url and browser state cookie id.
+      *
+      * @param clientId
+      * @param rpCallBackUrl
+@@ -34,11 +37,11 @@
+     String getSessionStateParam(String clientId, String rpCallBackUrl, String opBrowserState);
+ 
+     /**
+-     * Adds the browser state cookie to the response
++     * Adds the browser state cookie to the response.
+      *
+      * @param response
+      * @return Cookie
+      */
+     Cookie addOPBrowserStateCookie(HttpServletResponse response);
+ 
+-}
+\ No newline at end of file
++}
+diff --git a/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/backChannelLogout/ClaimProviderImpl.java b/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/backchannellogout/ClaimProviderImpl.java
+similarity index 98%
+rename from components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/backChannelLogout/ClaimProviderImpl.java
+rename to components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/backchannellogout/ClaimProviderImpl.java
+index 3b0570e26..66017b9a2 100644
+--- a/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/backChannelLogout/ClaimProviderImpl.java
++++ b/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/backchannellogout/ClaimProviderImpl.java
+@@ -15,7 +15,7 @@
+  * specific language governing permissions and limitations
+  * under the License.
+  */
+-package org.wso2.carbon.identity.oidc.session.backChannelLogout;
++package org.wso2.carbon.identity.oidc.session.backchannellogout;
+ 
+ import org.apache.commons.lang.StringUtils;
+ import org.apache.commons.logging.Log;
+@@ -37,13 +37,14 @@
+ import org.wso2.carbon.identity.oidc.session.util.OIDCSessionManagementUtil;
+ import org.wso2.carbon.identity.openidconnect.ClaimProvider;
+ 
+-import javax.servlet.http.Cookie;
+ import java.util.HashMap;
+ import java.util.Map;
+ import java.util.UUID;
+ 
++import javax.servlet.http.Cookie;
++
+ /**
+- * This class is used to insert sid claim into ID token
++ * This class is used to insert sid claim into ID token.
+  */
+ public class ClaimProviderImpl implements ClaimProvider {
+ 
+@@ -84,6 +85,7 @@
+      */
+     private void addSidToCacheWhenIDTokenIsEncrypted(OAuthAuthzReqMessageContext oAuthAuthzReqMessageContext,
+                                                      String claimValue) throws IdentityOAuth2Exception {
++
+         try {
+             OAuthAppDO app = OAuth2Util.getAppInformationByClientId(
+                     oAuthAuthzReqMessageContext.getAuthorizationReqDTO().getConsumerKey());
+diff --git a/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/backChannelLogout/DefaultLogoutTokenBuilder.java b/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/backchannellogout/DefaultLogoutTokenBuilder.java
+similarity index 97%
+rename from components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/backChannelLogout/DefaultLogoutTokenBuilder.java
+rename to components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/backchannellogout/DefaultLogoutTokenBuilder.java
+index 9e45f0632..0a9453b37 100644
+--- a/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/backChannelLogout/DefaultLogoutTokenBuilder.java
++++ b/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/backchannellogout/DefaultLogoutTokenBuilder.java
+@@ -15,7 +15,7 @@
+  * specific language governing permissions and limitations
+  * under the License.
+  */
+-package org.wso2.carbon.identity.oidc.session.backChannelLogout;
++package org.wso2.carbon.identity.oidc.session.backchannellogout;
+ 
+ import com.nimbusds.jose.JOSEException;
+ import com.nimbusds.jose.JWSAlgorithm;
+@@ -45,8 +45,6 @@
+ import org.wso2.carbon.idp.mgt.IdentityProviderManagementException;
+ import org.wso2.carbon.idp.mgt.IdentityProviderManager;
+ 
+-import javax.servlet.http.Cookie;
+-import javax.servlet.http.HttpServletRequest;
+ import java.security.interfaces.RSAPublicKey;
+ import java.text.ParseException;
+ import java.util.ArrayList;
+@@ -58,13 +56,16 @@
+ import java.util.Set;
+ import java.util.UUID;
+ 
++import javax.servlet.http.Cookie;
++import javax.servlet.http.HttpServletRequest;
++
+ /**
+  * This is the logout token generator for the OpenID Connect back-channel logout Implementation. This
+  * Logout token Generator utilizes the Nimbus SDK to build the Logout token.
+  */
+ public class DefaultLogoutTokenBuilder implements LogoutTokenBuilder {
+ 
+-    public static final Log log = LogFactory.getLog(DefaultLogoutTokenBuilder.class);
++    private static final Log log = LogFactory.getLog(DefaultLogoutTokenBuilder.class);
+     private OAuthServerConfiguration config = null;
+     private JWSAlgorithm signatureAlgorithm = null;
+     private static final String OPENID_IDP_ENTITY_ID = "IdPEntityId";
+@@ -97,7 +98,6 @@ public DefaultLogoutTokenBuilder() throws IdentityOAuth2Exception {
+                     }
+                     if (StringUtils.isNotBlank(backChannelLogoutUrl)) {
+                         // Send back-channel logout request to all RPs those registered their back-channel logout uri.
+-
+                         JWTClaimsSet jwtClaimsSet = buildJwtToken(sessionState, getTenanatDomain(oAuthAppDO), clientID);
+                         String logoutToken =
+                                 OAuth2Util.signJWT(jwtClaimsSet, signatureAlgorithm, getSigningTenantDomain(oAuthAppDO))
+@@ -116,6 +116,7 @@ public DefaultLogoutTokenBuilder() throws IdentityOAuth2Exception {
+ 
+     /**
+      * Builds jwtClaimSet.
++     *
+      * @param sessionState
+      * @param tenantDomain
+      * @param clientID
+@@ -151,6 +152,7 @@ private JWTClaimsSet buildJwtToken(OIDCSessionState sessionState, String tenantD
+ 
+     /**
+      * Returns client id from servlet request.
++     *
+      * @param request
+      * @return
+      * @throws IdentityOAuth2Exception
+@@ -196,9 +198,8 @@ private String getSigningTenantDomain(OAuthAppDO oAuthAppDO) {
+         return signingTenantDomain;
+     }
+ 
+-
+     /**
+-     * Returns the OIDCsessionState of the obps cookie
++     * Returns the OIDCsessionState of the obps cookie.
+      *
+      * @param request
+      * @return
+@@ -206,12 +207,12 @@ private String getSigningTenantDomain(OAuthAppDO oAuthAppDO) {
+     private OIDCSessionState getSessionState(HttpServletRequest request) {
+ 
+         Cookie opbsCookie = OIDCSessionManagementUtil.getOPBrowserStateCookie(request);
+-        if (opbsCookie !=null) {
+-        String obpsCookieValue = opbsCookie.getValue();
++        if (opbsCookie != null) {
++            String obpsCookieValue = opbsCookie.getValue();
+             OIDCSessionState sessionState = OIDCSessionManagementUtil.getSessionManager()
+                     .getOIDCSessionState(obpsCookieValue);
+             return sessionState;
+-        }else {
++        } else {
+             return null;
+         }
+     }
+@@ -274,7 +275,7 @@ private String getIssuer(String tenantDomain) throws IdentityOAuth2Exception {
+     }
+ 
+     /**
+-     * Returns OAuthAppDo using clientID
++     * Returns OAuthAppDo using clientID.
+      *
+      * @param clientID
+      * @return
+@@ -300,7 +301,7 @@ private String getTenanatDomain(OAuthAppDO oAuthAppDO) {
+     }
+ 
+     /**
+-     * Returns a list of audience
++     * Returns a list of audience.
+      *
+      * @param clientID
+      * @return
+@@ -324,7 +325,7 @@ private long getLogoutTokenExpiryInMillis() {
+     }
+ 
+     /**
+-     * Returns ID Token
++     * Returns ID Token.
+      *
+      * @param request
+      * @return
+@@ -359,6 +360,7 @@ private String getClientIdFromIDTokenHint(String idTokenHint) {
+ 
+     /**
+      * Extract client Id from ID Token Hint.
++     *
+      * @param idToken
+      * @return
+      * @throws ParseException
+@@ -370,6 +372,7 @@ private String extractClientFromIdToken(String idToken) throws ParseException {
+ 
+     /**
+      * Validate Id Token Hint.
++     *
+      * @param clientId
+      * @param idToken
+      * @return
+diff --git a/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/backChannelLogout/LogoutRequestSender.java b/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/backchannellogout/LogoutRequestSender.java
+similarity index 98%
+rename from components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/backChannelLogout/LogoutRequestSender.java
+rename to components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/backchannellogout/LogoutRequestSender.java
+index 247f26d29..dc9ac8ef8 100644
+--- a/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/backChannelLogout/LogoutRequestSender.java
++++ b/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/backchannellogout/LogoutRequestSender.java
+@@ -15,7 +15,7 @@
+  * specific language governing permissions and limitations
+  * under the License.
+  */
+-package org.wso2.carbon.identity.oidc.session.backChannelLogout;
++package org.wso2.carbon.identity.oidc.session.backchannellogout;
+ 
+ import org.apache.commons.collections.MapUtils;
+ import org.apache.commons.logging.Log;
+@@ -33,7 +33,6 @@
+ import org.wso2.carbon.identity.oauth.common.exception.InvalidOAuthClientException;
+ import org.wso2.carbon.identity.oauth2.IdentityOAuth2Exception;
+ 
+-import javax.servlet.http.HttpServletRequest;
+ import java.io.IOException;
+ import java.io.UnsupportedEncodingException;
+ import java.util.ArrayList;
+@@ -42,6 +41,11 @@
+ import java.util.concurrent.ExecutorService;
+ import java.util.concurrent.Executors;
+ 
++import javax.servlet.http.HttpServletRequest;
++
++/**
++ * Used to send logout request.
++ */
+ public class LogoutRequestSender {
+ 
+     private static final Log log = LogFactory.getLog(LogoutRequestSender.class);
+@@ -54,7 +58,7 @@ private LogoutRequestSender() {
+     }
+ 
+     /**
+-     * getInstance() method of LogoutRequestSender, as it is a singleton
++     * getInstance() method of LogoutRequestSender, as it is a singleton.
+      *
+      * @return LogoutRequestSender instance
+      */
+@@ -119,9 +123,9 @@ public LogoutReqSenderTask(String logoutToken, String backChannelLogouturl) {
+             this.backChannelLogouturl = backChannelLogouturl;
+         }
+ 
+-
+         @Override
+         public void run() {
++
+             if (log.isDebugEnabled()) {
+                 log.debug("Starting backchannel logout request to: " + backChannelLogouturl);
+             }
+diff --git a/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/backChannelLogout/LogoutTokenBuilder.java b/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/backchannellogout/LogoutTokenBuilder.java
+similarity index 91%
+rename from components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/backChannelLogout/LogoutTokenBuilder.java
+rename to components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/backchannellogout/LogoutTokenBuilder.java
+index 736b90f4e..8f01c8ca7 100644
+--- a/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/backChannelLogout/LogoutTokenBuilder.java
++++ b/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/backchannellogout/LogoutTokenBuilder.java
+@@ -15,21 +15,22 @@
+  * specific language governing permissions and limitations
+  * under the License.
+  */
+-package org.wso2.carbon.identity.oidc.session.backChannelLogout;
++package org.wso2.carbon.identity.oidc.session.backchannellogout;
+ 
+ import org.wso2.carbon.identity.oauth.common.exception.InvalidOAuthClientException;
+ import org.wso2.carbon.identity.oauth2.IdentityOAuth2Exception;
+ 
+-import javax.servlet.http.HttpServletRequest;
+ import java.util.Map;
+ 
++import javax.servlet.http.HttpServletRequest;
++
+ /**
+  * Logout token generator for the OpenID Connect back-channel logout Implementation.
+  */
+ public interface LogoutTokenBuilder {
+ 
+     /**
+-     * Returns logout token and back-channel logout uri map
++     * Returns logout token and back-channel logout uri map.
+      *
+      * @param request HttpServletRequest
+      * @return a map of logout tokens and corresponding back-channel logout URLs.
+diff --git a/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/cache/OIDCBackChannelAuthCodeCache.java b/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/cache/OIDCBackChannelAuthCodeCache.java
+index 18b5f1717..88c0e0c1f 100644
+--- a/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/cache/OIDCBackChannelAuthCodeCache.java
++++ b/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/cache/OIDCBackChannelAuthCodeCache.java
+@@ -23,7 +23,7 @@
+ import org.wso2.carbon.identity.application.common.cache.BaseCache;
+ 
+ /**
+- * This class is used to cache Authorization code  against session ID (sid) for OIDCBackChannel Logout
++ * This class is used to cache Authorization code  against session ID (sid) for OIDCBackChannel Logout.
+  */
+ public class OIDCBackChannelAuthCodeCache extends BaseCache<OIDCBackChannelAuthCodeCacheKey,
+         OIDCBackChannelAuthCodeCacheEntry> {
+@@ -34,6 +34,7 @@
+     private static volatile OIDCBackChannelAuthCodeCache instance;
+ 
+     public OIDCBackChannelAuthCodeCache() {
++
+         super(OIDC_BACKCHANNEL_DATA_CACHE_NAME);
+     }
+ 
+@@ -43,6 +44,7 @@ public OIDCBackChannelAuthCodeCache() {
+      * @return OIDCBackChannelAuthCodeCache instance.
+      */
+     public static OIDCBackChannelAuthCodeCache getInstance() {
++
+         if (instance == null) {
+             synchronized (OIDCBackChannelAuthCodeCache.class) {
+                 if (instance == null) {
+@@ -63,6 +65,7 @@ public static OIDCBackChannelAuthCodeCache getInstance() {
+      */
+     @Override
+     public void addToCache(OIDCBackChannelAuthCodeCacheKey key, OIDCBackChannelAuthCodeCacheEntry entry) {
++
+         super.addToCache(key, entry);
+         SessionDataStore.getInstance().storeSessionData(key.getAuthCode(), OIDC_BACKCHANNEL_DATA_CACHE_NAME, entry);
+         if (log.isDebugEnabled()) {
+@@ -79,6 +82,7 @@ public void addToCache(OIDCBackChannelAuthCodeCacheKey key, OIDCBackChannelAuthC
+      */
+     @Override
+     public OIDCBackChannelAuthCodeCacheEntry getValueFromCache(OIDCBackChannelAuthCodeCacheKey key) {
++
+         OIDCBackChannelAuthCodeCacheEntry entry = super.getValueFromCache(key);
+         if (entry == null) {
+             if (log.isDebugEnabled()) {
+@@ -97,6 +101,7 @@ public OIDCBackChannelAuthCodeCacheEntry getValueFromCache(OIDCBackChannelAuthCo
+      */
+     @Override
+     public void clearCacheEntry(OIDCBackChannelAuthCodeCacheKey key) {
++
+         super.clearCacheEntry(key);
+         SessionDataStore.getInstance().clearSessionData(key.getAuthCode(), OIDC_BACKCHANNEL_DATA_CACHE_NAME);
+         if (log.isDebugEnabled()) {
+diff --git a/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/cache/OIDCBackChannelAuthCodeCacheKey.java b/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/cache/OIDCBackChannelAuthCodeCacheKey.java
+index e60bb81b7..b70135926 100644
+--- a/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/cache/OIDCBackChannelAuthCodeCacheKey.java
++++ b/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/cache/OIDCBackChannelAuthCodeCacheKey.java
+@@ -20,7 +20,7 @@
+ import org.wso2.carbon.identity.application.common.cache.CacheKey;
+ 
+ /**
+- * This class holds the cache key which is AuthorizationCode
++ * This class holds the cache key which is AuthorizationCode.
+  */
+ public class OIDCBackChannelAuthCodeCacheKey extends CacheKey {
+ 
+diff --git a/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/cache/OIDCSessionDataCache.java b/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/cache/OIDCSessionDataCache.java
+index b7ade56e4..85464be2b 100644
+--- a/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/cache/OIDCSessionDataCache.java
++++ b/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/cache/OIDCSessionDataCache.java
+@@ -21,7 +21,7 @@
+ import org.wso2.carbon.identity.application.common.cache.BaseCache;
+ 
+ /**
+- * This is the class used to cache request session
++ * This is the class used to cache request session.
+  */
+ public class OIDCSessionDataCache extends BaseCache<OIDCSessionDataCacheKey, OIDCSessionDataCacheEntry> {
+ 
+@@ -30,10 +30,12 @@
+     private static volatile OIDCSessionDataCache instance;
+ 
+     private OIDCSessionDataCache() {
++
+         super(SESSION_DATA_CACHE_NAME);
+     }
+ 
+     public static OIDCSessionDataCache getInstance() {
++
+         if (instance == null) {
+             synchronized (OIDCSessionDataCache.class) {
+                 if (instance == null) {
+diff --git a/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/cache/OIDCSessionDataCacheEntry.java b/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/cache/OIDCSessionDataCacheEntry.java
+index 9434a535e..87b4d2f26 100644
+--- a/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/cache/OIDCSessionDataCacheEntry.java
++++ b/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/cache/OIDCSessionDataCacheEntry.java
+@@ -24,7 +24,7 @@
+ import java.util.concurrent.ConcurrentMap;
+ 
+ /**
+- * This class holds request session information and gets cached against a cache key
++ * This class holds request session information and gets cached against a cache key.
+  */
+ public class OIDCSessionDataCacheEntry extends CacheEntry {
+ 
+@@ -36,34 +36,42 @@
+     private ConcurrentMap<String, String> paramMap = new ConcurrentHashMap<String, String>();
+ 
+     public String getPostLogoutRedirectUri() {
++
+         return postLogoutRedirectUri;
+     }
+ 
+     public void setPostLogoutRedirectUri(String postLogoutRedirectUri) {
++
+         this.postLogoutRedirectUri = postLogoutRedirectUri;
+     }
+ 
+     public String getState() {
++
+         return state;
+     }
+ 
+     public void setState(String state) {
++
+         this.state = state;
+     }
+ 
+     public String getIdToken() {
++
+         return idToken;
+     }
+ 
+     public void setIdToken(String idToken) {
++
+         this.idToken = idToken;
+     }
+ 
+     public ConcurrentMap<String, String> getParamMap() {
++
+         return paramMap;
+     }
+ 
+     public void setParamMap(ConcurrentMap<String, String> paramMap) {
++
+         this.paramMap = paramMap;
+     }
+ }
+diff --git a/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/cache/OIDCSessionDataCacheKey.java b/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/cache/OIDCSessionDataCacheKey.java
+index aaf4fd494..07c3077ef 100644
+--- a/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/cache/OIDCSessionDataCacheKey.java
++++ b/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/cache/OIDCSessionDataCacheKey.java
+@@ -21,7 +21,7 @@
+ import org.wso2.carbon.identity.application.common.cache.CacheKey;
+ 
+ /**
+- * This class holds the cache key which is the request session key denoted with 'SessionDataKey' parameter
++ * This class holds the cache key which is the request session key denoted with 'SessionDataKey' parameter.
+  */
+ public class OIDCSessionDataCacheKey extends CacheKey {
+ 
+@@ -29,15 +29,18 @@
+     private String sessionDataId;
+ 
+     public OIDCSessionDataCacheKey(String sessionDataId) {
++
+         this.sessionDataId = sessionDataId;
+     }
+ 
+     public String getSessionDataId() {
++
+         return sessionDataId;
+     }
+ 
+     @Override
+     public boolean equals(Object o) {
++
+         if (!(o instanceof OIDCSessionDataCacheKey)) {
+             return false;
+         }
+@@ -46,6 +49,7 @@ public boolean equals(Object o) {
+ 
+     @Override
+     public int hashCode() {
++
+         return sessionDataId.hashCode();
+     }
+ }
+diff --git a/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/cache/OIDCSessionParticipantCache.java b/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/cache/OIDCSessionParticipantCache.java
+index e1b573b7e..aea284155 100644
+--- a/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/cache/OIDCSessionParticipantCache.java
++++ b/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/cache/OIDCSessionParticipantCache.java
+@@ -24,7 +24,7 @@
+ import org.wso2.carbon.identity.application.common.cache.BaseCache;
+ 
+ /**
+- * This is the class which caches OIDC session state information
++ * This is the class which caches OIDC session state information.
+  */
+ public class OIDCSessionParticipantCache
+         extends BaseCache<OIDCSessionParticipantCacheKey, OIDCSessionParticipantCacheEntry> {
+@@ -35,15 +35,17 @@
+     private static volatile OIDCSessionParticipantCache instance;
+ 
+     private OIDCSessionParticipantCache() {
++
+         super(OIDC_SESSION_PARTICIPANT_CACHE_NAME);
+     }
+ 
+     /**
+-     * Returns OIDCSessionParticipantCache singleton instance
++     * Returns OIDCSessionParticipantCache singleton instance.
+      *
+      * @return OIDCSessionParticipantCache instance
+      */
+     public static OIDCSessionParticipantCache getInstance() {
++
+         if (instance == null) {
+             synchronized (OIDCSessionParticipantCache.class) {
+                 if (instance == null) {
+@@ -55,16 +57,17 @@ public static OIDCSessionParticipantCache getInstance() {
+     }
+ 
+     /**
+-     * Adds session information to the cache
+-     * Cache key includes the browser state cookie id
++     * Adds session information to the cache.
++     * Cache key includes the browser state cookie id.
+      * Cache entry includes the authenticated user, and clients authenticated for that user who participates in the
+-     * same browser session
++     * same browser session.
+      *
+      * @param key   Key which cache entry is indexed.
+      * @param entry Actual object where cache entry is placed.
+      */
+     @Override
+     public void addToCache(OIDCSessionParticipantCacheKey key, OIDCSessionParticipantCacheEntry entry) {
++
+         super.addToCache(key, entry);
+         SessionDataStore.getInstance().storeSessionData(key.getSessionID(), OIDC_SESSION_PARTICIPANT_CACHE_NAME, entry);
+         if (log.isDebugEnabled()) {
+@@ -82,6 +85,7 @@ public void addToCache(OIDCSessionParticipantCacheKey key, OIDCSessionParticipan
+      */
+     @Override
+     public OIDCSessionParticipantCacheEntry getValueFromCache(OIDCSessionParticipantCacheKey key) {
++
+         OIDCSessionParticipantCacheEntry entry = super.getValueFromCache(key);
+         if (entry == null) {
+             if (log.isDebugEnabled()) {
+@@ -96,12 +100,13 @@ public OIDCSessionParticipantCacheEntry getValueFromCache(OIDCSessionParticipant
+     }
+ 
+     /**
+-     * Clears the session information from the cache and remove from persistence store
++     * Clears the session information from the cache and remove from persistence store.
+      *
+      * @param key Key to clear cache.
+      */
+     @Override
+     public void clearCacheEntry(OIDCSessionParticipantCacheKey key) {
++
+         super.clearCacheEntry(key);
+         SessionDataStore.getInstance().clearSessionData(key.getSessionID(), OIDC_SESSION_PARTICIPANT_CACHE_NAME);
+         if (log.isDebugEnabled()) {
+diff --git a/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/cache/OIDCSessionParticipantCacheEntry.java b/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/cache/OIDCSessionParticipantCacheEntry.java
+index 3f4166b59..7be2191eb 100644
+--- a/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/cache/OIDCSessionParticipantCacheEntry.java
++++ b/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/cache/OIDCSessionParticipantCacheEntry.java
+@@ -22,7 +22,7 @@
+ import org.wso2.carbon.identity.oidc.session.OIDCSessionState;
+ 
+ /**
+- * This class holds OIDC session information and gets cached against a cache key
++ * This class holds OIDC session information and gets cached against a cache key.
+  */
+ public class OIDCSessionParticipantCacheEntry extends CacheEntry {
+ 
+@@ -32,20 +32,22 @@
+ 
+     /**
+      * Returns session state information which includes authenticated user, and clients authenticated for that user
+-     * who participates in the same browser session
++     * who participates in the same browser session.
+      *
+      * @return OIDCSessionState instance
+      */
+     public OIDCSessionState getSessionState() {
++
+         return sessionState;
+     }
+ 
+     /**
+-     * Sets the session state
++     * Sets the session state.
+      *
+      * @param sessionState OIDCSessionState instance
+      */
+     public void setSessionState(OIDCSessionState sessionState) {
++
+         this.sessionState = sessionState;
+     }
+ }
+diff --git a/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/cache/OIDCSessionParticipantCacheKey.java b/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/cache/OIDCSessionParticipantCacheKey.java
+index e304fe1d1..59f971c8f 100644
+--- a/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/cache/OIDCSessionParticipantCacheKey.java
++++ b/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/cache/OIDCSessionParticipantCacheKey.java
+@@ -21,7 +21,7 @@
+ import org.wso2.carbon.identity.application.common.cache.CacheKey;
+ 
+ /**
+- * This class holds the cache key which is the browser session cookie id
++ * This class holds the cache key which is the browser session cookie id.
+  */
+ public class OIDCSessionParticipantCacheKey extends CacheKey {
+ 
+@@ -30,25 +30,28 @@
+     private String sessionID;
+ 
+     /**
+-     * Returns session id
++     * Returns session id.
+      *
+      * @return session id value
+      */
+     public String getSessionID() {
++
+         return sessionID;
+     }
+ 
+     /**
+-     * Sets session id
++     * Sets session id.
+      *
+      * @param sessionID session id value
+      */
+     public void setSessionID(String sessionID) {
++
+         this.sessionID = sessionID;
+     }
+ 
+     @Override
+     public boolean equals(Object o) {
++
+         if (this == o) {
+             return true;
+         }
+@@ -70,6 +73,7 @@ public boolean equals(Object o) {
+ 
+     @Override
+     public int hashCode() {
++
+         int result = super.hashCode();
+         result = 31 * result + sessionID.hashCode();
+         return result;
+diff --git a/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/config/OIDCSessionManagementConfiguration.java b/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/config/OIDCSessionManagementConfiguration.java
+index 0323957ae..c04ccbe37 100644
+--- a/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/config/OIDCSessionManagementConfiguration.java
++++ b/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/config/OIDCSessionManagementConfiguration.java
+@@ -31,7 +31,7 @@
+ import javax.xml.namespace.QName;
+ 
+ /**
+- * This class loads configurations with regard the OIDC session management from repository/conf/identity/identity.xml
++ * This class loads configurations with regard the OIDC session management from repository/conf/identity/identity.xml.
+  */
+ public class OIDCSessionManagementConfiguration {
+ 
+@@ -46,15 +46,17 @@
+     private static final String CONFIG_ELEM_OAUTH = "OAuth";
+ 
+     private OIDCSessionManagementConfiguration() {
++
+         buildConfiguration();
+     }
+ 
+     /**
+-     * Returns the singleton instance of OIDCSessionManagementConfiguration
++     * Returns the singleton instance of OIDCSessionManagementConfiguration.
+      *
+      * @return OIDCSessionManagementConfiguration instance
+      */
+     public static OIDCSessionManagementConfiguration getInstance() {
++
+         CarbonUtils.checkSecurity();
+         if (instance == null) {
+             synchronized (OIDCSessionManagementConfiguration.class) {
+@@ -67,24 +69,27 @@ public static OIDCSessionManagementConfiguration getInstance() {
+     }
+ 
+     /**
+-     * Returns configured OIDC Logout Consent page URL
++     * Returns configured OIDC Logout Consent page URL.
+      *
+      * @return OIDC Logout Consent page URL
+      */
+     public String getOIDCLogoutConsentPageUrl() {
++
+         return oidcLogoutConsentPageUrl;
+     }
+ 
+     /**
+-     * Returns configured OIDC Logout page URL
++     * Returns configured OIDC Logout page URL.
+      *
+      * @return OIDC Logout page URL
+      */
+     public String getOIDCLogoutPageUrl() {
++
+         return oidcLogoutPageUrl;
+     }
+ 
+     private void buildConfiguration() {
++
+         IdentityConfigParser configParser = IdentityConfigParser.getInstance();
+         OMElement oauthConfigElement = configParser.getConfigElement(CONFIG_ELEM_OAUTH);
+ 
+@@ -117,6 +122,7 @@ private void buildConfiguration() {
+     }
+ 
+     private QName getQNameWithIdentityNS(String localPart) {
++
+         return new QName(IdentityCoreConstants.IDENTITY_DEFAULT_NAMESPACE, localPart);
+     }
+ 
+diff --git a/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/handler/OIDCLogoutEventHandler.java b/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/handler/OIDCLogoutEventHandler.java
+index 5503d2a0c..5a2caa435 100644
+--- a/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/handler/OIDCLogoutEventHandler.java
++++ b/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/handler/OIDCLogoutEventHandler.java
+@@ -25,7 +25,7 @@
+ import org.wso2.carbon.identity.event.event.Event;
+ import org.wso2.carbon.identity.event.handler.AbstractEventHandler;
+ import org.wso2.carbon.identity.oidc.session.OIDCSessionConstants;
+-import org.wso2.carbon.identity.oidc.session.backChannelLogout.LogoutRequestSender;
++import org.wso2.carbon.identity.oidc.session.backchannellogout.LogoutRequestSender;
+ import org.wso2.carbon.identity.oidc.session.util.OIDCSessionManagementUtil;
+ 
+ import javax.servlet.http.Cookie;
+@@ -89,7 +89,7 @@ private HttpServletRequest getHttpRequestFromEvent(Event event) {
+         return (HttpServletRequest) event.getEventProperties().get(EventProperty.REQUEST);
+     }
+ 
+-    private boolean hasOPBSCookieValue (Cookie opbsCookie) {
++    private boolean hasOPBSCookieValue(Cookie opbsCookie) {
+ 
+         String opbsCookieValue = null;
+ 
+diff --git a/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/internal/OIDCSessionManagementComponent.java b/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/internal/OIDCSessionManagementComponent.java
+index 654367655..61f38d493 100644
+--- a/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/internal/OIDCSessionManagementComponent.java
++++ b/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/internal/OIDCSessionManagementComponent.java
+@@ -32,7 +32,7 @@
+ import org.wso2.carbon.identity.oauth.common.token.bindings.TokenBinderInfo;
+ import org.wso2.carbon.identity.oauth2.token.bindings.TokenBinder;
+ import org.wso2.carbon.identity.oidc.session.OIDCSessionConstants;
+-import org.wso2.carbon.identity.oidc.session.backChannelLogout.ClaimProviderImpl;
++import org.wso2.carbon.identity.oidc.session.backchannellogout.ClaimProviderImpl;
+ import org.wso2.carbon.identity.oidc.session.handler.OIDCLogoutEventHandler;
+ import org.wso2.carbon.identity.oidc.session.handler.OIDCLogoutHandler;
+ import org.wso2.carbon.identity.oidc.session.servlet.OIDCLogoutServlet;
+@@ -42,11 +42,15 @@
+ 
+ import javax.servlet.Servlet;
+ 
++/**
++ * OIDC session management component class.
++ */
+ @Component(
+         name = "identity.oidc.session.component",
+         immediate = true
+ )
+ public class OIDCSessionManagementComponent {
++
+     private static final Log log = LogFactory.getLog(OIDCSessionManagementComponent.class);
+ 
+     protected void activate(ComponentContext context) {
+@@ -163,6 +167,7 @@ protected void unsetRealmService(RealmService realmService) {
+             unbind = "unregisterOIDCLogoutHandler"
+     )
+     protected void registerOIDCLogoutHandler(OIDCLogoutHandler oidcLogoutHandler) {
++
+         if (log.isDebugEnabled()) {
+             log.debug("Registering OIDC Logout Handler: " + oidcLogoutHandler.getClass().getName());
+         }
+@@ -170,6 +175,7 @@ protected void registerOIDCLogoutHandler(OIDCLogoutHandler oidcLogoutHandler) {
+     }
+ 
+     protected void unregisterOIDCLogoutHandler(OIDCLogoutHandler oidcLogoutHandler) {
++
+         if (log.isDebugEnabled()) {
+             log.debug("Un-registering OIDC Logout Handler: " + oidcLogoutHandler.getClass().getName());
+         }
+@@ -200,10 +206,10 @@ protected void unsetApplicationMgtService(ApplicationManagementService applicati
+     }
+ 
+     @Reference(name = "token.binding.service",
+-               service = TokenBinderInfo.class,
+-               cardinality = ReferenceCardinality.MULTIPLE,
+-               policy = ReferencePolicy.DYNAMIC,
+-               unbind = "unsetTokenBinderInfo")
++            service = TokenBinderInfo.class,
++            cardinality = ReferenceCardinality.MULTIPLE,
++            policy = ReferencePolicy.DYNAMIC,
++            unbind = "unsetTokenBinderInfo")
+     protected void setTokenBinderInfo(TokenBinderInfo tokenBinderInfo) {
+ 
+         if (log.isDebugEnabled()) {
+diff --git a/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/internal/OIDCSessionManagementComponentServiceHolder.java b/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/internal/OIDCSessionManagementComponentServiceHolder.java
+index 171cafb93..75d1a0d12 100644
+--- a/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/internal/OIDCSessionManagementComponentServiceHolder.java
++++ b/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/internal/OIDCSessionManagementComponentServiceHolder.java
+@@ -28,13 +28,16 @@
+ import java.util.Collections;
+ import java.util.List;
+ 
++/**
++ * OIDC session management component service holder.
++ */
+ public class OIDCSessionManagementComponentServiceHolder {
+ 
+     private static OIDCSessionManagementComponentServiceHolder instance =
+             new OIDCSessionManagementComponentServiceHolder();
+     private static HttpService httpService;
+     private static RealmService realmService;
+-    private static List<OIDCLogoutHandler> OIDCPostLogoutHandlers = new ArrayList<>();
++    private static List<OIDCLogoutHandler> oidcPostLogoutHandlers = new ArrayList<>();
+     private static ApplicationManagementService applicationMgtService;
+     private List<TokenBinder> tokenBinders = new ArrayList<>();
+ 
+@@ -48,47 +51,58 @@ public static OIDCSessionManagementComponentServiceHolder getInstance() {
+     }
+ 
+     public static HttpService getHttpService() {
++
+         return httpService;
+     }
+ 
+     public static void setHttpService(HttpService httpService) {
++
+         OIDCSessionManagementComponentServiceHolder.httpService = httpService;
+     }
++
+     public static void setRealmService(RealmService realmService) {
++
+         OIDCSessionManagementComponentServiceHolder.realmService = realmService;
+     }
+ 
+     public static RealmService getRealmService() {
++
+         return realmService;
+     }
+ 
+     public static List<OIDCLogoutHandler> getOIDCLogoutHandlers() {
+-        return Collections.unmodifiableList(OIDCPostLogoutHandlers);
++
++        return Collections.unmodifiableList(oidcPostLogoutHandlers);
+     }
+ 
+-    public static void addPostLogoutHandler(OIDCLogoutHandler OIDCPostLogoutHandler) {
+-        OIDCPostLogoutHandlers.add(OIDCPostLogoutHandler);;
++    public static void addPostLogoutHandler(OIDCLogoutHandler oidcPostLogoutHandler) {
++
++        oidcPostLogoutHandlers.add(oidcPostLogoutHandler);
++        ;
+     }
+ 
+-    public static void removePostLogoutHandler(OIDCLogoutHandler OIDCPostLogoutHandler) {
+-        OIDCPostLogoutHandlers.remove(OIDCPostLogoutHandler);
++    public static void removePostLogoutHandler(OIDCLogoutHandler oidcPostLogoutHandler) {
++
++        oidcPostLogoutHandlers.remove(oidcPostLogoutHandler);
+     }
+ 
+     /**
+-     * Get Application management service
++     * Get Application management service.
+      *
+      * @return ApplicationManagementService
+      */
+     public static ApplicationManagementService getApplicationMgtService() {
++
+         return OIDCSessionManagementComponentServiceHolder.applicationMgtService;
+     }
+ 
+     /**
+-     * Set Application management service
++     * Set Application management service.
+      *
+      * @param applicationMgtService ApplicationManagementService
+      */
+     public static void setApplicationMgtService(ApplicationManagementService applicationMgtService) {
++
+         OIDCSessionManagementComponentServiceHolder.applicationMgtService = applicationMgtService;
+     }
+ 
+diff --git a/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/servlet/OIDCLogoutServlet.java b/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/servlet/OIDCLogoutServlet.java
+index febe746eb..09ba859f8 100644
+--- a/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/servlet/OIDCLogoutServlet.java
++++ b/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/servlet/OIDCLogoutServlet.java
+@@ -53,7 +53,7 @@
+ import org.wso2.carbon.identity.oidc.session.OIDCSessionConstants;
+ import org.wso2.carbon.identity.oidc.session.OIDCSessionManagementException;
+ import org.wso2.carbon.identity.oidc.session.OIDCSessionState;
+-import org.wso2.carbon.identity.oidc.session.backChannelLogout.LogoutRequestSender;
++import org.wso2.carbon.identity.oidc.session.backchannellogout.LogoutRequestSender;
+ import org.wso2.carbon.identity.oidc.session.cache.OIDCSessionDataCache;
+ import org.wso2.carbon.identity.oidc.session.cache.OIDCSessionDataCacheEntry;
+ import org.wso2.carbon.identity.oidc.session.cache.OIDCSessionDataCacheKey;
+@@ -72,6 +72,7 @@
+ import java.util.Map;
+ import java.util.UUID;
+ import java.util.concurrent.ConcurrentHashMap;
++
+ import javax.servlet.ServletException;
+ import javax.servlet.http.Cookie;
+ import javax.servlet.http.HttpServlet;
+@@ -82,6 +83,9 @@
+ import static org.wso2.carbon.identity.application.authentication.framework.util.FrameworkUtils.getRedirectURL;
+ import static org.wso2.carbon.identity.oidc.session.OIDCSessionConstants.OIDC_LOGOUT_CONSENT_DENIAL_REDIRECT_URL;
+ 
++/**
++ * Servlet class of OIDC Logout.
++ */
+ public class OIDCLogoutServlet extends HttpServlet {
+ 
+     private static final Log log = LogFactory.getLog(OIDCLogoutServlet.class);
+@@ -212,9 +216,11 @@ protected void doGet(HttpServletRequest request, HttpServletResponse response)
+                     // Add OIDC Cache entry without properties since OIDC Logout should work without id_token_hint
+                     OIDCSessionDataCacheEntry cacheEntry = new OIDCSessionDataCacheEntry();
+ 
+-                    // Logout request without id_token_hint will redirected to an IDP's page once logged out, rather a RP's
+-                    // callback endpoint. The state parameter is set here in the cache, so that it will be available in the
+-                    // redirected IDP's page to support any custom requirement.
++                    /*
++                     Logout request without id_token_hint will redirected to an IDP's page once logged out, rather a
++                     RP's callback endpoint. The state parameter is set here in the cache, so that it will be
++                     available in the redirected IDP's page to support any custom requirement.
++                     */
+                     setStateParameterInCache(request, cacheEntry);
+                     addSessionDataToCache(opBrowserStateCookie.getValue(), cacheEntry);
+                 }
+@@ -230,7 +236,8 @@ protected void doGet(HttpServletRequest request, HttpServletResponse response)
+     }
+ 
+     /**
+-     * If postLogoutRedirectUri is send in Logout request parameter then set it as redirect URL
++     * If postLogoutRedirectUri is send in Logout request parameter then set it as redirect URL.
++     *
+      * @param redirectURL
+      * @param opBrowserStateCookie
+      * @return
+@@ -256,11 +263,11 @@ private String generatePostLogoutRedirectUrl(String redirectURL, Cookie opBrowse
+     }
+ 
+     /**
+-     * Process OIDC Logout request
+-     * Validate Id token
+-     * Add OIDC parameters to cache
++     * Process OIDC Logout request.
++     * Validate Id token.
++     * Add OIDC parameters to cache.
+      *
+-     * @param request Http servlet request
++     * @param request  Http servlet request
+      * @param response Http servlet response
+      * @return Redirect URI
+      * @throws IOException
+@@ -329,7 +336,8 @@ private String processLogoutRequest(HttpServletRequest request, HttpServletRespo
+     }
+ 
+     /**
+-     * Validate Id token signature
++     * Validate Id token signature.
++     *
+      * @param idToken Id token
+      * @return validation state
+      */
+@@ -370,10 +378,12 @@ private boolean validateIdToken(String idToken) {
+      * Get tenant domain for signature validation.
+      * There is a problem If Id token signed using SP's tenant and there is no direct way to get the tenant domain
+      * using client id. So have iterate all the Tenants until get the right client id.
++     *
+      * @param idToken id token
+      * @return Tenant domain
+      */
+     private String getTenantDomainForSignatureValidation(String idToken) {
++
+         boolean isJWTSignedWithSPKey = OAuthServerConfiguration.getInstance().isJWTSignedWithSPKey();
+         if (log.isDebugEnabled()) {
+             log.debug("'SignJWTWithSPKey' property is set to : " + isJWTSignedWithSPKey);
+@@ -406,8 +416,9 @@ private String getTenantDomainForSignatureValidation(String idToken) {
+     }
+ 
+     /**
+-     * Send request to consent URI
+-     * @param request Http servlet request
++     * Send request to consent URI.
++     *
++     * @param request  Http servlet request
+      * @param response Http servlet response
+      * @throws IOException
+      */
+@@ -446,9 +457,10 @@ private void setStateParameterInCache(HttpServletRequest request, OIDCSessionDat
+     }
+ 
+     /**
+-     * Append state query parameter
++     * Append state query parameter.
++     *
+      * @param redirectURL redirect URL
+-     * @param stateParam state query parameter
++     * @param stateParam  state query parameter
+      * @return Redirect URL after appending state query param if exist
+      */
+     private String appendStateQueryParam(String redirectURL, String stateParam) {
+@@ -460,8 +472,9 @@ private String appendStateQueryParam(String redirectURL, String stateParam) {
+     }
+ 
+     /**
+-     * Validate post logout URI with registered callback URI
+-     * @param postLogoutUri Post logout redirect URI
++     * Validate post logout URI with registered callback URI.
++     *
++     * @param postLogoutUri         Post logout redirect URI
+      * @param registeredCallbackUri registered callback URI
+      * @return Validation state
+      */
+@@ -487,7 +500,8 @@ private boolean validatePostLogoutUri(String postLogoutUri, String registeredCal
+     }
+ 
+     /**
+-     * Extract Client Id from Id token
++     * Extract Client Id from Id token.
++     *
+      * @param idToken id token
+      * @return Client Id
+      * @throws ParseException
+@@ -507,7 +521,8 @@ private String extractClientFromIdToken(String idToken) throws ParseException {
+     }
+ 
+     /**
+-     * Extract tenant domain from id token
++     * Extract tenant domain from id token.
++     *
+      * @param idToken id token
+      * @return tenant domain
+      * @throws ParseException
+@@ -545,6 +560,7 @@ private String extractTenantDomainFromIdToken(String idToken) throws ParseExcept
+     @Override
+     protected void doPost(HttpServletRequest request, HttpServletResponse response)
+             throws ServletException, IOException {
++
+         doGet(request, response);
+     }
+ 
+@@ -568,9 +584,9 @@ private void sendToFrameworkForLogout(HttpServletRequest request, HttpServletRes
+         //Add all parameters to authentication context before sending to authentication framework
+         AuthenticationRequest authenticationRequest = new AuthenticationRequest();
+         Map<String, String[]> map = new HashMap<>();
+-        map.put(OIDCSessionConstants.OIDC_SESSION_DATA_KEY_PARAM, new String[] { sessionDataKey });
++        map.put(OIDCSessionConstants.OIDC_SESSION_DATA_KEY_PARAM, new String[]{sessionDataKey});
+         authenticationRequest.setRequestQueryParams(map);
+-        authenticationRequest.addRequestQueryParam(FrameworkConstants.RequestParams.LOGOUT, new String[] { "true" });
++        authenticationRequest.addRequestQueryParam(FrameworkConstants.RequestParams.LOGOUT, new String[]{"true"});
+         authenticationRequest.setCommonAuthCallerPath(request.getRequestURI());
+         authenticationRequest.setPost(true);
+ 
+@@ -602,7 +618,6 @@ private void handleLogoutResponseFromFramework(HttpServletRequest request, HttpS
+         String sessionDataKey = request.getParameter(FrameworkConstants.SESSION_DATA_KEY);
+         OIDCSessionDataCacheEntry cacheEntry = getSessionDataFromCache(sessionDataKey);
+ 
+-
+         if (cacheEntry != null) {
+             if (log.isDebugEnabled()) {
+                 String clientId = cacheEntry.getParamMap().get(OIDCSessionConstants.OIDC_CACHE_CLIENT_ID_PARAM);
+@@ -653,7 +668,8 @@ private void handleLogoutResponseFromFramework(HttpServletRequest request, HttpS
+     }
+ 
+     private void triggerLogoutHandlersForPostLogout(HttpServletRequest request,
+-                                                    HttpServletResponse response) throws OIDCSessionManagementException {
++                                                    HttpServletResponse response)
++            throws OIDCSessionManagementException {
+ 
+         List<OIDCLogoutHandler> oidcLogoutHandlers =
+                 OIDCSessionManagementComponentServiceHolder.getOIDCLogoutHandlers();
+@@ -676,6 +692,7 @@ private void triggerLogoutHandlersForPreLogout(HttpServletRequest request,
+ 
+     private void addAuthenticationRequestToRequest(HttpServletRequest request,
+                                                    AuthenticationRequestCacheEntry authRequest) {
++
+         request.setAttribute(FrameworkConstants.RequestAttribute.AUTH_REQUEST, authRequest);
+     }
+ 
+@@ -782,7 +799,8 @@ private String getServiceProviderName(String clientId, String tenantDomain) {
+             spName = OIDCSessionManagementComponentServiceHolder.getApplicationMgtService()
+                     .getServiceProviderNameByClientId(clientId, IdentityApplicationConstants.OAuth2.NAME, tenantDomain);
+         } catch (IdentityApplicationManagementException e) {
+-            log.error("Error while getting Service provider name for client Id:" + clientId + " in tenant: " + tenantDomain, e);
++            log.error("Error while getting Service provider name for client Id:" + clientId + " in tenant: " +
++                    tenantDomain, e);
+         }
+         return spName;
+     }
+diff --git a/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/servlet/OIDCSessionIFrameServlet.java b/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/servlet/OIDCSessionIFrameServlet.java
+index e909127c4..89256d1ab 100644
+--- a/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/servlet/OIDCSessionIFrameServlet.java
++++ b/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/servlet/OIDCSessionIFrameServlet.java
+@@ -39,11 +39,15 @@
+ import java.nio.file.Paths;
+ import java.util.HashMap;
+ import java.util.Map;
++
+ import javax.servlet.ServletException;
+ import javax.servlet.http.HttpServlet;
+ import javax.servlet.http.HttpServletRequest;
+ import javax.servlet.http.HttpServletResponse;
+ 
++/**
++ * Servlet class of OIDC session IFrame.
++ */
+ public class OIDCSessionIFrameServlet extends HttpServlet {
+ 
+     private static final Log log = LogFactory.getLog(OIDCSessionIFrameServlet.class);
+@@ -57,6 +61,7 @@
+ 
+     @Override
+     public void init() throws ServletException {
++
+         loadOPIFrame();
+     }
+ 
+@@ -82,8 +87,8 @@ protected void doGet(HttpServletRequest request, HttpServletResponse response)
+             response.getWriter().print(getOPIFrame(clientOrigin));
+         } catch (IdentityOAuth2Exception | InvalidOAuthClientException e) {
+             log.error("Error while retrieving OAuth application information for the provided client id : " + clientId +
+-                      ", " +  e.getMessage());
+-            if(log.isDebugEnabled()){
++                    ", " + e.getMessage());
++            if (log.isDebugEnabled()) {
+                 log.debug(e);
+             }
+             response.getWriter().print(ERROR_RESPONSE);
+@@ -114,8 +119,8 @@ private String getCallbackURL(HttpServletRequest request, String clientId)
+             if (StringUtils.isBlank(rpIFrameReqCallbackURL)) {
+                 throw new OIDCSessionManagerException(
+                         "Invalid request. redirect_uri not found in request as parameter. It is "
+-                        + "mandatory because of there is regex pattern for "
+-                        + "callback url in service provider configuration. client_id : " + clientId);
++                                + "mandatory because of there is regex pattern for "
++                                + "callback url in service provider configuration. client_id : " + clientId);
+             } else {
+                 if (log.isDebugEnabled()) {
+                     log.debug("Requested redirect_uri from rp IFrame : " + rpIFrameReqCallbackURL);
+@@ -130,7 +135,7 @@ private String getCallbackURL(HttpServletRequest request, String clientId)
+                 } else {
+                     throw new OIDCSessionManagerException(
+                             "Invalid request. redirect_uri is not matched with the regex that is "
+-                            + "configured in the service provider, client_id : " + clientId);
++                                    + "configured in the service provider, client_id : " + clientId);
+                 }
+             }
+         }
+@@ -138,6 +143,7 @@ private String getCallbackURL(HttpServletRequest request, String clientId)
+     }
+ 
+     private String getOPIFrame(String clientOrigin) {
++
+         Map<String, Object> valuesMap = new HashMap<>();
+         valuesMap.put(CLIENT_ORIGIN_PLACE_HOLDER, clientOrigin);
+ 
+diff --git a/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/util/OIDCSessionManagementUtil.java b/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/util/OIDCSessionManagementUtil.java
+index ac4c75e3e..4a0da8290 100644
+--- a/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/util/OIDCSessionManagementUtil.java
++++ b/components/org.wso2.carbon.identity.oidc.session/src/main/java/org/wso2/carbon/identity/oidc/session/util/OIDCSessionManagementUtil.java
+@@ -33,19 +33,18 @@
+ import org.wso2.carbon.identity.oidc.session.config.OIDCSessionManagementConfiguration;
+ 
+ import java.io.UnsupportedEncodingException;
+-import java.net.MalformedURLException;
+ import java.net.URI;
+ import java.net.URISyntaxException;
+-import java.net.URL;
+ import java.net.URLEncoder;
+ import java.security.NoSuchAlgorithmException;
+ import java.security.SecureRandom;
++
+ import javax.servlet.http.Cookie;
+ import javax.servlet.http.HttpServletRequest;
+ import javax.servlet.http.HttpServletResponse;
+ 
+ /**
+- * This class includes all the utility methods with regard to OIDC session management
++ * This class includes all the utility methods with regard to OIDC session management.
+  */
+ public class OIDCSessionManagementUtil {
+ 
+@@ -63,16 +62,17 @@ private OIDCSessionManagementUtil() {
+     }
+ 
+     /**
+-     * Returns an instance of SessionManager which manages session persistence
++     * Returns an instance of SessionManager which manages session persistence.
+      *
+      * @return
+      */
+     public static OIDCSessionManager getSessionManager() {
++
+         return sessionManager;
+     }
+ 
+     /**
+-     * Generates a session state using the provided client id, client callback url and browser state cookie id
++     * Generates a session state using the provided client id, client callback url and browser state cookie id.
+      *
+      * @param clientId
+      * @param rpCallBackUrl
+@@ -117,7 +117,7 @@ public static String addSessionStateToURL(String url, String sessionState, Strin
+ 
+     /**
+      * Generates a session state using the provided client id, client callback url and browser state cookie id and
+-     * adds the generated value to the url as a query parameter
++     * adds the generated value to the url as a query parameter.
+      *
+      * @param url
+      * @param clientId
+@@ -130,16 +130,16 @@ public static String addSessionStateToURL(String url, String clientId, String rp
+                                               Cookie opBrowserStateCookie, String responseType) {
+ 
+         String sessionStateParam = getSessionStateParam(clientId, rpCallBackUrl, opBrowserStateCookie == null ? null :
+-                                                                                 opBrowserStateCookie.getValue());
++                opBrowserStateCookie.getValue());
+         return addSessionStateToURL(url, sessionStateParam, responseType);
+     }
+ 
+     /**
+-     * Returns the browser state cookie
++     * Returns the browser state cookie.
+      *
+      * @param request
+      * @return CookieString url, String clientId, String rpCallBackUrl,
+-                                              Cookie opBrowserStateCookie, String responseType
++     * Cookie opBrowserStateCookie, String responseType
+      */
+     public static Cookie getOPBrowserStateCookie(HttpServletRequest request) {
+ 
+@@ -156,7 +156,7 @@ public static Cookie getOPBrowserStateCookie(HttpServletRequest request) {
+     }
+ 
+     /**
+-     * Adds the browser state cookie to the response
++     * Adds the browser state cookie to the response.
+      *
+      * @param response
+      * @return Cookie
+@@ -167,7 +167,7 @@ public static Cookie addOPBrowserStateCookie(HttpServletResponse response) {
+     }
+ 
+     /**
+-     * Invalidate the browser state cookie
++     * Invalidate the browser state cookie.
+      *
+      * @param request
+      * @param response
+@@ -192,7 +192,7 @@ public static Cookie removeOPBrowserStateCookie(HttpServletRequest request, Http
+     }
+ 
+     /**
+-     * Returns the origin of the provided url
++     * Returns the origin of the provided url.
+      * <scheme>://<host>:<port>
+      *
+      * @param url
+@@ -211,37 +211,38 @@ public static String getOrigin(String url) {
+     }
+ 
+     /**
+-     * Returns OIDC logout consent page URL
++     * Returns OIDC logout consent page URL.
+      *
+      * @return OIDC logout consent page URL
+      */
+     public static String getOIDCLogoutConsentURL() {
+ 
+-        String OIDCLogutConsentPageUrl = OIDCSessionManagementConfiguration.getInstance().getOIDCLogoutConsentPageUrl();
+-        if (StringUtils.isBlank(OIDCLogutConsentPageUrl)) {
+-            OIDCLogutConsentPageUrl =
++        String oidcLogoutConsentPageUrl = OIDCSessionManagementConfiguration.getInstance()
++                .getOIDCLogoutConsentPageUrl();
++        if (StringUtils.isBlank(oidcLogoutConsentPageUrl)) {
++            oidcLogoutConsentPageUrl =
+                     IdentityUtil.getServerURL("/authenticationendpoint/oauth2_logout_consent.do", false, false);
+         }
+-        return OIDCLogutConsentPageUrl;
++        return oidcLogoutConsentPageUrl;
+     }
+ 
+     /**
+-     * Returns OIDC logout URL
++     * Returns OIDC logout URL.
+      *
+      * @return OIDC logout URL
+      */
+     public static String getOIDCLogoutURL() {
+ 
+-        String OIDCLogutPageUrl = OIDCSessionManagementConfiguration.getInstance().getOIDCLogoutPageUrl();
+-        if (StringUtils.isBlank(OIDCLogutPageUrl)) {
+-            OIDCLogutPageUrl =
++        String oidcLogoutPageUrl = OIDCSessionManagementConfiguration.getInstance().getOIDCLogoutPageUrl();
++        if (StringUtils.isBlank(oidcLogoutPageUrl)) {
++            oidcLogoutPageUrl =
+                     IdentityUtil.getServerURL("/authenticationendpoint/oauth2_logout.do", false, false);
+         }
+-        return OIDCLogutPageUrl;
++        return oidcLogoutPageUrl;
+     }
+ 
+     /**
+-     * Returns the error page URL with given error code and error message as query parameters
++     * Returns the error page URL with given error code and error message as query parameters.
+      *
+      * @param errorCode
+      * @param errorMessage
+@@ -256,7 +257,7 @@ public static String getErrorPageURL(String errorCode, String errorMessage) {
+ 
+         try {
+             errorPageUrl += "?" + OAuthConstants.OAUTH_ERROR_CODE + "=" + URLEncoder.encode(errorCode, "UTF-8") + "&"
+-                            + OAuthConstants.OAUTH_ERROR_MESSAGE + "=" + URLEncoder.encode(errorMessage, "UTF-8");
++                    + OAuthConstants.OAUTH_ERROR_MESSAGE + "=" + URLEncoder.encode(errorMessage, "UTF-8");
+         } catch (UnsupportedEncodingException e) {
+             //ignore
+             if (log.isDebugEnabled()) {
+@@ -267,7 +268,6 @@ public static String getErrorPageURL(String errorCode, String errorMessage) {
+         return errorPageUrl;
+     }
+ 
+-
+     /**
+      * Returns the OpenIDConnect User Consent.
+      *
+diff --git a/components/org.wso2.carbon.identity.oidc.session/src/test/java/org/wso2/carbon/identity/oidc/session/OIDCSessionStateTest.java b/components/org.wso2.carbon.identity.oidc.session/src/test/java/org/wso2/carbon/identity/oidc/session/OIDCSessionStateTest.java
+index b8ffeb3f0..7d0fa800f 100644
+--- a/components/org.wso2.carbon.identity.oidc.session/src/test/java/org/wso2/carbon/identity/oidc/session/OIDCSessionStateTest.java
++++ b/components/org.wso2.carbon.identity.oidc.session/src/test/java/org/wso2/carbon/identity/oidc/session/OIDCSessionStateTest.java
+@@ -17,7 +17,6 @@
+  */
+ package org.wso2.carbon.identity.oidc.session;
+ 
+-import org.powermock.modules.testng.PowerMockTestCase;
+ import org.testng.annotations.BeforeTest;
+ import org.testng.annotations.Test;
+ import org.wso2.carbon.identity.testutil.powermock.PowerMockIdentityBaseTest;
+@@ -62,10 +61,10 @@ public void testSetSessionParticipants() {
+     @Test
+     public void testAddSessionParticipant() {
+ 
+-        String client_id = "ES9l2uUf8AzNOfmGS9lPEIsdrR8a";
+-        oidcSessionState.addSessionParticipant(client_id);
++        String clientId = "ES9l2uUf8AzNOfmGS9lPEIsdrR8a";
++        oidcSessionState.addSessionParticipant(clientId);
+         Set sessionParticipants = oidcSessionState.getSessionParticipants();
+-        assertNotNull(sessionParticipants.contains(client_id), "Client_id is not a session participant");
++        assertNotNull(sessionParticipants.contains(clientId), "Client_id is not a session participant");
+     }
+ 
+     @Test
+diff --git a/components/org.wso2.carbon.identity.oidc.session/src/test/java/org/wso2/carbon/identity/oidc/session/config/OIDCSessionManagementConfigurationTest.java b/components/org.wso2.carbon.identity.oidc.session/src/test/java/org/wso2/carbon/identity/oidc/session/config/OIDCSessionManagementConfigurationTest.java
+index 53f34801e..691200e55 100644
+--- a/components/org.wso2.carbon.identity.oidc.session/src/test/java/org/wso2/carbon/identity/oidc/session/config/OIDCSessionManagementConfigurationTest.java
++++ b/components/org.wso2.carbon.identity.oidc.session/src/test/java/org/wso2/carbon/identity/oidc/session/config/OIDCSessionManagementConfigurationTest.java
+@@ -20,10 +20,7 @@
+ import org.apache.axiom.om.OMElement;
+ import org.mockito.Mock;
+ import org.powermock.core.classloader.annotations.PrepareForTest;
+-import org.powermock.modules.testng.PowerMockObjectFactory;
+-import org.testng.IObjectFactory;
+ import org.testng.annotations.DataProvider;
+-import org.testng.annotations.ObjectFactory;
+ import org.testng.annotations.Test;
+ import org.wso2.carbon.identity.core.util.IdentityConfigParser;
+ import org.wso2.carbon.identity.testutil.powermock.PowerMockIdentityBaseTest;
+@@ -34,7 +31,7 @@
+ import static org.testng.Assert.assertNotNull;
+ 
+ /**
+- * Unit test coverage for OIDCSessionManagementConfiguration
++ * Unit test coverage for OIDCSessionManagementConfiguration.
+  */
+ @PrepareForTest({IdentityConfigParser.class})
+ public class OIDCSessionManagementConfigurationTest extends PowerMockIdentityBaseTest {
+@@ -47,6 +44,7 @@
+ 
+     @DataProvider(name = "provideDataForTestGetInstance")
+     public Object[][] provideDataForTestGetInstance() {
++
+         return new Object[][]{
+                 {oauthConfigElement}, {null}
+         };
+@@ -54,9 +52,10 @@
+ 
+     @Test(dataProvider = "provideDataForTestGetInstance")
+     public void testGetInstance(Object oauthConfigElement) {
++
+         mockStatic(IdentityConfigParser.class);
+         when(IdentityConfigParser.getInstance()).thenReturn(configParser);
+-        when(configParser.getConfigElement(eq("OAuth"))).thenReturn((OMElement)oauthConfigElement);
++        when(configParser.getConfigElement(eq("OAuth"))).thenReturn((OMElement) oauthConfigElement);
+         assertNotNull(OIDCSessionManagementConfiguration.getInstance());
+     }
+ }
+diff --git a/components/org.wso2.carbon.identity.oidc.session/src/test/java/org/wso2/carbon/identity/oidc/session/servlet/OIDCLogoutServletTest.java b/components/org.wso2.carbon.identity.oidc.session/src/test/java/org/wso2/carbon/identity/oidc/session/servlet/OIDCLogoutServletTest.java
+index 66020f594..d65c498ed 100644
+--- a/components/org.wso2.carbon.identity.oidc.session/src/test/java/org/wso2/carbon/identity/oidc/session/servlet/OIDCLogoutServletTest.java
++++ b/components/org.wso2.carbon.identity.oidc.session/src/test/java/org/wso2/carbon/identity/oidc/session/servlet/OIDCLogoutServletTest.java
+@@ -46,6 +46,7 @@
+ import java.security.KeyStore;
+ import java.util.Arrays;
+ import java.util.Collections;
++
+ import javax.servlet.ServletException;
+ import javax.servlet.http.Cookie;
+ import javax.servlet.http.HttpServletRequest;
+@@ -65,7 +66,7 @@
+         CarbonCoreDataHolder.class, IdentityDatabaseUtil.class, OAuth2Util.class,
+         OIDCSessionManagementComponentServiceHolder.class})
+ /**
+- * Unit test coverage for OIDCLogoutServlet class
++ * Unit test coverage for OIDCLogoutServlet class.
+  */
+ public class OIDCLogoutServletTest extends TestOIDCSessionBase {
+ 
+@@ -127,7 +128,8 @@ public void setUp() throws Exception {
+ 
+         initiateInMemoryH2();
+         createOAuthApp(CLIENT_ID_VALUE, SECRET, USERNAME, APP_NAME, "ACTIVE", CALLBACK_URL);
+-        createOAuthApp(CLIENT_ID_WITH_REGEX_CALLBACK, SECRET, USERNAME, APP_NAME, "ACTIVE", REGEX_CALLBACK_URL);
++        createOAuthApp(CLIENT_ID_WITH_REGEX_CALLBACK, SECRET, USERNAME, APP_NAME, "ACTIVE",
++                REGEX_CALLBACK_URL);
+         createOAuthApp(CLIENT_ID_FOR_REALM_TEST, SECRET, USERNAME, APP_NAME, "ACTIVE", CALLBACK_URL);
+ 
+     }
+@@ -139,23 +141,25 @@ public void setUp() throws Exception {
+ 
+         String idTokenHint =
+                 "eyJ4NXQiOiJOVEF4Wm1NeE5ETXlaRGczTVRVMVpHTTBNekV6T0RKaFpXSTRORE5sWkRVMU9HRmtOakZpTVEiLCJr" +
+-                        "aWQiOiJOVEF4Wm1NeE5ETXlaRGczTVRVMVpHTTBNekV6T0RKaFpXSTRORE5sWkRVMU9HRmtOakZpTVEiLCJhbGciOiJSUzI1" +
+-                        "NiJ9.eyJzdWIiOiJhZG1pbiIsImF1ZCI6WyIzVDlsMnVVZjhBek5PZm1HUzlsUEVJc2RyUjhhIl0sImF6cCI6IjNUOWwydVVmO" +
+-                        "EF6Tk9mbUdTOWxQRUlzZHJSOGEiLCJhdXRoX3RpbWUiOjE1MDcwMDk0MDQsImlzcyI6Imh0dHBzOlwvXC9sb2NhbGhvc3Q6OTQ0M" +
+-                        "1wvb2F1dGgyXC90b2tlbiIsImV4cCI6MTUwNzAxMzAwNSwibm9uY2UiOiJDcXNVOXdabFFJWUdVQjg2IiwiaWF0IjoxNTA3MDA5ND" +
+-                        "A1fQ.ivgnkuW-EFT7m55Mr1pyit1yALwVxrHjVqmgSley1lUhZNAlJMxefs6kjSbGStQg-mqEv0VQ7NJkZu0w1kYYD_76-KkjI1sk" +
+-                        "P1zEqSXMhTyE8UtQ-CpR1w8bnTU7D50v-537z8vTf7PnTTA-wxpTuoYmv4ya2z0Rv-gFTM4KPdxsc7j6yFuQcfWg5SyP9lYpJdt-s-O" +
+-                        "w9FY1rlUVvNbtF1u2Fruc1kj9jkjSbvFgSONRhizRH6P_25v0LpgNZrOpiLZF92CtkCBbAGQChWACN6RWDpy5Fj2JuQMNcCvkxlv" +
+-                        "OVcx-7biH16qVnY9UFs4DxZo2cGzyWbXuH8sDTkzQBg";
++                        "aWQiOiJOVEF4Wm1NeE5ETXlaRGczTVRVMVpHTTBNekV6T0RKaFpXSTRORE5sWkRVMU9HRmtOakZpTVEi" +
++                        "LCJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJhZG1pbiIsImF1ZCI6WyIzVDlsMnVVZjhBek5PZm1HUzlsUEV" +
++                        "Jc2RyUjhhIl0sImF6cCI6IjNUOWwydVVmOEF6Tk9mbUdTOWxQRUlzZHJSOGEiLCJhdXRoX3RpbWUiOjE" +
++                        "1MDcwMDk0MDQsImlzcyI6Imh0dHBzOlwvXC9sb2NhbGhvc3Q6OTQ0M1wvb2F1dGgyXC90b2tlbiIsImV" +
++                        "4cCI6MTUwNzAxMzAwNSwibm9uY2UiOiJDcXNVOXdabFFJWUdVQjg2IiwiaWF0IjoxNTA3MDA5NDA1fQ." +
++                        "ivgnkuW-EFT7m55Mr1pyit1yALwVxrHjVqmgSley1lUhZNAlJMxefs6kjSbGStQg-mqEv0VQ7NJkZu0w" +
++                        "1kYYD_76-KkjI1skP1zEqSXMhTyE8UtQ-CpR1w8bnTU7D50v-537z8vTf7PnTTA-wxpTuoYmv4ya2z0R" +
++                        "v-gFTM4KPdxsc7j6yFuQcfWg5SyP9lYpJdt-s-Ow9FY1rlUVvNbtF1u2Fruc1kj9jkjSbvFgSONRhizR" +
++                        "H6P_25v0LpgNZrOpiLZF92CtkCBbAGQChWACN6RWDpy5Fj2JuQMNcCvkxlvOVcx-7biH16qVnY9UFs4D" +
++                        "xZo2cGzyWbXuH8sDTkzQBg";
+ 
+         String invalidIdToken =
+                 "eyJ4NXQiOiJOVEF4Wm1NeE5ETXlaRGczTVRVMVpHTTBNekV6T0RKaFpXSTRORE5sWkRVMU9HRmtOakZpTVEiLCJr" +
+-                        "aWQiOiJOVEF4Wm1NeE5ETXlaRGczTVRVMVpHTTBNekV6T0RKaFpXSTRORE5sWkRVMU9HRmtOakZpTVEiLCJhbGciOiJSUzI1" +
+-                        "NiJ9.ivgnkuW-EFT7m55Mr1pyit1yALwVxrHjVqmgSley1lUhZNAlJMxefs6kjSbGStQg" +
+-                        "-mqEv0VQ7NJkZu0w1kYYD_76-KkjI1sk" +
+-                        "P1zEqSXMhTyE8UtQ-CpR1w8bnTU7D50v-537z8vTf7PnTTA-wxpTuoYmv4ya2z0Rv-gFTM4KPdxsc7j6yFuQcfWg5SyP9lYpJdt-s-O" +
+-                        "w9FY1rlUVvNbtF1u2Fruc1kj9jkjSbvFgSONRhizRH6P_25v0LpgNZrOpiLZF92CtkCBbAGQChWACN6RWDpy5Fj2JuQMNcCvkxlv" +
+-                        "OVcx-7biH16qVnY9UFs4DxZo2cGzyWbXuH8sDTkzQBg";
++                        "aWQiOiJOVEF4Wm1NeE5ETXlaRGczTVRVMVpHTTBNekV6T0RKaFpXSTRORE5sWkRVMU9HRmtOakZpTVEi" +
++                        "LCJhbGciOiJSUzI1NiJ9.ivgnkuW-EFT7m55Mr1pyit1yALwVxrHjVqmgSley1lUhZNAlJMxefs6kjSbGStQg" +
++                        "-mqEv0VQ7NJkZu0w1kYYD_76-KkjI1skP1zEqSXMhTyE8UtQ-CpR1w8bnTU7D50v-537z8vTf7PnTTA-wxpTu" +
++                        "oYmv4ya2z0Rv-gFTM4KPdxsc7j6yFuQcfWg5SyP9lYpJdt-s-Ow9FY1rlUVvNbtF1u2Fruc1kj9jkjSbvFgSO" +
++                        "NRhizRH6P_25v0LpgNZrOpiLZF92CtkCBbAGQChWACN6RWDpy5Fj2JuQMNcCvkxlvOVcx-7biH16qVnY9UFs4" +
++                        "DxZo2cGzyWbXuH8sDTkzQBg";
+ 
+         String[] redirectUrl = {
+                 "?oauthErrorCode=access_denied&oauthErrorMsg=opbs+cookie+not+received.+Missing+session+state.",
+@@ -167,46 +171,48 @@ public void setUp() throws Exception {
+                 "?oauthErrorCode=access_denied&oauthErrorMsg=ID+token+signature+validation+failed.",
+                 "?oauthErrorCode=access_denied&oauthErrorMsg=Post+logout+URI+does+not+match+with+registered+callback" +
+                         "+URI.",
+-                "?oauthErrorCode=access_denied&oauthErrorMsg=Error+occurred+while+getting+application+information.+Clien" +
+-                        "t+id+not+found",
++                "?oauthErrorCode=access_denied&oauthErrorMsg=Error+occurred+while+getting+application+information.+C" +
++                        "lient+id+not+found",
+                 "/authenticationendpoint/retry.do"
+         };
+ 
+-        String IDTokenNotAddedToDB =
++        String idTokenNotAddedToDB =
+                 "eyJ4NXQiOiJOVEF4Wm1NeE5ETXlaRGczTVRVMVpHTTBNekV6T0RKaFpXSTRORE5sWkRVMU9HRmtOakZpTVEiLCJraWQiOiJOVEF" +
+-                        "4Wm1NeE5ETXlaRGczTVRVMVpHTTBNekV6T0RKaFpXSTRORE5sWkRVMU9HRmtOakZpTVEiLCJhbGciOiJSUzI1NiJ9.eyJz" +
+-                        "dWIiOiJhZG1pbiIsImF1ZCI6WyJ1NUZJZkc1eHpMdkJHaWFtb0FZenpjcXBCcWdhIl0sImF6cCI6InU1RklmRzV4ekx2Qkd" +
+-                        "pYW1vQVl6emNxcEJxZ2EiLCJhdXRoX3RpbWUiOjE1MDY1NzYwODAsImlzcyI6Imh0dHBzOlwvXC9sb2NhbGhvc3Q6OTQ0" +
+-                        "M1wvb2F1dGgyXC90b2tlbiIsImV4cCI6MTUwNjU3OTY4NCwibm9uY2UiOiIwZWQ4ZjFiMy1lODNmLTQ2YzAtOGQ1Mi1m" +
+-                        "MGQyZTc5MjVmOTgiLCJpYXQiOjE1MDY1NzYwODQsInNpZCI6Ijg3MDZmNWRhLTU0ZmMtNGZiMC1iNGUxLTY5MDZmYTRiM" +
+-                        "DRjMiJ9.HopPYFs4lInXvGztNEkJKh8Kdy52eCGbzYy6PiVuM_BlCcGff3SHOoZxDH7JbIkPpKBe0cnYQWBxfHuGTUWhv" +
+-                        "nu629ek6v2YLkaHlb_Lm04xLD9FNxuZUNQFw83pQtDVpoX5r1V-F0DdUc7gA1RKN3xMVYgRyfslRDveGYplxVVNQ1LU3l" +
+-                        "rZhgaTfcMEsC6rdbd1HjdzG71EPS4674HCSAUelOisNKGa2NgORpldDQsj376QD0G9Mhc8WtWoguftrCCGjBy1kKT4VqF" +
+-                        "LOqlA-8wUhOj_rZT9SUIBQRDPu0RZobvsskqYo40GEZrUoabrhbwv_QpDTf6-7-nrEjT7WA";
++                        "4Wm1NeE5ETXlaRGczTVRVMVpHTTBNekV6T0RKaFpXSTRORE5sWkRVMU9HRmtOakZpTVEiLCJhbGciOiJSUzI1NiJ9.e" +
++                        "yJzdWIiOiJhZG1pbiIsImF1ZCI6WyJ1NUZJZkc1eHpMdkJHaWFtb0FZenpjcXBCcWdhIl0sImF6cCI6InU1RklmRzV4" +
++                        "ekx2QkdpYW1vQVl6emNxcEJxZ2EiLCJhdXRoX3RpbWUiOjE1MDY1NzYwODAsImlzcyI6Imh0dHBzOlwvXC9sb2NhbGh" +
++                        "vc3Q6OTQ0M1wvb2F1dGgyXC90b2tlbiIsImV4cCI6MTUwNjU3OTY4NCwibm9uY2UiOiIwZWQ4ZjFiMy1lODNmLTQ2Yz" +
++                        "AtOGQ1Mi1mMGQyZTc5MjVmOTgiLCJpYXQiOjE1MDY1NzYwODQsInNpZCI6Ijg3MDZmNWRhLTU0ZmMtNGZiMC1iNGUxL" +
++                        "TY5MDZmYTRiMDRjMiJ9.HopPYFs4lInXvGztNEkJKh8Kdy52eCGbzYy6PiVuM_BlCcGff3SHOoZxDH7JbIkPpKBe0cn" +
++                        "YQWBxfHuGTUWhvnu629ek6v2YLkaHlb_Lm04xLD9FNxuZUNQFw83pQtDVpoX5r1V-F0DdUc7gA1RKN3xMVYgRyfslRD" +
++                        "veGYplxVVNQ1LU3lrZhgaTfcMEsC6rdbd1HjdzG71EPS4674HCSAUelOisNKGa2NgORpldDQsj376QD0G9Mhc8WtWog" +
++                        "uftrCCGjBy1kKT4VqFLOqlA-8wUhOj_rZT9SUIBQRDPu0RZobvsskqYo40GEZrUoabrhbwv_QpDTf6-7-nrEjT7WA";
+ 
+         String idTokenWithRegexCallBack =
+-                "eyJ4NXQiOiJOVEF4Wm1NeE5ETXlaRGczTVRVMVpHTTBNekV6T0RKaFpXSTRORE5sWkRVMU9HRmtOa" +
+-                        "kZpTVEiLCJraWQiOiJOVEF4Wm1NeE5ETXlaRGczTVRVMVpHTTBNekV6T0RKaFpXSTRORE5sWkRVMU9HRmtOakZpTVEiLCJhbGciO" +
+-                        "iJSUzI1NiJ9.eyJzdWIiOiJhZG1pbiIsImF1ZCI6WyJjRzFINTJ6Zm5rRkVoM1VMVDB5VGkxNGJaUlVhIl0sImF6cCI6ImNHMUg1Mn" +
+-                        "pmbmtGRWgzVUxUMHlUaTE0YlpSVWEiLCJhdXRoX3RpbWUiOjE1MDg0MDcyOTYsImlzcyI6Imh0dHBzOlwvXC9sb2NhbGhvc3Q6OTQ0" +
+-                        "M1wvb2F1dGgyXC90b2tlbiIsImV4cCI6MTUwODQxMDg5OCwibm9uY2UiOiJDcXNVOXdabFFJWUdVQjg2IiwiaWF0IjoxNTA4NDA3Mj" +
+-                        "k4LCJzaWQiOiI3YjI1YzJjOC01YjVlLTQ0YzAtYWVjZS02MDE4ZDgyZTY4MDIifQ.DS9bThwHV3Ecp_ziYw52B_zpza6sxMqLaVTv" +
+-                        "H5Qrxxbd9l2iPo56HuSzmT_ul0nzYYHcaQGbuO1LLe6kcSk7wwbbCG7vacjyBnJ4nT8SHGOtTOOjt1srQuNiZlgibi2LbQU0RUFaNq" +
+-                        "1_3e0PtAQyWOvqugYFbdZc-SgrJSGHet7RxMHTcQxp785hnz8J-lUv5jCrMAuCOJprLzL9EEvX8tHYpmZfyj3UWR8YskLnDmVDnNhqDGt" +
+-                        "buZ0Ebn3ppKSsJwsm0ITitQ4uXfYdgEx_EH4gniRThFD2X9rzfP-SXW0eaYHcrRO0zgZr6CIZQNmLQdgc7p5K_AAbPiycod82tg";
++                "eyJ4NXQiOiJOVEF4Wm1NeE5ETXlaRGczTVRVMVpHTTBNekV6T0RKaFpXSTRORE5sWkRVMU9HRmtOakZpTVEiLCJraWQiOiJOVEF" +
++                        "4Wm1NeE5ETXlaRGczTVRVMVpHTTBNekV6T0RKaFpXSTRORE5sWkRVMU9HRmtOakZpTVEiLCJhbGciOiJSUzI1NiJ9.e" +
++                        "yJzdWIiOiJhZG1pbiIsImF1ZCI6WyJjRzFINTJ6Zm5rRkVoM1VMVDB5VGkxNGJaUlVhIl0sImF6cCI6ImNHMUg1Mnpm" +
++                        "bmtGRWgzVUxUMHlUaTE0YlpSVWEiLCJhdXRoX3RpbWUiOjE1MDg0MDcyOTYsImlzcyI6Imh0dHBzOlwvXC9sb2NhbGh" +
++                        "vc3Q6OTQ0M1wvb2F1dGgyXC90b2tlbiIsImV4cCI6MTUwODQxMDg5OCwibm9uY2UiOiJDcXNVOXdabFFJWUdVQjg2Ii" +
++                        "wiaWF0IjoxNTA4NDA3Mjk4LCJzaWQiOiI3YjI1YzJjOC01YjVlLTQ0YzAtYWVjZS02MDE4ZDgyZTY4MDIifQ.DS9bTh" +
++                        "wHV3Ecp_ziYw52B_zpza6sxMqLaVTvH5Qrxxbd9l2iPo56HuSzmT_ul0nzYYHcaQGbuO1LLe6kcSk7wwbbCG7vacjyB" +
++                        "nJ4nT8SHGOtTOOjt1srQuNiZlgibi2LbQU0RUFaNq1_3e0PtAQyWOvqugYFbdZc-SgrJSGHet7RxMHTcQxp785hnz8J" +
++                        "-lUv5jCrMAuCOJprLzL9EEvX8tHYpmZfyj3UWR8YskLnDmVDnNhqDGtbuZ0Ebn3ppKSsJwsm0ITitQ4uXfYdgEx_EH4" +
++                        "gniRThFD2X9rzfP-SXW0eaYHcrRO0zgZr6CIZQNmLQdgc7p5K_AAbPiycod82tg";
+ 
+         String idTokenHintWithRealm =
+-                "eyJ4NXQiOiJOVEF4Wm1NeE5ETXlaRGczTVRVMVpHTTBNekV6T0RKaFpXSTRORE5sWkRVMU9HRmtOakZpTVEiLCJraWQiOiJOVEF4Wm1" +
+-                        "NeE5ETXlaRGczTVRVMVpHTTBNekV6T0RKaFpXSTRORE5sWkRVMU9HRmtOakZpTVEiLCJhbGciOiJSUzI1NiJ9.eyJhdF9oY" +
+-                        "XNoIjoiazBvdFlvRV84b21WTnd3ZEJCYWJsdyIsImF1ZCI6IjVHeGhtU0w4OU9WcFdlZjR3emlvUnMxYURZSWEiLCJjX2hh" +
+-                        "c2giOiI2Y25ZZ25ZNFBVemNRTHNOSldsX1lBIiwic3ViIjoiYWRtaW4iLCJuYmYiOjE1NTQ0Nzc0MTMsImF6cCI6IjVHeGh" +
+-                        "tU0w4OU9WcFdlZjR3emlvUnMxYURZSWEiLCJhbXIiOlsiQmFzaWNBdXRoZW50aWNhdG9yIl0sImlzcyI6Imh0dHBzOlwvXC" +
+-                        "9sb2NhbGhvc3Q6OTQ0M1wvb2F1dGgyXC90b2tlbiIsInJlYWxtIjp7InVzZXJzdG9yZSI6IlBSSU1BUlkiLCJ0ZW5hbnQiO" +
+-                        "iJjYXJib24uc3VwZXIifSwiZXhwIjoxNTU0NDgxMDEzLCJpYXQiOjE1NTQ0Nzc0MTMsInNpZCI6ImJjM2IzOTRjLTRjOWQt" +
+-                        "NGRlOS1iN2MzLTI0YWIwOGNiMmQzZiJ9.KTrYVZ8QrcQFKCL7TIvSZsvLl3VEKxGRXiREg04ej5AEAteSNZZaC6druoymc9" +
+-                        "z9-9PQMRFknNIh5EUpdT6Z2MuiRJC5_jy2ufFQflUe6ppi5fpvxAGHDK794Rta2jktK1FOdj10Seg0wysMiJ0MqXv52g847" +
+-                        "wHXnOCHX-LpfFO-paT3R-M8hrcEUiIo4NqW_0tEuY5A2TwBNKnKsKRINgwwgYcMyX--XZEZVzq-Op41izLehua7Yh88skbR" +
+-                        "ns-v2ViNiVhocgWWc8KjzIip5zeLFuea4Uo2ncMdGw9pUybFa7tRquP67RTvimdKmFv9YzhkdA2RpJFw0k5Ly7BZCA";
++                "eyJ4NXQiOiJOVEF4Wm1NeE5ETXlaRGczTVRVMVpHTTBNekV6T0RKaFpXSTRORE5sWkRVMU9HRmtOakZpTVEiLCJraWQiOiJOVEF" +
++                        "4Wm1NeE5ETXlaRGczTVRVMVpHTTBNekV6T0RKaFpXSTRORE5sWkRVMU9HRmtOakZpTVEiLCJhbGciOiJSUzI1NiJ9.e" +
++                        "yJhdF9oYXNoIjoiazBvdFlvRV84b21WTnd3ZEJCYWJsdyIsImF1ZCI6IjVHeGhtU0w4OU9WcFdlZjR3emlvUnMxYURZ" +
++                        "SWEiLCJjX2hhc2giOiI2Y25ZZ25ZNFBVemNRTHNOSldsX1lBIiwic3ViIjoiYWRtaW4iLCJuYmYiOjE1NTQ0Nzc0MTM" +
++                        "sImF6cCI6IjVHeGhtU0w4OU9WcFdlZjR3emlvUnMxYURZSWEiLCJhbXIiOlsiQmFzaWNBdXRoZW50aWNhdG9yIl0sIm" +
++                        "lzcyI6Imh0dHBzOlwvXC9sb2NhbGhvc3Q6OTQ0M1wvb2F1dGgyXC90b2tlbiIsInJlYWxtIjp7InVzZXJzdG9yZSI6I" +
++                        "lBSSU1BUlkiLCJ0ZW5hbnQiOiJjYXJib24uc3VwZXIifSwiZXhwIjoxNTU0NDgxMDEzLCJpYXQiOjE1NTQ0Nzc0MTMs" +
++                        "InNpZCI6ImJjM2IzOTRjLTRjOWQtNGRlOS1iN2MzLTI0YWIwOGNiMmQzZiJ9.KTrYVZ8QrcQFKCL7TIvSZsvLl3VEKx" +
++                        "GRXiREg04ej5AEAteSNZZaC6druoymc9z9-9PQMRFknNIh5EUpdT6Z2MuiRJC5_jy2ufFQflUe6ppi5fpvxAGHDK794" +
++                        "Rta2jktK1FOdj10Seg0wysMiJ0MqXv52g847wHXnOCHX-LpfFO-paT3R-M8hrcEUiIo4NqW_0tEuY5A2TwBNKnKsKRI" +
++                        "NgwwgYcMyX--XZEZVzq-Op41izLehua7Yh88skbRns-v2ViNiVhocgWWc8KjzIip5zeLFuea4Uo2ncMdGw9pUybFa7t" +
++                        "RquP67RTvimdKmFv9YzhkdA2RpJFw0k5Ly7BZCA";
+ 
+         return new Object[][]{
+                 // opbs cookie is null.
+@@ -265,7 +271,7 @@ public void setUp() throws Exception {
+                         invalidIdToken, false, INVALID_CALLBACK_URL, null},
+                 // Thorws IdentityOAuth2Exception since the id token is not added to DB
+                 {opbsCookie, true, redirectUrl[8], "application", " ", null, false,
+-                        IDTokenNotAddedToDB, false, INVALID_CALLBACK_URL, null},
++                        idTokenNotAddedToDB, false, INVALID_CALLBACK_URL, null},
+                 // AuthenticatorFlowStatus = SUCCESS_COMPLETED
+                 {opbsCookie, true, redirectUrl[5], CALLBACK_URL, " ", null, true,
+                         idTokenHint, false, CALLBACK_URL, AuthenticatorFlowStatus.SUCCESS_COMPLETED},
+@@ -342,14 +348,16 @@ public void testDoGet(Object cookie, boolean sessionExists, String redirectUrl,
+                         .getFilePath("wso2carbon.jks"), "wso2carbon", "JKS"), "wso2carbon"));
+ 
+         mockStatic(OIDCSessionManagementComponentServiceHolder.class);
+-        when(OIDCSessionManagementComponentServiceHolder.getApplicationMgtService()).thenReturn(mockedApplicationManagementService);
++        when(OIDCSessionManagementComponentServiceHolder.getApplicationMgtService())
++                .thenReturn(mockedApplicationManagementService);
+         when(mockedApplicationManagementService.getServiceProviderNameByClientId(
+                 anyString(), anyString(), anyString())).thenReturn("SP1");
+ 
+         mockStatic(OAuthServerConfiguration.class);
+         when(OAuthServerConfiguration.getInstance()).thenReturn(oAuthServerConfiguration);
+         when(oAuthServerConfiguration.getPersistenceProcessor()).thenReturn(tokenPersistenceProcessor);
+-        when(tokenPersistenceProcessor.getProcessedClientId(anyString())).thenAnswer(invocation -> invocation.getArguments()[0]);
++        when(tokenPersistenceProcessor.getProcessedClientId(anyString()))
++                .thenAnswer(invocation -> invocation.getArguments()[0]);
+         when(request.getParameter("post_logout_redirect_uri")).thenReturn(postLogoutUrl);
+         mockStatic(IdentityDatabaseUtil.class);
+         when(IdentityDatabaseUtil.getDBConnection()).thenAnswer(invocationOnMock -> dataSource.getConnection());
+@@ -371,28 +379,30 @@ public void testDoGet(Object cookie, boolean sessionExists, String redirectUrl,
+         Cookie opbsCookie = new Cookie("opbs", OPBROWSER_STATE);
+ 
+         String idTokenHint =
+-                "eyJ4NXQiOiJOVEF4Wm1NeE5ETXlaRGczTVRVMVpHTTBNekV6T0RKaFpXSTRORE5sWkRVMU9HRmtOakZpTVEiLCJr" +
+-                        "aWQiOiJOVEF4Wm1NeE5ETXlaRGczTVRVMVpHTTBNekV6T0RKaFpXSTRORE5sWkRVMU9HRmtOakZpTVEiLCJhbGciOiJSUzI1" +
+-                        "NiJ9.eyJzdWIiOiJhZG1pbiIsImF1ZCI6WyIzVDlsMnVVZjhBek5PZm1HUzlsUEVJc2RyUjhhIl0sImF6cCI6IjNUOWwydVVmO" +
+-                        "EF6Tk9mbUdTOWxQRUlzZHJSOGEiLCJhdXRoX3RpbWUiOjE1MDcwMDk0MDQsImlzcyI6Imh0dHBzOlwvXC9sb2NhbGhvc3Q6OTQ0M" +
+-                        "1wvb2F1dGgyXC90b2tlbiIsImV4cCI6MTUwNzAxMzAwNSwibm9uY2UiOiJDcXNVOXdabFFJWUdVQjg2IiwiaWF0IjoxNTA3MDA5ND" +
+-                        "A1fQ.ivgnkuW-EFT7m55Mr1pyit1yALwVxrHjVqmgSley1lUhZNAlJMxefs6kjSbGStQg-mqEv0VQ7NJkZu0w1kYYD_76-KkjI1sk" +
+-                        "P1zEqSXMhTyE8UtQ-CpR1w8bnTU7D50v-537z8vTf7PnTTA-wxpTuoYmv4ya2z0Rv-gFTM4KPdxsc7j6yFuQcfWg5SyP9lYpJdt-s-O" +
+-                        "w9FY1rlUVvNbtF1u2Fruc1kj9jkjSbvFgSONRhizRH6P_25v0LpgNZrOpiLZF92CtkCBbAGQChWACN6RWDpy5Fj2JuQMNcCvkxlv" +
+-                        "OVcx-7biH16qVnY9UFs4DxZo2cGzyWbXuH8sDTkzQBg";
++                "eyJ4NXQiOiJOVEF4Wm1NeE5ETXlaRGczTVRVMVpHTTBNekV6T0RKaFpXSTRORE5sWkRVMU9HRmtOakZpTVEiLCJraWQiOiJOVEF" +
++                        "4Wm1NeE5ETXlaRGczTVRVMVpHTTBNekV6T0RKaFpXSTRORE5sWkRVMU9HRmtOakZpTVEiLCJhbGciOiJSUzI1NiJ9.e" +
++                        "yJzdWIiOiJhZG1pbiIsImF1ZCI6WyIzVDlsMnVVZjhBek5PZm1HUzlsUEVJc2RyUjhhIl0sImF6cCI6IjNUOWwydVVm" +
++                        "OEF6Tk9mbUdTOWxQRUlzZHJSOGEiLCJhdXRoX3RpbWUiOjE1MDcwMDk0MDQsImlzcyI6Imh0dHBzOlwvXC9sb2NhbGh" +
++                        "vc3Q6OTQ0M1wvb2F1dGgyXC90b2tlbiIsImV4cCI6MTUwNzAxMzAwNSwibm9uY2UiOiJDcXNVOXdabFFJWUdVQjg2Ii" +
++                        "wiaWF0IjoxNTA3MDA5NDA1fQ.ivgnkuW-EFT7m55Mr1pyit1yALwVxrHjVqmgSley1lUhZNAlJMxefs6kjSbGStQg-m" +
++                        "qEv0VQ7NJkZu0w1kYYD_76-KkjI1skP1zEqSXMhTyE8UtQ-CpR1w8bnTU7D50v-537z8vTf7PnTTA-wxpTuoYmv4ya2" +
++                        "z0Rv-gFTM4KPdxsc7j6yFuQcfWg5SyP9lYpJdt-s-Ow9FY1rlUVvNbtF1u2Fruc1kj9jkjSbvFgSONRhizRH6P_25v0" +
++                        "LpgNZrOpiLZF92CtkCBbAGQChWACN6RWDpy5Fj2JuQMNcCvkxlvOVcx-7biH16qVnY9UFs4DxZo2cGzyWbXuH8sDTkz" +
++                        "QBg";
+ 
+         String idTokenHintWithRealm =
+-                "eyJ4NXQiOiJOVEF4Wm1NeE5ETXlaRGczTVRVMVpHTTBNekV6T0RKaFpXSTRORE5sWkRVMU9HRmtOakZpTVEiLCJraWQiOiJOVEF4Wm1" +
+-                        "NeE5ETXlaRGczTVRVMVpHTTBNekV6T0RKaFpXSTRORE5sWkRVMU9HRmtOakZpTVEiLCJhbGciOiJSUzI1NiJ9.eyJhdF9oY" +
+-                        "XNoIjoiazBvdFlvRV84b21WTnd3ZEJCYWJsdyIsImF1ZCI6IjVHeGhtU0w4OU9WcFdlZjR3emlvUnMxYURZSWEiLCJjX2hh" +
+-                        "c2giOiI2Y25ZZ25ZNFBVemNRTHNOSldsX1lBIiwic3ViIjoiYWRtaW4iLCJuYmYiOjE1NTQ0Nzc0MTMsImF6cCI6IjVHeGh" +
+-                        "tU0w4OU9WcFdlZjR3emlvUnMxYURZSWEiLCJhbXIiOlsiQmFzaWNBdXRoZW50aWNhdG9yIl0sImlzcyI6Imh0dHBzOlwvXC" +
+-                        "9sb2NhbGhvc3Q6OTQ0M1wvb2F1dGgyXC90b2tlbiIsInJlYWxtIjp7InVzZXJzdG9yZSI6IlBSSU1BUlkiLCJ0ZW5hbnQiO" +
+-                        "iJjYXJib24uc3VwZXIifSwiZXhwIjoxNTU0NDgxMDEzLCJpYXQiOjE1NTQ0Nzc0MTMsInNpZCI6ImJjM2IzOTRjLTRjOWQt" +
+-                        "NGRlOS1iN2MzLTI0YWIwOGNiMmQzZiJ9.KTrYVZ8QrcQFKCL7TIvSZsvLl3VEKxGRXiREg04ej5AEAteSNZZaC6druoymc9" +
+-                        "z9-9PQMRFknNIh5EUpdT6Z2MuiRJC5_jy2ufFQflUe6ppi5fpvxAGHDK794Rta2jktK1FOdj10Seg0wysMiJ0MqXv52g847" +
+-                        "wHXnOCHX-LpfFO-paT3R-M8hrcEUiIo4NqW_0tEuY5A2TwBNKnKsKRINgwwgYcMyX--XZEZVzq-Op41izLehua7Yh88skbR" +
+-                        "ns-v2ViNiVhocgWWc8KjzIip5zeLFuea4Uo2ncMdGw9pUybFa7tRquP67RTvimdKmFv9YzhkdA2RpJFw0k5Ly7BZCA";
++                "eyJ4NXQiOiJOVEF4Wm1NeE5ETXlaRGczTVRVMVpHTTBNekV6T0RKaFpXSTRORE5sWkRVMU9HRmtOakZpTVEiLCJraWQiOiJOVEF" +
++                        "4Wm1NeE5ETXlaRGczTVRVMVpHTTBNekV6T0RKaFpXSTRORE5sWkRVMU9HRmtOakZpTVEiLCJhbGciOiJSUzI1NiJ9.e" +
++                        "yJhdF9oYXNoIjoiazBvdFlvRV84b21WTnd3ZEJCYWJsdyIsImF1ZCI6IjVHeGhtU0w4OU9WcFdlZjR3emlvUnMxYURZ" +
++                        "SWEiLCJjX2hhc2giOiI2Y25ZZ25ZNFBVemNRTHNOSldsX1lBIiwic3ViIjoiYWRtaW4iLCJuYmYiOjE1NTQ0Nzc0MTM" +
++                        "sImF6cCI6IjVHeGhtU0w4OU9WcFdlZjR3emlvUnMxYURZSWEiLCJhbXIiOlsiQmFzaWNBdXRoZW50aWNhdG9yIl0sIm" +
++                        "lzcyI6Imh0dHBzOlwvXC9sb2NhbGhvc3Q6OTQ0M1wvb2F1dGgyXC90b2tlbiIsInJlYWxtIjp7InVzZXJzdG9yZSI6I" +
++                        "lBSSU1BUlkiLCJ0ZW5hbnQiOiJjYXJib24uc3VwZXIifSwiZXhwIjoxNTU0NDgxMDEzLCJpYXQiOjE1NTQ0Nzc0MTMs" +
++                        "InNpZCI6ImJjM2IzOTRjLTRjOWQtNGRlOS1iN2MzLTI0YWIwOGNiMmQzZiJ9.KTrYVZ8QrcQFKCL7TIvSZsvLl3VEKx" +
++                        "GRXiREg04ej5AEAteSNZZaC6druoymc9z9-9PQMRFknNIh5EUpdT6Z2MuiRJC5_jy2ufFQflUe6ppi5fpvxAGHDK794" +
++                        "Rta2jktK1FOdj10Seg0wysMiJ0MqXv52g847wHXnOCHX-LpfFO-paT3R-M8hrcEUiIo4NqW_0tEuY5A2TwBNKnKsKRI" +
++                        "NgwwgYcMyX--XZEZVzq-Op41izLehua7Yh88skbRns-v2ViNiVhocgWWc8KjzIip5zeLFuea4Uo2ncMdGw9pUybFa7t" +
++                        "RquP67RTvimdKmFv9YzhkdA2RpJFw0k5Ly7BZCA";
+ 
+         String[] postLogoutUrl = {
+                 "http://localhost:8080/playground2/oauth2client",
+diff --git a/components/org.wso2.carbon.identity.oidc.session/src/test/java/org/wso2/carbon/identity/oidc/session/servlet/OIDCSessionIFrameServletTest.java b/components/org.wso2.carbon.identity.oidc.session/src/test/java/org/wso2/carbon/identity/oidc/session/servlet/OIDCSessionIFrameServletTest.java
+index 23dee1042..3f5ef56c8 100644
+--- a/components/org.wso2.carbon.identity.oidc.session/src/test/java/org/wso2/carbon/identity/oidc/session/servlet/OIDCSessionIFrameServletTest.java
++++ b/components/org.wso2.carbon.identity.oidc.session/src/test/java/org/wso2/carbon/identity/oidc/session/servlet/OIDCSessionIFrameServletTest.java
+@@ -28,8 +28,10 @@
+ import org.wso2.carbon.identity.oauth.tokenprocessor.TokenPersistenceProcessor;
+ import org.wso2.carbon.identity.oidc.session.OIDCSessionConstants;
+ import org.wso2.carbon.identity.oidc.session.util.OIDCSessionManagementUtil;
++
+ import java.io.PrintWriter;
+ import java.io.StringWriter;
++
+ import javax.servlet.http.HttpServletRequest;
+ import javax.servlet.http.HttpServletResponse;
+ 
+@@ -76,6 +78,7 @@
+ 
+     @BeforeTest
+     public void setUp() throws Exception {
++
+         oidcSessionIFrameServlet = new OIDCSessionIFrameServlet();
+ 
+         initiateInMemoryH2();
+@@ -90,10 +93,12 @@ public void setUp() throws Exception {
+ 
+     /**
+      * This provides data to testDoGet(String clientId, String redirectUri, String expected)
++     *
+      * @return
+      */
+     @DataProvider(name = "provideDataForTestDoGet")
+     public Object[][] provideDataForTestDoGet() {
++
+         return new Object[][]{
+                 {CLIENT_ID_VALUE, "", "playground2"},
+                 {" ", "", "Invalid"},
+@@ -107,6 +112,7 @@ public void setUp() throws Exception {
+ 
+     @Test(dataProvider = "provideDataForTestDoGet")
+     public void testDoGet(String clientId, String redirectUri, String expected) throws Exception {
++
+         mockStatic(IdentityDatabaseUtil.class);
+         when(IdentityDatabaseUtil.getDBConnection()).thenAnswer(invocationOnMock -> dataSource.getConnection());
+         oidcSessionIFrameServlet.init();
+@@ -117,7 +123,8 @@ public void testDoGet(String clientId, String redirectUri, String expected) thro
+         mockStatic(OAuthServerConfiguration.class);
+         when(OAuthServerConfiguration.getInstance()).thenReturn(oAuthServerConfiguration);
+         when(oAuthServerConfiguration.getPersistenceProcessor()).thenReturn(tokenPersistenceProcessor);
+-        when(tokenPersistenceProcessor.getProcessedClientId(anyString())).thenAnswer(invocation -> invocation.getArguments()[0]);
++        when(tokenPersistenceProcessor.getProcessedClientId(anyString()))
++                .thenAnswer(invocation -> invocation.getArguments()[0]);
+ 
+         mockStatic(IdentityTenantUtil.class);
+         when(IdentityTenantUtil.getTenantId(anyString())).thenReturn(TENANT_ID);
+@@ -128,6 +135,6 @@ public void testDoGet(String clientId, String redirectUri, String expected) thro
+         PrintWriter out = new PrintWriter(outStringwriter);
+         when(response.getWriter()).thenReturn(out);
+         oidcSessionIFrameServlet.doGet(request, response);
+-        assertTrue(outStringwriter.toString().contains(expected),"Expected one is different from the actual one");
++        assertTrue(outStringwriter.toString().contains(expected), "Expected one is different from the actual one");
+     }
+ }
+diff --git a/components/org.wso2.carbon.identity.oidc.session/src/test/java/org/wso2/carbon/identity/oidc/session/servlet/TestOIDCSessionBase.java b/components/org.wso2.carbon.identity.oidc.session/src/test/java/org/wso2/carbon/identity/oidc/session/servlet/TestOIDCSessionBase.java
+index e4f0f70f7..1b09834c1 100644
+--- a/components/org.wso2.carbon.identity.oidc.session/src/test/java/org/wso2/carbon/identity/oidc/session/servlet/TestOIDCSessionBase.java
++++ b/components/org.wso2.carbon.identity.oidc.session/src/test/java/org/wso2/carbon/identity/oidc/session/servlet/TestOIDCSessionBase.java
+@@ -20,6 +20,7 @@
+ import org.apache.commons.dbcp.BasicDataSource;
+ import org.wso2.carbon.identity.core.util.IdentityDatabaseUtil;
+ import org.wso2.carbon.identity.testutil.powermock.PowerMockIdentityBaseTest;
++
+ import java.sql.Connection;
+ import java.sql.PreparedStatement;
+ 
+@@ -36,6 +37,7 @@
+     protected BasicDataSource dataSource;
+ 
+     protected void initiateInMemoryH2() throws Exception {
++
+         dataSource = new BasicDataSource();
+         dataSource.setDriverClassName("org.h2.Driver");
+         dataSource.setUsername("username");
+@@ -74,6 +76,7 @@ protected void createOAuthApp(String clientId, String secret, String username, S
+     }
+ 
+     public void cleanData() throws Exception {
++
+         dataSource.close();
+     }
+ }
+diff --git a/components/org.wso2.carbon.identity.oidc.session/src/test/java/org/wso2/carbon/identity/oidc/session/servlet/TestUtil.java b/components/org.wso2.carbon.identity.oidc.session/src/test/java/org/wso2/carbon/identity/oidc/session/servlet/TestUtil.java
+index 3e11ba771..f4ed3753e 100644
+--- a/components/org.wso2.carbon.identity.oidc.session/src/test/java/org/wso2/carbon/identity/oidc/session/servlet/TestUtil.java
++++ b/components/org.wso2.carbon.identity.oidc.session/src/test/java/org/wso2/carbon/identity/oidc/session/servlet/TestUtil.java
+@@ -30,6 +30,7 @@
+ public class TestUtil {
+ 
+     public static void startTenantFlow(String tenantDomain) {
++
+         String carbonHome = Paths.get(System.getProperty("user.dir"), "src", "test", "resources").toString();
+         System.setProperty(CarbonBaseConstants.CARBON_HOME, carbonHome);
+         PrivilegedCarbonContext.startTenantFlow();
+@@ -37,6 +38,7 @@ public static void startTenantFlow(String tenantDomain) {
+     }
+ 
+     public static KeyStore loadKeyStoreFromFileSystem(String keyStorePath, String password, String type) {
++
+         try (FileInputStream inputStream = new FileInputStream(keyStorePath)) {
+             KeyStore keyStore = KeyStore.getInstance(type);
+             keyStore.load(inputStream, password.toCharArray());
+@@ -48,6 +50,7 @@ public static KeyStore loadKeyStoreFromFileSystem(String keyStorePath, String pa
+     }
+ 
+     public static String getFilePath(String fileName) {
++
+         if (StringUtils.isNotBlank(fileName)) {
+             return Paths.get(System.getProperty("user.dir"), "src", "test", "resources", "conf", fileName).toString();
+         }
+@@ -55,6 +58,7 @@ public static String getFilePath(String fileName) {
+     }
+ 
+     public static PublicKey getPublicKey(KeyStore keyStore, String alias) throws KeyStoreException {
++
+         return keyStore.getCertificate(alias).getPublicKey();
+     }
+ 
+diff --git a/components/org.wso2.carbon.identity.oidc.session/src/test/java/org/wso2/carbon/identity/oidc/session/util/OIDCSessionManagementUtilTest.java b/components/org.wso2.carbon.identity.oidc.session/src/test/java/org/wso2/carbon/identity/oidc/session/util/OIDCSessionManagementUtilTest.java
+index 4f1570b77..ae8ab5c18 100644
+--- a/components/org.wso2.carbon.identity.oidc.session/src/test/java/org/wso2/carbon/identity/oidc/session/util/OIDCSessionManagementUtilTest.java
++++ b/components/org.wso2.carbon.identity.oidc.session/src/test/java/org/wso2/carbon/identity/oidc/session/util/OIDCSessionManagementUtilTest.java
+@@ -25,11 +25,9 @@
+ import org.testng.annotations.DataProvider;
+ import org.testng.annotations.ObjectFactory;
+ import org.testng.annotations.Test;
+-
+ import org.wso2.carbon.identity.core.internal.IdentityCoreServiceComponent;
+ import org.wso2.carbon.identity.core.util.IdentityUtil;
+ import org.wso2.carbon.identity.oauth.config.OAuthServerConfiguration;
+-import org.wso2.carbon.identity.oidc.session.OIDCSessionManager;
+ import org.wso2.carbon.identity.oidc.session.config.OIDCSessionManagementConfiguration;
+ 
+ import javax.servlet.http.Cookie;
+@@ -58,7 +56,7 @@
+     private static final String OPBROWSER_STATE = "090907ce-eab0-40d2-a46d-acd4bb33f0d0";
+     private static final String SESSION_STATE = "18b2343e6edaec1c8b1208169ffa141d158156518135350be60dfbf6f41d340f" +
+             ".W2Gf-RAzLUFy2xq_8tuM6A";
+-    String responseType[] = new String[]{"id_token", "token", "code" };
++    String responseType[] = new String[]{"id_token", "token", "code"};
+ 
+     @Test
+     public void testGetSessionStateParam() {
+@@ -144,7 +142,7 @@ public void testAddSessionStateToURL(String url, String sessionState, String res
+         };
+     }
+ 
+-    @Test (dataProvider = "provideDataForTestAddSessionStateToURL1")
++    @Test(dataProvider = "provideDataForTestAddSessionStateToURL1")
+     public void testAddSessionStateToURL1(String url, Object obpscookie) {
+ 
+         OAuthServerConfiguration mock = mock(OAuthServerConfiguration.class);
+@@ -180,15 +178,15 @@ public void testAddSessionStateToURL1(String url, Object obpscookie) {
+     public void testGetOPBrowserStateCookie(Object[] cookie, Object expectedResult) {
+ 
+         HttpServletRequest request = mock(HttpServletRequest.class);
+-        when(request.getCookies()).thenReturn((Cookie[])cookie);
++        when(request.getCookies()).thenReturn((Cookie[]) cookie);
+         Assert.assertEquals(OIDCSessionManagementUtil.getOPBrowserStateCookie(request), expectedResult);
+     }
+ 
+     @Test
+-    public void testAddOPBrowserStateCookie()  {
++    public void testAddOPBrowserStateCookie() {
+ 
+-        HttpServletResponse response=mock(HttpServletResponse.class);
+-        Cookie cookie=OIDCSessionManagementUtil.addOPBrowserStateCookie(response);
++        HttpServletResponse response = mock(HttpServletResponse.class);
++        Cookie cookie = OIDCSessionManagementUtil.addOPBrowserStateCookie(response);
+         Assert.assertNotNull(cookie, "Opbs cookie is null");
+     }
+ 
+@@ -236,7 +234,7 @@ public void testGetOrigin() {
+     public Object[][] provideDataForTestGetOIDCLogoutConsentURL() {
+ 
+         String[] consentUrl = {"https://localhost:9443/authenticationendpoint/logout_consent.do",
+-                "https://localhost:9443/authenticationendpoint/oauth2_logout_consent.do" };
++                "https://localhost:9443/authenticationendpoint/oauth2_logout_consent.do"};
+         return new Object[][]{
+                 {consentUrl[0], consentUrl[0]}, {"", consentUrl[1]}
+         };
+@@ -255,7 +253,7 @@ public void testGetOIDCLogoutConsentURL(String consentUrl, String expectedUrl) {
+                 .thenReturn("https://localhost:9443/authenticationendpoint/oauth2_logout_consent.do");
+ 
+         String returnedUrl = OIDCSessionManagementUtil.getOIDCLogoutConsentURL();
+-        Assert.assertEquals(returnedUrl, expectedUrl,"Consent Url is not same as the Expected Consent Url");
++        Assert.assertEquals(returnedUrl, expectedUrl, "Consent Url is not same as the Expected Consent Url");
+     }
+ 
+     /***
+@@ -266,15 +264,16 @@ public void testGetOIDCLogoutConsentURL(String consentUrl, String expectedUrl) {
+     public Object[][] provideDataForTestGetOIDCLogoutURL() {
+ 
+         String[] logoutPageUrl = {"https://localhost:9443/authenticationendpoint/logout.do",
+-                "https://localhost:9443/authenticationendpoint/oauth2_logout.do" };
++                "https://localhost:9443/authenticationendpoint/oauth2_logout.do"};
+         return new Object[][]{
+                 {logoutPageUrl[0], logoutPageUrl[0]},
+                 {"", logoutPageUrl[1]}
+         };
+     }
+ 
+-    @Test (dataProvider = "provideDataForTestGetOIDCLogoutURL")
++    @Test(dataProvider = "provideDataForTestGetOIDCLogoutURL")
+     public void testGetOIDCLogoutURL(String logoutPageUrl, String expectedUrl) {
++
+         mockStatic(OIDCSessionManagementConfiguration.class);
+         when(OIDCSessionManagementConfiguration.getInstance()).thenReturn(oidcSessionManagementConfiguration);
+         when(oidcSessionManagementConfiguration.getOIDCLogoutPageUrl()).thenReturn(logoutPageUrl);
+@@ -297,11 +296,11 @@ public void testGetOIDCLogoutURL(String logoutPageUrl, String expectedUrl) {
+     public Object[][] provideDataForTestGetErrorPageURL() {
+ 
+         String[] errorPageUrl = {"https://localhost:9443/authenticationendpoint/error.do",
+-                "https://localhost:9443/authenticationendpoint/oauth2_error.do" };
++                "https://localhost:9443/authenticationendpoint/oauth2_error.do"};
+         String[] expectedUrl = {"https://localhost:9443/authenticationendpoint/error" +
+                 ".do?oauthErrorCode=404&oauthErrorMsg=not+found",
+                 "https://localhost:9443/authenticationendpoint/oauth2_error" +
+-                        ".do?oauthErrorCode=404&oauthErrorMsg=not+found" };
++                        ".do?oauthErrorCode=404&oauthErrorMsg=not+found"};
+         return new Object[][]{
+                 {errorPageUrl[0], expectedUrl[0]},
+                 {"", expectedUrl[1]}
+@@ -318,10 +317,10 @@ public void testGetErrorPageURL(String errorPageUrl, String expectedUrl) {
+         mockStatic(IdentityUtil.class);
+         when(IdentityUtil.getServerURL("/authenticationendpoint/oauth2_error.do", false,
+                 false))
+-                .thenReturn("https://localhost:9443/authenticationendpoint/oauth2_error.do" );
+-        String returnedErrorPageUrl = OIDCSessionManagementUtil.getErrorPageURL("404", "not found" );
+-        Assert.assertEquals(returnedErrorPageUrl,expectedUrl, "Expected error page url and actual url are " +
+-                "different" );
++                .thenReturn("https://localhost:9443/authenticationendpoint/oauth2_error.do");
++        String returnedErrorPageUrl = OIDCSessionManagementUtil.getErrorPageURL("404", "not found");
++        Assert.assertEquals(returnedErrorPageUrl, expectedUrl, "Expected error page url and actual url are " +
++                "different");
+     }
+ 
+     @Test

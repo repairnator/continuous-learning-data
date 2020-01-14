@@ -1,0 +1,9 @@
+@@ -38,7 +38,7 @@ public static Requirement requirement(final RequirementId id, final TranslatedSt
+                 .build();
+     }
+ 
+-    public static Set<Requirement> setOf(final Requirement... requirements) {
++    public static Set<Requirement> setOf(Requirement... requirements) {
+         return new HashSet<>(Arrays.asList(requirements));
+     }
+ }

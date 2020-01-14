@@ -1,0 +1,9 @@
+@@ -52,7 +52,7 @@ public HoodieCleanMetadata upgradeFrom(HoodieCleanMetadata input) {
+ 
+   @Override
+   public HoodieCleanMetadata downgradeFrom(HoodieCleanMetadata input) {
+-    Preconditions.checkArgument(input.getVersion() == 2,
++    ValidationUtils.checkArgument(input.getVersion() == 2,
+         "Input version is " + input.getVersion() + ". Must be 2");
+     final Path basePath = new Path(metaClient.getBasePath());
+ 

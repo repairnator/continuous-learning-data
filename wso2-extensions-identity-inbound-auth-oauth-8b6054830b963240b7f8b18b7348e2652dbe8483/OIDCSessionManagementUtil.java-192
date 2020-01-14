@@ -1,0 +1,9 @@
+@@ -192,7 +192,7 @@ public static Cookie removeOPBrowserStateCookie(HttpServletRequest request, Http
+     }
+ 
+     /**
+-     * Returns the origin of the provided url
++     * Returns the origin of the provided url.
+      * <scheme>://<host>:<port>
+      *
+      * @param url

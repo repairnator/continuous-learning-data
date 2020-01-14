@@ -1,0 +1,9 @@
+@@ -198,7 +198,7 @@ private static SKeyCapsule createSkey(
+     return privateKey;
+   }
+ 
+-  public static boolean validPassword (byte[] password, SKeyCapsule skey)
++  public static boolean validPassword(byte[] password, SKeyCapsule skey)
+       throws CipherException {
+ 
+     validate(skey);

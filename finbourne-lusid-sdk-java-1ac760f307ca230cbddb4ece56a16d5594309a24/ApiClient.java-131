@@ -1,0 +1,9 @@
+@@ -131,7 +131,7 @@ private void init() {
+         json = new JSON();
+ 
+         // Set default User-Agent.
+-        setUserAgent("OpenAPI-Generator/0.10.1017/java");
++        setUserAgent("OpenAPI-Generator/0.10.1019/java");
+ 
+         authentications = new HashMap<String, Authentication>();
+     }

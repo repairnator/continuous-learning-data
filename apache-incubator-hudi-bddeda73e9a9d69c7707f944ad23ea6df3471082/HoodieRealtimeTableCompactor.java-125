@@ -1,0 +1,9 @@
+@@ -125,7 +125,7 @@
+         config.getCompactionReverseLogReadEnabled(), config.getMaxDFSStreamBufferSize(),
+         config.getSpillableMapBasePath());
+     if (!scanner.iterator().hasNext()) {
+-      return Lists.<WriteStatus>newArrayList();
++      return new ArrayList<>();
+     }
+ 
+     Option<HoodieDataFile> oldDataFileOpt =

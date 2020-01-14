@@ -1,0 +1,243 @@
+diff --git a/src/main/java/br/com/hbparking/colaborador/ColaboradorController.java b/src/main/java/br/com/hbparking/colaborador/ColaboradorController.java
+index fa3f86d..5116819 100644
+--- a/src/main/java/br/com/hbparking/colaborador/ColaboradorController.java
++++ b/src/main/java/br/com/hbparking/colaborador/ColaboradorController.java
+@@ -2,7 +2,7 @@
+ 
+ import br.com.hbparking.file.FileNotSupportedException;
+ import br.com.hbparking.security.jwt.JwtProvider;
+-import br.com.hbparking.vehicleException.ContentDispositionException;
++import br.com.hbparking.vehicleexception.ContentDispositionException;
+ import org.springframework.web.bind.annotation.*;
+ import org.springframework.web.multipart.MultipartFile;
+ 
+diff --git a/src/main/java/br/com/hbparking/colaborador/ColaboradorService.java b/src/main/java/br/com/hbparking/colaborador/ColaboradorService.java
+index f5d83e7..7e20e8a 100644
+--- a/src/main/java/br/com/hbparking/colaborador/ColaboradorService.java
++++ b/src/main/java/br/com/hbparking/colaborador/ColaboradorService.java
+@@ -9,7 +9,7 @@
+ import br.com.hbparking.security.user.UserService;
+ import br.com.hbparking.util.DateHelper;
+ import br.com.hbparking.util.ReadFileCSV;
+-import br.com.hbparking.vehicleException.ContentDispositionException;
++import br.com.hbparking.vehicleexception.ContentDispositionException;
+ import org.apache.commons.lang3.StringUtils;
+ import org.slf4j.Logger;
+ import org.slf4j.LoggerFactory;
+diff --git a/src/main/java/br/com/hbparking/csv/VehicleModelExport.java b/src/main/java/br/com/hbparking/csv/VehicleModelExport.java
+index f86301d..ca4fb12 100644
+--- a/src/main/java/br/com/hbparking/csv/VehicleModelExport.java
++++ b/src/main/java/br/com/hbparking/csv/VehicleModelExport.java
+@@ -1,6 +1,6 @@
+ package br.com.hbparking.csv;
+ 
+-import br.com.hbparking.vehicleModel.VehicleModelService;
++import br.com.hbparking.vehiclemodel.VehicleModelService;
+ import org.springframework.beans.factory.annotation.Autowired;
+ import org.springframework.http.HttpHeaders;
+ import org.springframework.stereotype.Component;
+diff --git a/src/main/java/br/com/hbparking/csv/VehicleModelImport.java b/src/main/java/br/com/hbparking/csv/VehicleModelImport.java
+index 53f4c41..8f20f0f 100644
+--- a/src/main/java/br/com/hbparking/csv/VehicleModelImport.java
++++ b/src/main/java/br/com/hbparking/csv/VehicleModelImport.java
+@@ -4,8 +4,8 @@
+ import br.com.hbparking.marcas.Marca;
+ import br.com.hbparking.marcas.MarcaService;
+ import br.com.hbparking.util.ReadFileCSV;
+-import br.com.hbparking.vehicleModel.VehicleModel;
+-import br.com.hbparking.vehicleModel.VehicleModelService;
++import br.com.hbparking.vehiclemodel.VehicleModel;
++import br.com.hbparking.vehiclemodel.VehicleModelService;
+ import org.springframework.stereotype.Component;
+ import org.springframework.transaction.annotation.Transactional;
+ import org.springframework.web.multipart.MultipartFile;
+diff --git a/src/main/java/br/com/hbparking/marcas/MarcaService.java b/src/main/java/br/com/hbparking/marcas/MarcaService.java
+index 59c82ef..453f163 100644
+--- a/src/main/java/br/com/hbparking/marcas/MarcaService.java
++++ b/src/main/java/br/com/hbparking/marcas/MarcaService.java
+@@ -1,7 +1,7 @@
+ package br.com.hbparking.marcas;
+ 
+ import br.com.hbparking.util.Extension;
+-import br.com.hbparking.vehicleException.ContentDispositionException;
++import br.com.hbparking.vehicleexception.ContentDispositionException;
+ import com.opencsv.*;
+ import org.apache.commons.io.FilenameUtils;
+ import org.apache.commons.lang.StringUtils;
+diff --git a/src/main/java/br/com/hbparking/util/ReadFileCSV.java b/src/main/java/br/com/hbparking/util/ReadFileCSV.java
+index 06cf068..96b97d8 100644
+--- a/src/main/java/br/com/hbparking/util/ReadFileCSV.java
++++ b/src/main/java/br/com/hbparking/util/ReadFileCSV.java
+@@ -1,7 +1,7 @@
+ package br.com.hbparking.util;
+ 
+ import br.com.hbparking.file.FileNotSupportedException;
+-import br.com.hbparking.vehicleException.ContentDispositionException;
++import br.com.hbparking.vehicleexception.ContentDispositionException;
+ import org.apache.commons.io.FilenameUtils;
+ import org.springframework.stereotype.Component;
+ import org.springframework.web.multipart.MultipartFile;
+diff --git a/src/main/java/br/com/hbparking/vagadegaragem/VagaGaragem.java b/src/main/java/br/com/hbparking/vagadegaragem/VagaGaragem.java
+index 757ab41..157de39 100644
+--- a/src/main/java/br/com/hbparking/vagadegaragem/VagaGaragem.java
++++ b/src/main/java/br/com/hbparking/vagadegaragem/VagaGaragem.java
+@@ -5,7 +5,7 @@
+ import br.com.hbparking.marcas.Marca;
+ import br.com.hbparking.periodo.Periodo;
+ import br.com.hbparking.tipoveiculo.VehicleType;
+-import br.com.hbparking.vehicleModel.VehicleModel;
++import br.com.hbparking.vehiclemodel.VehicleModel;
+ import lombok.AllArgsConstructor;
+ import lombok.Data;
+ import lombok.NoArgsConstructor;
+diff --git a/src/main/java/br/com/hbparking/vagadegaragem/VagaGaragemService.java b/src/main/java/br/com/hbparking/vagadegaragem/VagaGaragemService.java
+index c1b13a6..7ea14ad 100644
+--- a/src/main/java/br/com/hbparking/vagadegaragem/VagaGaragemService.java
++++ b/src/main/java/br/com/hbparking/vagadegaragem/VagaGaragemService.java
+@@ -11,8 +11,8 @@
+ import br.com.hbparking.periodo.PeriodoService;
+ import br.com.hbparking.tipoveiculo.VehicleType;
+ import br.com.hbparking.vagainfo.*;
+-import br.com.hbparking.vehicleModel.VehicleModel;
+-import br.com.hbparking.vehicleModel.VehicleModelService;
++import br.com.hbparking.vehiclemodel.VehicleModel;
++import br.com.hbparking.vehiclemodel.VehicleModelService;
+ import lombok.AllArgsConstructor;
+ import org.apache.commons.lang3.EnumUtils;
+ import org.slf4j.Logger;
+@@ -32,8 +32,6 @@
+ import java.io.PrintWriter;
+ import java.time.LocalDate;
+ import java.util.*;
+-import java.util.regex.Matcher;
+-import java.util.regex.Pattern;
+ import java.util.stream.Collectors;
+ 
+ import static br.com.hbparking.util.PlacaUtils.transformPlate;
+diff --git a/src/main/java/br/com/hbparking/vehicleException/ContentDispositionException.java b/src/main/java/br/com/hbparking/vehicleexception/ContentDispositionException.java
+similarity index 87%
+rename from src/main/java/br/com/hbparking/vehicleException/ContentDispositionException.java
+rename to src/main/java/br/com/hbparking/vehicleexception/ContentDispositionException.java
+index 90c6964..af74fc9 100644
+--- a/src/main/java/br/com/hbparking/vehicleException/ContentDispositionException.java
++++ b/src/main/java/br/com/hbparking/vehicleexception/ContentDispositionException.java
+@@ -1,4 +1,4 @@
+-package br.com.hbparking.vehicleException;
++package br.com.hbparking.vehicleexception;
+ 
+ import org.springframework.http.HttpStatus;
+ import org.springframework.web.bind.annotation.ResponseStatus;
+diff --git a/src/main/java/br/com/hbparking/vehicleException/EmptyMapException.java b/src/main/java/br/com/hbparking/vehicleexception/EmptyMapException.java
+similarity index 75%
+rename from src/main/java/br/com/hbparking/vehicleException/EmptyMapException.java
+rename to src/main/java/br/com/hbparking/vehicleexception/EmptyMapException.java
+index c3b1438..04f1492 100644
+--- a/src/main/java/br/com/hbparking/vehicleException/EmptyMapException.java
++++ b/src/main/java/br/com/hbparking/vehicleexception/EmptyMapException.java
+@@ -1,4 +1,4 @@
+-package br.com.hbparking.vehicleException;
++package br.com.hbparking.vehicleexception;
+ 
+ public class EmptyMapException extends Exception{
+     public EmptyMapException(String message){
+diff --git a/src/main/java/br/com/hbparking/vehicleModel/IVehicleModelRepository.java b/src/main/java/br/com/hbparking/vehiclemodel/IVehicleModelRepository.java
+similarity index 92%
+rename from src/main/java/br/com/hbparking/vehicleModel/IVehicleModelRepository.java
+rename to src/main/java/br/com/hbparking/vehiclemodel/IVehicleModelRepository.java
+index 1f9c826..6a23796 100644
+--- a/src/main/java/br/com/hbparking/vehicleModel/IVehicleModelRepository.java
++++ b/src/main/java/br/com/hbparking/vehiclemodel/IVehicleModelRepository.java
+@@ -1,4 +1,4 @@
+-package br.com.hbparking.vehicleModel;
++package br.com.hbparking.vehiclemodel;
+ 
+ import br.com.hbparking.csv.VehicleGroupDTO;
+ import br.com.hbparking.marcas.Marca;
+@@ -8,7 +8,6 @@
+ 
+ import java.util.List;
+ import java.util.Optional;
+-import java.util.stream.Stream;
+ 
+ @Repository
+ public interface IVehicleModelRepository extends JpaRepository<VehicleModel, Long> {
+diff --git a/src/main/java/br/com/hbparking/vehicleModel/VehicleModel.java b/src/main/java/br/com/hbparking/vehiclemodel/VehicleModel.java
+similarity index 95%
+rename from src/main/java/br/com/hbparking/vehicleModel/VehicleModel.java
+rename to src/main/java/br/com/hbparking/vehiclemodel/VehicleModel.java
+index 6b5abd5..acbdf29 100644
+--- a/src/main/java/br/com/hbparking/vehicleModel/VehicleModel.java
++++ b/src/main/java/br/com/hbparking/vehiclemodel/VehicleModel.java
+@@ -1,4 +1,4 @@
+-package br.com.hbparking.vehicleModel;
++package br.com.hbparking.vehiclemodel;
+ 
+ import br.com.hbparking.marcas.Marca;
+ 
+diff --git a/src/main/java/br/com/hbparking/vehicleModel/VehicleModelController.java b/src/main/java/br/com/hbparking/vehiclemodel/VehicleModelController.java
+similarity index 98%
+rename from src/main/java/br/com/hbparking/vehicleModel/VehicleModelController.java
+rename to src/main/java/br/com/hbparking/vehiclemodel/VehicleModelController.java
+index 74aa46b..f2691b8 100644
+--- a/src/main/java/br/com/hbparking/vehicleModel/VehicleModelController.java
++++ b/src/main/java/br/com/hbparking/vehiclemodel/VehicleModelController.java
+@@ -1,4 +1,4 @@
+-package br.com.hbparking.vehicleModel;
++package br.com.hbparking.vehiclemodel;
+ 
+ import br.com.hbparking.csv.VehicleModelExport;
+ import br.com.hbparking.csv.VehicleModelImport;
+diff --git a/src/main/java/br/com/hbparking/vehicleModel/VehicleModelDTO.java b/src/main/java/br/com/hbparking/vehiclemodel/VehicleModelDTO.java
+similarity index 96%
+rename from src/main/java/br/com/hbparking/vehicleModel/VehicleModelDTO.java
+rename to src/main/java/br/com/hbparking/vehiclemodel/VehicleModelDTO.java
+index 037a874..b43c38f 100644
+--- a/src/main/java/br/com/hbparking/vehicleModel/VehicleModelDTO.java
++++ b/src/main/java/br/com/hbparking/vehiclemodel/VehicleModelDTO.java
+@@ -1,4 +1,4 @@
+-package br.com.hbparking.vehicleModel;
++package br.com.hbparking.vehiclemodel;
+ 
+ public class VehicleModelDTO {
+ 
+diff --git a/src/main/java/br/com/hbparking/vehicleModel/VehicleModelService.java b/src/main/java/br/com/hbparking/vehiclemodel/VehicleModelService.java
+similarity index 98%
+rename from src/main/java/br/com/hbparking/vehicleModel/VehicleModelService.java
+rename to src/main/java/br/com/hbparking/vehiclemodel/VehicleModelService.java
+index d4f59b1..52a29bd 100644
+--- a/src/main/java/br/com/hbparking/vehicleModel/VehicleModelService.java
++++ b/src/main/java/br/com/hbparking/vehiclemodel/VehicleModelService.java
+@@ -1,4 +1,4 @@
+-package br.com.hbparking.vehicleModel;
++package br.com.hbparking.vehiclemodel;
+ 
+ import br.com.hbparking.csv.VehicleGroupDTO;
+ import br.com.hbparking.marcas.Marca;
+diff --git a/src/test/java/br/com/hbparking/marca/MarcaServiceTest.java b/src/test/java/br/com/hbparking/marca/MarcaServiceTest.java
+index 7af7978..ea2d42d 100644
+--- a/src/test/java/br/com/hbparking/marca/MarcaServiceTest.java
++++ b/src/test/java/br/com/hbparking/marca/MarcaServiceTest.java
+@@ -1,7 +1,7 @@
+ package br.com.hbparking.marca;
+ 
+ import br.com.hbparking.marcas.*;
+-import br.com.hbparking.vehicleException.ContentDispositionException;
++import br.com.hbparking.vehicleexception.ContentDispositionException;
+ import com.opencsv.CSVReader;
+ import org.apache.commons.lang3.EnumUtils;
+ import org.apache.commons.lang3.StringUtils;
+diff --git a/src/test/java/br/com/hbparking/vehiclemodel/VehicleModelImportTest.java b/src/test/java/br/com/hbparking/vehiclemodel/VehicleModelImportTest.java
+index 7fa3bd4..233700c 100644
+--- a/src/test/java/br/com/hbparking/vehiclemodel/VehicleModelImportTest.java
++++ b/src/test/java/br/com/hbparking/vehiclemodel/VehicleModelImportTest.java
+@@ -4,9 +4,7 @@
+ import br.com.hbparking.marcas.IMarcaRepository;
+ import br.com.hbparking.marcas.MarcaService;
+ import br.com.hbparking.util.ReadFileCSV;
+-import br.com.hbparking.vehicleException.ContentDispositionException;
+-import br.com.hbparking.vehicleModel.IVehicleModelRepository;
+-import br.com.hbparking.vehicleModel.VehicleModelService;
++import br.com.hbparking.vehicleexception.ContentDispositionException;
+ import org.junit.Test;
+ import org.junit.runner.RunWith;
+ import org.mockito.InjectMocks;

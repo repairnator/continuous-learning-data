@@ -1,0 +1,9 @@
+@@ -286,7 +286,7 @@ private void testInsertAndCleanByVersions(
+                 List<String> commitedVersions = new ArrayList<>(fileIdToVersions.get(fileId));
+                 for (int i = 0; i < dataFiles.size(); i++) {
+                   assertEquals("File " + fileId + " does not have latest versions on commits" + commitedVersions,
+-                      Iterables.get(dataFiles, i).getCommitTime(),
++                      (dataFiles.get(i)).getCommitTime(),
+                       commitedVersions.get(commitedVersions.size() - 1 - i));
+                 }
+               }

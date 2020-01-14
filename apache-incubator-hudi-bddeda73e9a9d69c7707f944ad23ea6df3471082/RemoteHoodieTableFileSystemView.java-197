@@ -1,0 +1,9 @@
+@@ -197,7 +197,7 @@ public RemoteHoodieTableFileSystemView(String server, int port, HoodieTableMetaC
+     Map<String, String> paramsMap = new HashMap<>();
+     paramsMap.put(BASEPATH_PARAM, basePath);
+     paramsMap.put(PARTITION_PARAM, partitionPath);
+-    Preconditions.checkArgument(paramNames.length == paramVals.length);
++    ValidationUtils.checkArgument(paramNames.length == paramVals.length);
+     for (int i = 0; i < paramNames.length; i++) {
+       paramsMap.put(paramNames[i], paramVals[i]);
+     }

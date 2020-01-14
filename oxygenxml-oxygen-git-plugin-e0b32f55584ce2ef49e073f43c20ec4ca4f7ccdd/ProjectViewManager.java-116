@@ -1,0 +1,9 @@
+@@ -116,7 +116,7 @@ public static void addPopUpMenuCustomizer(
+       }
+     } 
+ 		
+-		return toReturn;
++		return toReturn == null ? new File[0] : toReturn;
+ 	}
+ 	
+ 	/**

@@ -1,0 +1,112 @@
+diff --git a/src/main/java/com/put/buildinginfo/controller/BuildingController.java b/src/main/java/com/put/buildinginfo/controller/BuildingController.java
+index df5c629..99c3ddd 100644
+--- a/src/main/java/com/put/buildinginfo/controller/BuildingController.java
++++ b/src/main/java/com/put/buildinginfo/controller/BuildingController.java
+@@ -112,6 +112,7 @@ public Building addNewLevel(@PathVariable int id,  @RequestBody Level level){
+     @GetMapping("/{id}/heatingOver/{value}")
+     public ArrayList<Immovable> getSpaceWithHeatingOverGivenValue(@PathVariable int id,
+                                                                   @PathVariable float value){
++        logger.info("here i am");
+         return buildingService.getOverHeating(id, value);
+     }
+ }
+diff --git a/src/main/java/com/put/buildinginfo/service/BuildingServiceImpl.java b/src/main/java/com/put/buildinginfo/service/BuildingServiceImpl.java
+index 1ab6e9c..58da8a6 100644
+--- a/src/main/java/com/put/buildinginfo/service/BuildingServiceImpl.java
++++ b/src/main/java/com/put/buildinginfo/service/BuildingServiceImpl.java
+@@ -116,7 +116,7 @@ public float calculateHeating(int id) {
+             if(cubature != 0) {
+                 return (building.calculateHeating() / cubature);
+             }
+-            return 0;
++            return 0f;
+         }
+         logger.info("Cannot calculate heating: "+ id);
+         return -1f;
+@@ -131,7 +131,7 @@ public float calculateLighting(int id) {
+             if(surface != 0) {
+                 return (building.calculateLighting() / surface);
+             }
+-            return 0;
++            return 0f;
+         }
+         logger.info("Cannot calculate lighting: "+ id);
+         return -1f;
+diff --git a/src/main/java/com/put/buildinginfo/service/FloorServiceImpl.java b/src/main/java/com/put/buildinginfo/service/FloorServiceImpl.java
+index dbbb22e..e0969ce 100644
+--- a/src/main/java/com/put/buildinginfo/service/FloorServiceImpl.java
++++ b/src/main/java/com/put/buildinginfo/service/FloorServiceImpl.java
+@@ -123,6 +123,7 @@ public float calculateHeating(int id) {
+             if(cubature != 0) {
+                 return (level.calculateHeating() / level.calculateCubature());
+             }
++            return 0f;
+         }
+         logger.info("Cannot calculate heating: "+ id);
+         return -1f;
+@@ -137,6 +138,7 @@ public float calculateLighting(int id) {
+             if(surface != 0) {
+                 return (level.calculateLighting() / level.calculateSurface());
+             }
++            return 0f;
+         }
+         logger.info("Cannot calculate lighting: "+ id);
+         return -1f;
+diff --git a/src/main/ngapp/src/app/forms/building-info/building-info.component.html b/src/main/ngapp/src/app/forms/building-info/building-info.component.html
+index 6efc3aa..76c1d95 100644
+--- a/src/main/ngapp/src/app/forms/building-info/building-info.component.html
++++ b/src/main/ngapp/src/app/forms/building-info/building-info.component.html
+@@ -2,7 +2,6 @@
+   <mat-expansion-panel-header>
+     {{building.name}}
+   </mat-expansion-panel-header>
+-
+   <table mat-table [dataSource]="data" [ngClass]="shouldBeMarked(data) ? 'mark': 'panel'" class=table>
+     <!-- Name Column -->
+     <ng-container matColumnDef="name">
+diff --git a/src/main/ngapp/src/app/forms/level-info/level-info.component.ts b/src/main/ngapp/src/app/forms/level-info/level-info.component.ts
+index af003b1..c3d24d0 100644
+--- a/src/main/ngapp/src/app/forms/level-info/level-info.component.ts
++++ b/src/main/ngapp/src/app/forms/level-info/level-info.component.ts
+@@ -29,6 +29,7 @@ export class LevelInfoComponent implements OnInit {
+   }
+ 
+   initData() {
++    console.log(this.level);
+     this.data$ = forkJoin([
+       this.levelService.getSurface(this.level),
+       this.levelService.getCubature(this.level),
+diff --git a/src/main/ngapp/src/app/forms/room-info/room-info.component.ts b/src/main/ngapp/src/app/forms/room-info/room-info.component.ts
+index c1468e2..f431e4f 100644
+--- a/src/main/ngapp/src/app/forms/room-info/room-info.component.ts
++++ b/src/main/ngapp/src/app/forms/room-info/room-info.component.ts
+@@ -29,6 +29,7 @@ export class RoomInfoComponent implements OnInit {
+   }
+ 
+   initData() {
++    console.log(this.room);
+     this.data$ = forkJoin([
+       this.roomService.getSurface(this.room),
+       this.roomService.getCubature(this.room),
+diff --git a/src/main/ngapp/src/app/services/level/level.service.ts b/src/main/ngapp/src/app/services/level/level.service.ts
+index 268dcd4..8cee101 100644
+--- a/src/main/ngapp/src/app/services/level/level.service.ts
++++ b/src/main/ngapp/src/app/services/level/level.service.ts
+@@ -15,14 +15,14 @@ export class LevelService {
+   }
+ 
+   public getCubature(level: Level): Observable<number> {
+-    return this.http.get<number>('/room/cubature/' + level.id);
++    return this.http.get<number>('/level/cubature/' + level.id);
+   }
+ 
+   public getLighting(level: Level): Observable<number> {
+-    return this.http.get<number>('/room/lighting/' + level.id);
++    return this.http.get<number>('/level/lighting/' + level.id);
+   }
+ 
+   public getHeating(level: Level): Observable<number> {
+-    return this.http.get<number>('/room/heating/' + level.id);
++    return this.http.get<number>('/level/heating/' + level.id);
+   }
+ }

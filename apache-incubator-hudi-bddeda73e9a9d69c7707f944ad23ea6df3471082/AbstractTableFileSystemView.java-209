@@ -1,0 +1,9 @@
+@@ -209,7 +209,7 @@ public final void reset() {
+    */
+   private void ensurePartitionLoadedCorrectly(String partition) {
+ 
+-    Preconditions.checkArgument(!isClosed(), "View is already closed");
++    ValidationUtils.checkArgument(!isClosed(), "View is already closed");
+ 
+     // ensure we list files only once even in the face of concurrency
+     addedPartitions.computeIfAbsent(partition, (partitionPathStr) -> {

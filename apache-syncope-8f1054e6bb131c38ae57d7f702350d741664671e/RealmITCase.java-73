@@ -1,0 +1,9 @@
+@@ -73,7 +73,7 @@ public void list() {
+ 
+     @Test
+     public void createUpdate() {
+-        final RealmTO realm = new RealmTO();
++        RealmTO realm = new RealmTO();
+         realm.setName("last");
+ 
+         // 1. create

@@ -1,0 +1,9 @@
+@@ -22,7 +22,7 @@
+ import org.wso2.carbon.identity.oidc.session.OIDCSessionState;
+ 
+ /**
+- * This class holds OIDC session information and gets cached against a cache key
++ * This class holds OIDC session information and gets cached against a cache key.
+  */
+ public class OIDCSessionParticipantCacheEntry extends CacheEntry {
+ 

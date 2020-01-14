@@ -1,0 +1,9 @@
+@@ -47,7 +47,7 @@ public TranslatedString getDescription() {
+         return description;
+     }
+ 
+-    public RequirementDto setDescription(final TranslatedString description) {
++    public RequirementDto setDescription(TranslatedString description) {
+         this.description = description;
+         return this;
+     }

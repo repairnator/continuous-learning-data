@@ -1,0 +1,1734 @@
+diff --git a/java/ant.hints/src/org/netbeans/modules/ant/hints/errors/EnablePreviewAntProj.java b/java/ant.hints/src/org/netbeans/modules/ant/hints/errors/EnablePreviewAntProj.java
+index c884782c72..ac66215009 100644
+--- a/java/ant.hints/src/org/netbeans/modules/ant/hints/errors/EnablePreviewAntProj.java
++++ b/java/ant.hints/src/org/netbeans/modules/ant/hints/errors/EnablePreviewAntProj.java
+@@ -54,6 +54,7 @@
+ public class EnablePreviewAntProj implements ErrorRule<Void> {
+ 
+     private static final Set<String> ERROR_CODES = new HashSet<String>(Arrays.asList(
++            "compiler.err.preview.feature.disabled",          // NOI18N
+             "compiler.err.preview.feature.disabled.plural")); // NOI18N
+     private static final String ENABLE_PREVIEW_FLAG = "--enable-preview";   // NOI18N
+     private static final String JAVAC_COMPILER_ARGS = "javac.compilerargs"; // NOI18N
+diff --git a/java/java.completion/src/org/netbeans/modules/java/completion/BaseTask.java b/java/java.completion/src/org/netbeans/modules/java/completion/BaseTask.java
+index e1d04f816e..7be3a9f3a0 100644
+--- a/java/java.completion/src/org/netbeans/modules/java/completion/BaseTask.java
++++ b/java/java.completion/src/org/netbeans/modules/java/completion/BaseTask.java
+@@ -35,6 +35,7 @@
+ import javax.tools.Diagnostic;
+ 
+ import com.sun.source.tree.*;
++import com.sun.source.tree.Tree.Kind;
+ import com.sun.source.util.SourcePositions;
+ import com.sun.source.util.TreePath;
+ import org.netbeans.api.java.source.support.ErrorAwareTreeScanner;
+@@ -344,6 +345,13 @@ private Env getEnvImpl(CompilationController controller, TreePath orig, TreePath
+                     case CASE:
+                         stmts = ((CaseTree) path.getLeaf()).getStatements();
+                         break;
++                    case CONDITIONAL_AND: case CONDITIONAL_OR:
++                        BinaryTree bt = (BinaryTree) last;
++                        if (sourcePositions.getStartPosition(path.getCompilationUnit(), bt.getRightOperand()) == offset &&
++                            bt.getRightOperand().getKind() == Kind.ERRONEOUS) {
++                            last = bt.getRightOperand();
++                        }
++                        break;
+                 }
+                 if (stmts != null) {
+                     for (StatementTree st : stmts) {
+diff --git a/java/java.completion/src/org/netbeans/modules/java/completion/JavaCompletionTask.java b/java/java.completion/src/org/netbeans/modules/java/completion/JavaCompletionTask.java
+index a53e6b4549..9a32b9ca00 100644
+--- a/java/java.completion/src/org/netbeans/modules/java/completion/JavaCompletionTask.java
++++ b/java/java.completion/src/org/netbeans/modules/java/completion/JavaCompletionTask.java
+@@ -2794,7 +2794,7 @@ private void insideExpression(Env env, TreePath exPath) throws IOException {
+                 @Override
+                 public boolean accept(Element e, TypeMirror t) {
+                     return (method == null || method == e.getEnclosingElement() || e.getModifiers().contains(FINAL)
+-                            || EnumSet.of(LOCAL_VARIABLE, PARAMETER, EXCEPTION_PARAMETER, RESOURCE_VARIABLE).contains(e.getKind()) && controller.getSourceVersion().compareTo(SourceVersion.RELEASE_8) >= 0 && controller.getElementUtilities().isEffectivelyFinal((VariableElement)e))
++                            || EnumSet.of(LOCAL_VARIABLE, PARAMETER, EXCEPTION_PARAMETER, RESOURCE_VARIABLE).contains(simplifyElementKind(e.getKind())) && controller.getSourceVersion().compareTo(SourceVersion.RELEASE_8) >= 0 && controller.getElementUtilities().isEffectivelyFinal((VariableElement)e))
+                             && !illegalForwardRefs.containsKey(e.getSimpleName());
+                 }
+             };
+@@ -2815,7 +2815,7 @@ public boolean accept(Element e, TypeMirror t) {
+                 return;
+             }
+             TypeMirror tm = controller.getTrees().getTypeMirror(exPath);
+-            switch (e.getKind()) {
++            switch (simplifyElementKind(e.getKind())) {
+                 case ANNOTATION_TYPE:
+                 case CLASS:
+                 case ENUM:
+@@ -2830,7 +2830,7 @@ public boolean accept(Element e, TypeMirror t) {
+                             @Override
+                             public boolean accept(Element e, TypeMirror t) {
+                                 return (method == null || method == e.getEnclosingElement() || e.getModifiers().contains(FINAL)
+-                                        || EnumSet.of(LOCAL_VARIABLE, PARAMETER, EXCEPTION_PARAMETER, RESOURCE_VARIABLE).contains(e.getKind()) && controller.getSourceVersion().compareTo(SourceVersion.RELEASE_8) >= 0 && controller.getElementUtilities().isEffectivelyFinal((VariableElement)e))
++                                        || EnumSet.of(LOCAL_VARIABLE, PARAMETER, EXCEPTION_PARAMETER, RESOURCE_VARIABLE).contains(simplifyElementKind(e.getKind())) && controller.getSourceVersion().compareTo(SourceVersion.RELEASE_8) >= 0 && controller.getElementUtilities().isEffectivelyFinal((VariableElement)e))
+                                         && !illegalForwardRefs.containsKey(e.getSimpleName());
+                             }
+                         };
+@@ -2862,7 +2862,7 @@ public boolean accept(Element e, TypeMirror t) {
+                             @Override
+                             public boolean accept(Element e, TypeMirror t) {
+                                 return (method == null || method == e.getEnclosingElement() || e.getModifiers().contains(FINAL)
+-                                        || EnumSet.of(LOCAL_VARIABLE, PARAMETER, EXCEPTION_PARAMETER, RESOURCE_VARIABLE).contains(e.getKind()) && controller.getSourceVersion().compareTo(SourceVersion.RELEASE_8) >= 0 && controller.getElementUtilities().isEffectivelyFinal((VariableElement)e))
++                                        || EnumSet.of(LOCAL_VARIABLE, PARAMETER, EXCEPTION_PARAMETER, RESOURCE_VARIABLE).contains(simplifyElementKind(e.getKind())) && controller.getSourceVersion().compareTo(SourceVersion.RELEASE_8) >= 0 && controller.getElementUtilities().isEffectivelyFinal((VariableElement)e))
+                                         && !illegalForwardRefs.containsKey(e.getSimpleName());
+                             }
+                         };
+@@ -2903,7 +2903,7 @@ public boolean accept(Element e, TypeMirror t) {
+                 return;
+             }
+             TypeMirror tm = controller.getTrees().getTypeMirror(exPath);
+-            switch (e.getKind()) {
++            switch (simplifyElementKind(e.getKind())) {
+                 case ANNOTATION_TYPE:
+                 case CLASS:
+                 case ENUM:
+@@ -2959,7 +2959,7 @@ public boolean accept(Element e, TypeMirror t) {
+             }
+             return;
+         }
+-        switch (e.getKind()) {
++        switch (simplifyElementKind(e.getKind())) {
+             case ANNOTATION_TYPE:
+             case CLASS:
+             case ENUM:
+@@ -2972,7 +2972,7 @@ public boolean accept(Element e, TypeMirror t) {
+                     @Override
+                     public boolean accept(Element e, TypeMirror t) {
+                         return (method == null || method == e.getEnclosingElement() || e.getModifiers().contains(FINAL)
+-                                || EnumSet.of(LOCAL_VARIABLE, PARAMETER, EXCEPTION_PARAMETER, RESOURCE_VARIABLE).contains(e.getKind()) && controller.getSourceVersion().compareTo(SourceVersion.RELEASE_8) >= 0 && controller.getElementUtilities().isEffectivelyFinal((VariableElement)e))
++                                || EnumSet.of(LOCAL_VARIABLE, PARAMETER, EXCEPTION_PARAMETER, RESOURCE_VARIABLE).contains(simplifyElementKind(e.getKind())) && controller.getSourceVersion().compareTo(SourceVersion.RELEASE_8) >= 0 && controller.getElementUtilities().isEffectivelyFinal((VariableElement)e))
+                                 && !illegalForwardRefs.containsKey(e.getSimpleName());
+                     }
+                 };
+@@ -3072,7 +3072,7 @@ public boolean accept(Element e, TypeMirror t) {
+         }
+         final TypeElement enclClass = scope.getEnclosingClass();
+         for (Element e : getLocalMembersAndVars(env)) {
+-            switch (e.getKind()) {
++            switch (simplifyElementKind(e.getKind())) {
+                 case FIELD:
+                     if (((VariableElement) e).getConstantValue() != null) {
+                         TypeMirror tm = asMemberOf(e, enclClass != null ? enclClass.asType() : null, types);
+@@ -3147,7 +3147,7 @@ public boolean accept(Element e, TypeMirror t) {
+         }
+         final TypeElement enclClass = scope.getEnclosingClass();
+         for (Element e : locals) {
+-            switch (e.getKind()) {
++            switch (simplifyElementKind(e.getKind())) {
+                 case ENUM_CONSTANT:
+                 case EXCEPTION_PARAMETER:
+                 case LOCAL_VARIABLE:
+@@ -3184,7 +3184,7 @@ private void addLocalFieldsAndVars(final Env env) throws IOException {
+         Set<? extends TypeMirror> smartTypes = options.contains(Options.ALL_COMPLETION) ? null : getSmartTypes(env);
+         final TypeElement enclClass = scope.getEnclosingClass();
+         for (Element e : getLocalMembersAndVars(env)) {
+-            switch (e.getKind()) {
++            switch (simplifyElementKind(e.getKind())) {
+                 case ENUM_CONSTANT:
+                 case EXCEPTION_PARAMETER:
+                 case LOCAL_VARIABLE:
+@@ -3216,7 +3216,7 @@ private void addEffectivelyFinalAutoCloseables(final Env env) throws IOException
+             final Set<? extends TypeMirror> smartTypes = options.contains(Options.ALL_COMPLETION) ? null : getSmartTypes(env);
+             final TypeElement enclClass = scope.getEnclosingClass();
+             for (Element e : getLocalMembersAndVars(env)) {
+-                switch (e.getKind()) {
++                switch (simplifyElementKind(e.getKind())) {
+                     case EXCEPTION_PARAMETER:
+                     case LOCAL_VARIABLE:
+                     case RESOURCE_VARIABLE:
+@@ -3258,7 +3258,7 @@ private void addEffectivelyFinalAutoCloseables(final Env env) throws IOException
+             @Override
+             public boolean accept(Element e, TypeMirror t) {
+                 boolean isStatic = ctxStatic || (t != null && t.getKind() == TypeKind.DECLARED && ((DeclaredType) t).asElement() != enclClass && enclStatic);
+-                switch (e.getKind()) {
++                switch (simplifyElementKind(e.getKind())) {
+                     case CONSTRUCTOR:
+                         return false;
+                     case LOCAL_VARIABLE:
+@@ -3358,7 +3358,7 @@ private void addChainedMembers(final Env env, final Iterable<? extends Element>
+             for (Element localElement : locals) {
+                 TypeMirror localElementType = null;
+                 TypeMirror type = null;
+-                switch (localElement.getKind()) {
++                switch (simplifyElementKind(localElement.getKind())) {
+                     case EXCEPTION_PARAMETER:
+                     case LOCAL_VARIABLE:
+                     case RESOURCE_VARIABLE:
+@@ -3563,7 +3563,7 @@ private void addMembers(final Env env, final TypeMirror type, final Element elem
+         ElementUtilities.ElementAcceptor acceptor = new ElementUtilities.ElementAcceptor() {
+             @Override
+             public boolean accept(Element e, TypeMirror t) {
+-                switch (e.getKind()) {
++                switch (simplifyElementKind(e.getKind())) {
+                     case FIELD:
+                         if (!startsWith(env, e.getSimpleName().toString())) {
+                             return false;
+@@ -3656,7 +3656,7 @@ public boolean accept(Element e, TypeMirror t) {
+         };
+         boolean addCast = actualType != type && elem instanceof VariableElement && !elem.getKind().isField();
+         for (Element e : controller.getElementUtilities().getMembers(actualType, acceptor)) {
+-            switch (e.getKind()) {
++            switch (simplifyElementKind(e.getKind())) {
+                 case ENUM_CONSTANT:
+                 case EXCEPTION_PARAMETER:
+                 case FIELD:
+@@ -4161,7 +4161,7 @@ public boolean accept(Element e, TypeMirror t) {
+                     ElementUtilities.ElementAcceptor acceptor = new ElementUtilities.ElementAcceptor() {
+                         @Override
+                         public boolean accept(Element e, TypeMirror t) {
+-                            switch (e.getKind()) {
++                            switch (simplifyElementKind(e.getKind())) {
+                                 case LOCAL_VARIABLE:
+                                 case RESOURCE_VARIABLE:
+                                 case EXCEPTION_PARAMETER:
+@@ -4857,7 +4857,7 @@ public boolean accept(Element e, TypeMirror t) {
+                 if (!e.getSimpleName().contentEquals(simpleName)) {
+                     return false;
+                 }
+-                switch (e.getKind()) {
++                switch (simplifyElementKind(e.getKind())) {
+                     case LOCAL_VARIABLE:
+                     case RESOURCE_VARIABLE:
+                         if (isStatic && (e.getSimpleName().contentEquals(THIS_KEYWORD) || e.getSimpleName().contentEquals(SUPER_KEYWORD))) {
+@@ -6023,4 +6023,11 @@ private boolean isLambdaVarType(Env env, Tree tree) {
+         return isFirstParamVarType;
+ 
+     }
++    
++    private static ElementKind simplifyElementKind(ElementKind kind) {
++        if (TreeShims.BINDING_VARIABLE.equals(kind.name())) {
++            return ElementKind.LOCAL_VARIABLE;
++        }
++        return kind;
++    }
+ }
+diff --git a/java/java.completion/test/unit/data/goldenfiles/org/netbeans/modules/java/completion/JavaCompletionTaskTest/1.8/BindingUse.pass b/java/java.completion/test/unit/data/goldenfiles/org/netbeans/modules/java/completion/JavaCompletionTaskTest/1.8/BindingUse.pass
+new file mode 100644
+index 0000000000..7d77f8e79a
+--- /dev/null
++++ b/java/java.completion/test/unit/data/goldenfiles/org/netbeans/modules/java/completion/JavaCompletionTaskTest/1.8/BindingUse.pass
+@@ -0,0 +1 @@
++String str
+diff --git a/java/java.completion/test/unit/src/org/netbeans/modules/java/completion/CompletionTestBase.java b/java/java.completion/test/unit/src/org/netbeans/modules/java/completion/CompletionTestBase.java
+index 744b831452..7aca46de7c 100644
+--- a/java/java.completion/test/unit/src/org/netbeans/modules/java/completion/CompletionTestBase.java
++++ b/java/java.completion/test/unit/src/org/netbeans/modules/java/completion/CompletionTestBase.java
+@@ -212,7 +212,11 @@ public CI createTypeParameterItem(TypeParameterElement elem, int substitutionOff
+         public CI createVariableItem(CompilationInfo info, VariableElement elem, TypeMirror type, int substitutionOffset, ReferencesCount referencesCount, boolean isInherited, boolean isDeprecated, boolean smartType, int assignToVarOffset) {
+             String varName = elem.getSimpleName().toString();
+             String typeName = type != null ? info.getTypeUtilities().getTypeName(type).toString() : null;
+-            switch (elem.getKind()) {
++            ElementKind ek = elem.getKind();
++            if (TreeShims.BINDING_VARIABLE.equals(ek.name())) {
++                ek = ElementKind.LOCAL_VARIABLE;
++            }
++            switch (ek) {
+                 case LOCAL_VARIABLE:
+                 case RESOURCE_VARIABLE:
+                 case PARAMETER:
+diff --git a/java/java.completion/test/unit/src/org/netbeans/modules/java/completion/JavaCompletionTask114FeaturesTest.java b/java/java.completion/test/unit/src/org/netbeans/modules/java/completion/JavaCompletionTask114FeaturesTest.java
+new file mode 100644
+index 0000000000..1f4b212c5f
+--- /dev/null
++++ b/java/java.completion/test/unit/src/org/netbeans/modules/java/completion/JavaCompletionTask114FeaturesTest.java
+@@ -0,0 +1,58 @@
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one
++ * or more contributor license agreements.  See the NOTICE file
++ * distributed with this work for additional information
++ * regarding copyright ownership.  The ASF licenses this file
++ * to you under the Apache License, Version 2.0 (the
++ * "License"); you may not use this file except in compliance
++ * with the License.  You may obtain a copy of the License at
++ *
++ *   http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing,
++ * software distributed under the License is distributed on an
++ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
++ * KIND, either express or implied.  See the License for the
++ * specific language governing permissions and limitations
++ * under the License.
++ */
++package org.netbeans.modules.java.completion;
++
++import javax.lang.model.SourceVersion;
++import org.netbeans.junit.NbTestSuite;
++import org.netbeans.modules.java.source.parsing.JavacParser;
++/**
++ *
++ * @author arusinha
++ */
++public class JavaCompletionTask114FeaturesTest extends CompletionTestBase {
++
++    private static String SOURCE_LEVEL = "14"; //NOI18N
++
++    public JavaCompletionTask114FeaturesTest(String testName) {
++        super(testName);
++    }
++
++    public static NbTestSuite suite() {
++        NbTestSuite suite = new NbTestSuite();
++        try {
++            SourceVersion.valueOf("RELEASE_14"); //NOI18N
++            suite.addTestSuite(JavaCompletionTask114FeaturesTest.class);
++        } catch (IllegalArgumentException ex) {
++            //OK, no RELEASE_13, skip tests
++            suite.addTest(new JavaCompletionTask114FeaturesTest("noop")); //NOI18N
++        }
++        return suite;
++    }
++
++    public void testBindingUse() throws Exception {
++        performTest("GenericMethodInvocation", 1231, "boolean b = argO instanceof String str && st", "BindingUse.pass", SOURCE_LEVEL);
++    }
++
++    public void noop() {
++    }
++
++    static {
++        JavacParser.DISABLE_SOURCE_LEVEL_DOWNGRADE = true;
++    }
++}
+diff --git a/java/java.editor.base/src/org/netbeans/modules/java/editor/base/semantic/FindLocalUsagesQuery.java b/java/java.editor.base/src/org/netbeans/modules/java/editor/base/semantic/FindLocalUsagesQuery.java
+index 7ceac6494d..8a8e2cd7ab 100644
+--- a/java/java.editor.base/src/org/netbeans/modules/java/editor/base/semantic/FindLocalUsagesQuery.java
++++ b/java/java.editor.base/src/org/netbeans/modules/java/editor/base/semantic/FindLocalUsagesQuery.java
+@@ -133,7 +133,7 @@ public Void visitVariable(VariableTree tree, Stack<Tree> d) {
+         super.visitVariable(tree, d);
+         return null;
+     }
+-    
++
+     @Override
+     public Void visitClass(ClassTree tree, Stack<Tree> d) {
+         handlePotentialVariable(getCurrentPath());
+@@ -191,4 +191,14 @@ public Void visitImport(ImportTree node, Stack<Tree> p) {
+         }
+         return super.visitImport(node, p);
+     }
++
++    @Override
++    public Void scan(Tree tree, Stack<Tree> p) {
++        if (tree != null && "BINDING_PATTERN".equals(tree.getKind().name())) {
++            handlePotentialVariable(new TreePath(getCurrentPath(), tree));
++        }
++        return super.scan(tree, p);
++    }
++    
++    
+ }
+diff --git a/java/java.editor.base/src/org/netbeans/modules/java/editor/base/semantic/SemanticHighlighterBase.java b/java/java.editor.base/src/org/netbeans/modules/java/editor/base/semantic/SemanticHighlighterBase.java
+index 46edf7d794..f271433eb2 100644
+--- a/java/java.editor.base/src/org/netbeans/modules/java/editor/base/semantic/SemanticHighlighterBase.java
++++ b/java/java.editor.base/src/org/netbeans/modules/java/editor/base/semantic/SemanticHighlighterBase.java
+@@ -361,9 +361,24 @@ private static Coloring collection2Coloring(Collection<ColoringAttributes> attr)
+         return c;
+     }
+     
++    private static final Set<ElementKind> LOCAL_VARIABLES = EnumSet.of(
++            ElementKind.LOCAL_VARIABLE, ElementKind.RESOURCE_VARIABLE,
++            ElementKind.EXCEPTION_PARAMETER);
++    private static final ElementKind BINDING_VARIABLE;
++
++    static {
++        ElementKind bindingVariable;
++        try {
++            LOCAL_VARIABLES.add(bindingVariable = ElementKind.valueOf(TreeShims.BINDING_VARIABLE));
++        } catch (IllegalArgumentException ex) {
++            bindingVariable = null;
++        }
++        BINDING_VARIABLE = bindingVariable;
++    }
++
+     private static boolean isLocalVariableClosure(Element el) {
+-        return el.getKind() == ElementKind.PARAMETER || el.getKind() == ElementKind.LOCAL_VARIABLE
+-                || el.getKind() == ElementKind.RESOURCE_VARIABLE || el.getKind() == ElementKind.EXCEPTION_PARAMETER;
++        return el.getKind() == ElementKind.PARAMETER ||
++               LOCAL_VARIABLES.contains(el.getKind());
+     }
+     
+     /** Detects static final long SerialVersionUID 
+@@ -436,7 +451,11 @@ private DetectorVisitor(org.netbeans.api.java.source.CompilationInfo info, final
+         }
+         
+         private void firstIdentifier(String name) {
+-            tl.firstIdentifier(getCurrentPath(), name, tree2Tokens);
++            firstIdentifier(getCurrentPath(), name);
++        }
++
++        private void firstIdentifier(TreePath path, String name) {
++            tl.firstIdentifier(path, name, tree2Tokens);
+         }
+         
+         private Token firstIdentifierToken(String... names) {
+@@ -537,8 +556,7 @@ private void addModifiers(Element decl, Collection<ColoringAttributes> c) {
+                 return c;
+             }
+             
+-            if (decl.getKind() == ElementKind.LOCAL_VARIABLE || decl.getKind() == ElementKind.RESOURCE_VARIABLE
+-                    || decl.getKind() == ElementKind.EXCEPTION_PARAMETER) {
++            if (LOCAL_VARIABLES.contains(decl.getKind())) {
+                 c.add(ColoringAttributes.LOCAL_VARIABLE);
+                 
+                 return c;
+@@ -684,7 +702,7 @@ private void handlePossibleIdentifier(TreePath expr, boolean declaration, Elemen
+                         } else if (method.getModifiers().contains(Modifier.ABSTRACT) || method.getModifiers().contains(Modifier.NATIVE) || !method.getModifiers().contains(Modifier.PRIVATE)) {
+                             type.add(UseTypes.READ);
+                         }
+-                    } else if (decl.getKind().isField() || decl.getKind() == ElementKind.EXCEPTION_PARAMETER) {
++                    } else if (decl.getKind().isField() || decl.getKind() == ElementKind.EXCEPTION_PARAMETER || decl.getKind() == BINDING_VARIABLE) {
+                         type.add(UseTypes.WRITE);
+                     } else if (parent.getLeaf().getKind() == Kind.ENHANCED_FOR_LOOP &&
+                                ((EnhancedForLoopTree) parent.getLeaf()).getVariable() == currentPath.getLeaf()) {
+@@ -1132,6 +1150,12 @@ public Void scan(Tree tree, Void p) {
+                 if (t != null) {
+                     contextKeywords.add(t);
+                 }
++            } else if (tree != null && TreeShims.BINDING_PATTERN.equals(tree.getKind().name())) {
++                super.scan(tree, p);
++                TreePath tp = new TreePath(getCurrentPath(), tree);
++                handlePossibleIdentifier(tp, true, info.getTrees().getElement(tp));
++                tl.moveToOffset(sourcePositions.getEndPosition(getCurrentPath().getCompilationUnit(), TreeShims.getBindingPatternType(tree)));
++                firstIdentifier(tp, TreeShims.getBinding(tree).toString());
+             }
+             return super.scan(tree, p);
+         }
+diff --git a/java/java.editor.base/src/org/netbeans/modules/java/editor/base/semantic/Utilities.java b/java/java.editor.base/src/org/netbeans/modules/java/editor/base/semantic/Utilities.java
+index d3d483788c..b00504a464 100644
+--- a/java/java.editor.base/src/org/netbeans/modules/java/editor/base/semantic/Utilities.java
++++ b/java/java.editor.base/src/org/netbeans/modules/java/editor/base/semantic/Utilities.java
+@@ -26,6 +26,7 @@
+ import com.sun.source.tree.CompilationUnitTree;
+ import com.sun.source.tree.ContinueTree;
+ import com.sun.source.tree.ExpressionTree;
++import com.sun.source.tree.InstanceOfTree;
+ import com.sun.source.tree.LabeledStatementTree;
+ import com.sun.source.tree.MemberReferenceTree;
+ import com.sun.source.tree.MemberSelectTree;
+@@ -237,6 +238,37 @@ private static Tree normalizeLastLeftTree(Tree lastLeft) {
+         return null;
+     }
+ 
++    private static Token<JavaTokenId> findIdentifierSpanImplForBindingPattern(CompilationInfo info, Tree tree, CompilationUnitTree cu, SourcePositions positions) {
++        int start = (int)positions.getStartPosition(cu, tree);
++        int endPosition = (int)positions.getEndPosition(cu, tree);
++        
++        if (start == (-1) || endPosition == (-1))
++            return null;
++
++        String member = TreeShims.getBinding(tree).toString();
++
++        TokenHierarchy<?> th = info.getTokenHierarchy();
++        TokenSequence<JavaTokenId> ts = th.tokenSequence(JavaTokenId.language());
++
++        if (ts.move(endPosition) == Integer.MAX_VALUE) {
++            return null;
++        }
++
++        if (ts.moveNext()) {
++            while (ts.offset() >= start) {
++                Token<JavaTokenId> t = ts.token();
++
++                if (t.id() == JavaTokenId.IDENTIFIER && member.equals(info.getTreeUtilities().decodeIdentifier(t.text()).toString())) {
++                    return t;
++                }
++
++                if (!ts.movePrevious())
++                    break;
++            }
++        }
++        return null;
++    }
++
+     private static final Map<Class, List<Kind>> class2Kind;
+     
+     static {
+@@ -370,7 +402,32 @@ private static Tree normalizeLastLeftTree(Tree lastLeft) {
+             
+            return findTokenWithText(info, name.toString(), start, end);
+         }
+-        throw new IllegalArgumentException("Only MethodDecl, VariableDecl, MemberSelectTree, IdentifierTree, ParameterizedTypeTree, AnnotatedTypeTree, ClassDecl, BreakTree, ContinueTree, and LabeledStatementTree are accepted by this method. Got: " + leaf.getKind());
++        if (class2Kind.get(InstanceOfTree.class).contains(leaf.getKind())) {
++            Tree pattern = TreeShims.getPattern((InstanceOfTree) leaf);
++
++            if (pattern == null || !"BINDING_PATTERN".equals(pattern.getKind().name()))
++                return null;
++
++            Name name = TreeShims.getBinding(pattern);
++
++            if (name == null || name.length() == 0)
++                return null;
++
++            SourcePositions positions = info.getTrees().getSourcePositions();
++            CompilationUnitTree cu = info.getCompilationUnit();
++            int start = (int)positions.getEndPosition(cu, ((InstanceOfTree) leaf).getType());
++            int end   = (int)positions.getEndPosition(cu, pattern);
++
++            if (start == (-1) || end == (-1)) {
++                return null;
++            }
++
++           return findTokenWithText(info, name.toString(), start, end);
++        }
++        if ("BINDING_PATTERN".equals(leaf.getKind().name())) {
++            return findIdentifierSpanImplForBindingPattern(info, leaf, info.getCompilationUnit(), info.getTrees().getSourcePositions());
++        }
++        throw new IllegalArgumentException("Only MethodDecl, VariableDecl, MemberSelectTree, IdentifierTree, ParameterizedTypeTree, AnnotatedTypeTree, ClassDecl, BreakTree, ContinueTree, LabeledStatementTree and BindingPatternTree are accepted by this method. Got: " + leaf.getKind());
+     }
+ 
+     public static int[] findIdentifierSpan( final TreePath decl, final CompilationInfo info, final Document doc) {
+@@ -564,7 +621,8 @@ public void run() {
+         
+         //XXX: do not use instanceof:
+         if (leaf instanceof MethodTree || leaf instanceof VariableTree || leaf instanceof ClassTree
+-                || leaf instanceof MemberSelectTree || leaf instanceof AnnotatedTypeTree || leaf instanceof MemberReferenceTree) {
++                || leaf instanceof MemberSelectTree || leaf instanceof AnnotatedTypeTree || leaf instanceof MemberReferenceTree
++                || "BINDING_PATTERN".equals(leaf.getKind().name())) {
+             return findIdentifierSpan(info, doc, tree);
+         }
+         
+@@ -653,6 +711,12 @@ public static boolean isNonCtorKeyword(Tree tree) {
+     }
+ 
+     private static final Set<ElementKind> LOCAL_ELEMENT_KINDS = EnumSet.of(ElementKind.PARAMETER, ElementKind.LOCAL_VARIABLE, ElementKind.EXCEPTION_PARAMETER, ElementKind.RESOURCE_VARIABLE);
++    
++    static {
++        try {
++            LOCAL_ELEMENT_KINDS.add(ElementKind.valueOf(TreeShims.BINDING_VARIABLE));
++        } catch (IllegalArgumentException ignore) {}
++    }
+ 
+     public static boolean isPrivateElement(Element el) {
+         return LOCAL_ELEMENT_KINDS.contains(el.getKind()) || el.getModifiers().contains(Modifier.PRIVATE);
+diff --git a/java/java.editor.base/test/unit/data/goldenfiles/org/netbeans/modules/java/editor/base/semantic/MarkOccDetTest/testErroneousMethodNETBEANS_224.pass b/java/java.editor.base/test/unit/data/goldenfiles/org/netbeans/modules/java/editor/base/semantic/MarkOccDetTest/testErroneousMethodNETBEANS_224.pass
+new file mode 100644
+index 0000000000..e69de29bb2
+diff --git a/java/java.editor.base/test/unit/src/org/netbeans/modules/java/editor/base/semantic/DetectorTest.java b/java/java.editor.base/test/unit/src/org/netbeans/modules/java/editor/base/semantic/DetectorTest.java
+index aa094683ad..6f40160c5e 100644
+--- a/java/java.editor.base/test/unit/src/org/netbeans/modules/java/editor/base/semantic/DetectorTest.java
++++ b/java/java.editor.base/test/unit/src/org/netbeans/modules/java/editor/base/semantic/DetectorTest.java
+@@ -474,6 +474,7 @@ public void testRawStringLiteral() throws Exception {
+             SourceVersion.valueOf("RELEASE_13");
+         } catch (IllegalArgumentException iae) {
+             //OK, presumably no support for raw string literals
++            return ;
+         }
+         setSourceLevel("13");
+         performTest("RawStringLiteral",
+@@ -498,6 +499,31 @@ public void testRawStringLiteral() throws Exception {
+                     "[UNINDENTED_TEXT_BLOCK], 7:16-7:29");
+     }
+ 
++    public void testBindingPattern() throws Exception {
++        try {
++            SourceVersion.valueOf("RELEASE_14");
++        } catch (IllegalArgumentException iae) {
++            //OK, presumably no support for pattern matching
++            return ;
++        }
++        setSourceLevel("14");
++        performTest("BindingPattern",
++                    "public class BindingPattern {\n" +
++                    "    public boolean test(Object o) {\n" +
++                    "        return o instanceof String str && str.isEmpty();\n" +
++                    "    }\n" +
++                    "}\n",
++                    "[PUBLIC, CLASS, DECLARATION], 0:13-0:27",
++                    "[PUBLIC, METHOD, DECLARATION], 1:19-1:23",
++                    "[PUBLIC, CLASS], 1:24-1:30",
++                    "[PARAMETER, DECLARATION], 1:31-1:32",
++                    "[PARAMETER], 2:15-2:16",
++                    "[PUBLIC, CLASS], 2:28-2:34",
++                    "[LOCAL_VARIABLE, DECLARATION], 2:35-2:38",
++                    "[LOCAL_VARIABLE], 2:42-2:45",
++                    "[PUBLIC, METHOD], 2:46-2:53");
++    }
++
+     private void performTest(String fileName) throws Exception {
+         performTest(fileName, new Performer() {
+             public void compute(CompilationController parameter, Document doc, final ErrorDescriptionSetter setter) {
+diff --git a/java/java.editor.base/test/unit/src/org/netbeans/modules/java/editor/base/semantic/MarkOccDetTest.java b/java/java.editor.base/test/unit/src/org/netbeans/modules/java/editor/base/semantic/MarkOccDetTest.java
+index 63f5b27107..29b188e84b 100644
+--- a/java/java.editor.base/test/unit/src/org/netbeans/modules/java/editor/base/semantic/MarkOccDetTest.java
++++ b/java/java.editor.base/test/unit/src/org/netbeans/modules/java/editor/base/semantic/MarkOccDetTest.java
+@@ -21,6 +21,7 @@
+ import java.util.Collections;
+ import java.util.List;
+ import java.util.stream.Collectors;
++import javax.lang.model.SourceVersion;
+ import javax.swing.text.Document;
+ import javax.swing.text.StyledDocument;
+ import junit.framework.Test;
+@@ -324,6 +325,30 @@ public void testErroneousMethodNETBEANS_224() throws Exception {
+         performTest("ErroneousMethod", 3, 24);
+     }
+ 
++    public void testMatchBindings() throws Exception {
++        try {
++            SourceVersion.valueOf("RELEASE_14"); //NOI18N
++        } catch (IllegalArgumentException ex) {
++            //OK, no RELEASE_14, skip tests
++            return ;
++        }
++        performTest("MatchBindings.java",
++                    "public class MatchBindings {\n" +
++                    "    public boolean t(Object o) {\n" +
++                    "        if (o instanceof String str && str.isEmpty()) {\n" +
++                    "            return str.equals(str);\n" +
++                    "        }\n" +
++                    "        return false;\n" +
++                    "    }\n" +
++                    "}\n",
++                   3,
++                   33,
++                   "[MARK_OCCURRENCES], 2:32-2:35",
++                   "[MARK_OCCURRENCES], 2:39-2:42",
++                   "[MARK_OCCURRENCES], 3:19-3:22",
++                   "[MARK_OCCURRENCES], 3:30-3:33");
++    }
++
+     //Support for exotic identifiers has been removed 6999438
+     public void REMOVEDtestExoticIdentifiers1() throws Exception {
+         performTest("ExoticIdentifier", 3, 43);
+@@ -370,4 +395,25 @@ protected void process(CompilationInfo info, Document doc, SchedulerEvent event)
+         }, doCompileRecursively);
+     }
+     
++    private void performTest(String fileName, String code, final int line, final int column, String... expected) throws Exception {
++        performTest(fileName, code, new Performer() {
++            public void compute(CompilationController info, Document doc, SemanticHighlighterBase.ErrorDescriptionSetter setter) {
++                int offset = NbDocument.findLineOffset((StyledDocument) doc, line) + column;
++                List<int[]> spans = new MarkOccurrencesHighlighterBase() {
++                    @Override
++                    protected void process(CompilationInfo info, Document doc, SchedulerEvent event) {
++                        throw new UnsupportedOperationException("Not supported yet.");
++                    }
++                }.processImpl(info, MarkOccurencesSettings.getCurrentNode(), doc, offset);
++                
++                if (spans != null) {
++                    setter.setHighlights(doc, spans.stream()
++                                                   .map(span -> Pair.of(span, MARK_OCCURRENCES))
++                                                   .collect(Collectors.toList()),
++                                         Collections.<int[], String>emptyMap());
++                }
++            }
++        }, expected);
++    }
++
+ }
+diff --git a/java/java.editor/src/org/netbeans/modules/editor/java/GoToSupport.java b/java/java.editor/src/org/netbeans/modules/editor/java/GoToSupport.java
+index 903420f0f6..c14b719c8d 100644
+--- a/java/java.editor/src/org/netbeans/modules/editor/java/GoToSupport.java
++++ b/java/java.editor/src/org/netbeans/modules/editor/java/GoToSupport.java
+@@ -24,6 +24,7 @@
+ import com.sun.source.tree.ExpressionTree;
+ import com.sun.source.tree.IdentifierTree;
+ import com.sun.source.tree.ImportTree;
++import com.sun.source.tree.InstanceOfTree;
+ import com.sun.source.tree.MemberSelectTree;
+ import com.sun.source.tree.MethodInvocationTree;
+ import com.sun.source.tree.MethodTree;
+@@ -668,6 +669,11 @@ private static Element handleStaticImport(CompilationInfo javac, ImportTree impt
+     private static boolean isCaretInsideDeclarationName(CompilationInfo info, Tree t, TreePath path, int caret) {
+         try {
+             switch (t.getKind()) {
++                case INSTANCE_OF:
++                    Tree pattern = TreeShims.getPattern((InstanceOfTree) t);
++                    if (pattern == null || !"BINDING_PATTERN".equals(pattern.getKind().name())) {
++                        return false;
++                    }
+                 case ANNOTATION_TYPE:
+                 case CLASS:
+                 case ENUM:
+@@ -737,10 +743,18 @@ public Void scan(Tree tree, Void p) {
+                 if (found != null) {
+                     return null;
+                 }
++                if (tree != null && "BINDING_PATTERN".equals(tree.getKind().name())) {
++                    if (process(new TreePath(getCurrentPath(), tree))) {
++                        return null;
++                    }
++                }
+                 return super.scan(tree, p);
+             }
+             private boolean process() {
+-                Element resolved = info.getTrees().getElement(getCurrentPath());
++                return process(getCurrentPath());
++            }
++            private boolean process(TreePath path) {
++                Element resolved = info.getTrees().getElement(path);
+                 if (toFind.equals(resolved)) {
+                     found = getCurrentPath();
+                     return true;
+@@ -909,7 +923,8 @@ public Void visitVariable(VariableElement e, Boolean highlightName) {
+                 Element enclosing = e.getEnclosingElement();
+                 
+                 if (e.getKind() != ElementKind.PARAMETER && e.getKind() != ElementKind.LOCAL_VARIABLE
+-                        && e.getKind() != ElementKind.RESOURCE_VARIABLE && e.getKind() != ElementKind.EXCEPTION_PARAMETER) {
++                        && e.getKind() != ElementKind.RESOURCE_VARIABLE && e.getKind() != ElementKind.EXCEPTION_PARAMETER
++                        && !TreeShims.BINDING_VARIABLE.equals(e.getKind().name())) {
+                     result.append(" in ");
+ 
+                     //short typename:
+diff --git a/java/java.editor/src/org/netbeans/modules/editor/java/JavaCompletionItem.java b/java/java.editor/src/org/netbeans/modules/editor/java/JavaCompletionItem.java
+index e644d966f1..39c1387405 100644
+--- a/java/java.editor/src/org/netbeans/modules/editor/java/JavaCompletionItem.java
++++ b/java/java.editor/src/org/netbeans/modules/editor/java/JavaCompletionItem.java
+@@ -156,7 +156,11 @@ public static JavaCompletionItem createTypeParameterItem(TypeParameterElement el
+     }
+ 
+     public static JavaCompletionItem createVariableItem(CompilationInfo info, VariableElement elem, TypeMirror type, TypeMirror castType, int substitutionOffset, ReferencesCount referencesCount, boolean isInherited, boolean isDeprecated, boolean smartType, int assignToVarOffset, WhiteListQuery.WhiteList whiteList) {
+-        switch (elem.getKind()) {
++        ElementKind ek = elem.getKind();
++        if ("BINDING_VARIABLE".equals(ek.name())) {
++            ek = ElementKind.LOCAL_VARIABLE;
++        }
++        switch (ek) {
+             case LOCAL_VARIABLE:
+             case RESOURCE_VARIABLE:
+             case PARAMETER:
+diff --git a/java/java.editor/test/unit/src/org/netbeans/modules/editor/java/GoToSupportTest.java b/java/java.editor/test/unit/src/org/netbeans/modules/editor/java/GoToSupportTest.java
+index 8b423ad0b6..da1a6b2be5 100644
+--- a/java/java.editor/test/unit/src/org/netbeans/modules/editor/java/GoToSupportTest.java
++++ b/java/java.editor/test/unit/src/org/netbeans/modules/editor/java/GoToSupportTest.java
+@@ -1049,6 +1049,108 @@ public void testVar() throws Exception {
+         assertTrue(wasCalled[0]);
+     }
+ 
++    public void testBindingVar() throws Exception {
++        if (hasPatterns()) return ;
++        final boolean[] wasCalled = new boolean[1];
++        this.sourceLevel = "14";
++        final String code = "package test;\n" +
++                      "public class Test {\n" +
++                      "    private static void method(Object o) {\n" +
++                      "        if (o instanceof String str) {\n" +
++                      "            System.err.println(s|tr);\n" +
++                      "        }\n" +
++                      "    }\n" +
++                      "}\n";
++
++        performTest(code, new UiUtilsCaller() {
++            @Override public boolean open(FileObject fo, int pos) {
++                assertTrue(source == fo);
++                assertEquals(code.indexOf("o instanceof String str"), pos);
++                wasCalled[0] = true;
++                return true;
++            }
++
++            @Override public void beep(boolean goToSource, boolean goToJavadoc) {
++                fail("Should not be called.");
++            }
++            @Override public boolean open(ClasspathInfo info, ElementHandle<?> el) {
++                fail("Should not be called.");
++                return true;
++            }
++            @Override public void warnCannotOpen(String displayName) {
++                fail("Should not be called.");
++            }
++        }, false, false);
++
++        assertTrue(wasCalled[0]);
++    }
++
++    public void testBindingVarInName() throws Exception {
++        if (hasPatterns()) return ;
++        final boolean[] wasCalled = new boolean[1];
++        this.sourceLevel = "14";
++        final String code = "package test;\n" +
++                      "public class Test {\n" +
++                      "    private static void method(Object o) {\n" +
++                      "        if (o instanceof String s|tr) {\n" +
++                      "        }\n" +
++                      "    }\n" +
++                      "}\n";
++
++        performTest(code, new UiUtilsCaller() {
++            @Override public boolean open(FileObject fo, int pos) {
++                fail("Should not be called.");
++                return true;
++            }
++
++            @Override public void beep(boolean goToSource, boolean goToJavadoc) {
++                wasCalled[0] = true;
++            }
++            @Override public boolean open(ClasspathInfo info, ElementHandle<?> el) {
++                fail("Should not be called.");
++                return true;
++            }
++            @Override public void warnCannotOpen(String displayName) {
++                fail("Should not be called.");
++            }
++        }, false, false);
++
++        assertTrue(wasCalled[0]);
++    }
++
++    public void testBindingVarToolTip() throws Exception {
++        if (hasPatterns()) return ;
++        final boolean[] wasCalled = new boolean[1];
++        this.sourceLevel = "14";
++        final String code = "package test;\n" +
++                      "public class Test {\n" +
++                      "    private static void method(Object o) {\n" +
++                      "        if (o instanceof String s|tr) {\n" +
++                      "        }\n" +
++                      "    }\n" +
++                      "}\n";
++
++        String tooltip = performTest(code, new UiUtilsCaller() {
++            @Override public boolean open(FileObject fo, int pos) {
++                fail("Should not be called.");
++                return true;
++            }
++
++            @Override public void beep(boolean goToSource, boolean goToJavadoc) {
++                wasCalled[0] = true;
++            }
++            @Override public boolean open(ClasspathInfo info, ElementHandle<?> el) {
++                fail("Should not be called.");
++                return true;
++            }
++            @Override public void warnCannotOpen(String displayName) {
++                fail("Should not be called.");
++            }
++        }, true, false);
++
++        assertEquals("<html><body>final java.lang.String <b>str</b>", tooltip);
++    }
++
+     private String sourceLevel = "1.5";
+     private FileObject source;
+     
+@@ -1171,4 +1273,13 @@ public static FileObject makeScratchDir(NbTestCase test) throws IOException {
+         
+     }
+     
++    private static boolean hasPatterns() {
++        try {
++            SourceVersion.valueOf("RELEASE_14"); //NOI18N
++            return true;
++        } catch (IllegalArgumentException ex) {
++            //OK, no RELEASE_14, skip tests
++            return false;
++        }
++    }
+ }
+diff --git a/java/java.editor/test/unit/src/org/netbeans/modules/java/editor/rename/InstantRenamePerformerTest.java b/java/java.editor/test/unit/src/org/netbeans/modules/java/editor/rename/InstantRenamePerformerTest.java
+index dbbfe2f1be..4930bfaa91 100644
+--- a/java/java.editor/test/unit/src/org/netbeans/modules/java/editor/rename/InstantRenamePerformerTest.java
++++ b/java/java.editor/test/unit/src/org/netbeans/modules/java/editor/rename/InstantRenamePerformerTest.java
+@@ -23,6 +23,7 @@
+ import java.util.Collections;
+ import java.util.Enumeration;
+ import java.util.regex.Pattern;
++import javax.lang.model.SourceVersion;
+ import javax.swing.JEditorPane;
+ import javax.swing.JFrame;
+ import javax.swing.event.ChangeEvent;
+@@ -181,6 +182,17 @@ public void testTypeParameters153337() throws Exception {
+         performTest("package test; public class Test { public <T|T> void test(TT t) { } }", 64 - 22, ke, - 1, "package test; public class Test { public <RTT> void test(RTT t) { } }", true);
+     }
+ 
++    public void testPatternBinding() throws Exception {
++        try {
++            SourceVersion.valueOf("RELEASE_14"); //NOI18N
++        } catch (IllegalArgumentException ex) {
++            //OK, no RELEASE_14, skip tests
++            return ;
++        }
++        KeyEvent ke = new KeyEvent(new JFrame(), KeyEvent.KEY_TYPED, 0, 0, KeyEvent.VK_UNDEFINED, 'a');
++        performTest("package test; public class Test { public void test(Object o) {boolean b = o instanceof String s|tr && str.isEmpty(); } }", 117 - 22, ke, "package test; public class Test { public void test(Object o) {boolean b = o instanceof String satr && satr.isEmpty(); } }", true);
++    }
++
+     private void performTest(String sourceCode, int offset, KeyEvent ke, String golden, boolean stillInRename) throws Exception {
+         performTest(sourceCode, offset, ke, -1, golden, stillInRename);
+     }
+diff --git a/java/java.hints/src/org/netbeans/modules/java/hints/jdk/ConvertToPatternInstanceOf.java b/java/java.hints/src/org/netbeans/modules/java/hints/jdk/ConvertToPatternInstanceOf.java
+new file mode 100644
+index 0000000000..90699b4c22
+--- /dev/null
++++ b/java/java.hints/src/org/netbeans/modules/java/hints/jdk/ConvertToPatternInstanceOf.java
+@@ -0,0 +1,155 @@
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one
++ * or more contributor license agreements.  See the NOTICE file
++ * distributed with this work for additional information
++ * regarding copyright ownership.  The ASF licenses this file
++ * to you under the Apache License, Version 2.0 (the
++ * "License"); you may not use this file except in compliance
++ * with the License.  You may obtain a copy of the License at
++ *
++ *   http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing,
++ * software distributed under the License is distributed on an
++ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
++ * KIND, either express or implied.  See the License for the
++ * specific language governing permissions and limitations
++ * under the License.
++ */
++package org.netbeans.modules.java.hints.jdk;
++
++import com.sun.source.tree.BlockTree;
++import com.sun.source.tree.IfTree;
++import com.sun.source.tree.InstanceOfTree;
++import com.sun.source.tree.ParenthesizedTree;
++import com.sun.source.tree.StatementTree;
++import com.sun.source.tree.Tree;
++import com.sun.source.tree.Tree.Kind;
++import com.sun.source.tree.TypeCastTree;
++import com.sun.source.tree.VariableTree;
++import com.sun.source.util.TreePath;
++import com.sun.source.util.TreePathScanner;
++import java.util.Collections;
++import java.util.EnumSet;
++import java.util.HashSet;
++import java.util.List;
++import java.util.Set;
++import java.util.stream.Collectors;
++import javax.lang.model.element.ElementKind;
++import javax.lang.model.element.Modifier;
++import javax.lang.model.type.TypeMirror;
++import org.netbeans.api.java.source.CodeStyle;
++import org.netbeans.api.java.source.CompilationInfo;
++import org.netbeans.api.java.source.TreePathHandle;
++import org.netbeans.api.java.source.WorkingCopy;
++import org.netbeans.modules.java.hints.errors.Utilities;
++import org.netbeans.spi.editor.hints.ErrorDescription;
++import org.netbeans.spi.editor.hints.Fix;
++import org.netbeans.spi.java.hints.ErrorDescriptionFactory;
++import org.netbeans.spi.java.hints.Hint;
++import org.netbeans.spi.java.hints.HintContext;
++import org.netbeans.spi.java.hints.JavaFix;
++import org.netbeans.spi.java.hints.MatcherUtilities;
++import org.netbeans.spi.java.hints.TriggerPattern;
++import org.netbeans.spi.java.hints.TriggerPatterns;
++import org.openide.util.NbBundle;
++
++/**
++ *
++ * @author sdedic
++ */
++@NbBundle.Messages({
++    "DN_ConvertToPatternInstanceOf=Convert to instanceof <pattern>",
++    "DESC_ConvertToPatternInstanceOf=Convert to instanceof <pattern>",
++    "ERR_ConvertToPatternInstanceOf=instanceof <pattern> can be used here",
++    "FIX_ConvertToPatternInstanceOf=Use instanceof <pattern>"
++})
++@Hint(displayName="#DN_ConvertToPatternInstanceOf", description="#DESC_ConvertToPatternInstanceOf", category="rules15")
++public class ConvertToPatternInstanceOf {
++    
++    @TriggerPatterns({
++        @TriggerPattern(value="if ($expr instanceof $typeI) { $statements$;} else $else$;"),
++    })
++    public static ErrorDescription trivial(HintContext ctx) {
++        //XXX: sideeffects in $expr
++        if (!MatcherUtilities.matches(ctx, ctx.getPath(), "if ($expr instanceof $typeI) { $typeV $var = ($typeC) $expr; $other$;} else $else$;", true)) {
++            Set<TreePath> convertPath = new HashSet<>();
++            new TreePathScanner<Void, Void>() {
++                @Override
++                public Void visitTypeCast(TypeCastTree node, Void p) {
++                    if (MatcherUtilities.matches(ctx, getCurrentPath(), /*TODO: different type*/"($typeI) $expr")) {
++                        convertPath.add(getCurrentPath());
++                    }
++                    return super.visitTypeCast(node, p);
++                }
++            }.scan(ctx.getPath(), null);
++            if (!convertPath.isEmpty()) {
++                TreePath typeI = ctx.getVariables().get("$typeI");
++                TypeMirror typeITM = ctx.getInfo().getTrees().getTypeMirror(typeI);
++                List<String> varNameCandidates = org.netbeans.modules.editor.java.Utilities.varNamesSuggestions(typeITM, ElementKind.LOCAL_VARIABLE, EnumSet.noneOf(Modifier.class), null, null, ctx.getInfo().getTypes(), ctx.getInfo().getElements(), Collections.emptyList(), CodeStyle.getDefault(ctx.getInfo().getFileObject()));
++                String varName = Utilities.makeNameUnique(ctx.getInfo(), ctx.getInfo().getTrees().getScope(ctx.getPath()), varNameCandidates.get(0));
++                Fix fix = new FixImpl(ctx.getInfo(), ctx.getPath(), varName, false, convertPath).toEditorFix();
++
++                return ErrorDescriptionFactory.forName(ctx, ctx.getPath(), Bundle.ERR_ConvertToPatternInstanceOf(), fix);
++            }
++            return null;
++        }
++        if (ctx.getMultiVariables().get("$other$").isEmpty()) {
++            return null; //could be solved, but what's the point?
++        }
++        TypeMirror typeI = ctx.getInfo().getTrees().getTypeMirror(ctx.getVariables().get("$typeI"));
++        TypeMirror typeC = ctx.getInfo().getTrees().getTypeMirror(ctx.getVariables().get("$typeC"));
++        if (!ctx.getInfo().getTypes().isSameType(typeI, typeC)) {
++            System.err.println("different types (" + typeI + ", " + typeC + ") in " + ctx.getInfo().getFileObject());
++            return null;
++        }
++        IfTree it = (IfTree) ctx.getPath().getLeaf();
++        BlockTree bt = (BlockTree) it.getThenStatement();
++        VariableTree var = (VariableTree) bt.getStatements().get(0);
++        Fix fix = new FixImpl(ctx.getInfo(), ctx.getPath(), var.getName().toString(), true, Collections.emptySet()).toEditorFix();
++        
++        return ErrorDescriptionFactory.forName(ctx, ctx.getPath(), Bundle.ERR_ConvertToPatternInstanceOf(), fix);
++    }
++
++    private static final class FixImpl extends JavaFix {
++
++        private final String varName;
++        private final boolean removeFirst;
++        private final Set<TreePathHandle> replaceOccurrences;
++
++        public FixImpl(CompilationInfo info, TreePath main, String varName, boolean removeFirst, Set<TreePath> replaceOccurrences) {
++            super(info, main);
++            this.varName = varName;
++            this.removeFirst = removeFirst;
++            this.replaceOccurrences = replaceOccurrences.stream().map(tp -> TreePathHandle.create(tp, info)).collect(Collectors.toSet());
++        }
++
++
++        @Override
++        protected String getText() {
++            return Bundle.FIX_ConvertToPatternInstanceOf();
++        }
++
++        @Override
++        protected void performRewrite(JavaFix.TransformationContext ctx) {
++            WorkingCopy wc = ctx.getWorkingCopy();
++            TreePath main = ctx.getPath();
++            IfTree it = (IfTree) main.getLeaf();
++            InstanceOfTree iot = (InstanceOfTree) ((ParenthesizedTree) it.getCondition()).getExpression();
++            StatementTree bt = it.getThenStatement();
++//            wc.rewrite(iot.getType(), wc.getTreeMaker().BindingPattern(var.getName(), iot.getType()));
++//            wc.rewrite(bt, wc.getTreeMaker().removeBlockStatement(bt, 0));
++            InstanceOfTree cond = wc.getTreeMaker().InstanceOf(iot.getExpression(), wc.getTreeMaker().BindingPattern(varName, iot.getType()));
++            StatementTree thenBlock = removeFirst ? wc.getTreeMaker().removeBlockStatement((BlockTree) bt, 0) : bt;
++            wc.rewrite(it, wc.getTreeMaker().If(wc.getTreeMaker().Parenthesized(cond), thenBlock, it.getElseStatement()));
++            replaceOccurrences.stream().map(tph -> tph.resolve(wc)).forEach(tp -> {
++                if (!removeFirst && tp.getParentPath().getLeaf().getKind() == Kind.PARENTHESIZED) {
++                    tp = tp.getParentPath();
++                }
++                wc.rewrite(tp.getLeaf(), wc.getTreeMaker().Identifier(varName));
++            });
++        }
++
++    }
++
++}
+diff --git a/java/java.hints/test/unit/src/org/netbeans/modules/java/hints/jdk/ConvertToPatternInstanceOfTest.java b/java/java.hints/test/unit/src/org/netbeans/modules/java/hints/jdk/ConvertToPatternInstanceOfTest.java
+new file mode 100644
+index 0000000000..0db6d7f6c4
+--- /dev/null
++++ b/java/java.hints/test/unit/src/org/netbeans/modules/java/hints/jdk/ConvertToPatternInstanceOfTest.java
+@@ -0,0 +1,142 @@
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one
++ * or more contributor license agreements.  See the NOTICE file
++ * distributed with this work for additional information
++ * regarding copyright ownership.  The ASF licenses this file
++ * to you under the Apache License, Version 2.0 (the
++ * "License"); you may not use this file except in compliance
++ * with the License.  You may obtain a copy of the License at
++ *
++ *   http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing,
++ * software distributed under the License is distributed on an
++ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
++ * KIND, either express or implied.  See the License for the
++ * specific language governing permissions and limitations
++ * under the License.
++ */
++package org.netbeans.modules.java.hints.jdk;
++
++import org.netbeans.junit.NbTestCase;
++import org.netbeans.modules.java.hints.test.api.HintTest;
++
++/**
++ *
++ * @author lahvac
++ */
++public class ConvertToPatternInstanceOfTest extends NbTestCase {
++    
++    public ConvertToPatternInstanceOfTest(String name) {
++        super(name);
++    }
++    
++    public void testSimple() throws Exception {
++        HintTest.create()
++                .input("package test;\n" +
++                       "public class Test {\n" +
++                       "    private int test(Object o) {\n" +
++                       "        if (o instanceof String) {\n" +
++                       "            String s = (String) o;\n" +
++                       "            return s.length();\n" +
++                       "        }\n" +
++                       "        return -1;\n" +
++                       "    }\n" +
++                       "}\n")
++                .run(ConvertToPatternInstanceOf.class)
++                .findWarning("3:8-3:10:verifier:" + Bundle.ERR_ConvertToPatternInstanceOf())
++                .applyFix()
++                .assertCompilable()
++                .assertOutput("package test;\n" +
++                              "public class Test {\n" +
++                              "    private int test(Object o) {\n" +
++                              "        if (o instanceof String s) {\n" +
++                              "            return s.length();\n" +
++                              "        }\n" +
++                              "        return -1;\n" +
++                              "    }\n" +
++                              "}\n");
++    }
++
++    public void testWithElse() throws Exception {
++        HintTest.create()
++                .input("package test;\n" +
++                       "public class Test {\n" +
++                       "    private int test(Object o) {\n" +
++                       "        if (o instanceof String) {\n" +
++                       "            String s = (String) o;\n" +
++                       "            return s.length();\n" +
++                       "        } else {\n" +
++                       "            return -1;\n" +
++                       "        }\n" +
++                       "    }\n" +
++                       "}\n")
++                .run(ConvertToPatternInstanceOf.class)
++                .findWarning("3:8-3:10:verifier:" + Bundle.ERR_ConvertToPatternInstanceOf())
++                .applyFix()
++                .assertCompilable()
++                .assertOutput("package test;\n" +
++                              "public class Test {\n" +
++                              "    private int test(Object o) {\n" +
++                              "        if (o instanceof String s) {\n" +
++                              "            return s.length();\n" +
++                              "        } else {\n" +
++                              "            return -1;\n" +
++                              "        }\n" +
++                              "    }\n" +
++                              "}\n");
++    }
++
++    public void testNoSoSimple() throws Exception {
++        HintTest.create()
++                .input("package test;\n" +
++                       "public class Test {\n" +
++                       "    private int test(Object o) {\n" +
++                       "        if (o instanceof String) {\n" +
++                       "            return ((String) o).length();\n" +
++                       "        }\n" +
++                       "        return -1;\n" +
++                       "    }\n" +
++                       "}\n")
++                .run(ConvertToPatternInstanceOf.class)
++                .findWarning("3:8-3:10:verifier:" + Bundle.ERR_ConvertToPatternInstanceOf())
++                .applyFix()
++                .assertCompilable()
++                .assertOutput("package test;\n" +
++                              "public class Test {\n" +
++                              "    private int test(Object o) {\n" +
++                              "        if (o instanceof String string) {\n" +
++                              "            return string.length();\n" +
++                              "        }\n" +
++                              "        return -1;\n" +
++                              "    }\n" +
++                              "}\n");
++    }
++
++    public void testNoSoSimpleNameClash() throws Exception {
++        HintTest.create()
++                .input("package test;\n" +
++                       "public class Test {\n" +
++                       "    private int test(Object o, String string) {\n" +
++                       "        if (o instanceof String) {\n" +
++                       "            return ((String) o).length();\n" +
++                       "        }\n" +
++                       "        return -1;\n" +
++                       "    }\n" +
++                       "}\n")
++                .run(ConvertToPatternInstanceOf.class)
++                .findWarning("3:8-3:10:verifier:" + Bundle.ERR_ConvertToPatternInstanceOf())
++                .applyFix()
++                .assertCompilable()
++                .assertOutput("package test;\n" +
++                              "public class Test {\n" +
++                              "    private int test(Object o, String string) {\n" +
++                              "        if (o instanceof String string1) {\n" +
++                              "            return string1.length();\n" +
++                              "        }\n" +
++                              "        return -1;\n" +
++                              "    }\n" +
++                              "}\n");
++    }
++
++}
+diff --git a/java/java.source.base/src/org/netbeans/api/java/source/TreeMaker.java b/java/java.source.base/src/org/netbeans/api/java/source/TreeMaker.java
+index 36592c8b9c..78710dce40 100644
+--- a/java/java.source.base/src/org/netbeans/api/java/source/TreeMaker.java
++++ b/java/java.source.base/src/org/netbeans/api/java/source/TreeMaker.java
+@@ -1210,6 +1210,20 @@ public VariableTree Variable(ModifiersTree modifiers,
+         return delegate.Variable(modifiers, name, type, initializer);
+     }
+     
++    /**
++     * Creates a new BindingPatternTree.
++     *
++     * @param name name of the binding variable
++     * @param type the type of the pattern
++     * @return the newly created BindingPatternTree
++     * @throws NoSuchMethodException if the used javac does not support
++     *                               BindingPatternTree.
++     */
++    public Tree BindingPattern(CharSequence name,
++                               Tree type) {
++        return delegate.BindingPattern(name, type);
++    }
++
+     /**
+      * Creates a new VariableTree from a VariableElement.
+      *
+diff --git a/java/java.source.base/src/org/netbeans/modules/java/source/TreeShims.java b/java/java.source.base/src/org/netbeans/modules/java/source/TreeShims.java
+index 824ac759c3..55e1a6a169 100644
+--- a/java/java.source.base/src/org/netbeans/modules/java/source/TreeShims.java
++++ b/java/java.source.base/src/org/netbeans/modules/java/source/TreeShims.java
+@@ -21,6 +21,7 @@
+ import com.sun.source.tree.BreakTree;
+ import com.sun.source.tree.CaseTree;
+ import com.sun.source.tree.ExpressionTree;
++import com.sun.source.tree.InstanceOfTree;
+ import com.sun.source.tree.SwitchTree;
+ import com.sun.source.tree.Tree;
+ import com.sun.tools.javac.tree.JCTree;
+@@ -31,11 +32,15 @@
+ import java.util.ArrayList;
+ import java.util.Collections;
+ import java.util.List;
++import javax.lang.model.element.Name;
++import org.openide.util.Exceptions;
+ 
+ public class TreeShims {
+ 
++    public static final String BINDING_PATTERN = "BINDING_PATTERN"; //NOI18N
+     public static final String SWITCH_EXPRESSION = "SWITCH_EXPRESSION"; //NOI18N
+     public static final String YIELD = "YIELD"; //NOI18N
++    public static final String BINDING_VARIABLE = "BINDING_VARIABLE"; //NOI18N
+ 
+     public static List<? extends ExpressionTree> getExpressions(CaseTree node) {
+         try {
+@@ -59,6 +64,17 @@ public static Tree getBody(CaseTree node) {
+         }
+     }
+ 
++    public static Tree getPattern(InstanceOfTree node) {
++        try {
++            Method getPattern = InstanceOfTree.class.getDeclaredMethod("getPattern");
++            return (Tree) getPattern.invoke(node);
++        } catch (NoSuchMethodException ex) {
++            return null;
++        } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException ex) {
++            throw TreeShims.<RuntimeException>throwAny(ex);
++        }
++    }
++
+     public static List<? extends ExpressionTree> getExpressions(Tree node) {
+         List<? extends ExpressionTree> exprTrees = new ArrayList<>();
+ 
+@@ -116,6 +132,18 @@ public static ExpressionTree getValue(BreakTree node) {
+         }
+     }
+ 
++    public static Name getBinding(Tree node) {
++        try {
++            Class bpt = Class.forName("com.sun.source.tree.BindingPatternTree");
++            Method getBinding = bpt.getDeclaredMethod("getBinding");
++            return (Name) getBinding.invoke(node);
++        } catch (NoSuchMethodException | ClassNotFoundException ex) {
++            return null;
++        } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException ex) {
++            throw TreeShims.<RuntimeException>throwAny(ex);
++        }
++    }
++
+     public static ExpressionTree getYieldValue(Tree node) {
+         if (!node.getKind().toString().equals(YIELD)) {
+             return null;
+@@ -144,6 +172,21 @@ public static Tree SwitchExpression(TreeMaker make, ExpressionTree selector, Lis
+         }
+     }
+   
++    public static Tree getBindingPatternType(Tree node) {
++        if (!node.getKind().toString().equals(BINDING_PATTERN)) {
++            return null;
++        }
++        try {
++            Class bindingPatternTreeClass = Class.forName("com.sun.source.tree.BindingPatternTree"); //NOI18N
++            Method getType = bindingPatternTreeClass.getDeclaredMethod("getType");  //NOI18N
++            return (Tree) getType.invoke(node);
++        } catch (NoSuchMethodException ex) {
++            return null;
++        } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException | ClassNotFoundException ex) {
++            throw TreeShims.<RuntimeException>throwAny(ex);
++        }
++    }
++
+     @SuppressWarnings("unchecked")
+     private static <T extends Throwable> RuntimeException throwAny(Throwable t) throws T {
+         throw (T) t;
+diff --git a/java/java.source.base/src/org/netbeans/modules/java/source/TreeShimsCopier.java b/java/java.source.base/src/org/netbeans/modules/java/source/TreeShimsCopier.java
+index 3633bdb386..00aa9e6155 100644
+--- a/java/java.source.base/src/org/netbeans/modules/java/source/TreeShimsCopier.java
++++ b/java/java.source.base/src/org/netbeans/modules/java/source/TreeShimsCopier.java
+@@ -96,5 +96,7 @@ public boolean process(Set<? extends TypeElement> annos, RoundEnvironment roundE
+     private static final Map<String, String> ALLOWED_CLASSES2TARGET_PACKAGE = new HashMap<String, String>() {{
+         put("org.netbeans.modules.java.hints.infrastructure.ErrorHintsProvider", "org.netbeans.modules.java.hints");
+         put("org.netbeans.modules.java.completion.JavaCompletionTask", "org.netbeans.modules.java.completion");
++        put("org.netbeans.modules.editor.java.GoToSupport", "org.netbeans.modules.editor.java");
++        put("org.netbeans.modules.java.editor.base.semantic.SemanticHighlighterBase", "org.netbeans.modules.java.editor.base.semantic");
+     }};
+ }
+diff --git a/java/java.source.base/src/org/netbeans/modules/java/source/builder/TreeFactory.java b/java/java.source.base/src/org/netbeans/modules/java/source/builder/TreeFactory.java
+index 1e89e9900c..6feef55b37 100644
+--- a/java/java.source.base/src/org/netbeans/modules/java/source/builder/TreeFactory.java
++++ b/java/java.source.base/src/org/netbeans/modules/java/source/builder/TreeFactory.java
+@@ -913,6 +913,15 @@ public VariableTree Variable(ModifiersTree modifiers,
+                            (JCExpression)type, (JCExpression)initializer);
+     }
+     
++    public Tree BindingPattern(CharSequence name,
++                               Tree type) {
++        try {
++            return (Tree) make.getClass().getMethod("BindingPattern", Name.class, JCTree.class).invoke(make.at(NOPOS), names.fromString(name.toString()), type);
++        } catch (Throwable t) {
++            throw throwAny(t);
++        }
++    }
++
+     public VariableTree Variable(VariableElement variable, ExpressionTree initializer) {
+         return make.at(NOPOS).VarDef((Symbol.VarSymbol)variable, (JCExpression)initializer);
+     }
+diff --git a/java/java.source.base/src/org/netbeans/modules/java/source/pretty/VeryPretty.java b/java/java.source.base/src/org/netbeans/modules/java/source/pretty/VeryPretty.java
+index ada1ec2fab..89d147cb42 100644
+--- a/java/java.source.base/src/org/netbeans/modules/java/source/pretty/VeryPretty.java
++++ b/java/java.source.base/src/org/netbeans/modules/java/source/pretty/VeryPretty.java
+@@ -90,6 +90,8 @@
+ import com.sun.tools.javac.util.Names;
+ 
+ import java.io.IOException;
++import java.lang.reflect.InvocationTargetException;
++import java.lang.reflect.Method;
+ import java.net.URL;
+ import java.util.*;
+ import java.util.logging.Level;
+@@ -118,6 +120,7 @@
+ import org.netbeans.modules.java.source.save.Reformatter;
+ import org.netbeans.modules.java.source.transform.FieldGroupTree;
+ import org.netbeans.spi.java.classpath.support.ClassPathSupport;
++import org.openide.util.Exceptions;
+ 
+ /** Prints out a tree as an indented Java source program.
+  */
+@@ -1830,7 +1833,7 @@ public void visitTypeIntersection(JCTypeIntersection tree) {
+     public void visitTypeTest(JCInstanceOf tree) {
+ 	printExpr(tree.expr, TreeInfo.ordPrec);
+ 	print(" instanceof ");
+-	print(tree.clazz);
++	print(CasualDiff.getPattern(tree));
+     }
+ 
+     @Override
+@@ -2065,6 +2068,19 @@ public void visitErroneous(JCErroneous tree) {
+ 
+     @Override
+     public void visitTree(JCTree tree) {
++        if ("BINDING_PATTERN".equals(tree.getKind().name())) {
++            try {
++                Class bindingPatternClass = Class.forName("com.sun.source.tree.BindingPatternTree");
++                Method getBinding = bindingPatternClass.getMethod("getBinding");
++                Method getType = bindingPatternClass.getMethod("getType");
++                print((JCTree) getType.invoke(tree));
++                print(' ');
++                print((Name) getBinding.invoke(tree));
++                return ;
++            } catch (NoSuchMethodException | SecurityException | IllegalAccessException | IllegalArgumentException | InvocationTargetException | ClassNotFoundException ex) {
++                Exceptions.printStackTrace(ex);
++            }
++        }
+ 	print("(UNKNOWN: " + tree + ")");
+ 	newline();
+     }
+diff --git a/java/java.source.base/src/org/netbeans/modules/java/source/save/CasualDiff.java b/java/java.source.base/src/org/netbeans/modules/java/source/save/CasualDiff.java
+index b175482023..efbde5ac68 100644
+--- a/java/java.source.base/src/org/netbeans/modules/java/source/save/CasualDiff.java
++++ b/java/java.source.base/src/org/netbeans/modules/java/source/save/CasualDiff.java
+@@ -131,6 +131,7 @@
+ import com.sun.tools.javac.util.Position;
+ import java.io.PrintWriter;
+ import java.io.StringWriter;
++import java.lang.reflect.Field;
+ import java.lang.reflect.Method;
+ import java.util.*;
+ import java.util.Map.Entry;
+@@ -2577,14 +2578,30 @@ protected int diffTypeTest(JCInstanceOf oldT, JCInstanceOf newT, int[] bounds) {
+         copyTo(localPointer, exprBounds[0]);
+         localPointer = diffTree(oldT.expr, newT.expr, exprBounds);
+         // clazz
+-        int[] clazzBounds = getBounds(oldT.clazz);
++        JCTree oldPattern = getPattern(oldT);
++        JCTree newPattern = getPattern(newT);
++        int[] clazzBounds = getBounds(oldPattern);
+         clazzBounds[0] = copyUpTo(localPointer, clazzBounds[0]);
+-        localPointer = diffTree(oldT.clazz, newT.clazz, clazzBounds);
++        localPointer = diffTree(oldPattern, newPattern, clazzBounds);
+         localPointer = copyUpTo(localPointer, bounds[1]);
+ 
+         return localPointer;
+     }
+ 
++    public static JCTree getPattern(JCInstanceOf tree) {
++        try {
++            Field clazzField = JCInstanceOf.class.getField("clazz");
++            return (JCTree) clazzField.get(tree);
++        } catch (Throwable t) {
++            try {
++                Field patternField = JCInstanceOf.class.getField("pattern");
++                return (JCTree) patternField.get(tree);
++            } catch (Throwable t2) {
++                return (JCTree) tree.getType();
++            }
++        }
++    }
++
+     protected int diffIndexed(JCArrayAccess oldT, JCArrayAccess newT, int[] bounds) {
+         int localPointer = bounds[0];
+         // indexed
+diff --git a/java/java.source.base/src/org/netbeans/modules/java/source/save/Reformatter.java b/java/java.source.base/src/org/netbeans/modules/java/source/save/Reformatter.java
+index a448ce137a..5524fc5eb3 100644
+--- a/java/java.source.base/src/org/netbeans/modules/java/source/save/Reformatter.java
++++ b/java/java.source.base/src/org/netbeans/modules/java/source/save/Reformatter.java
+@@ -577,7 +577,23 @@ public Boolean scan(Tree tree, Void p) {
+             try {
+                 if (endPos < 0)
+                     return false;
+-                Boolean ret = tokens.offset() <= endPos ? (tree.getKind().toString().equals(TreeShims.SWITCH_EXPRESSION)) ? scanSwitchExpression(tree, p) : (tree.getKind().toString().equals(TreeShims.YIELD)) ? scanYield(tree, p) : super.scan(tree, p) : null;
++                if (tokens.offset() > endPos)
++                    return true;
++                Boolean ret;
++                switch (tree.getKind().toString()) {
++                    case TreeShims.SWITCH_EXPRESSION:
++                        ret = scanSwitchExpression(tree, p);
++                        break;
++                    case TreeShims.YIELD:
++                        ret = scanYield(tree, p);
++                        break;
++                    case TreeShims.BINDING_PATTERN:
++                        ret = scanBindingPattern(tree, p);
++                        break;
++                    default:
++                        ret = super.scan(tree, p);
++                        break;
++                }
+                 return ret != null ? ret : true;
+             }
+             finally {
+@@ -2576,6 +2592,17 @@ private Boolean scanYield(Tree node, Void p) {
+             return handleYield(node, p);
+         }
+ 
++        private Boolean scanBindingPattern(Tree node, Void p) {
++            Name name = TreeShims.getBinding(node);
++            Tree type = TreeShims.getBindingPatternType(node);
++            scan(type, p);
++            if (name != null) {
++                space();
++                accept(IDENTIFIER);
++            }
++            return true;
++        }
++
+         private Boolean handleYield(Tree node, Void p) {
+             ExpressionTree exprTree = TreeShims.getYieldValue(node);
+             if (exprTree != null) {
+@@ -3131,7 +3158,10 @@ public Boolean visitInstanceOf(InstanceOfTree node, Void p) {
+             space();
+             accept(INSTANCEOF);
+             space();
+-            scan(node.getType(), p);
++            Tree pattern = TreeShims.getPattern(node);
++            if (pattern == null)
++                pattern = node.getType();
++            scan(pattern, p);
+             return true;
+         }
+ 
+diff --git a/java/java.source.base/test/unit/src/org/netbeans/api/java/source/gen/InstanceOfTest.java b/java/java.source.base/test/unit/src/org/netbeans/api/java/source/gen/InstanceOfTest.java
+new file mode 100644
+index 0000000000..4bf40b60fa
+--- /dev/null
++++ b/java/java.source.base/test/unit/src/org/netbeans/api/java/source/gen/InstanceOfTest.java
+@@ -0,0 +1,208 @@
++/*
++ * Licensed to the Apache Software Foundation (ASF) under one
++ * or more contributor license agreements.  See the NOTICE file
++ * distributed with this work for additional information
++ * regarding copyright ownership.  The ASF licenses this file
++ * to you under the Apache License, Version 2.0 (the
++ * "License"); you may not use this file except in compliance
++ * with the License.  You may obtain a copy of the License at
++ *
++ *   http://www.apache.org/licenses/LICENSE-2.0
++ *
++ * Unless required by applicable law or agreed to in writing,
++ * software distributed under the License is distributed on an
++ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
++ * KIND, either express or implied.  See the License for the
++ * specific language governing permissions and limitations
++ * under the License.
++ */
++package org.netbeans.api.java.source.gen;
++
++import com.sun.source.tree.ClassTree;
++import com.sun.source.tree.CompilationUnitTree;
++import com.sun.source.tree.ExpressionTree;
++import com.sun.source.tree.IfTree;
++import com.sun.source.tree.InstanceOfTree;
++import com.sun.source.tree.MethodTree;
++import com.sun.source.tree.ParenthesizedTree;
++import com.sun.tools.javac.tree.JCTree;
++import java.io.File;
++import java.io.IOException;
++import org.netbeans.api.java.source.Task;
++import org.netbeans.api.java.source.JavaSource;
++import org.netbeans.api.java.source.JavaSource.Phase;
++import org.netbeans.api.java.source.TestUtilities;
++import org.netbeans.api.java.source.TreeMaker;
++import org.netbeans.api.java.source.WorkingCopy;
++import org.netbeans.junit.NbTestSuite;
++
++/**
++ * Tests correct adding cast to statement.
++ *
++ * @author Pavel Flaska
++ */
++public class InstanceOfTest extends GeneratorTestMDRCompat {
++    
++    /** Creates a new instance of AddCastTest */
++    public InstanceOfTest(String name) {
++        super(name);
++    }
++    
++    public static NbTestSuite suite() {
++        NbTestSuite suite = new NbTestSuite();
++        suite.addTestSuite(InstanceOfTest.class);
++        return suite;
++    }
++
++    public void testAddVariableName() throws Exception {
++        if (!typeTestPatternAvailable())
++            return ;
++
++        testFile = new File(getWorkDir(), "Test.java");
++        TestUtilities.copyStringToFile(testFile, 
++            "package hierbas.del.litoral;\n\n" +
++            "public class Test {\n" +
++            "    public void taragui(Object o) {\n" +
++            "        if (o instanceof String) {\n" + 
++            "        }\n" + 
++            "    }\n" +
++            "}\n"
++            );
++        String golden =
++            "package hierbas.del.litoral;\n\n" +
++            "public class Test {\n" +
++            "    public void taragui(Object o) {\n" +
++            "        if (o instanceof String t) {\n" +
++            "        }\n" +
++            "    }\n" +
++            "}\n";
++        JavaSource src = getJavaSource(testFile);
++        
++        Task<WorkingCopy> task = new Task<WorkingCopy>() {
++
++            public void run(WorkingCopy workingCopy) throws IOException {
++                workingCopy.toPhase(Phase.RESOLVED);
++                CompilationUnitTree cut = workingCopy.getCompilationUnit();
++                TreeMaker make = workingCopy.getTreeMaker();
++                ClassTree clazz = (ClassTree) cut.getTypeDecls().get(0);
++                MethodTree method = (MethodTree) clazz.getMembers().get(1);
++                IfTree ift = (IfTree) method.getBody().getStatements().get(0);
++                InstanceOfTree it = (InstanceOfTree) ((ParenthesizedTree) ift.getCondition()).getExpression();
++                InstanceOfTree nue = make.InstanceOf(it.getExpression(), make.BindingPattern("t", it.getType()));
++                workingCopy.rewrite(it, nue);
++            }
++
++        };
++        src.runModificationTask(task).commit();
++        String res = TestUtilities.copyFileToString(testFile);
++        System.err.println(res);
++        assertEquals(golden, res);
++    }
++    
++    public void testRemoveVariableName() throws Exception {
++        if (!typeTestPatternAvailable())
++            return ;
++
++        testFile = new File(getWorkDir(), "Test.java");
++        TestUtilities.copyStringToFile(testFile, 
++            "package hierbas.del.litoral;\n\n" +
++            "public class Test {\n" +
++            "    public void taragui(Object o) {\n" +
++            "        if (o instanceof String t) {\n" + 
++            "        }\n" + 
++            "    }\n" +
++            "}\n"
++            );
++        String golden =
++            "package hierbas.del.litoral;\n\n" +
++            "public class Test {\n" +
++            "    public void taragui(Object o) {\n" +
++            "        if (o instanceof String) {\n" +
++            "        }\n" +
++            "    }\n" +
++            "}\n";
++        JavaSource src = getJavaSource(testFile);
++        
++        Task<WorkingCopy> task = new Task<WorkingCopy>() {
++
++            public void run(WorkingCopy workingCopy) throws IOException {
++                workingCopy.toPhase(Phase.RESOLVED);
++                CompilationUnitTree cut = workingCopy.getCompilationUnit();
++                TreeMaker make = workingCopy.getTreeMaker();
++                ClassTree clazz = (ClassTree) cut.getTypeDecls().get(0);
++                MethodTree method = (MethodTree) clazz.getMembers().get(1);
++                IfTree ift = (IfTree) method.getBody().getStatements().get(0);
++                InstanceOfTree it = (InstanceOfTree) ((ParenthesizedTree) ift.getCondition()).getExpression();
++                InstanceOfTree nue = make.InstanceOf(it.getExpression(), it.getType());
++                workingCopy.rewrite(it, nue);
++            }
++
++        };
++        src.runModificationTask(task).commit();
++        String res = TestUtilities.copyFileToString(testFile);
++        System.err.println(res);
++        assertEquals(golden, res);
++    }
++    
++    public void testAddInstanceOf() throws Exception {
++        testFile = new File(getWorkDir(), "Test.java");
++        TestUtilities.copyStringToFile(testFile, 
++            "package hierbas.del.litoral;\n\n" +
++            "public class Test {\n" +
++            "    public void taragui(Object o) {\n" +
++            "        if (true) {\n" + 
++            "        }\n" + 
++            "    }\n" +
++            "}\n"
++            );
++        String golden =
++            "package hierbas.del.litoral;\n\n" +
++            "public class Test {\n" +
++            "    public void taragui(Object o) {\n" +
++            "        if (o instanceof String) {\n" +
++            "        }\n" +
++            "    }\n" +
++            "}\n";
++        JavaSource src = getJavaSource(testFile);
++        
++        Task<WorkingCopy> task = new Task<WorkingCopy>() {
++
++            public void run(WorkingCopy workingCopy) throws IOException {
++                workingCopy.toPhase(Phase.RESOLVED);
++                CompilationUnitTree cut = workingCopy.getCompilationUnit();
++                TreeMaker make = workingCopy.getTreeMaker();
++                ClassTree clazz = (ClassTree) cut.getTypeDecls().get(0);
++                MethodTree method = (MethodTree) clazz.getMembers().get(1);
++                IfTree ift = (IfTree) method.getBody().getStatements().get(0);
++                ExpressionTree condition = ((ParenthesizedTree) ift.getCondition()).getExpression();
++                InstanceOfTree nue = make.InstanceOf(make.Identifier("o"), make.QualIdent("java.lang.String"));
++                workingCopy.rewrite(condition, nue);
++            }
++
++        };
++        src.runModificationTask(task).commit();
++        String res = TestUtilities.copyFileToString(testFile);
++        System.err.println(res);
++        assertEquals(golden, res);
++    }
++    
++    private boolean typeTestPatternAvailable() {
++        try {
++            Class.forName("com.sun.source.tree.BindingPatternTree", false, JCTree.class.getClassLoader());
++            return true;
++        } catch (ClassNotFoundException ex) {
++            //OK
++            return false;
++        }
++    }
++
++    String getGoldenPckg() {
++        return "";
++    }
++    
++    String getSourcePckg() {
++        return "";
++    }
++    
++    
++}
+diff --git a/java/java.source.base/test/unit/src/org/netbeans/modules/java/source/save/FormatingTest.java b/java/java.source.base/test/unit/src/org/netbeans/modules/java/source/save/FormatingTest.java
+index 4543feb6d7..1a75c84f38 100644
+--- a/java/java.source.base/test/unit/src/org/netbeans/modules/java/source/save/FormatingTest.java
++++ b/java/java.source.base/test/unit/src/org/netbeans/modules/java/source/save/FormatingTest.java
+@@ -5072,6 +5072,46 @@ public void testSynchronizedBlockAfterFor() throws Exception {
+         reformat(doc, content, golden);
+     }
+ 
++    public void testTypeTestPatterns() throws Exception {
++        try {
++            SourceVersion.valueOf("RELEASE_14"); //NOI18N
++        } catch (IllegalArgumentException ex) {
++            //OK, no RELEASE_14, skip test
++            return;
++        }
++        testFile = new File(getWorkDir(), "Test.java");
++        TestUtilities.copyStringToFile(testFile, "");
++        FileObject testSourceFO = FileUtil.toFileObject(testFile);
++        DataObject testSourceDO = DataObject.find(testSourceFO);
++        EditorCookie ec = (EditorCookie)testSourceDO.getCookie(EditorCookie.class);
++        final Document doc = ec.openDocument();
++        doc.putProperty(Language.class, JavaTokenId.language());
++        String content =
++                "package hierbas.del.litoral;\n\n"
++                + "public class Test {\n\n"
++                + "    public boolean main(Object o) {\n"
++                + "        if (o instanceof String s) {\n"
++                + "            return s.isEmpty();\n"
++                + "        } else {\n"
++                + "            return false;\n"
++                + "        }\n"
++                + "    }\n"
++                + "}\n";
++
++        String golden = // no change
++                "package hierbas.del.litoral;\n\n"
++                + "public class Test {\n\n"
++                + "    public boolean main(Object o) {\n"
++                + "        if (o instanceof String s) {\n"
++                + "            return s.isEmpty();\n"
++                + "        } else {\n"
++                + "            return false;\n"
++                + "        }\n"
++                + "    }\n"
++                + "}\n";
++        reformat(doc, content, golden);
++    }
++
+     private void reformat(Document doc, String content, String golden) throws Exception {
+         reformat(doc, content, golden, 0, content.length());
+     }
+diff --git a/java/maven.hints/src/org/netbeans/modules/maven/hints/errors/EnablePreviewMavenProj.java b/java/maven.hints/src/org/netbeans/modules/maven/hints/errors/EnablePreviewMavenProj.java
+index 08b39165ac..c4dc61219b 100644
+--- a/java/maven.hints/src/org/netbeans/modules/maven/hints/errors/EnablePreviewMavenProj.java
++++ b/java/maven.hints/src/org/netbeans/modules/maven/hints/errors/EnablePreviewMavenProj.java
+@@ -62,6 +62,7 @@
+ public class EnablePreviewMavenProj implements ErrorRule<Void> {
+ 
+     private static final Set<String> ERROR_CODES = new HashSet<String>(Arrays.asList(
++            "compiler.err.preview.feature.disabled",
+             "compiler.err.preview.feature.disabled.plural")); // NOI18N
+     private static final String ENABLE_PREVIEW_FLAG = "--enable-preview";   // NOI18N
+ 

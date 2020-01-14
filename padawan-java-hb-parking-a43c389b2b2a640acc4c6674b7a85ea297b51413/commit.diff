@@ -1,0 +1,223 @@
+diff --git a/src/main/java/br/com/hbparking/periodo/IPeriodoRepository.java b/src/main/java/br/com/hbparking/periodo/IPeriodoRepository.java
+index 9e5f094..e9a943b 100644
+--- a/src/main/java/br/com/hbparking/periodo/IPeriodoRepository.java
++++ b/src/main/java/br/com/hbparking/periodo/IPeriodoRepository.java
+@@ -9,6 +9,4 @@
+ @Repository
+ public interface IPeriodoRepository extends JpaRepository<Periodo, Long> {
+     List<Periodo> findAllByTipoVeiculo(VehicleType tipoVeiculo);
+-
+-
+ }
+diff --git a/src/main/java/br/com/hbparking/periodo/InvalidPeriodDatesException.java b/src/main/java/br/com/hbparking/periodo/InvalidPeriodDatesException.java
+new file mode 100644
+index 0000000..d2948c7
+--- /dev/null
++++ b/src/main/java/br/com/hbparking/periodo/InvalidPeriodDatesException.java
+@@ -0,0 +1,11 @@
++package br.com.hbparking.periodo;
++
++import org.springframework.http.HttpStatus;
++import org.springframework.web.bind.annotation.ResponseStatus;
++
++@ResponseStatus(HttpStatus.FOUND)
++public class InvalidPeriodDatesException extends Exception {
++    public InvalidPeriodDatesException(String message) {
++        super(message);
++    }
++}
+diff --git a/src/main/java/br/com/hbparking/periodo/PeriodoController.java b/src/main/java/br/com/hbparking/periodo/PeriodoController.java
+index 2c11ed4..68342f4 100644
+--- a/src/main/java/br/com/hbparking/periodo/PeriodoController.java
++++ b/src/main/java/br/com/hbparking/periodo/PeriodoController.java
+@@ -17,7 +17,7 @@ public PeriodoController(PeriodoService periodoService) {
+     }
+ 
+     @PostMapping("/periodo/criar")
+-    public PeriodoDTO save(@RequestBody PeriodoDTO periodoDTO) {
++    public PeriodoDTO save(@RequestBody PeriodoDTO periodoDTO) throws InvalidPeriodDatesException {
+         return this.periodoService.create(periodoDTO);
+     }
+ 
+diff --git a/src/main/java/br/com/hbparking/periodo/PeriodoService.java b/src/main/java/br/com/hbparking/periodo/PeriodoService.java
+index ae68cf3..ae591e9 100644
+--- a/src/main/java/br/com/hbparking/periodo/PeriodoService.java
++++ b/src/main/java/br/com/hbparking/periodo/PeriodoService.java
+@@ -11,6 +11,10 @@
+ import java.util.Optional;
+ import java.util.stream.Collectors;
+ 
++import static br.com.hbparking.util.DateHelper.validateDateIsAfter;
++import static br.com.hbparking.util.DateHelper.validateDateIsEqual;
++import static br.com.hbparking.util.ValidationUtils.validateNotNull;
++
+ @Service
+ public class PeriodoService {
+ 
+@@ -22,8 +26,9 @@ public PeriodoService(IPeriodoRepository iPeriodoRepository) {
+         this.iPeriodoRepository = iPeriodoRepository;
+     }
+ 
+-    public PeriodoDTO create(PeriodoDTO periodoDTO) {
++    public PeriodoDTO create(PeriodoDTO periodoDTO) throws InvalidPeriodDatesException {
+         this.validarPeriodo(periodoDTO);
++        this.validateIfPeriodoIsBetween(periodoDTO);
+         LOGGER.info("Criando periodo");
+         return PeriodoDTO.of(this.iPeriodoRepository.save(new Periodo(periodoDTO.getVehicleType(), periodoDTO.getDataInicial(), periodoDTO.getDataFinal())));
+     }
+@@ -52,7 +57,6 @@ public Periodo findById(Long id) {
+     }
+ 
+ 
+-
+     public List<PeriodoDTO> parsePeriodoListToPeriodoDTOList(List<Periodo> periodosList) {
+         List<PeriodoDTO> periodoDTOList = new ArrayList<>();
+         List<Periodo> periodosFiltrada = periodosList.stream().filter(periodo -> periodo.getDataFinal().isAfter(LocalDate.now())).collect(Collectors.toList());
+@@ -60,23 +64,35 @@ public Periodo findById(Long id) {
+         return periodoDTOList;
+     }
+ 
+-    private void validarPeriodo(PeriodoDTO periodoDTO) {
++    private void validarPeriodo(PeriodoDTO periodoDTO) throws InvalidPeriodDatesException {
+         LOGGER.info("Validando periodo");
+ 
+-        if (periodoDTO.getDataInicial() == null) {
+-            throw new IllegalArgumentException("Data inicial não pode ser nula");
+-        }
+-        if (periodoDTO.getDataFinal() == null) {
+-            throw new IllegalArgumentException("Data final não pode ser nula");
+-        }
+-        if (periodoDTO.getVehicleType() == null) {
+-            throw new IllegalArgumentException("Tipo de veículo não pode ser nulo");
+-        }
+-        if (periodoDTO.getDataInicial().isAfter(periodoDTO.getDataFinal())) {
+-            throw new IllegalArgumentException("Data final deve ser após data inicial");
+-        }
+-        if (periodoDTO.getDataInicial().isEqual(periodoDTO.getDataFinal())) {
+-            throw new IllegalArgumentException("Um periodo deve ter data inicial e final distintas");
++        validateNotNull(periodoDTO, "Periodo DTO não pode ser nulo");
++        validateNotNull(periodoDTO.getDataFinal(), "Data Final não pode ser nula");
++        validateNotNull(periodoDTO.getDataInicial(), "Data inicial não pode ser nula");
++        validateNotNull(periodoDTO.getVehicleType(), "Tipo do veículo não pode ser nulo");
++        validateDateIsAfter(periodoDTO.getDataInicial(), periodoDTO.getDataFinal());
++        validateDateIsEqual(periodoDTO.getDataInicial(), periodoDTO.getDataFinal());
++
++        this.validateIfPeriodoIsBetween(periodoDTO);
++    }
++
++    public void validateIfPeriodoIsBetween(PeriodoDTO periodoDTO) throws InvalidPeriodDatesException {
++        for (Periodo periodo : this.iPeriodoRepository.findAll()) {
++            if (periodo.getTipoVeiculo().equals(periodoDTO.getVehicleType())) {
++                if (periodoDTO.getDataInicial().isAfter(periodo.getDataInicial()) && periodoDTO.getDataFinal().isBefore(periodo.getDataFinal())) {
++                    throw new InvalidPeriodDatesException("Período não pode iniciar e finalizar dentro de outro período");
++                }
++                if (periodoDTO.getDataInicial().isBefore(periodo.getDataFinal()) && periodoDTO.getDataFinal().isBefore(periodo.getDataFinal())) {
++                    throw new InvalidPeriodDatesException("Período não pode começar dentro de outro período que ainda está vigente");
++                }
++                if (periodoDTO.getDataInicial().isBefore(periodo.getDataInicial()) && periodoDTO.getDataFinal().isAfter(periodo.getDataFinal())) {
++                    throw new InvalidPeriodDatesException("Período não pode iniciar antes de um período já existente e finalizar depois dele");
++                }
++                if (periodoDTO.getDataInicial().isEqual(periodo.getDataInicial()) || periodoDTO.getDataFinal().isEqual(periodo.getDataFinal()) || periodoDTO.getDataInicial().isEqual(periodo.getDataFinal()) || periodoDTO.getDataFinal().isEqual(periodo.getDataInicial())) {
++                    throw new InvalidPeriodDatesException("Existem correspondências iguais de datas informadas");
++                }
++            }
+         }
+     }
+ }
+diff --git a/src/main/java/br/com/hbparking/util/DateHelper.java b/src/main/java/br/com/hbparking/util/DateHelper.java
+index 96674bf..7b9c522 100644
+--- a/src/main/java/br/com/hbparking/util/DateHelper.java
++++ b/src/main/java/br/com/hbparking/util/DateHelper.java
+@@ -5,11 +5,10 @@
+ 
+ public class DateHelper {
+ 
+-    private DateHelper(){
++    private DateHelper() {
+         throw new IllegalStateException("Utility class");
+     }
+ 
+-
+     public static String formatDate(LocalDate date) {
+         return DateTimeFormatter.ofPattern("dd/MM/yyyy").format(date);
+     }
+@@ -24,4 +23,16 @@ public static LocalDate formatDateFromCSVToLocalDate(String[] dateSplitted) {
+         int year = Integer.parseInt(dateSplitted[2]);
+         return LocalDate.of(year, month, day);
+     }
++
++    public static void validateDateIsAfter(LocalDate initialDate, LocalDate finalDate) {
++        if (initialDate.isAfter(finalDate)) {
++            throw new IllegalArgumentException("Data inicial não pode ser igual a final");
++        }
++    }
++
++    public static void validateDateIsEqual(LocalDate initialDate, LocalDate finalDate) {
++        if (initialDate.isEqual(finalDate)) {
++            throw new IllegalArgumentException("Datas não podem ser iguais");
++        }
++    }
+ }
+diff --git a/src/main/java/br/com/hbparking/util/ValidationUtils.java b/src/main/java/br/com/hbparking/util/ValidationUtils.java
+new file mode 100644
+index 0000000..aa02871
+--- /dev/null
++++ b/src/main/java/br/com/hbparking/util/ValidationUtils.java
+@@ -0,0 +1,10 @@
++package br.com.hbparking.util;
++
++public interface ValidationUtils {
++
++    static void validateNotNull(Object object, String errorMessage) {
++        if (object == null) {
++            throw new IllegalArgumentException(errorMessage);
++        }
++    }
++}
+diff --git a/src/test/java/br/com/hbparking/periodo/PeriodoServiceTest.java b/src/test/java/br/com/hbparking/periodo/PeriodoServiceTest.java
+index 0a99d3a..e6620b4 100644
+--- a/src/test/java/br/com/hbparking/periodo/PeriodoServiceTest.java
++++ b/src/test/java/br/com/hbparking/periodo/PeriodoServiceTest.java
+@@ -15,6 +15,7 @@
+ 
+ import static org.assertj.core.api.Assertions.assertThat;
+ import static org.junit.jupiter.api.Assertions.assertEquals;
++import static org.junit.jupiter.api.Assertions.assertThrows;
+ import static org.mockito.ArgumentMatchers.any;
+ import static org.mockito.BDDMockito.given;
+ import static org.mockito.Mockito.*;
+@@ -28,12 +29,12 @@
+     private PeriodoService periodoService;
+ 
+     @Before
+-    public void setUp() throws Exception {
++    public void setUp() {
+         periodoService = new PeriodoService(iPeriodoRepository);
+     }
+ 
+     @Test
+-    public void createPeriodo_ShouldReturnPeriodo() {
++    public void createPeriodo_ShouldReturnPeriodo() throws InvalidPeriodDatesException {
+         PeriodoDTO periodoDTO = new PeriodoDTO(VehicleType.CARRO, LocalDate.parse("2019-12-12"), LocalDate.parse("2019-12-15"));
+ 
+         when(iPeriodoRepository.save(any(Periodo.class))).thenReturn(new Periodo(VehicleType.CARRO, LocalDate.parse("2019-12-12"), LocalDate.parse("2019-12-15")));
+@@ -64,4 +65,18 @@ public void getAllPeriodosByVehicleType_ShouldReturnPeriodoList() {
+         assertThat(periodoFilteredWithVehicleType).isNotNull();
+         assertEquals(2, periodoFilteredWithVehicleType.size());
+     }
++
++    @Test
++    public void validateIfPeriodoIsBetween() {
++        PeriodoDTO periodoDTO = new PeriodoDTO(VehicleType.CARRO, LocalDate.of(2019, 10, 7), LocalDate.of(2019, 10, 10));
++
++        List<Periodo> periodoList = new ArrayList<>();
++        periodoList.add(new Periodo(VehicleType.CARRO, LocalDate.of(2019, 10, 7), LocalDate.of(2019, 10, 10)));
++        periodoList.add(new Periodo(VehicleType.CARRO, LocalDate.of(2019, 10, 11), LocalDate.of(2019, 10, 20)));
++        periodoList.add(new Periodo(VehicleType.CARRO, LocalDate.of(2019, 10, 21), LocalDate.of(2019, 10, 23)));
++
++        given(iPeriodoRepository.findAll()).willReturn(periodoList);
++
++        assertThrows(InvalidPeriodDatesException.class, () -> periodoService.validateIfPeriodoIsBetween(periodoDTO));
++    }
+ }
+\ No newline at end of file

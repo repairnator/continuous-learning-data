@@ -1,0 +1,9 @@
+@@ -34,7 +34,7 @@ public AggregatingProfiler() {
+     /**
+      * if 0 then tracking uncompleted profiled calls is disabled
+      */
+-    private final AtomicInteger numberOfActiveCallsToTrackAndKeepBetweenReports = new AtomicInteger(10);
++    private final AtomicInteger numberOfLongestActiveCallsToTrack = new AtomicInteger(10);
+ 
+     public ProfiledCall profiledCall(String name) {
+         return profiledCall(new Identity(name));

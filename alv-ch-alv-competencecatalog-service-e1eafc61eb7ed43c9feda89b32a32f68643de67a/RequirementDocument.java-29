@@ -1,0 +1,9 @@
+@@ -29,7 +29,7 @@ private RequirementDocument() {
+         // For reflexion libs
+     }
+ 
+-    public RequirementDocument(final Requirement requirement) {
++    public RequirementDocument(Requirement requirement) {
+         this.id = requirement.getId().getValue();
+         this.draft = requirement.isDraft();
+         this.published = requirement.isPublished();

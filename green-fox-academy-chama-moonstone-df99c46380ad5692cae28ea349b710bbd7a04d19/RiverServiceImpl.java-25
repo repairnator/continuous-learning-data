@@ -1,0 +1,9 @@
+@@ -25,7 +25,7 @@ public RiverServiceImpl(RiverRepository riverRepository) {
+   @Override
+   public boolean isRiverValid(River river) {
+     return ((river.getId() != 0) && (river.getId() != null)
+-            && (river.getName() != null) && (!river.getName().equals("")));
++        && (river.getName() != null) && (!river.getName().equals("")));
+   }
+ 
+   @Override

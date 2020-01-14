@@ -1,0 +1,9 @@
+@@ -215,7 +215,7 @@ private HoodieRollbackStat mergeRollbackStat(HoodieRollbackStat stat1, HoodieRol
+ 
+   private Map<HeaderMetadataType, String> generateHeader(String commit) {
+     // generate metadata
+-    Map<HeaderMetadataType, String> header = Maps.newHashMap();
++    Map<HeaderMetadataType, String> header = new HashMap<>();
+     header.put(HeaderMetadataType.INSTANT_TIME, metaClient.getActiveTimeline().lastInstant().get().getTimestamp());
+     header.put(HeaderMetadataType.TARGET_INSTANT_TIME, commit);
+     header.put(HeaderMetadataType.COMMAND_BLOCK_TYPE,

@@ -1,0 +1,29 @@
+diff --git a/flink-connectors/flink-jdbc/src/test/java/org/apache/flink/api/java/io/jdbc/JDBCTableSourceITCase.java b/flink-connectors/flink-jdbc/src/test/java/org/apache/flink/api/java/io/jdbc/JDBCTableSourceITCase.java
+index aeb30bca1a99..b1963e8fed7f 100644
+--- a/flink-connectors/flink-jdbc/src/test/java/org/apache/flink/api/java/io/jdbc/JDBCTableSourceITCase.java
++++ b/flink-connectors/flink-jdbc/src/test/java/org/apache/flink/api/java/io/jdbc/JDBCTableSourceITCase.java
+@@ -36,11 +36,11 @@
+  */
+ public class JDBCTableSourceITCase extends JDBCTestBase {
+ 
+-	final static StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+-	final static EnvironmentSettings bsSettings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
+-	final static StreamTableEnvironment tEnv = StreamTableEnvironment.create(env, bsSettings);
++	private static final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
++	private static final EnvironmentSettings bsSettings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
++	private static final StreamTableEnvironment tEnv = StreamTableEnvironment.create(env, bsSettings);
+ 
+-	final static String sql = "CREATE TABLE books (" +
++	static final String TABLE_SOURCE_SQL = "CREATE TABLE books (" +
+ 		" id int, " +
+ 		" title varchar, " +
+ 		" author varchar, " +
+@@ -54,7 +54,7 @@
+ 		")";
+ 
+ 	static {
+-		tEnv.sqlUpdate(sql);
++		tEnv.sqlUpdate(TABLE_SOURCE_SQL);
+ 	}
+ 
+ 	@Test

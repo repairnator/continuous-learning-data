@@ -1,0 +1,9 @@
+@@ -169,7 +169,7 @@ public HoodieCompactionPlan generateCompactionPlan(JavaSparkContext jsc, HoodieT
+     jsc.sc().register(totalLogFiles);
+     jsc.sc().register(totalFileSlices);
+ 
+-    Preconditions.checkArgument(hoodieTable.getMetaClient().getTableType() == HoodieTableType.MERGE_ON_READ,
++    ValidationUtils.checkArgument(hoodieTable.getMetaClient().getTableType() == HoodieTableType.MERGE_ON_READ,
+         "HoodieRealtimeTableCompactor can only compact table of type " + HoodieTableType.MERGE_ON_READ + " and not "
+             + hoodieTable.getMetaClient().getTableType().name());
+ 

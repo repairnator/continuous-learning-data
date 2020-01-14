@@ -1,0 +1,9 @@
+@@ -3,7 +3,7 @@
+ import com.google.protobuf.Any;
+ import com.google.protobuf.ByteString;
+ import com.google.protobuf.InvalidProtocolBufferException;
+-import org.tron.common.crypto.SM3Hash;
++import org.tron.common.crypto.Sha256Sm3Hash;
+ import org.tron.common.crypto.sm2.SM2;
+ import org.tron.common.utils.ByteArray;
+ import org.tron.core.exception.CancelException;

@@ -1,0 +1,9 @@
+@@ -1037,7 +1037,7 @@ public void testAvroLogRecordReaderWithMixedInsertsCorruptsAndRollback()
+ 
+     // Write 1
+     List<IndexedRecord> records1 = SchemaTestUtil.generateHoodieTestRecords(0, 100);
+-    Map<HoodieLogBlock.HeaderMetadataType, String> header = Maps.newHashMap();
++    Map<HoodieLogBlock.HeaderMetadataType, String> header = new HashMap<>();
+     header.put(HoodieLogBlock.HeaderMetadataType.INSTANT_TIME, "100");
+     header.put(HoodieLogBlock.HeaderMetadataType.SCHEMA, schema.toString());
+     HoodieAvroDataBlock dataBlock = new HoodieAvroDataBlock(records1, header);

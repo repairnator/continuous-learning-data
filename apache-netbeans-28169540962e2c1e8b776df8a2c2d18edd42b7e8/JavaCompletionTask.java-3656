@@ -1,0 +1,9 @@
+@@ -3656,7 +3656,7 @@ public boolean accept(Element e, TypeMirror t) {
+         };
+         boolean addCast = actualType != type && elem instanceof VariableElement && !elem.getKind().isField();
+         for (Element e : controller.getElementUtilities().getMembers(actualType, acceptor)) {
+-            switch (e.getKind()) {
++            switch (simplifyElementKind(e.getKind())) {
+                 case ENUM_CONSTANT:
+                 case EXCEPTION_PARAMETER:
+                 case FIELD:

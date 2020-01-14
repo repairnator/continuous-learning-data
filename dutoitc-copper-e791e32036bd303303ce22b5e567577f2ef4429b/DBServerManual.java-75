@@ -1,0 +1,9 @@
+@@ -75,7 +75,7 @@ public void close() throws Exception {
+         Thread.sleep(100);
+     }
+ 
+-    private void createDatabaseIfNeeded() throws SQLException {
++    private void createDatabaseIfNeeded() {
+         LOG.info("Checking Database...");
+         try (Connection con = cp.getConnection();
+              Statement stmt = con.createStatement()) {

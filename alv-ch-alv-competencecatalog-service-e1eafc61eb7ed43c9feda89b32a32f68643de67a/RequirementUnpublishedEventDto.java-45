@@ -1,0 +1,9 @@
+@@ -45,7 +45,7 @@ public RequirementDto getRequirement() {
+         return requirement;
+     }
+ 
+-    public RequirementUnpublishedEventDto setRequirement(final RequirementDto requirement) {
++    public RequirementUnpublishedEventDto setRequirement(RequirementDto requirement) {
+         this.requirement = requirement;
+         return this;
+     }

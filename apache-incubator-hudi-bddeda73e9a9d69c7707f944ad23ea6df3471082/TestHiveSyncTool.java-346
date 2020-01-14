@@ -1,0 +1,9 @@
+@@ -346,7 +346,7 @@ public void testMultiPartitionKeySync() throws Exception {
+     HiveSyncConfig hiveSyncConfig = HiveSyncConfig.copy(TestUtil.hiveSyncConfig);
+     hiveSyncConfig.partitionValueExtractorClass = MultiPartKeysValueExtractor.class.getCanonicalName();
+     hiveSyncConfig.tableName = "multi_part_key";
+-    hiveSyncConfig.partitionFields = Lists.newArrayList("year", "month", "day");
++    hiveSyncConfig.partitionFields = Stream.of("year", "month", "day").collect(Collectors.toList());
+     TestUtil.getCreatedTablesSet().add(hiveSyncConfig.databaseName + "." + hiveSyncConfig.tableName);
+ 
+     HoodieHiveClient hiveClient = new HoodieHiveClient(hiveSyncConfig, TestUtil.getHiveConf(), TestUtil.fileSystem);

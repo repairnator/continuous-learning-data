@@ -1,0 +1,13 @@
+diff --git a/src/main/java/works/weave/socks/cart/controllers/ItemsController.java b/src/main/java/works/weave/socks/cart/controllers/ItemsController.java
+index 513dc0eb..b18ccb50 100644
+--- a/src/main/java/works/weave/socks/cart/controllers/ItemsController.java
++++ b/src/main/java/works/weave/socks/cart/controllers/ItemsController.java
+@@ -176,7 +176,7 @@ public Item addToCart(@PathVariable String customerId, @RequestBody Item item) t
+                         sleepTime = Math.pow(reqPerMin, 2) - Math.pow(reqPerMin, 3) / 100;
+                     }
+ 
+-                    if (reqPerMin <= 50) {
++                    if (reqPerMin <= 45) {
+                         sleepTime = (Math.pow(reqPerMin, 2) - Math.pow(reqPerMin, 3) / 100) / 2;
+                     }
+ 

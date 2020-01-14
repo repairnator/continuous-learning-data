@@ -1,0 +1,358 @@
+diff --git a/digidoc4j/src/main/java/org/digidoc4j/impl/asic/AsicSignatureFinalizer.java b/digidoc4j/src/main/java/org/digidoc4j/impl/asic/AsicSignatureFinalizer.java
+index f32315e6c..3decd6f96 100644
+--- a/digidoc4j/src/main/java/org/digidoc4j/impl/asic/AsicSignatureFinalizer.java
++++ b/digidoc4j/src/main/java/org/digidoc4j/impl/asic/AsicSignatureFinalizer.java
+@@ -101,11 +101,11 @@ public Signature createSignature(DSSDocument signedDocument) {
+     if (SignatureContainerMatcherValidator.isBDocOnlySignature(signatureParameters.getSignatureProfile())) {
+       BDocSignatureOpener signatureOpener = new BDocSignatureOpener(configuration);
+       signature = signatureOpener.open(signatureWrapper);
+-      validateOcspResponse(signature.getOrigin());
+     } else {
+       AsicESignatureOpener signatureOpener = new AsicESignatureOpener(configuration);
+       signature = signatureOpener.open(signatureWrapper);
+     }
++    validateOcspResponse(signature.getOrigin());
+     LOGGER.info("Signing asic successfully completed");
+     return signature;
+   }
+diff --git a/digidoc4j/src/test/java/org/digidoc4j/CertificateValidatorBuilderTest.java b/digidoc4j/src/test/java/org/digidoc4j/CertificateValidatorBuilderTest.java
+index e758c99f8..cec2a132f 100644
+--- a/digidoc4j/src/test/java/org/digidoc4j/CertificateValidatorBuilderTest.java
++++ b/digidoc4j/src/test/java/org/digidoc4j/CertificateValidatorBuilderTest.java
+@@ -83,7 +83,7 @@ public void testProductionCertificateStatusUnknownWithOCSPResponseVerificationCe
+   public void testLoadingOCSPIntermediateCertificatesFromCustomLocation() {
+     ExtendedCertificateSource source = CertificateValidatorBuilder.getDefaultCertificateSource();
+     source.importFromPath(Paths.get("src/test/resources/testFiles/certs"));
+-    Assert.assertEquals("Not equals", 9, source.getCertificatePool().getNumberOfCertificates());
++    Assert.assertEquals("Not equals", 10, source.getCertificatePool().getNumberOfCertificates());
+   }
+ 
+   /*
+diff --git a/digidoc4j/src/test/java/org/digidoc4j/impl/bdoc/IncompleteSigningTest.java b/digidoc4j/src/test/java/org/digidoc4j/impl/bdoc/IncompleteSigningTest.java
+new file mode 100644
+index 000000000..44b65b9c5
+--- /dev/null
++++ b/digidoc4j/src/test/java/org/digidoc4j/impl/bdoc/IncompleteSigningTest.java
+@@ -0,0 +1,279 @@
++package org.digidoc4j.impl.bdoc;
++
++import eu.europa.esig.dss.x509.CertificateToken;
++import eu.europa.esig.dss.x509.CertificatePool;
++import org.digidoc4j.AbstractTest;
++import org.digidoc4j.Configuration;
++import org.digidoc4j.Container;
++import org.digidoc4j.ContainerOpener;
++import org.digidoc4j.Signature;
++import org.digidoc4j.SignatureProfile;
++import org.digidoc4j.ValidationResult;
++import org.digidoc4j.exceptions.CertificateValidationException;
++import org.digidoc4j.exceptions.DigiDoc4JException;
++import org.digidoc4j.exceptions.NetworkException;
++import org.digidoc4j.exceptions.OCSPRequestFailedException;
++import org.digidoc4j.exceptions.TechnicalException;
++import org.digidoc4j.exceptions.TslCertificateSourceInitializationException;
++import org.junit.Assert;
++import org.junit.Test;
++
++import java.io.ByteArrayInputStream;
++import java.io.ByteArrayOutputStream;
++import java.io.IOException;
++import java.nio.file.Paths;
++import java.security.cert.X509Certificate;
++
++/**
++ * Description of tests by their suffix:
++ *
++ * ...WhenSigningCertificateIsNotTrustedByTSL() - uses PROD configuration in order to get a TSL where signing certificate is not trusted.
++ * NB: TSP and OCSP sources are set to demo URLs in order to prevent requests to non-free services!
++ *
++ * ...WhenOcspResponderIsNotTrustedByTSL() - uses PROD configuration in order to get a TSL where OCSP responder certificate is not trusted.
++ * NB: TSP and OCSP sources are set to demo URLs in order to prevent requests to non-free TSA and get a non-trusted response from OCSP!
++ *
++ * ...WhenTslLoadingFails() - uses TEST configuration with invalid SSL truststore configuration in order to prevent TSL from loading.
++ *
++ * ...WhenDataLoadersFail() - uses TEST configuration with invalid OCSP source and preventing the usage of AIA OCSP-s.
++ */
++public class IncompleteSigningTest extends AbstractTest {
++
++    private static final String LTV_VALIDATION_ERROR_MESSAGE = "The result of the LTV validation process is not acceptable to continue the process!";
++
++    @Test(expected = OCSPRequestFailedException.class)
++    public void signatureProfileLtTmShouldFailWhenSigningCertificateIsNotTrustedByTSL() {
++        setUpProdConfigurationWithTestTsaAndOcsp();
++        createSignatureBy(createNonEmptyContainerByConfiguration(), SignatureProfile.LT_TM, pkcs12SignatureToken);
++    }
++
++    @Test(expected = OCSPRequestFailedException.class)
++    public void signatureProfileLtShouldFailWhenSigningCertificateIsNotTrustedByTSL() {
++        setUpProdConfigurationWithTestTsaAndOcsp();
++        createSignatureBy(createNonEmptyContainerByConfiguration(), SignatureProfile.LT, pkcs12SignatureToken);
++    }
++
++    @Test(expected = OCSPRequestFailedException.class)
++    public void signatureProfileLtaShouldFailWhenSigningCertificateIsNotTrustedByTSL() {
++        setUpProdConfigurationWithTestTsaAndOcsp();
++        createSignatureBy(createNonEmptyContainerByConfiguration(), SignatureProfile.LTA, pkcs12SignatureToken);
++    }
++
++    @Test
++    public void signatureProfileBbesShouldNotFailWhenSigningCertificateIsNotTrustedByTSL() {
++        setUpProdConfigurationWithTestTsaAndOcsp();
++        Signature signature = createSignatureBy(createNonEmptyContainerByConfiguration(), SignatureProfile.B_BES, pkcs12SignatureToken);
++        ValidationResult validationResult = reloadSignature(signature, Configuration.Mode.TEST).validateSignature();
++        Assert.assertTrue(
++                "Validation result is expected to contain error: " + LTV_VALIDATION_ERROR_MESSAGE,
++                containsErrorMessage(validationResult, LTV_VALIDATION_ERROR_MESSAGE)
++        );
++    }
++
++    @Test
++    public void signatureProfileBepesShouldNotFailWhenSigningCertificateIsNotTrustedByTSL() {
++        setUpProdConfigurationWithTestTsaAndOcsp();
++        Signature signature = createSignatureBy(createNonEmptyContainerByConfiguration(), SignatureProfile.B_EPES, pkcs12SignatureToken);
++        ValidationResult validationResult = reloadSignature(signature, Configuration.Mode.TEST).validateSignature();
++        Assert.assertTrue(
++                "Validation result is expected to contain error: " + LTV_VALIDATION_ERROR_MESSAGE,
++                containsErrorMessage(validationResult, LTV_VALIDATION_ERROR_MESSAGE)
++        );
++    }
++
++    @Test(expected = CertificateValidationException.class)
++    public void signatureProfileLtTmShouldFailWhenOcspResponderIsNotTrustedByTSL() {
++        setUpProdConfigurationWithTestTsaAndOcsp();
++        ensureCertificateTrustedByTSL(pkcs12SignatureToken.getCertificate());
++        createSignatureBy(createNonEmptyContainerByConfiguration(), SignatureProfile.LT_TM, pkcs12SignatureToken);
++    }
++
++    @Test(expected = CertificateValidationException.class)
++    public void signatureProfileLtShouldFailWhenOcspResponderIsNotTrustedByTSL() {
++        setUpProdConfigurationWithTestTsaAndOcsp();
++        ensureCertificateTrustedByTSL(pkcs12SignatureToken.getCertificate());
++        createSignatureBy(createNonEmptyContainerByConfiguration(), SignatureProfile.LT, pkcs12SignatureToken);
++    }
++
++    @Test(expected = CertificateValidationException.class)
++    public void signatureProfileLtaShouldFailWhenOcspResponderIsNotTrustedByTSL() {
++        setUpProdConfigurationWithTestTsaAndOcsp();
++        ensureCertificateTrustedByTSL(pkcs12SignatureToken.getCertificate());
++        createSignatureBy(createNonEmptyContainerByConfiguration(), SignatureProfile.LTA, pkcs12SignatureToken);
++    }
++
++    @Test
++    public void signatureProfileBbesShouldNotFailWhenOcspResponderIsNotTrustedByTSL() {
++        setUpProdConfigurationWithTestTsaAndOcsp();
++        ensureCertificateTrustedByTSL(pkcs12SignatureToken.getCertificate());
++        Signature signature = createSignatureBy(createNonEmptyContainerByConfiguration(), SignatureProfile.B_BES, pkcs12SignatureToken);
++        ValidationResult validationResult = reloadSignature(signature, Configuration.Mode.TEST).validateSignature();
++        Assert.assertTrue(
++                "Validation result is expected to contain error: " + LTV_VALIDATION_ERROR_MESSAGE,
++                containsErrorMessage(validationResult, LTV_VALIDATION_ERROR_MESSAGE)
++        );
++    }
++
++    @Test
++    public void signatureProfileBepesShouldNotFailWheOcspResponderIsNotTrustedByTSL() {
++        setUpProdConfigurationWithTestTsaAndOcsp();
++        ensureCertificateTrustedByTSL(pkcs12SignatureToken.getCertificate());
++        Signature signature = createSignatureBy(createNonEmptyContainerByConfiguration(), SignatureProfile.B_EPES, pkcs12SignatureToken);
++        ValidationResult validationResult = reloadSignature(signature, Configuration.Mode.TEST).validateSignature();
++        Assert.assertTrue(
++                "Validation result is expected to contain error: " + LTV_VALIDATION_ERROR_MESSAGE,
++                containsErrorMessage(validationResult, LTV_VALIDATION_ERROR_MESSAGE)
++        );
++    }
++
++    @Test(expected = TslCertificateSourceInitializationException.class)
++    public void signatureProfileLtTmShouldFailWhenTslLoadingFails() {
++        setUpTestConfigurationWithFailingTSL();
++        createSignatureBy(createNonEmptyContainerByConfiguration(), SignatureProfile.LT_TM, pkcs12SignatureToken);
++    }
++
++    @Test(expected = TechnicalException.class)
++    public void signatureProfileLtShouldFailWhenTslLoadingFails() {
++        setUpTestConfigurationWithFailingTSL();
++        createSignatureBy(createNonEmptyContainerByConfiguration(), SignatureProfile.LT, pkcs12SignatureToken);
++    }
++
++    @Test(expected = TechnicalException.class)
++    public void signatureProfileLtaShouldFailWhenTslLoadingFails() {
++        setUpTestConfigurationWithFailingTSL();
++        createSignatureBy(createNonEmptyContainerByConfiguration(), SignatureProfile.LTA, pkcs12SignatureToken);
++    }
++
++    @Test
++    public void signatureProfileBbesShouldNotFailWhenTslLoadingFails() {
++        setUpTestConfigurationWithFailingTSL();
++        Signature signature = createSignatureBy(createNonEmptyContainerByConfiguration(), SignatureProfile.B_BES, pkcs12SignatureToken);
++        ValidationResult validationResult = reloadSignature(signature, Configuration.Mode.TEST).validateSignature();
++        Assert.assertTrue(
++                "Validation result is expected to contain error: " + LTV_VALIDATION_ERROR_MESSAGE,
++                containsErrorMessage(validationResult, LTV_VALIDATION_ERROR_MESSAGE)
++        );
++    }
++
++    @Test
++    public void signatureProfileBepesShouldNotFailWhenTslLoadingFails() {
++        setUpTestConfigurationWithFailingTSL();
++        Signature signature = createSignatureBy(createNonEmptyContainerByConfiguration(), SignatureProfile.B_EPES, pkcs12SignatureToken);
++        ValidationResult validationResult = reloadSignature(signature, Configuration.Mode.TEST).validateSignature();
++        Assert.assertTrue(
++                "Validation result is expected to contain error: " + LTV_VALIDATION_ERROR_MESSAGE,
++                containsErrorMessage(validationResult, LTV_VALIDATION_ERROR_MESSAGE)
++        );
++    }
++
++    @Test(expected = NetworkException.class)
++    public void signatureProfileLtTmShouldFailWhenDataLoadersFail() {
++        setUpTestConfigurationWithOkTslButFailingDataLoaders();
++        createSignatureBy(createNonEmptyContainerByConfiguration(), SignatureProfile.LT_TM, pkcs12SignatureToken);
++    }
++
++    @Test(expected = NetworkException.class)
++    public void signatureProfileLtShouldFailWhenDataLoadersFail() {
++        setUpTestConfigurationWithOkTslButFailingDataLoaders();
++        createSignatureBy(createNonEmptyContainerByConfiguration(), SignatureProfile.LT, pkcs12SignatureToken);
++    }
++
++    @Test(expected = NetworkException.class)
++    public void signatureProfileLtaShouldFailWhenDataLoadersFail() {
++        setUpTestConfigurationWithOkTslButFailingDataLoaders();
++        createSignatureBy(createNonEmptyContainerByConfiguration(), SignatureProfile.LTA, pkcs12SignatureToken);
++    }
++
++    @Test
++    public void signatureProfileBbesShouldNotFailWhenDataLoadersFail() {
++        setUpTestConfigurationWithOkTslButFailingDataLoaders();
++        Signature signature = createSignatureBy(createNonEmptyContainerByConfiguration(), SignatureProfile.B_BES, pkcs12SignatureToken);
++        ValidationResult validationResult = reloadSignature(signature, Configuration.Mode.TEST).validateSignature();
++        Assert.assertTrue(
++                "Validation result is expected to contain error: " + LTV_VALIDATION_ERROR_MESSAGE,
++                containsErrorMessage(validationResult, LTV_VALIDATION_ERROR_MESSAGE)
++        );
++    }
++
++    @Test
++    public void signatureProfileBepesShouldNotFailWhenDataLoadersFail() {
++        setUpTestConfigurationWithOkTslButFailingDataLoaders();
++        Signature signature = createSignatureBy(createNonEmptyContainerByConfiguration(), SignatureProfile.B_EPES, pkcs12SignatureToken);
++        ValidationResult validationResult = reloadSignature(signature, Configuration.Mode.TEST).validateSignature();
++        Assert.assertTrue(
++                "Validation result is expected to contain error: " + LTV_VALIDATION_ERROR_MESSAGE,
++                containsErrorMessage(validationResult, LTV_VALIDATION_ERROR_MESSAGE)
++        );
++    }
++
++    /**
++     * Sets up PROD configuration in order to get TSL without OCSP responder and signer CA certificates.
++     * NB: OCSP and TSP sources are set to demo URLs in order to prevent requests to non-free TSA and/or OCSP!
++     */
++    private void setUpProdConfigurationWithTestTsaAndOcsp() {
++        configuration = Configuration.of(Configuration.Mode.PROD);
++        Configuration testConfiguration = Configuration.of(Configuration.Mode.TEST);
++        configuration.setOcspSource(testConfiguration.getOcspSource());
++        configuration.setTspSource(testConfiguration.getTspSource());
++    }
++
++    private void setUpTestConfigurationWithFailingTSL() {
++        configuration = Configuration.of(Configuration.Mode.TEST);
++        configuration.setSslTruststorePath("invalid-truststore-path");
++        configuration.setSslTruststorePassword("invalid-truststore-password");
++        configuration.setSslTruststoreType("INVALID_TRUSTSTORE_TYPE");
++        configuration.setSslKeystorePath("invalid-keystore-path");
++        configuration.setSslKeystorePassword("invalid-keystore-password");
++        configuration.setSslKeystoreType("INVALID_KEYSTORE_TYPE");
++        configuration.getTSL().invalidateCache();
++    }
++
++    private void setUpTestConfigurationWithOkTslButFailingDataLoaders() {
++        configuration = Configuration.of(Configuration.Mode.TEST);
++        configuration.setOcspSource("invalid-ocsp-source");
++        configuration.setPreferAiaOcsp(false);
++    }
++
++    private void ensureCertificateTrustedByTSL(X509Certificate certificate) {
++        CertificateToken certificateToken = new CertificateToken(certificate);
++        CertificatePool tslPool = configuration.getTSL().getCertificatePool();
++        if (tslPool.getIssuer(certificateToken) != null) {
++            return;
++        }
++        addCertificateToTSL(
++                Paths.get("src", "test", "resources","testFiles", "certs", "TEST_of_ESTEID-SK_2015.pem.crt"),
++                configuration.getTSL()
++        );
++        Assert.assertNotNull(
++                "Issuer for '" + certificate.getSubjectDN().getName() + "' not found in TSL! Test or test files might be invalid or out-dated!",
++                tslPool.getIssuer(certificateToken)
++        );
++    }
++
++    private Signature reloadSignature(Signature signature, Configuration.Mode mode) {
++        try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
++            Container container = createNonEmptyContainerByConfiguration();
++            container.addSignature(signature);
++            container.save(out);
++            out.flush();
++
++            try (ByteArrayInputStream in = new ByteArrayInputStream(out.toByteArray())) {
++                return ContainerOpener
++                        .open(in, Configuration.of(mode))
++                        .getSignatures().get(0);
++            }
++        } catch (IOException e) {
++            throw new IllegalStateException("I/O operation failed", e);
++        }
++    }
++
++    private static boolean containsErrorMessage(ValidationResult validationResult, String errorMessage) {
++        for (DigiDoc4JException error : validationResult.getErrors()) {
++            if (error.getMessage().contains(errorMessage)) {
++                return true;
++            }
++        }
++        return false;
++    }
++
++}
+diff --git a/digidoc4j/src/test/resources/testFiles/certs/TEST_of_ESTEID-SK_2015.pem.crt b/digidoc4j/src/test/resources/testFiles/certs/TEST_of_ESTEID-SK_2015.pem.crt
+new file mode 100644
+index 000000000..bd666aa09
+--- /dev/null
++++ b/digidoc4j/src/test/resources/testFiles/certs/TEST_of_ESTEID-SK_2015.pem.crt
+@@ -0,0 +1,37 @@
++-----BEGIN CERTIFICATE-----
++MIIGgzCCBWugAwIBAgIQEDb9gCZi4PdWc7IoNVIbsTANBgkqhkiG9w0BAQwFADB9
++MQswCQYDVQQGEwJFRTEiMCAGA1UECgwZQVMgU2VydGlmaXRzZWVyaW1pc2tlc2t1
++czEwMC4GA1UEAwwnVEVTVCBvZiBFRSBDZXJ0aWZpY2F0aW9uIENlbnRyZSBSb290
++IENBMRgwFgYJKoZIhvcNAQkBFglwa2lAc2suZWUwIBcNMTUxMjE4MDcxMzQ0WhgP
++MjAzMDEyMTcyMzU5NTlaMGsxCzAJBgNVBAYTAkVFMSIwIAYDVQQKDBlBUyBTZXJ0
++aWZpdHNlZXJpbWlza2Vza3VzMRcwFQYDVQRhDA5OVFJFRS0xMDc0NzAxMzEfMB0G
++A1UEAwwWVEVTVCBvZiBFU1RFSUQtU0sgMjAxNTCCAiIwDQYJKoZIhvcNAQEBBQAD
++ggIPADCCAgoCggIBAMTeAFvLxmAeaOsRKaf+hlkOhW+CdEilmUIKWs+qCWVq+w8E
++8PA/TohAZdUcO4KFXothmPDmfOCb0ExXcnOPCr2NndavzB39htlyYKYxkOkZi3pL
++z8bZg/HvpBoy8KIg0sYdbhVPYHf6i7fuJjDac4zN1vKdVQXA6Tv5wS/e90/ZyF95
++5vycxdNLticdozm5yCDMNgsEji6QNA1zIi3+C2YmnDXx6VyxhuC2R3q0xNkwtJ4e
++zs1RZGxWokTNPzQc3ilGhEJlVsS8vP624hUHwufQnwrKWpc3+D+plMIO0j3E+hmh
++46gIadDRweFR/dzb+CIBHRaFh0LEBjd/cDFQlBI+E8vpkhqeWp6rp1xwnhCL201M
++3E1E1Mw+51Xqj7WOfY0TzjOmQJy8WJPEwU2m44KxW1SnpeEBVkgb4XYFeQHAllc7
++J7JDv50BoIPpecgaqn1vKR7l//wDsL0MN1tDlBhl3x7TJ/fwMnwB1E3zVZR74TUZ
++h5J49CAcFrfM4RmP/0hcDW8+4wNWMg2Qgst2qmPZmHCI/OJt5yMt0Ud5yPF8AWxV
++ot3TxOBGjMiM8m6WsksFsQxp5WtA0DANGXIIfydTaTV16Mg+KpYVqFKxkvFBmfVp
++6xApMaFl3dY/m56O9JHEqFpBDF+uDQIMjFJxJ4Pt7Mdk40zfL4PSw9Qco2T3AgMB
++AAGjggINMIICCTAfBgNVHSMEGDAWgBS1NAqdpS8QxechDr7EsWVHGwN2/jAdBgNV
++HQ4EFgQUScDyRDll1ZtGOw04YIOx1i0ohqYwDgYDVR0PAQH/BAQDAgEGMGYGA1Ud
++IARfMF0wMQYKKwYBBAHOHwMBATAjMCEGCCsGAQUFBwIBFhVodHRwczovL3d3dy5z
++ay5lZS9DUFMwDAYKKwYBBAHOHwMBAjAMBgorBgEEAc4fAwEDMAwGCisGAQQBzh8D
++AQQwEgYDVR0TAQH/BAgwBgEB/wIBADBBBgNVHR4EOjA4oTYwBIICIiIwCocIAAAA
++AAAAAAAwIocgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAwJwYDVR0l
++BCAwHgYIKwYBBQUHAwkGCCsGAQUFBwMCBggrBgEFBQcDBDCBiQYIKwYBBQUHAQEE
++fTB7MCUGCCsGAQUFBzABhhlodHRwOi8vZGVtby5zay5lZS9jYV9vY3NwMFIGCCsG
++AQUFBzAChkZodHRwOi8vd3d3LnNrLmVlL2NlcnRzL1RFU1Rfb2ZfRUVfQ2VydGlm
++aWNhdGlvbl9DZW50cmVfUm9vdF9DQS5kZXIuY3J0MEMGA1UdHwQ8MDowOKA2oDSG
++Mmh0dHBzOi8vd3d3LnNrLmVlL3JlcG9zaXRvcnkvY3Jscy90ZXN0X2VlY2NyY2Eu
++Y3JsMA0GCSqGSIb3DQEBDAUAA4IBAQDBOYTpbbQuoJKAmtDPpAomDd9mKZCarIPx
++AH8UXphSndMqOmIUA4oQMrLcZ6a0rMyCFR8x4NX7abc8T81cvgUAWjfNFn8+bi6+
++DgbjhYY+wZ010MHHdUo2xPajfog8cDWJPkmz+9PAdyjzhb1eYoEnm5D6o4hZQCiR
++yPnOKp7LZcpsVz1IFXsqP7M5WgHk0SqY1vs+Yhu7zWPSNYFIzNNXGoUtfKhhkHiR
++WFX/wdzr3fqeaQ3gs/PyD53YuJXRzFrktgJJoJWnHEYIhEwbai9+OeKr4L4kTkxv
++PKTyjjpLKcjUk0Y0cxg7BuzwevonyBtL72b/FVs6XsXJJqCa3W4T
++-----END CERTIFICATE-----

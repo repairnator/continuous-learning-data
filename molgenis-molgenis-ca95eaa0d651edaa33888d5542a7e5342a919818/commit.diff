@@ -1,0 +1,897 @@
+diff --git a/molgenis-core-ui/src/main/java/org/molgenis/core/ui/MolgenisInterceptor.java b/molgenis-core-ui/src/main/java/org/molgenis/core/ui/MolgenisInterceptor.java
+index 6b73d192a5..97018e8335 100644
+--- a/molgenis-core-ui/src/main/java/org/molgenis/core/ui/MolgenisInterceptor.java
++++ b/molgenis-core-ui/src/main/java/org/molgenis/core/ui/MolgenisInterceptor.java
+@@ -25,6 +25,7 @@
+ import org.molgenis.core.util.ResourceFingerprintRegistry;
+ import org.molgenis.security.oidc.model.OidcClient;
+ import org.molgenis.security.settings.AuthenticationSettings;
++import org.molgenis.security.user.UserAccountService;
+ import org.molgenis.settings.AppSettings;
+ import org.springframework.beans.factory.annotation.Value;
+ import org.springframework.context.MessageSource;
+@@ -37,6 +38,10 @@
+ 
+ /** Interceptor that adds default model objects to all requests that return a view. */
+ public class MolgenisInterceptor extends HandlerInterceptorAdapter {
++
++  public static final String KEY_LANGUAGE = "lng";
++  public static final String KEY_FALLBACK_LANGUAGE = "fallbackLng";
++  public static final String KEY_SUPER_USER = "isSuperUser";
+   private final ResourceFingerprintRegistry resourceFingerprintRegistry;
+   private final ThemeFingerprintRegistry themeFingerprintRegistry;
+   private final AuthenticationSettings authenticationSettings;
+@@ -45,6 +50,7 @@
+   private final MessageSource messageSource;
+   private final Gson gson;
+   private final PlatformTransactionManager transactionManager;
++  private final UserAccountService userAccountService;
+ 
+   public static final String ATTRIBUTE_ENVIRONMENT_TYPE = "environmentType";
+ 
+@@ -56,7 +62,8 @@ public MolgenisInterceptor(
+       @Value("${environment}") String environment,
+       MessageSource messageSource,
+       Gson gson,
+-      PlatformTransactionManager transactionManager) {
++      PlatformTransactionManager transactionManager,
++      UserAccountService userAccountService) {
+     this.resourceFingerprintRegistry = requireNonNull(resourceFingerprintRegistry);
+     this.themeFingerprintRegistry = requireNonNull(themeFingerprintRegistry);
+     this.appSettings = requireNonNull(appSettings);
+@@ -65,6 +72,7 @@ public MolgenisInterceptor(
+     this.messageSource = requireNonNull(messageSource);
+     this.gson = requireNonNull(gson);
+     this.transactionManager = requireNonNull(transactionManager);
++    this.userAccountService = requireNonNull(userAccountService);
+   }
+ 
+   @Override
+@@ -95,6 +103,10 @@ public void postHandle(
+                   KEY_I18N,
+                   new MessageSourceResourceBundle(messageSource, LocaleContextHolder.getLocale()));
+               modelAndView.addObject(KEY_GSON, gson);
++              modelAndView.addObject(KEY_LANGUAGE, LocaleContextHolder.getLocale().getLanguage());
++              modelAndView.addObject(KEY_FALLBACK_LANGUAGE, appSettings.getLanguageCode());
++              modelAndView.addObject(
++                  KEY_SUPER_USER, userAccountService.getCurrentUser().isSuperuser());
+               return null;
+             });
+       }
+diff --git a/molgenis-core-ui/src/main/java/org/molgenis/core/ui/MolgenisWebAppConfig.java b/molgenis-core-ui/src/main/java/org/molgenis/core/ui/MolgenisWebAppConfig.java
+index 0fe9b939f5..1a521c7b6a 100644
+--- a/molgenis-core-ui/src/main/java/org/molgenis/core/ui/MolgenisWebAppConfig.java
++++ b/molgenis-core-ui/src/main/java/org/molgenis/core/ui/MolgenisWebAppConfig.java
+@@ -36,6 +36,7 @@
+ import org.molgenis.security.freemarker.NotHasPermissionDirective;
+ import org.molgenis.security.settings.AuthenticationSettings;
+ import org.molgenis.security.token.TokenExtractor;
++import org.molgenis.security.user.UserAccountService;
+ import org.molgenis.settings.AppSettings;
+ import org.molgenis.util.AppDataRootProvider;
+ import org.molgenis.util.ApplicationContextProvider;
+@@ -99,6 +100,8 @@
+ 
+   @Autowired private PlatformTransactionManager transactionManager;
+ 
++  @Autowired private UserAccountService userAccountService;
++
+   @Override
+   public void configureAsyncSupport(AsyncSupportConfigurer configurer) {
+     configurer.setDefaultTimeout(60L * 1000L);
+@@ -228,7 +231,8 @@ public MolgenisInterceptor molgenisInterceptor() {
+         environment,
+         messageSource,
+         gson,
+-        transactionManager);
++        transactionManager,
++        userAccountService);
+   }
+ 
+   @Bean
+diff --git a/molgenis-core-ui/src/main/java/org/molgenis/core/ui/controller/VuePluginController.java b/molgenis-core-ui/src/main/java/org/molgenis/core/ui/controller/VuePluginController.java
+deleted file mode 100644
+index 7170031d21..0000000000
+--- a/molgenis-core-ui/src/main/java/org/molgenis/core/ui/controller/VuePluginController.java
++++ /dev/null
+@@ -1,46 +0,0 @@
+-package org.molgenis.core.ui.controller;
+-
+-import static java.util.Objects.requireNonNull;
+-
+-import org.molgenis.security.user.UserAccountService;
+-import org.molgenis.settings.AppSettings;
+-import org.molgenis.web.PluginController;
+-import org.molgenis.web.menu.MenuReaderService;
+-import org.springframework.context.i18n.LocaleContextHolder;
+-import org.springframework.ui.Model;
+-
+-public abstract class VuePluginController extends PluginController {
+-  protected MenuReaderService menuReaderService;
+-  private AppSettings appSettings;
+-  protected UserAccountService userAccountService;
+-
+-  private String languageCode;
+-
+-  public VuePluginController(
+-      String uri,
+-      MenuReaderService menuReaderService,
+-      AppSettings appSettings,
+-      UserAccountService userAccountService) {
+-    super(uri);
+-    this.menuReaderService = requireNonNull(menuReaderService);
+-    this.appSettings = requireNonNull(appSettings);
+-    this.userAccountService = requireNonNull(userAccountService);
+-  }
+-
+-  protected void init(Model model, final String pluginId) {
+-    languageCode = LocaleContextHolder.getLocale().getLanguage();
+-
+-    model.addAttribute("baseUrl", getBaseUrl(pluginId));
+-    model.addAttribute("lng", this.languageCode);
+-    model.addAttribute("fallbackLng", appSettings.getLanguageCode());
+-    model.addAttribute("isSuperUser", userAccountService.getCurrentUser().isSuperuser());
+-  }
+-
+-  protected String getBaseUrl(final String pluginId) {
+-    return menuReaderService.findMenuItemPath(pluginId);
+-  }
+-
+-  protected String getLanguageCode() {
+-    return this.languageCode == null ? appSettings.getLanguageCode() : this.languageCode;
+-  }
+-}
+diff --git a/molgenis-core-ui/src/test/java/org/molgenis/core/ui/MolgenisInterceptorTest.java b/molgenis-core-ui/src/test/java/org/molgenis/core/ui/MolgenisInterceptorTest.java
+index 5b812c6fb6..28bf95312e 100644
+--- a/molgenis-core-ui/src/test/java/org/molgenis/core/ui/MolgenisInterceptorTest.java
++++ b/molgenis-core-ui/src/test/java/org/molgenis/core/ui/MolgenisInterceptorTest.java
+@@ -9,6 +9,8 @@
+ import static org.mockito.Mockito.mock;
+ import static org.mockito.Mockito.when;
+ import static org.molgenis.core.ui.MolgenisInterceptor.ATTRIBUTE_ENVIRONMENT_TYPE;
++import static org.molgenis.core.ui.MolgenisInterceptor.KEY_FALLBACK_LANGUAGE;
++import static org.molgenis.core.ui.MolgenisInterceptor.KEY_SUPER_USER;
+ import static org.molgenis.web.PluginAttributes.KEY_APP_SETTINGS;
+ import static org.molgenis.web.PluginAttributes.KEY_AUTHENTICATION_OIDC_CLIENTS;
+ import static org.molgenis.web.PluginAttributes.KEY_GSON;
+@@ -26,9 +28,11 @@
+ import org.mockito.Mock;
+ import org.molgenis.core.ui.style.ThemeFingerprintRegistry;
+ import org.molgenis.core.util.ResourceFingerprintRegistry;
++import org.molgenis.data.security.auth.User;
+ import org.molgenis.data.transaction.TransactionManager;
+ import org.molgenis.security.oidc.model.OidcClient;
+ import org.molgenis.security.settings.AuthenticationSettings;
++import org.molgenis.security.user.UserAccountService;
+ import org.molgenis.settings.AppSettings;
+ import org.molgenis.test.AbstractMockitoTest;
+ import org.molgenis.web.PluginAttributes;
+@@ -42,6 +46,7 @@
+   @Mock private AuthenticationSettings authenticationSettings;
+   @Mock private MessageSource messageSource;
+   @Mock private TransactionManager transactionManager;
++  @Mock private UserAccountService userAccountService;
+ 
+   private String environment;
+   private Gson gson;
+@@ -60,14 +65,15 @@ void setUpBeforeEach() {
+             environment,
+             messageSource,
+             gson,
+-            transactionManager);
++            transactionManager,
++            userAccountService);
+   }
+ 
+   @Test
+   void MolgenisInterceptor() {
+     assertThrows(
+         NullPointerException.class,
+-        () -> new MolgenisInterceptor(null, null, null, null, null, null, null, null));
++        () -> new MolgenisInterceptor(null, null, null, null, null, null, null, null, null));
+   }
+ 
+   @Test
+@@ -75,6 +81,12 @@ void MolgenisInterceptor() {
+   void postHandle() {
+     HttpServletRequest request = mock(HttpServletRequest.class);
+     HttpServletResponse response = mock(HttpServletResponse.class);
++
++    User user = mock(User.class);
++    when(user.isSuperuser()).thenReturn(true);
++    when(userAccountService.getCurrentUser()).thenReturn(user);
++    when(appSettings.getLanguageCode()).thenReturn("de");
++
+     Object handler = mock(Object.class);
+     ModelAndView modelAndView = new ModelAndView();
+     molgenisInterceptor.postHandle(request, response, handler, modelAndView);
+@@ -89,6 +101,8 @@ void postHandle() {
+     assertEquals(environment, environmentAttributes.get(ATTRIBUTE_ENVIRONMENT_TYPE));
+     assertTrue(model.containsKey(PluginAttributes.KEY_I18N));
+     assertSame(model.get(KEY_GSON), gson);
++    assertSame(model.get(KEY_FALLBACK_LANGUAGE), "de");
++    assertSame(model.get(KEY_SUPER_USER), true);
+   }
+ 
+   @Test
+@@ -102,6 +116,10 @@ void postHandleWithOidcClient() {
+     when(authenticationSettings.getOidcClients()).thenReturn(ImmutableList.of(oidcClient));
+     when(oidcClient.getRegistrationId()).thenReturn("registrationId");
+     when(oidcClient.getClientName()).thenReturn("clientName");
++    User user = mock(User.class);
++    when(user.isSuperuser()).thenReturn(true);
++    when(userAccountService.getCurrentUser()).thenReturn(user);
++    when(appSettings.getLanguageCode()).thenReturn("de");
+ 
+     molgenisInterceptor.postHandle(request, response, handler, modelAndView);
+ 
+diff --git a/molgenis-core-ui/src/test/java/org/molgenis/core/ui/admin/user/UserAccountControllerMockMvcTest.java b/molgenis-core-ui/src/test/java/org/molgenis/core/ui/admin/user/UserAccountControllerMockMvcTest.java
+index 2ab315b4f6..09a9de35dc 100644
+--- a/molgenis-core-ui/src/test/java/org/molgenis/core/ui/admin/user/UserAccountControllerMockMvcTest.java
++++ b/molgenis-core-ui/src/test/java/org/molgenis/core/ui/admin/user/UserAccountControllerMockMvcTest.java
+@@ -11,7 +11,7 @@
+ import org.junit.jupiter.api.BeforeEach;
+ import org.junit.jupiter.api.Test;
+ import org.mockito.MockitoAnnotations;
+-import org.molgenis.test.AbstractMockitoSpringContextTests;
++import org.molgenis.data.AbstractMolgenisSpringTest;
+ import org.molgenis.web.converter.GsonConfig;
+ import org.springframework.beans.factory.annotation.Autowired;
+ import org.springframework.http.converter.json.GsonHttpMessageConverter;
+@@ -24,7 +24,7 @@
+ 
+ @WebAppConfiguration
+ @ContextConfiguration(classes = {UserAccountControllerTestConfig.class, GsonConfig.class})
+-class UserAccountControllerMockMvcTest extends AbstractMockitoSpringContextTests {
++class UserAccountControllerMockMvcTest extends AbstractMolgenisSpringTest {
+   @Autowired private UserAccountControllerTestConfig config;
+   @Autowired private UserAccountController userAccountController;
+   @Autowired private GsonHttpMessageConverter gsonHttpMessageConverter;
+diff --git a/molgenis-data-row-edit/src/main/java/org/molgenis/datarowedit/controller/DataRowEditController.java b/molgenis-data-row-edit/src/main/java/org/molgenis/datarowedit/controller/DataRowEditController.java
+index af1793ad13..f0193ea987 100644
+--- a/molgenis-data-row-edit/src/main/java/org/molgenis/datarowedit/controller/DataRowEditController.java
++++ b/molgenis-data-row-edit/src/main/java/org/molgenis/datarowedit/controller/DataRowEditController.java
+@@ -1,8 +1,8 @@
+ package org.molgenis.datarowedit.controller;
+ 
+-import org.molgenis.core.ui.controller.VuePluginController;
++import static java.util.Objects.requireNonNull;
++
+ import org.molgenis.dataexplorer.controller.DataExplorerController;
+-import org.molgenis.security.user.UserAccountService;
+ import org.molgenis.settings.AppSettings;
+ import org.molgenis.web.PluginController;
+ import org.molgenis.web.menu.MenuReaderService;
+@@ -14,20 +14,19 @@
+ 
+ @Controller
+ @RequestMapping(DataRowEditController.URI)
+-public class DataRowEditController extends VuePluginController {
++public class DataRowEditController extends PluginController {
+   public static final String ID = "data-row-edit";
+   public static final String URI = PluginController.PLUGIN_URI_PREFIX + ID;
+ 
+   public static final String VIEW_TEMPLATE = "view-data-row-edit";
++  private final MenuReaderService menuReaderService;
+ 
+   private AppSettings appSettings;
+ 
+-  DataRowEditController(
+-      MenuReaderService menuReaderService,
+-      AppSettings appSettings,
+-      UserAccountService userAccountService) {
+-    super(URI, menuReaderService, appSettings, userAccountService);
+-    this.appSettings = appSettings;
++  DataRowEditController(MenuReaderService menuReaderService, AppSettings appSettings) {
++    super(URI);
++    this.appSettings = requireNonNull(appSettings);
++    this.menuReaderService = requireNonNull(menuReaderService);
+   }
+ 
+   @GetMapping("/**")
+@@ -35,7 +34,8 @@ public String init(Model model) {
+     model.addAttribute("baseUrl", URI);
+     model.addAttribute("lng", LocaleContextHolder.getLocale().getLanguage());
+     model.addAttribute("fallbackLng", appSettings.getLanguageCode());
+-    model.addAttribute("dataExplorerBaseUrl", getBaseUrl(DataExplorerController.ID));
++    model.addAttribute(
++        "dataExplorerBaseUrl", menuReaderService.findMenuItemPath(DataExplorerController.ID));
+     return VIEW_TEMPLATE;
+   }
+ }
+diff --git a/molgenis-data-row-edit/src/test/java/org/molgenis/datarowedit/controller/DataRowEditControllerTest.java b/molgenis-data-row-edit/src/test/java/org/molgenis/datarowedit/controller/DataRowEditControllerTest.java
+index 429ccdb370..c7d15ee9fe 100644
+--- a/molgenis-data-row-edit/src/test/java/org/molgenis/datarowedit/controller/DataRowEditControllerTest.java
++++ b/molgenis-data-row-edit/src/test/java/org/molgenis/datarowedit/controller/DataRowEditControllerTest.java
+@@ -43,7 +43,7 @@ void before() {
+     when(user.isSuperuser()).thenReturn(false);
+ 
+     DataRowEditController settingsController =
+-        new DataRowEditController(menuReaderService, appSettings, userAccountService);
++        new DataRowEditController(menuReaderService, appSettings);
+     mockMvc = standaloneSetup(settingsController).build();
+   }
+ 
+diff --git a/molgenis-metadata-manager/src/main/java/org/molgenis/metadata/manager/controller/MetadataManagerController.java b/molgenis-metadata-manager/src/main/java/org/molgenis/metadata/manager/controller/MetadataManagerController.java
+index 2c13785d0a..1b2ca50a0e 100644
+--- a/molgenis-metadata-manager/src/main/java/org/molgenis/metadata/manager/controller/MetadataManagerController.java
++++ b/molgenis-metadata-manager/src/main/java/org/molgenis/metadata/manager/controller/MetadataManagerController.java
+@@ -4,17 +4,13 @@
+ import static org.springframework.http.HttpStatus.OK;
+ 
+ import java.util.List;
+-import org.molgenis.core.ui.controller.VuePluginController;
+ import org.molgenis.metadata.manager.model.EditorAttributeResponse;
+ import org.molgenis.metadata.manager.model.EditorEntityType;
+ import org.molgenis.metadata.manager.model.EditorEntityTypeResponse;
+ import org.molgenis.metadata.manager.model.EditorPackageIdentifier;
+ import org.molgenis.metadata.manager.service.MetadataManagerService;
+-import org.molgenis.security.user.UserAccountService;
+-import org.molgenis.settings.AppSettings;
++import org.molgenis.web.PluginController;
+ import org.molgenis.web.menu.MenuReaderService;
+-import org.slf4j.Logger;
+-import org.slf4j.LoggerFactory;
+ import org.springframework.stereotype.Controller;
+ import org.springframework.ui.Model;
+ import org.springframework.web.bind.annotation.GetMapping;
+@@ -27,26 +23,25 @@
+ 
+ @Controller
+ @RequestMapping(MetadataManagerController.URI)
+-public class MetadataManagerController extends VuePluginController {
+-  private static final Logger LOG = LoggerFactory.getLogger(MetadataManagerController.class);
++public class MetadataManagerController extends PluginController {
+ 
+   public static final String METADATA_MANAGER = "metadata-manager";
+   public static final String URI = PLUGIN_URI_PREFIX + METADATA_MANAGER;
++  private static final String KEY_BASE_URL = "baseUrl";
+ 
+   private MetadataManagerService metadataManagerService;
++  private final MenuReaderService menuReaderService;
+ 
+   public MetadataManagerController(
+-      MenuReaderService menuReaderService,
+-      AppSettings appSettings,
+-      MetadataManagerService metadataManagerService,
+-      UserAccountService userAccountService) {
+-    super(URI, menuReaderService, appSettings, userAccountService);
++      MenuReaderService menuReaderService, MetadataManagerService metadataManagerService) {
++    super(URI);
+     this.metadataManagerService = requireNonNull(metadataManagerService);
++    this.menuReaderService = requireNonNull(menuReaderService);
+   }
+ 
+   @GetMapping("/**")
+   public String init(Model model) {
+-    super.init(model, METADATA_MANAGER);
++    model.addAttribute(KEY_BASE_URL, menuReaderService.findMenuItemPath(METADATA_MANAGER));
+     return "view-metadata-manager";
+   }
+ 
+diff --git a/molgenis-metadata-manager/src/test/java/org/molgenis/metadata/manager/controller/MetadataManagerControllerTest.java b/molgenis-metadata-manager/src/test/java/org/molgenis/metadata/manager/controller/MetadataManagerControllerTest.java
+index e2638de41c..1f6a235cba 100644
+--- a/molgenis-metadata-manager/src/test/java/org/molgenis/metadata/manager/controller/MetadataManagerControllerTest.java
++++ b/molgenis-metadata-manager/src/test/java/org/molgenis/metadata/manager/controller/MetadataManagerControllerTest.java
+@@ -78,8 +78,7 @@ void beforeMethod() {
+     when(userAccountService.getCurrentUser()).thenReturn(user);
+ 
+     MetadataManagerController metadataEditorController =
+-        new MetadataManagerController(
+-            menuReaderService, appSettings, metadataManagerService, userAccountService);
++        new MetadataManagerController(menuReaderService, metadataManagerService);
+ 
+     mockMvc =
+         MockMvcBuilders.standaloneSetup(metadataEditorController)
+@@ -95,9 +94,7 @@ void testInit() throws Exception {
+         .perform(get("/plugin/metadata-manager"))
+         .andExpect(status().isOk())
+         .andExpect(view().name("view-metadata-manager"))
+-        .andExpect(model().attribute("baseUrl", "/test/path"))
+-        .andExpect(model().attribute("lng", "de"))
+-        .andExpect(model().attribute("fallbackLng", "nl"));
++        .andExpect(model().attribute("baseUrl", "/test/path"));
+   }
+ 
+   @Test
+diff --git a/molgenis-navigator/src/main/java/org/molgenis/navigator/NavigatorController.java b/molgenis-navigator/src/main/java/org/molgenis/navigator/NavigatorController.java
+index 3c88a0c7ba..d7472268eb 100644
+--- a/molgenis-navigator/src/main/java/org/molgenis/navigator/NavigatorController.java
++++ b/molgenis-navigator/src/main/java/org/molgenis/navigator/NavigatorController.java
+@@ -8,11 +8,9 @@
+ import javax.annotation.CheckForNull;
+ import javax.annotation.Nullable;
+ import javax.validation.Valid;
+-import org.molgenis.core.ui.controller.VuePluginController;
+ import org.molgenis.jobs.model.JobExecution;
+ import org.molgenis.navigator.model.Resource;
+-import org.molgenis.security.user.UserAccountService;
+-import org.molgenis.settings.AppSettings;
++import org.molgenis.web.PluginController;
+ import org.molgenis.web.menu.MenuReaderService;
+ import org.springframework.stereotype.Controller;
+ import org.springframework.ui.Model;
+@@ -28,24 +26,23 @@
+ 
+ @Controller
+ @RequestMapping(NavigatorController.URI)
+-public class NavigatorController extends VuePluginController {
++public class NavigatorController extends PluginController {
+   public static final String ID = "navigator";
+   public static final String URI = PLUGIN_URI_PREFIX + ID;
++  private static final String KEY_BASE_URL = "baseUrl";
+ 
+   private final NavigatorService navigatorService;
++  private final MenuReaderService menuReaderService;
+ 
+-  NavigatorController(
+-      MenuReaderService menuReaderService,
+-      AppSettings appSettings,
+-      UserAccountService userAccountService,
+-      NavigatorService navigatorService) {
+-    super(URI, menuReaderService, appSettings, userAccountService);
++  NavigatorController(MenuReaderService menuReaderService, NavigatorService navigatorService) {
++    super(URI);
++    this.menuReaderService = requireNonNull(menuReaderService);
+     this.navigatorService = requireNonNull(navigatorService);
+   }
+ 
+   @GetMapping("/**")
+   public String init(Model model) {
+-    super.init(model, ID);
++    model.addAttribute(KEY_BASE_URL, menuReaderService.findMenuItemPath(ID));
+ 
+     asList("dataexplorer", "metadata-manager", "importwizard")
+         .forEach(
+diff --git a/molgenis-navigator/src/test/java/org/molgenis/navigator/NavigatorControllerTest.java b/molgenis-navigator/src/test/java/org/molgenis/navigator/NavigatorControllerTest.java
+index 44963abd5d..3bddab0181 100644
+--- a/molgenis-navigator/src/test/java/org/molgenis/navigator/NavigatorControllerTest.java
++++ b/molgenis-navigator/src/test/java/org/molgenis/navigator/NavigatorControllerTest.java
+@@ -22,7 +22,6 @@
+ import org.junit.jupiter.api.Test;
+ import org.mockito.Mock;
+ import org.molgenis.data.meta.model.EntityType;
+-import org.molgenis.data.security.auth.User;
+ import org.molgenis.jobs.model.JobExecution;
+ import org.molgenis.navigator.model.Resource;
+ import org.molgenis.navigator.model.ResourceIdentifier;
+@@ -61,8 +60,7 @@
+   @BeforeEach
+   void before() {
+     NavigatorController navigatorController =
+-        new NavigatorController(
+-            menuReaderService, appSettings, userAccountService, navigatorService);
++        new NavigatorController(menuReaderService, navigatorService);
+     mockMvc =
+         MockMvcBuilders.standaloneSetup(navigatorController)
+             .setMessageConverters(gsonHttpMessageConverter)
+@@ -74,20 +72,13 @@ void before() {
+   @Test
+   void testInit() throws Exception {
+     when(menuReaderService.findMenuItemPath(NavigatorController.ID)).thenReturn("/test/path");
+-    when(appSettings.getLanguageCode()).thenReturn("de");
+-    User user = mock(User.class);
+-    when(userAccountService.getCurrentUser()).thenReturn(user);
+-    when(user.isSuperuser()).thenReturn(false);
+ 
+     when(localeResolver.resolveLocale(any())).thenReturn(Locale.FRENCH);
+     mockMvc
+         .perform(get(NavigatorController.URI))
+         .andExpect(status().isOk())
+         .andExpect(view().name("view-navigator"))
+-        .andExpect(model().attribute("baseUrl", "/test/path"))
+-        .andExpect(model().attribute("lng", "fr"))
+-        .andExpect(model().attribute("fallbackLng", "de"))
+-        .andExpect(model().attribute("isSuperUser", false));
++        .andExpect(model().attribute("baseUrl", "/test/path"));
+   }
+ 
+   @Test
+diff --git a/molgenis-one-click-importer/src/main/java/org/molgenis/oneclickimporter/controller/OneClickImporterController.java b/molgenis-one-click-importer/src/main/java/org/molgenis/oneclickimporter/controller/OneClickImporterController.java
+index 53e1f79d50..d09b9cf253 100644
+--- a/molgenis-one-click-importer/src/main/java/org/molgenis/oneclickimporter/controller/OneClickImporterController.java
++++ b/molgenis-one-click-importer/src/main/java/org/molgenis/oneclickimporter/controller/OneClickImporterController.java
+@@ -9,7 +9,6 @@
+ import java.io.InputStream;
+ import java.time.format.DateTimeParseException;
+ import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
+-import org.molgenis.core.ui.controller.VuePluginController;
+ import org.molgenis.data.MolgenisDataException;
+ import org.molgenis.data.file.FileStore;
+ import org.molgenis.dataexplorer.controller.DataExplorerController;
+@@ -19,9 +18,8 @@
+ import org.molgenis.oneclickimporter.exceptions.UnknownFileTypeException;
+ import org.molgenis.oneclickimporter.job.OneClickImportJobExecution;
+ import org.molgenis.oneclickimporter.job.OneClickImportJobExecutionFactory;
+-import org.molgenis.security.user.UserAccountService;
+-import org.molgenis.settings.AppSettings;
+ import org.molgenis.web.ErrorMessageResponse;
++import org.molgenis.web.PluginController;
+ import org.molgenis.web.menu.MenuReaderService;
+ import org.springframework.http.MediaType;
+ import org.springframework.stereotype.Controller;
+@@ -37,32 +35,35 @@
+ 
+ @Controller
+ @RequestMapping(OneClickImporterController.URI)
+-public class OneClickImporterController extends VuePluginController {
++public class OneClickImporterController extends PluginController {
+   public static final String ONE_CLICK_IMPORTER = "one-click-importer";
+   public static final String URI = PLUGIN_URI_PREFIX + ONE_CLICK_IMPORTER;
++  private static final String KEY_BASE_URL = "baseUrl";
+ 
+   private FileStore fileStore;
+   private OneClickImportJobExecutionFactory oneClickImportJobExecutionFactory;
+   private JobExecutor jobExecutor;
++  private MenuReaderService menuReaderService;
+ 
+   public OneClickImporterController(
+       MenuReaderService menuReaderService,
+-      AppSettings appSettings,
+-      UserAccountService userAccountService,
+       FileStore fileStore,
+       OneClickImportJobExecutionFactory oneClickImportJobExecutionFactory,
+       JobExecutor jobExecutor) {
+-    super(URI, menuReaderService, appSettings, userAccountService);
++    super(URI);
+     this.fileStore = requireNonNull(fileStore);
+     this.oneClickImportJobExecutionFactory = requireNonNull(oneClickImportJobExecutionFactory);
+     this.jobExecutor = requireNonNull(jobExecutor);
++    this.menuReaderService = requireNonNull(menuReaderService);
+   }
+ 
+   @GetMapping
+   public String init(Model model) {
+-    super.init(model, ONE_CLICK_IMPORTER);
+-    model.addAttribute("navigatorBaseUrl", getBaseUrl(NavigatorController.ID));
+-    model.addAttribute("dataExplorerBaseUrl", getBaseUrl(DataExplorerController.ID));
++    model.addAttribute(KEY_BASE_URL, menuReaderService.findMenuItemPath(ONE_CLICK_IMPORTER));
++    model.addAttribute(
++        "navigatorBaseUrl", menuReaderService.findMenuItemPath(NavigatorController.ID));
++    model.addAttribute(
++        "dataExplorerBaseUrl", menuReaderService.findMenuItemPath(DataExplorerController.ID));
+ 
+     return "view-one-click-importer";
+   }
+diff --git a/molgenis-one-click-importer/src/test/java/org.molgenis.oneclickimporter/controller/OneClickImporterControllerTest.java b/molgenis-one-click-importer/src/test/java/org.molgenis.oneclickimporter/controller/OneClickImporterControllerTest.java
+index 697198cb82..85382527b0 100644
+--- a/molgenis-one-click-importer/src/test/java/org.molgenis.oneclickimporter/controller/OneClickImporterControllerTest.java
++++ b/molgenis-one-click-importer/src/test/java/org.molgenis.oneclickimporter/controller/OneClickImporterControllerTest.java
+@@ -74,12 +74,7 @@
+   void before() {
+     OneClickImporterController oneClickImporterController =
+         new OneClickImporterController(
+-            menuReaderService,
+-            appSettings,
+-            userAccountService,
+-            fileStore,
+-            oneClickImportJobExecutionFactory,
+-            jobExecutor);
++            menuReaderService, fileStore, oneClickImportJobExecutionFactory, jobExecutor);
+ 
+     when(menuReaderService.findMenuItemPath(OneClickImporterController.ONE_CLICK_IMPORTER))
+         .thenReturn("/test-path");
+@@ -114,9 +109,7 @@ void testInit() throws Exception {
+         .perform(get(OneClickImporterController.URI))
+         .andExpect(status().isOk())
+         .andExpect(view().name("view-one-click-importer"))
+-        .andExpect(model().attribute("baseUrl", "/test-path"))
+-        .andExpect(model().attribute("lng", "nl"))
+-        .andExpect(model().attribute("fallbackLng", "en"));
++        .andExpect(model().attribute("baseUrl", "/test-path"));
+   }
+ 
+   @Test
+diff --git a/molgenis-questionnaires/src/main/java/org/molgenis/questionnaires/controller/QuestionnaireController.java b/molgenis-questionnaires/src/main/java/org/molgenis/questionnaires/controller/QuestionnaireController.java
+index bac41aa3b7..31120c9c78 100644
+--- a/molgenis-questionnaires/src/main/java/org/molgenis/questionnaires/controller/QuestionnaireController.java
++++ b/molgenis-questionnaires/src/main/java/org/molgenis/questionnaires/controller/QuestionnaireController.java
+@@ -5,7 +5,6 @@
+ 
+ import java.util.List;
+ import java.util.stream.Collectors;
+-import org.molgenis.core.ui.controller.VuePluginController;
+ import org.molgenis.data.meta.model.EntityType;
+ import org.molgenis.questionnaires.meta.Questionnaire;
+ import org.molgenis.questionnaires.meta.QuestionnaireStatus;
+@@ -24,28 +23,35 @@
+ 
+ @Controller
+ @RequestMapping(QuestionnaireController.URI)
+-public class QuestionnaireController extends VuePluginController {
++public class QuestionnaireController extends PluginController {
+   public static final String ID = "questionnaires";
+   public static final String URI = PluginController.PLUGIN_URI_PREFIX + ID;
++  private static final String KEY_BASE_URL = "baseUrl";
+ 
+   private static final String QUESTIONNAIRE_VIEW = "view-questionnaire";
+ 
+   private final QuestionnaireService questionnaireService;
++  private final MenuReaderService menuReaderService;
++  private final AppSettings appSettings;
++  private final UserAccountService userAccountService;
+ 
+   public QuestionnaireController(
+       QuestionnaireService questionnaireService,
+       MenuReaderService menuReaderService,
+       AppSettings appSettings,
+       UserAccountService userAccountService) {
+-    super(URI, menuReaderService, appSettings, userAccountService);
++    super(URI);
+     this.questionnaireService = requireNonNull(questionnaireService);
++    this.menuReaderService = requireNonNull(menuReaderService);
++    this.appSettings = requireNonNull(appSettings);
++    this.userAccountService = requireNonNull(userAccountService);
+   }
+ 
+   /** Loads the questionnaire view */
+   @GetMapping("/**")
+   public String initView(Model model) {
+-    super.init(model, ID);
+-    model.addAttribute("username", super.userAccountService.getCurrentUser().getUsername());
++    model.addAttribute(KEY_BASE_URL, menuReaderService.findMenuItemPath(ID));
++    model.addAttribute("username", userAccountService.getCurrentUser().getUsername());
+     return QUESTIONNAIRE_VIEW;
+   }
+ 
+@@ -114,7 +120,7 @@ private QuestionnaireResponse createQuestionnaireResponse(EntityType entityType)
+       status = questionnaireEntity.getStatus();
+     }
+ 
+-    String lng = this.getLanguageCode();
++    String lng = appSettings.getLanguageCode();
+ 
+     return QuestionnaireResponse.create(
+         entityTypeId, entityType.getLabel(lng), entityType.getDescription(lng), status);
+diff --git a/molgenis-questionnaires/src/test/java/org/molgenis/questionnaires/controller/QuestionnaireControllerTest.java b/molgenis-questionnaires/src/test/java/org/molgenis/questionnaires/controller/QuestionnaireControllerTest.java
+index b31aa530a3..59c78f7177 100644
+--- a/molgenis-questionnaires/src/test/java/org/molgenis/questionnaires/controller/QuestionnaireControllerTest.java
++++ b/molgenis-questionnaires/src/test/java/org/molgenis/questionnaires/controller/QuestionnaireControllerTest.java
+@@ -93,10 +93,7 @@ void testInit() throws Exception {
+         .perform(get(QuestionnaireController.URI))
+         .andExpect(status().isOk())
+         .andExpect(view().name("view-questionnaire"))
+-        .andExpect(model().attribute("baseUrl", "/test/path"))
+-        .andExpect(model().attribute("lng", "en"))
+-        .andExpect(model().attribute("fallbackLng", "en"))
+-        .andExpect(model().attribute("isSuperUser", false));
++        .andExpect(model().attribute("baseUrl", "/test/path"));
+   }
+ 
+   @Test
+diff --git a/molgenis-scripts/src/main/java/org/molgenis/script/ScriptPluginController.java b/molgenis-scripts/src/main/java/org/molgenis/script/ScriptPluginController.java
+index b200509b06..1f754a596b 100644
+--- a/molgenis-scripts/src/main/java/org/molgenis/script/ScriptPluginController.java
++++ b/molgenis-scripts/src/main/java/org/molgenis/script/ScriptPluginController.java
+@@ -1,8 +1,7 @@
+ package org.molgenis.script;
+ 
+-import org.molgenis.core.ui.controller.VuePluginController;
+-import org.molgenis.security.user.UserAccountService;
+-import org.molgenis.settings.AppSettings;
++import static java.util.Objects.requireNonNull;
++
+ import org.molgenis.web.PluginController;
+ import org.molgenis.web.menu.MenuReaderService;
+ import org.springframework.stereotype.Controller;
+@@ -12,20 +11,21 @@
+ 
+ @Controller
+ @RequestMapping(ScriptPluginController.URI)
+-public class ScriptPluginController extends VuePluginController {
++public class ScriptPluginController extends PluginController {
+   public static final String ID = "scripts";
+   public static final String URI = PluginController.PLUGIN_URI_PREFIX + ID;
++  private static final String KEY_BASE_URL = "baseUrl";
++
++  private final MenuReaderService menuReaderService;
+ 
+-  public ScriptPluginController(
+-      MenuReaderService menuReaderService,
+-      AppSettings appSettings,
+-      UserAccountService userAccountService) {
+-    super(URI, menuReaderService, appSettings, userAccountService);
++  public ScriptPluginController(MenuReaderService menuReaderService) {
++    super(URI);
++    this.menuReaderService = requireNonNull(menuReaderService);
+   }
+ 
+   @GetMapping("/**")
+   public String listScripts(Model model) {
+-    super.init(model, ID);
++    model.addAttribute(KEY_BASE_URL, menuReaderService.findMenuItemPath(ID));
+     return "view-scripts";
+   }
+ }
+diff --git a/molgenis-searchall/src/main/java/org/molgenis/searchall/controller/SearchAllPluginController.java b/molgenis-searchall/src/main/java/org/molgenis/searchall/controller/SearchAllPluginController.java
+index 851c0343f6..cdb64ecf8c 100644
+--- a/molgenis-searchall/src/main/java/org/molgenis/searchall/controller/SearchAllPluginController.java
++++ b/molgenis-searchall/src/main/java/org/molgenis/searchall/controller/SearchAllPluginController.java
+@@ -3,11 +3,9 @@
+ import static java.util.Objects.requireNonNull;
+ import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
+ 
+-import org.molgenis.core.ui.controller.VuePluginController;
+ import org.molgenis.searchall.model.Result;
+ import org.molgenis.searchall.service.SearchAllService;
+-import org.molgenis.security.user.UserAccountService;
+-import org.molgenis.settings.AppSettings;
++import org.molgenis.web.PluginController;
+ import org.molgenis.web.menu.MenuReaderService;
+ import org.springframework.stereotype.Controller;
+ import org.springframework.ui.Model;
+@@ -18,27 +16,27 @@
+ 
+ @Controller
+ @RequestMapping(SearchAllPluginController.URI)
+-public class SearchAllPluginController extends VuePluginController {
++public class SearchAllPluginController extends PluginController {
+   public static final String ID = "searchAll";
+   public static final String URI = PLUGIN_URI_PREFIX + ID;
++  private static final String KEY_BASE_URL = "baseUrl";
+ 
+   public static final String NAVIGATOR = "navigator";
+   public static final String DATAEXPLORER = "dataexplorer";
+ 
+   private final SearchAllService searchAllService;
++  private final MenuReaderService menuReaderService;
+ 
+   public SearchAllPluginController(
+-      SearchAllService searchAllService,
+-      AppSettings appSettings,
+-      MenuReaderService menuReaderService,
+-      UserAccountService userAccountService) {
+-    super(URI, menuReaderService, appSettings, userAccountService);
++      MenuReaderService menuReaderService, SearchAllService searchAllService) {
++    super(URI);
++    this.menuReaderService = requireNonNull(menuReaderService);
+     this.searchAllService = requireNonNull(searchAllService);
+   }
+ 
+   @GetMapping("/**")
+   public String init(Model model) {
+-    super.init(model, ID);
++    model.addAttribute(KEY_BASE_URL, menuReaderService.findMenuItemPath(ID));
+     model.addAttribute("navigatorBaseUrl", menuReaderService.findMenuItemPath(NAVIGATOR));
+     model.addAttribute("dataExplorerBaseUrl", menuReaderService.findMenuItemPath(DATAEXPLORER));
+     return "view-search-all";
+diff --git a/molgenis-security-ui/src/main/java/org/molgenis/securityui/controller/SecurityUiController.java b/molgenis-security-ui/src/main/java/org/molgenis/securityui/controller/SecurityUiController.java
+index 05b98ecaf7..fe4a91c7ce 100644
+--- a/molgenis-security-ui/src/main/java/org/molgenis/securityui/controller/SecurityUiController.java
++++ b/molgenis-security-ui/src/main/java/org/molgenis/securityui/controller/SecurityUiController.java
+@@ -1,8 +1,7 @@
+ package org.molgenis.securityui.controller;
+ 
+-import org.molgenis.core.ui.controller.VuePluginController;
+-import org.molgenis.security.user.UserAccountService;
+-import org.molgenis.settings.AppSettings;
++import static java.util.Objects.requireNonNull;
++
+ import org.molgenis.web.PluginController;
+ import org.molgenis.web.menu.MenuReaderService;
+ import org.springframework.stereotype.Controller;
+@@ -12,22 +11,22 @@
+ 
+ @Controller
+ @RequestMapping(SecurityUiController.URI)
+-public class SecurityUiController extends VuePluginController {
++public class SecurityUiController extends PluginController {
+   public static final String ID = "security-ui";
+   public static final String URI = PluginController.PLUGIN_URI_PREFIX + ID;
++  private static final String KEY_BASE_URL = "baseUrl";
+ 
+   static final String VIEW_TEMPLATE = "view-security-ui";
++  private final MenuReaderService menuReaderService;
+ 
+-  SecurityUiController(
+-      MenuReaderService menuReaderService,
+-      AppSettings appSettings,
+-      UserAccountService userAccountService) {
+-    super(URI, menuReaderService, appSettings, userAccountService);
++  SecurityUiController(MenuReaderService menuReaderService) {
++    super(URI);
++    this.menuReaderService = requireNonNull(menuReaderService);
+   }
+ 
+   @GetMapping("/**")
+   public String init(Model model) {
+-    super.init(model, ID);
++    model.addAttribute(KEY_BASE_URL, menuReaderService.findMenuItemPath(ID));
+     return VIEW_TEMPLATE;
+   }
+ }
+diff --git a/molgenis-security-ui/src/test/java/org/molgenis/securityui/controller/SecurityUiControllerTest.java b/molgenis-security-ui/src/test/java/org/molgenis/securityui/controller/SecurityUiControllerTest.java
+index e28f637e81..97a6fb89f1 100644
+--- a/molgenis-security-ui/src/test/java/org/molgenis/securityui/controller/SecurityUiControllerTest.java
++++ b/molgenis-security-ui/src/test/java/org/molgenis/securityui/controller/SecurityUiControllerTest.java
+@@ -44,8 +44,7 @@ public void before() {
+     when(menuReaderService.findMenuItemPath(SecurityUiController.ID))
+         .thenReturn(MENU_PATH_SECURITY_UI);
+ 
+-    SecurityUiController securityUiController =
+-        new SecurityUiController(menuReaderService, appSettings, userAccountService);
++    SecurityUiController securityUiController = new SecurityUiController(menuReaderService);
+     mockMvc = standaloneSetup(securityUiController).build();
+   }
+ 
+@@ -55,8 +54,6 @@ public void testInit() throws Exception {
+         .perform(get(SecurityUiController.URI))
+         .andExpect(status().isOk())
+         .andExpect(view().name(SecurityUiController.VIEW_TEMPLATE))
+-        .andExpect(model().attribute("baseUrl", MENU_PATH_SECURITY_UI))
+-        .andExpect(model().attribute("lng", DEFAULT_LANG))
+-        .andExpect(model().attribute("fallbackLng", DEFAULT_LANG));
++        .andExpect(model().attribute("baseUrl", MENU_PATH_SECURITY_UI));
+   }
+ }
+diff --git a/molgenis-settings-ui/src/main/java/org/molgenis/settings/controller/SettingsController.java b/molgenis-settings-ui/src/main/java/org/molgenis/settings/controller/SettingsController.java
+index faf69ad585..0aed9e1765 100644
+--- a/molgenis-settings-ui/src/main/java/org/molgenis/settings/controller/SettingsController.java
++++ b/molgenis-settings-ui/src/main/java/org/molgenis/settings/controller/SettingsController.java
+@@ -1,8 +1,7 @@
+ package org.molgenis.settings.controller;
+ 
+-import org.molgenis.core.ui.controller.VuePluginController;
+-import org.molgenis.security.user.UserAccountService;
+-import org.molgenis.settings.AppSettings;
++import static java.util.Objects.requireNonNull;
++
+ import org.molgenis.web.PluginController;
+ import org.molgenis.web.menu.MenuReaderService;
+ import org.springframework.stereotype.Controller;
+@@ -12,23 +11,23 @@
+ 
+ @Controller
+ @RequestMapping(SettingsController.URI)
+-public class SettingsController extends VuePluginController {
++public class SettingsController extends PluginController {
+ 
+   public static final String ID = "settings";
+   public static final String URI = PluginController.PLUGIN_URI_PREFIX + ID;
++  private static final String KEY_BASE_URL = "baseUrl";
+ 
+   public static final String VIEW_TEMPLATE = "view-settings";
++  private final MenuReaderService menuReaderService;
+ 
+-  SettingsController(
+-      MenuReaderService menuReaderService,
+-      AppSettings appSettings,
+-      UserAccountService userAccountService) {
+-    super(URI, menuReaderService, appSettings, userAccountService);
++  SettingsController(MenuReaderService menuReaderService) {
++    super(URI);
++    this.menuReaderService = requireNonNull(menuReaderService);
+   }
+ 
+   @GetMapping("/**")
+   public String init(Model model) {
+-    super.init(model, ID);
++    model.addAttribute(KEY_BASE_URL, menuReaderService.findMenuItemPath(ID));
+     return VIEW_TEMPLATE;
+   }
+ }
+diff --git a/molgenis-settings-ui/src/test/java/org/molgenis/settings/controller/SettingsControllerTest.java b/molgenis-settings-ui/src/test/java/org/molgenis/settings/controller/SettingsControllerTest.java
+index c9884ec19a..e34041db18 100644
+--- a/molgenis-settings-ui/src/test/java/org/molgenis/settings/controller/SettingsControllerTest.java
++++ b/molgenis-settings-ui/src/test/java/org/molgenis/settings/controller/SettingsControllerTest.java
+@@ -41,8 +41,7 @@ public void before() {
+     when(userAccountService.getCurrentUser()).thenReturn(user);
+     when(user.isSuperuser()).thenReturn(false);
+ 
+-    SettingsController settingsController =
+-        new SettingsController(menuReaderService, appSettings, userAccountService);
++    SettingsController settingsController = new SettingsController(menuReaderService);
+     mockMvc = standaloneSetup(settingsController).build();
+   }
+ 
+@@ -52,9 +51,6 @@ public void testInit() throws Exception {
+         .perform(get(SettingsController.URI))
+         .andExpect(status().isOk())
+         .andExpect(view().name(SettingsController.VIEW_TEMPLATE))
+-        .andExpect(model().attribute("baseUrl", "/test/path"))
+-        .andExpect(model().attribute("lng", "en"))
+-        .andExpect(model().attribute("fallbackLng", "DDEEFF"))
+-        .andExpect(model().attribute("isSuperUser", false));
++        .andExpect(model().attribute("baseUrl", "/test/path"));
+   }
+ }

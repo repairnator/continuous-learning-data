@@ -1,0 +1,13 @@
+diff --git a/Gui/opensim/view/src/org/opensim/view/Installer.java b/Gui/opensim/view/src/org/opensim/view/Installer.java
+index b644d6ab..e1c83a95 100644
+--- a/Gui/opensim/view/src/org/opensim/view/Installer.java
++++ b/Gui/opensim/view/src/org/opensim/view/Installer.java
+@@ -148,7 +148,7 @@ private void restorePrefs()
+          boolean updateResources = false;
+          String relaunch_check_filepath = TheApp.getUserDir()+"first_launch.text";
+          boolean firstLaunch = !new File(relaunch_check_filepath).exists();
+-         if (true){
++         if (firstLaunch){
+             updateResources = true;
+             SwingUtilities.invokeLater( new Runnable(){
+                 public void run() {

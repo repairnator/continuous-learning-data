@@ -1,0 +1,9 @@
+@@ -8,7 +8,7 @@
+   BAD_REQUEST("Bad request and/or invalid syntax"),
+   RIVERSECTIONS_NOT_FOUND("This river has no riversections"),
+   PLACES_NOT_FOUND("This section has no places"),
+-  RIVER_NOT_FOUND("River not found");
++  RIVER_NOT_FOUND("River(s) not found");
+ 
+   private String errorMessage;
+ 

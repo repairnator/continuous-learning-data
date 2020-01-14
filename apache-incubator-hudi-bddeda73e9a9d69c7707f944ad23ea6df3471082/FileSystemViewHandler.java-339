@@ -1,0 +1,9 @@
+@@ -339,7 +339,7 @@ public void handle(@NotNull Context context) throws Exception {
+                   + " but server has the following timeline "
+                   + viewManager.getFileSystemView(context.queryParam(RemoteHoodieTableFileSystemView.BASEPATH_PARAM))
+                       .getTimeline().getInstants().collect(Collectors.toList());
+-          Preconditions.checkArgument(!isLocalViewBehind(context), errMsg);
++          ValidationUtils.checkArgument(!isLocalViewBehind(context), errMsg);
+           long endFinalCheck = System.currentTimeMillis();
+           finalCheckTimeTaken = endFinalCheck - beginFinalCheck;
+         }

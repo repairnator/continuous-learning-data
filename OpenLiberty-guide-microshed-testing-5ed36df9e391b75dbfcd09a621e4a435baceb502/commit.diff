@@ -1,0 +1,285 @@
+diff --git a/README.adoc b/README.adoc
+index e32a2fe..c276e95 100644
+--- a/README.adoc
++++ b/README.adoc
+@@ -149,7 +149,7 @@ Next, the `PersonServiceIT` class outlines some basic information that informs h
+ `src/test/java/io/openliberty/guides/testing/PersonServiceIT.java`
+ ----
+ [role="edit_command_text"]
+-Import the [hotspot=importMPApp file=1]`MicroProfileApplication` class and the [hotspot=importContainer file=1]`Container` annotation, create the [hotspot=mpApp file=1]`MicroProfileApplication` application, and annotate the application with [hotspot=container file=1]`@Container`.
++Import the [hotspot=importMPApp file=1]`ApplicationContainer` class and the [hotspot=importContainer file=1]`Container` annotation, create the [hotspot=mpApp file=1]`ApplicationContainer` application, and annotate the application with [hotspot=container file=1]`@Container`.
+ 
+ PersonServiceIT.java
+ [source, java, linenums, role='code_column hide_tags=copyright,importInject,importAssertNotNull,importSharedContainerConfig,sharedContainerConfig,inject,personSvc,testCreatePerson']
+@@ -159,7 +159,7 @@ include::hotspots/src/test/java/io/openliberty/guides/testing/PersonServiceIT.2.
+ 
+ The [hotspot=withAppContextRoot file=1]`withAppContextRoot(String)` method indicates the base path of the application. The app context root is the portion of the URL after the hostname and port. In this case, the application is deployed at the `\http://localhost:9080/guide-microshed-testing` URL, so the app context root is [hotspot=withAppContextRoot file=1]`/guide-microshed-testing`.
+ 
+-The [hotspot=withReadinessPath file=1]`withReadinessPath(String)` method indicates what path is polled by HTTP to determine application readiness. MicroShed Testing automatically starts the MicroProfileApplication application and waits for it to be ready before the tests start running. In this case, you are using the default application readiness check at the http://localhost:9080/health/ready[http://localhost:9080/health/ready^] URL, which is enabled by the [hotspot=mpHealth file=2]`mpHealth-2.0` feature in our server.xml configuration file. When the readiness URL returns `HTTP 200`, the application is considered ready and the tests begin running.
++The [hotspot=withReadinessPath file=1]`withReadinessPath(String)` method indicates what path is polled by HTTP to determine application readiness. MicroShed Testing automatically starts the ApplicationContainer application and waits for it to be ready before the tests start running. In this case, you are using the default application readiness check at the http://localhost:9080/health/ready[http://localhost:9080/health/ready^] URL, which is enabled by the [hotspot=mpHealth file=2]`mpHealth-2.0` feature in our server.xml configuration file. When the readiness URL returns `HTTP 200`, the application is considered ready and the tests begin running.
+ 
+ server.xml
+ [source, xml, linenums, role='code_column']
+@@ -179,7 +179,7 @@ With MicroShed Testing, applications are exercised in a black box fashion. Black
+ `src/test/java/io/openliberty/guides/testing/PersonServiceIT.java`
+ ----
+ [role="edit_command_text"]
+-Import the [hotspot=importInject file=0]`Inject` annotation, create a [hotspot=personSvc file=0]`PersonService` REST client, and annotate the REST client with [hotspot=inject file=0]`@Inject`.
++Import the [hotspot=importInject file=0]`org.microshed.testing.jaxrs.RESTClient` annotation, create a [hotspot=personSvc file=0]`PersonService` REST client, and annotate the REST client with [hotspot=inject file=0]`@RESTClient`.
+ 
+ PersonServiceIT.java
+ [source, java, linenums, role='code_column hide_tags=copyright,importAssertNotNull,importSharedContainerConfig,sharedContainerConfig,testCreatePerson']
+@@ -306,7 +306,7 @@ Remove the container code from the `PersonServiceIT` class.
+ `src/test/java/io/openliberty/guides/testing/PersonServiceIT.java`
+ ----
+ [role="edit_command_text"]
+-Remove [hotspot=importMPApp hotspot=importContainer file=2]`import` statements and the [hotspot=container hotspot=mpApp file=2]`MicroProfileApplication app` field.
++Remove [hotspot=importMPApp hotspot=importContainer file=2]`import` statements and the [hotspot=container hotspot=mpApp file=2]`ApplicationContainer app` field.
+ 
+ PersonServiceIT.java
+ [source, java, linenums, role='code_column hide_tags=copyright']
+@@ -336,7 +336,7 @@ Similarly, update the `ErrorPathIT` class to remove the container code.
+ `src/test/java/io/openliberty/guides/testing/ErrorPathIT.java`
+ ----
+ [role="edit_command_text"]
+-Remove [hotspot=importMPApp hotspot=importContainer file=4]`import` statements and the [hotspot=container hotspot=mpApp file=4]`MicroProfileApplication app` field
++Remove [hotspot=importMPApp hotspot=importContainer file=4]`import` statements and the [hotspot=container hotspot=mpApp file=4]`ApplicationContainer app` field
+ 
+ ErrorPathIT.java
+ [source, java, linenums, role='code_column hide_tags=copyright']
+diff --git a/finish/pom.xml b/finish/pom.xml
+index bc45fb4..699451f 100644
+--- a/finish/pom.xml
++++ b/finish/pom.xml
+@@ -38,7 +38,7 @@
+         <dependency>
+             <groupId>org.microshed</groupId>
+             <artifactId>microshed-testing-liberty</artifactId>
+-            <version>0.5</version>
++            <version>0.6.1.1</version>
+             <scope>test</scope>
+         </dependency>
+         <dependency>
+diff --git a/finish/src/test/java/io/openliberty/guides/testing/AppDeploymentConfig.java b/finish/src/test/java/io/openliberty/guides/testing/AppDeploymentConfig.java
+index a1883d9..43729e1 100644
+--- a/finish/src/test/java/io/openliberty/guides/testing/AppDeploymentConfig.java
++++ b/finish/src/test/java/io/openliberty/guides/testing/AppDeploymentConfig.java
+@@ -21,13 +21,13 @@
+ package io.openliberty.guides.testing;
+ 
+ import org.microshed.testing.SharedContainerConfiguration;
+-import org.microshed.testing.testcontainers.MicroProfileApplication;
++import org.microshed.testing.testcontainers.ApplicationContainer;
+ import org.testcontainers.junit.jupiter.Container;
+ 
+ public class AppDeploymentConfig implements SharedContainerConfiguration {
+     
+     @Container
+-    public static MicroProfileApplication app = new MicroProfileApplication()
++    public static ApplicationContainer app = new ApplicationContainer()
+                     .withAppContextRoot("/guide-microshed-testing")
+                     .withReadinessPath("/health/ready");
+ 
+diff --git a/finish/src/test/java/io/openliberty/guides/testing/ErrorPathIT.java b/finish/src/test/java/io/openliberty/guides/testing/ErrorPathIT.java
+index 54e5704..eeaa06f 100644
+--- a/finish/src/test/java/io/openliberty/guides/testing/ErrorPathIT.java
++++ b/finish/src/test/java/io/openliberty/guides/testing/ErrorPathIT.java
+@@ -22,7 +22,6 @@
+ 
+ import static org.junit.jupiter.api.Assertions.assertThrows;
+ 
+-import javax.inject.Inject;
+ import javax.ws.rs.BadRequestException;
+ import javax.ws.rs.NotFoundException;
+ 
+@@ -30,6 +29,7 @@
+ // tag::importSharedContainerConfig[]
+ import org.microshed.testing.SharedContainerConfig;
+ // end::importSharedContainerConfig[]
++import org.microshed.testing.jaxrs.RESTClient;
+ import org.microshed.testing.jupiter.MicroShedTest;
+ 
+ @MicroShedTest
+@@ -38,7 +38,7 @@
+ // end::sharedContainerConfig[]
+ public class ErrorPathIT {
+     
+-    @Inject
++    @RESTClient
+     public static PersonService personSvc;
+     
+     @Test
+diff --git a/finish/src/test/java/io/openliberty/guides/testing/PersonServiceIT.java b/finish/src/test/java/io/openliberty/guides/testing/PersonServiceIT.java
+index 74eb079..7ccd18b 100644
+--- a/finish/src/test/java/io/openliberty/guides/testing/PersonServiceIT.java
++++ b/finish/src/test/java/io/openliberty/guides/testing/PersonServiceIT.java
+@@ -26,12 +26,11 @@
+ 
+ import java.util.Collection;
+ 
+-import javax.inject.Inject;
+-
+ import org.junit.jupiter.api.Test;
+ // tag::importSharedContainerConfig[]
+ import org.microshed.testing.SharedContainerConfig;
+ // end::importSharedContainerConfig[]
++import org.microshed.testing.jaxrs.RESTClient;
+ import org.microshed.testing.jupiter.MicroShedTest;
+ 
+ @MicroShedTest
+@@ -40,7 +39,7 @@
+ // end::sharedContainerConfig[]
+ public class PersonServiceIT {
+     
+-    @Inject
++    @RESTClient
+     public static PersonService personSvc;
+     
+     @Test
+diff --git a/finish/src/test/resources/log4j.properties b/finish/src/test/resources/log4j.properties
+index edae112..a274315 100644
+--- a/finish/src/test/resources/log4j.properties
++++ b/finish/src/test/resources/log4j.properties
+@@ -6,5 +6,3 @@ log4j.appender.layout=org.apache.log4j.PatternLayout
+ log4j.appender.stdout=org.apache.log4j.ConsoleAppender
+ log4j.appender.stdout.layout=org.apache.log4j.PatternLayout
+ log4j.appender.stdout.layout.ConversionPattern=%r %p %c %x - %m%n
+-
+-log4j.logger.org.eclipse.microprofile.system.test=DEBUG
+\ No newline at end of file
+diff --git a/hotspots/src/test/java/io/openliberty/guides/testing/ErrorPathIT.java b/hotspots/src/test/java/io/openliberty/guides/testing/ErrorPathIT.java
+index 4696559..8b40d0a 100644
+--- a/hotspots/src/test/java/io/openliberty/guides/testing/ErrorPathIT.java
++++ b/hotspots/src/test/java/io/openliberty/guides/testing/ErrorPathIT.java
+@@ -22,7 +22,6 @@
+ 
+ import static org.junit.jupiter.api.Assertions.assertThrows;
+ 
+-import javax.inject.Inject;
+ import javax.ws.rs.BadRequestException;
+ import javax.ws.rs.NotFoundException;
+ 
+@@ -32,11 +31,12 @@
+ import org.microshed.testing.SharedContainerConfig;
+ // end::importSharedContainerConfig[]
+ // tag::importMPApp[]
+-import org.microshed.testing.testcontainers.MicroProfileApplication;
++import org.microshed.testing.testcontainers.ApplicationContainer;
+ // end::importMPApp[]
+ // tag::importContainer[]
+ import org.testcontainers.junit.jupiter.Container;
+ // end::importContainer[]
++import org.microshed.testing.jaxrs.RESTClient;
+ 
+ @MicroShedTest
+ // tag::sharedContainerConfig[]
+@@ -46,13 +46,13 @@
+ 
+     // tag::container[]
+     @Container
+-    public static MicroProfileApplication app = new MicroProfileApplication()
++    public static ApplicationContainer app = new ApplicationContainer()
+                     .withAppContextRoot("/guide-microshed-testing")
+                     .withReadinessPath("/health/ready");
+     // end::container[]
+ 
+     // tag::personSvc[]
+-    @Inject
++    @RESTClient
+     public static PersonService personSvc;
+     // end::personSvc[]
+ 
+diff --git a/hotspots/src/test/java/io/openliberty/guides/testing/PersonServiceIT.2.java b/hotspots/src/test/java/io/openliberty/guides/testing/PersonServiceIT.2.java
+index fce00a3..4203c88 100644
+--- a/hotspots/src/test/java/io/openliberty/guides/testing/PersonServiceIT.2.java
++++ b/hotspots/src/test/java/io/openliberty/guides/testing/PersonServiceIT.2.java
+@@ -25,7 +25,7 @@
+ // end::importAssertNotNull[]
+ 
+ // tag::importInject[]
+-import javax.inject.Inject;
++import org.microshed.testing.jaxrs.RESTClient;
+ // end::importInject[]
+ 
+ import org.junit.jupiter.api.Test;
+@@ -36,7 +36,7 @@
+ import org.microshed.testing.SharedContainerConfig;
+ // end::importSharedContainerConfig[]
+ // tag::importMPApp[]
+-import org.microshed.testing.testcontainers.MicroProfileApplication;
++import org.microshed.testing.testcontainers.ApplicationContainer;
+ // end::importMPApp[]
+ // tag::importContainer[]
+ import org.testcontainers.junit.jupiter.Container;
+@@ -51,7 +51,7 @@
+ public class PersonServiceIT {
+ 
+     // tag::inject[]
+-    @Inject
++    @RESTClient
+     // end::inject[]
+     // tag::personSvc[]
+     public static PersonService personSvc;
+@@ -61,7 +61,7 @@
+     @Container
+     // end::container[]
+     // tag::mpApp[]
+-    public static MicroProfileApplication app = new MicroProfileApplication()
++    public static ApplicationContainer app = new ApplicationContainer()
+                     // tag::withAppContextRoot[]
+                     .withAppContextRoot("/guide-microshed-testing")
+                     // end::withAppContextRoot[]
+diff --git a/hotspots/src/test/java/io/openliberty/guides/testing/PersonServiceIT.3.java b/hotspots/src/test/java/io/openliberty/guides/testing/PersonServiceIT.3.java
+index edd9626..04d92a9 100644
+--- a/hotspots/src/test/java/io/openliberty/guides/testing/PersonServiceIT.3.java
++++ b/hotspots/src/test/java/io/openliberty/guides/testing/PersonServiceIT.3.java
+@@ -26,21 +26,20 @@
+ 
+ import java.util.Collection;
+ 
+-import javax.inject.Inject;
+-
+ import org.junit.jupiter.api.Test;
+ import org.microshed.testing.jupiter.MicroShedTest;
+-import org.microshed.testing.testcontainers.MicroProfileApplication;
++import org.microshed.testing.testcontainers.ApplicationContainer;
++import org.microshed.testing.jaxrs.RESTClient;
+ import org.testcontainers.junit.jupiter.Container;
+ 
+ @MicroShedTest
+ public class PersonServiceIT {
+ 
+-    @Inject
++    @RESTClient
+     public static PersonService personSvc;
+ 
+     @Container
+-    public static MicroProfileApplication app = new MicroProfileApplication()
++    public static ApplicationContainer app = new ApplicationContainer()
+                     .withAppContextRoot("/guide-microshed-testing")
+                     .withReadinessPath("/health/ready");
+ 
+diff --git a/start/pom.xml b/start/pom.xml
+index bc45fb4..699451f 100644
+--- a/start/pom.xml
++++ b/start/pom.xml
+@@ -38,7 +38,7 @@
+         <dependency>
+             <groupId>org.microshed</groupId>
+             <artifactId>microshed-testing-liberty</artifactId>
+-            <version>0.5</version>
++            <version>0.6.1.1</version>
+             <scope>test</scope>
+         </dependency>
+         <dependency>
+diff --git a/start/src/test/resources/log4j.properties b/start/src/test/resources/log4j.properties
+index edae112..a274315 100644
+--- a/start/src/test/resources/log4j.properties
++++ b/start/src/test/resources/log4j.properties
+@@ -6,5 +6,3 @@ log4j.appender.layout=org.apache.log4j.PatternLayout
+ log4j.appender.stdout=org.apache.log4j.ConsoleAppender
+ log4j.appender.stdout.layout=org.apache.log4j.PatternLayout
+ log4j.appender.stdout.layout.ConversionPattern=%r %p %c %x - %m%n
+-
+-log4j.logger.org.eclipse.microprofile.system.test=DEBUG
+\ No newline at end of file

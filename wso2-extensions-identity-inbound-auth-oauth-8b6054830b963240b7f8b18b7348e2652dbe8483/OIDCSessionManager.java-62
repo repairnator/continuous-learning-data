@@ -1,0 +1,9 @@
+@@ -62,7 +62,7 @@ public OIDCSessionState getOIDCSessionState(String sessionId) {
+     }
+ 
+     /**
+-     * Removes the session against the old session id and restore against the provided new session id
++     * Removes the session against the old session id and restore against the provided new session id.
+      *
+      * @param oldSessionId
+      * @param newSessionId

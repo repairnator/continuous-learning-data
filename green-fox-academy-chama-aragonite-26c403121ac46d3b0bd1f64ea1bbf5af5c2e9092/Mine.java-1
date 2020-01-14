@@ -1,0 +1,8 @@
+@@ -1,6 +1,6 @@
+ package com.greenfoxacademy.chamaaragonite.building.buildingtypes;
+ 
+-import com.greenfoxacademy.chamaaragonite.building.Building;
++import com.greenfoxacademy.chamaaragonite.building.ProductionBuilding;
+ import javax.persistence.Entity;
+ import lombok.EqualsAndHashCode;
+ import lombok.Getter;

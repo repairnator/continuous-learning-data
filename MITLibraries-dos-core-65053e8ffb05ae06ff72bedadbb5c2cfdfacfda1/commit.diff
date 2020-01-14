@@ -1,0 +1,48 @@
+diff --git a/src/main/java/edu/mit/dos/object/ObjectService.java b/src/main/java/edu/mit/dos/object/ObjectService.java
+index 9f082dc..729da7a 100644
+--- a/src/main/java/edu/mit/dos/object/ObjectService.java
++++ b/src/main/java/edu/mit/dos/object/ObjectService.java
+@@ -26,11 +26,11 @@
+     @RequestMapping(value = "/object", method = RequestMethod.POST)
+     public String create(@RequestParam("handle") String handle,
+                          @RequestParam("title") String title,
+-                         @RequestParam("uris") List<String> fileUris,
++                         @RequestParam("target_links") List<String> targetLinks,
+                          @RequestParam("source_system") String sourceSystem,
+                          @RequestParam("metadata_system") String metadataSystem) {
+ 
+-        for (final String s : fileUris) {
++        for (final String s : targetLinks) {
+ 
+             int filesWritten = 0;
+ 
+@@ -55,6 +55,7 @@ public String create(@RequestParam("handle") String handle,
+         final DigitalObject digitalObject = new DigitalObject();
+         digitalObject.setHandle(handle);
+         digitalObject.setTitle(title);
++        digitalObject.setDateCreated(new Date());
+         digitalObject.setUpdateDate(new Date());
+         digitalObject.setMetadataSource(metadataSystem);
+         digitalObject.setSourceSystem(sourceSystem);
+diff --git a/src/test/java/edu/mit/dos/object/ObjectServiceIT.java b/src/test/java/edu/mit/dos/object/ObjectServiceIT.java
+index 8ef6796..908072b 100644
+--- a/src/test/java/edu/mit/dos/object/ObjectServiceIT.java
++++ b/src/test/java/edu/mit/dos/object/ObjectServiceIT.java
+@@ -32,7 +32,7 @@ public void testGet() {
+         map.add("title", "Item Title");
+         map.add("metadata_system", "dome");
+         map.add("source_system", "archivesspace");
+-        map.add("uris", "https://dome.mit.edu/bitstream/handle/1721.3/176391/249794_cp.jpg?sequence=1");
++        map.add("target_links", "https://dome.mit.edu/bitstream/handle/1721.3/176391/249794_cp.jpg?sequence=1");
+         HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(map, new HttpHeaders());
+         String body = this.restTemplate.postForObject("/object",  request,String.class);
+         assertThat(body).isNotNull();
+@@ -48,7 +48,7 @@ public void testPost() {
+         map.add("title", "Item Title");
+         map.add("metadata_system", "dome");
+         map.add("source_system", "archivesspace");
+-        map.add("uris", "https://dome.mit.edu/bitstream/handle/1721.3/176391/249794_cp.jpg?sequence=1");
++        map.add("target_links", "https://dome.mit.edu/bitstream/handle/1721.3/176391/249794_cp.jpg?sequence=1");
+         HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(map, new HttpHeaders());
+         String body = this.restTemplate.postForObject("/object",  request,String.class);
+         assertThat(body).isNotNull();

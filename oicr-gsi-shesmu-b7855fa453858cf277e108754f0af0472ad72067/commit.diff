@@ -1,0 +1,1600 @@
+diff --git a/shesmu-server/src/main/java/ca/on/oicr/gsi/shesmu/server/SourceLocation.java b/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/SourceLocation.java
+similarity index 98%
+rename from shesmu-server/src/main/java/ca/on/oicr/gsi/shesmu/server/SourceLocation.java
+rename to shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/SourceLocation.java
+index b7d4dba0..3c3db5da 100644
+--- a/shesmu-server/src/main/java/ca/on/oicr/gsi/shesmu/server/SourceLocation.java
++++ b/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/SourceLocation.java
+@@ -1,4 +1,4 @@
+-package ca.on.oicr.gsi.shesmu.server;
++package ca.on.oicr.gsi.shesmu.plugin;
+ 
+ import com.fasterxml.jackson.databind.node.ArrayNode;
+ import com.fasterxml.jackson.databind.node.ObjectNode;
+diff --git a/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/AgoFilterJson.java b/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/AgoFilterJson.java
+new file mode 100644
+index 00000000..597b07c5
+--- /dev/null
++++ b/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/AgoFilterJson.java
+@@ -0,0 +1,27 @@
++package ca.on.oicr.gsi.shesmu.plugin.filter;
++
++import java.time.Instant;
++import java.util.Optional;
++
++public abstract class AgoFilterJson extends FilterJson {
++
++  private long offset;
++
++  protected abstract <F> F convert(
++      Optional<Instant> start, Optional<Instant> end, FilterBuilder<F> filterBuilder);
++
++  @Override
++  public final <F> F convert(FilterBuilder<F> filterBuilder) {
++    return maybeNegate(
++        convert(Optional.of(Instant.now().minusMillis(offset)), Optional.empty(), filterBuilder),
++        filterBuilder);
++  }
++
++  public final long getOffset() {
++    return offset;
++  }
++
++  public final void setOffset(long offset) {
++    this.offset = offset;
++  }
++}
+diff --git a/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/CollectionFilterJson.java b/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/CollectionFilterJson.java
+new file mode 100644
+index 00000000..f0085bd5
+--- /dev/null
++++ b/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/CollectionFilterJson.java
+@@ -0,0 +1,25 @@
++package ca.on.oicr.gsi.shesmu.plugin.filter;
++
++import java.util.stream.Stream;
++
++public abstract class CollectionFilterJson extends FilterJson {
++  private FilterJson[] filters;
++
++  @Override
++  public final <F> F convert(FilterBuilder<F> filterBuilder) {
++    return maybeNegate(
++        convert(
++            filterBuilder, Stream.of(filters).map(filterJson -> filterJson.convert(filterBuilder))),
++        filterBuilder);
++  }
++
++  protected abstract <F> F convert(FilterBuilder<F> filterBuilder, Stream<F> filters);
++
++  public final FilterJson[] getFilters() {
++    return filters;
++  }
++
++  public final void setFilters(FilterJson[] filters) {
++    this.filters = filters;
++  }
++}
+diff --git a/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterAdded.java b/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterAdded.java
+new file mode 100644
+index 00000000..3b124c9f
+--- /dev/null
++++ b/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterAdded.java
+@@ -0,0 +1,12 @@
++package ca.on.oicr.gsi.shesmu.plugin.filter;
++
++import java.time.Instant;
++import java.util.Optional;
++
++public class FilterAdded extends RangeFilterJson {
++  @Override
++  protected <F> F convert(
++      Optional<Instant> start, Optional<Instant> end, FilterBuilder<F> filterBuilder) {
++    return filterBuilder.added(start, end);
++  }
++}
+diff --git a/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterAddedAgo.java b/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterAddedAgo.java
+new file mode 100644
+index 00000000..9f5055b7
+--- /dev/null
++++ b/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterAddedAgo.java
+@@ -0,0 +1,12 @@
++package ca.on.oicr.gsi.shesmu.plugin.filter;
++
++import java.time.Instant;
++import java.util.Optional;
++
++public class FilterAddedAgo extends AgoFilterJson {
++  @Override
++  protected <F> F convert(
++      Optional<Instant> start, Optional<Instant> end, FilterBuilder<F> filterBuilder) {
++    return filterBuilder.added(start, end);
++  }
++}
+diff --git a/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterAnd.java b/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterAnd.java
+new file mode 100644
+index 00000000..2e7d9c52
+--- /dev/null
++++ b/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterAnd.java
+@@ -0,0 +1,10 @@
++package ca.on.oicr.gsi.shesmu.plugin.filter;
++
++import java.util.stream.Stream;
++
++public class FilterAnd extends CollectionFilterJson {
++  @Override
++  public <F> F convert(FilterBuilder<F> filterBuilder, Stream<F> filters) {
++    return filterBuilder.and(filters);
++  }
++}
+diff --git a/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterBuilder.java b/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterBuilder.java
+new file mode 100644
+index 00000000..a78c3ca0
+--- /dev/null
++++ b/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterBuilder.java
+@@ -0,0 +1,98 @@
++package ca.on.oicr.gsi.shesmu.plugin.filter;
++
++import ca.on.oicr.gsi.shesmu.plugin.SourceLocation;
++import ca.on.oicr.gsi.shesmu.plugin.action.ActionState;
++import java.time.Instant;
++import java.util.List;
++import java.util.Optional;
++import java.util.function.Predicate;
++import java.util.regex.Pattern;
++import java.util.stream.Stream;
++
++public interface FilterBuilder<F> {
++
++  F negate(F filter);
++
++  /**
++   * Check that an action was last added in the time range provided
++   *
++   * @param start the exclusive cut-off timestamp
++   * @param end the exclusive cut-off timestamp
++   */
++  F added(Optional<Instant> start, Optional<Instant> end);
++
++  /** Check that all of the filters match */
++  F and(Stream<F> filters);
++
++  /**
++   * Check that an action was last checked in the time range provided
++   *
++   * @param start the exclusive cut-off timestamp
++   * @param end the exclusive cut-off timestamp
++   */
++  F checked(Optional<Instant> start, Optional<Instant> end);
++
++  /**
++   * Check that an action's external timestamp is in the time range provided
++   *
++   * @param start the exclusive cut-off timestamp
++   * @param end the exclusive cut-off timestamp
++   */
++  F external(Optional<Instant> start, Optional<Instant> end);
++
++  /**
++   * Checks that an action was generated in a particular source location
++   *
++   * @param locations the source locations
++   */
++  F fromSourceLocation(Stream<Predicate<SourceLocation>> locations);
++
++  /**
++   * Checks that an action was generated in a particular file
++   *
++   * @param files the names of the files
++   */
++  F fromFile(String... files);
++
++  /**
++   * Get actions by unique ID.
++   *
++   * @param ids the allowed identifiers
++   */
++  F ids(List<String> ids);
++
++  /**
++   * Checks that an action is in one of the specified actions states
++   *
++   * @param states the permitted states
++   */
++  F isState(ActionState... states);
++
++  /** Check that any of the filters match */
++  F or(Stream<F> filters);
++
++  /**
++   * Check that an action's last status change was in the time range provided
++   *
++   * @param start the exclusive cut-off timestamp
++   * @param end the exclusive cut-off timestamp
++   */
++  F statusChanged(Optional<Instant> start, Optional<Instant> end);
++
++  /**
++   * Check that an action has one of the listed tags attached
++   *
++   * @param tags the set of tags
++   */
++  F tags(Stream<String> tags);
++
++  /**
++   * Check that an action matches the regular expression provided
++   *
++   * @param pattern the pattern
++   */
++  F textSearch(Pattern pattern);
++
++  /** Check that an action has one of the types specified */
++  F type(String... types);
++}
+diff --git a/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterChecked.java b/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterChecked.java
+new file mode 100644
+index 00000000..85f87915
+--- /dev/null
++++ b/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterChecked.java
+@@ -0,0 +1,12 @@
++package ca.on.oicr.gsi.shesmu.plugin.filter;
++
++import java.time.Instant;
++import java.util.Optional;
++
++public class FilterChecked extends RangeFilterJson {
++  @Override
++  public <F> F convert(
++      Optional<Instant> start, Optional<Instant> end, FilterBuilder<F> filterBuilder) {
++    return filterBuilder.checked(start, end);
++  }
++}
+diff --git a/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterCheckedAgo.java b/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterCheckedAgo.java
+new file mode 100644
+index 00000000..a701a328
+--- /dev/null
++++ b/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterCheckedAgo.java
+@@ -0,0 +1,12 @@
++package ca.on.oicr.gsi.shesmu.plugin.filter;
++
++import java.time.Instant;
++import java.util.Optional;
++
++public class FilterCheckedAgo extends AgoFilterJson {
++  @Override
++  public <F> F convert(
++      Optional<Instant> start, Optional<Instant> end, FilterBuilder<F> filterBuilder) {
++    return filterBuilder.checked(start, end);
++  }
++}
+diff --git a/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterExternal.java b/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterExternal.java
+new file mode 100644
+index 00000000..c15233d5
+--- /dev/null
++++ b/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterExternal.java
+@@ -0,0 +1,12 @@
++package ca.on.oicr.gsi.shesmu.plugin.filter;
++
++import java.time.Instant;
++import java.util.Optional;
++
++public class FilterExternal extends RangeFilterJson {
++  @Override
++  public <F> F convert(
++      Optional<Instant> start, Optional<Instant> end, FilterBuilder<F> filterBuilder) {
++    return filterBuilder.external(start, end);
++  }
++}
+diff --git a/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterExternalAgo.java b/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterExternalAgo.java
+new file mode 100644
+index 00000000..47db391f
+--- /dev/null
++++ b/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterExternalAgo.java
+@@ -0,0 +1,13 @@
++package ca.on.oicr.gsi.shesmu.plugin.filter;
++
++import java.time.Instant;
++import java.util.Optional;
++
++public class FilterExternalAgo extends AgoFilterJson {
++
++  @Override
++  public <F> F convert(
++      Optional<Instant> start, Optional<Instant> end, FilterBuilder<F> filterBuilder) {
++    return filterBuilder.external(start, end);
++  }
++}
+diff --git a/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterIds.java b/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterIds.java
+new file mode 100644
+index 00000000..f415da7e
+--- /dev/null
++++ b/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterIds.java
+@@ -0,0 +1,20 @@
++package ca.on.oicr.gsi.shesmu.plugin.filter;
++
++import java.util.List;
++
++public class FilterIds extends FilterJson {
++  private List<String> ids;
++
++  @Override
++  public <F> F convert(FilterBuilder<F> filterBuilder) {
++    return maybeNegate(filterBuilder.ids(ids), filterBuilder);
++  }
++
++  public List<String> getIds() {
++    return ids;
++  }
++
++  public void setIds(List<String> ids) {
++    this.ids = ids;
++  }
++}
+diff --git a/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterJson.java b/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterJson.java
+new file mode 100644
+index 00000000..3ea2434c
+--- /dev/null
++++ b/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterJson.java
+@@ -0,0 +1,43 @@
++package ca.on.oicr.gsi.shesmu.plugin.filter;
++
++import com.fasterxml.jackson.annotation.JsonSubTypes;
++import com.fasterxml.jackson.annotation.JsonTypeInfo;
++
++@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
++@JsonSubTypes({
++  @JsonSubTypes.Type(value = FilterAdded.class, name = "added"),
++  @JsonSubTypes.Type(value = FilterAddedAgo.class, name = "addedago"),
++  @JsonSubTypes.Type(value = FilterAnd.class, name = "and"),
++  @JsonSubTypes.Type(value = FilterChecked.class, name = "checked"),
++  @JsonSubTypes.Type(value = FilterCheckedAgo.class, name = "checkedago"),
++  @JsonSubTypes.Type(value = FilterExternal.class, name = "external"),
++  @JsonSubTypes.Type(value = FilterExternalAgo.class, name = "externalago"),
++  @JsonSubTypes.Type(value = FilterIds.class, name = "id"),
++  @JsonSubTypes.Type(value = FilterOr.class, name = "or"),
++  @JsonSubTypes.Type(value = FilterRegex.class, name = "regex"),
++  @JsonSubTypes.Type(value = FilterSourceFile.class, name = "sourcefile"),
++  @JsonSubTypes.Type(value = FilterSourceLocation.class, name = "sourcelocation"),
++  @JsonSubTypes.Type(value = FilterStatus.class, name = "status"),
++  @JsonSubTypes.Type(value = FilterStatusChanged.class, name = "statuschanged"),
++  @JsonSubTypes.Type(value = FilterStatusChangedAgo.class, name = "statuschangedago"),
++  @JsonSubTypes.Type(value = FilterTag.class, name = "tag"),
++  @JsonSubTypes.Type(value = FilterText.class, name = "text"),
++  @JsonSubTypes.Type(value = FilterType.class, name = "type")
++})
++public abstract class FilterJson {
++  private boolean negate;
++
++  public abstract <F> F convert(FilterBuilder<F> f);
++
++  public boolean isNegate() {
++    return negate;
++  }
++
++  protected <F> F maybeNegate(F filter, FilterBuilder<F> filterBuilder) {
++    return negate ? filterBuilder.negate(filter) : filter;
++  }
++
++  public void setNegate(boolean negate) {
++    this.negate = negate;
++  }
++}
+diff --git a/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterOr.java b/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterOr.java
+new file mode 100644
+index 00000000..7e59eacb
+--- /dev/null
++++ b/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterOr.java
+@@ -0,0 +1,11 @@
++package ca.on.oicr.gsi.shesmu.plugin.filter;
++
++import java.util.stream.Stream;
++
++public class FilterOr extends CollectionFilterJson {
++
++  @Override
++  public <F> F convert(FilterBuilder<F> filterBuilder, Stream<F> filters) {
++    return filterBuilder.or(filters);
++  }
++}
+diff --git a/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterRegex.java b/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterRegex.java
+new file mode 100644
+index 00000000..0612698f
+--- /dev/null
++++ b/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterRegex.java
+@@ -0,0 +1,20 @@
++package ca.on.oicr.gsi.shesmu.plugin.filter;
++
++import java.util.regex.Pattern;
++
++public class FilterRegex extends FilterJson {
++  private String pattern;
++
++  @Override
++  public <F> F convert(FilterBuilder<F> filterBuilder) {
++    return maybeNegate(filterBuilder.textSearch(Pattern.compile(pattern)), filterBuilder);
++  }
++
++  public String getPattern() {
++    return pattern;
++  }
++
++  public void setPattern(String pattern) {
++    this.pattern = pattern;
++  }
++}
+diff --git a/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterSourceFile.java b/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterSourceFile.java
+new file mode 100644
+index 00000000..b385a109
+--- /dev/null
++++ b/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterSourceFile.java
+@@ -0,0 +1,18 @@
++package ca.on.oicr.gsi.shesmu.plugin.filter;
++
++public class FilterSourceFile extends FilterJson {
++  private String[] files;
++
++  @Override
++  public <F> F convert(FilterBuilder<F> filterBuilder) {
++    return maybeNegate(filterBuilder.fromFile(files), filterBuilder);
++  }
++
++  public String[] getFiles() {
++    return files;
++  }
++
++  public void setFiles(String[] files) {
++    this.files = files;
++  }
++}
+diff --git a/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterSourceLocation.java b/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterSourceLocation.java
+new file mode 100644
+index 00000000..99c625cc
+--- /dev/null
++++ b/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterSourceLocation.java
+@@ -0,0 +1,20 @@
++package ca.on.oicr.gsi.shesmu.plugin.filter;
++
++import java.util.stream.Stream;
++
++public class FilterSourceLocation extends FilterJson {
++  private LocationJson[] locations;
++
++  @Override
++  public <F> F convert(FilterBuilder<F> filterBuilder) {
++    return maybeNegate(filterBuilder.fromSourceLocation(Stream.of(locations)), filterBuilder);
++  }
++
++  public LocationJson[] getLocations() {
++    return locations;
++  }
++
++  public void setLocations(LocationJson[] locations) {
++    this.locations = locations;
++  }
++}
+diff --git a/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterStatus.java b/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterStatus.java
+new file mode 100644
+index 00000000..a5e880e7
+--- /dev/null
++++ b/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterStatus.java
+@@ -0,0 +1,20 @@
++package ca.on.oicr.gsi.shesmu.plugin.filter;
++
++import ca.on.oicr.gsi.shesmu.plugin.action.ActionState;
++
++public class FilterStatus extends FilterJson {
++  private ActionState[] states;
++
++  @Override
++  public <F> F convert(FilterBuilder<F> filterBuilder) {
++    return maybeNegate(filterBuilder.isState(states), filterBuilder);
++  }
++
++  public ActionState[] getStates() {
++    return states;
++  }
++
++  public void setState(ActionState[] states) {
++    this.states = states;
++  }
++}
+diff --git a/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterStatusChanged.java b/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterStatusChanged.java
+new file mode 100644
+index 00000000..601f3f3b
+--- /dev/null
++++ b/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterStatusChanged.java
+@@ -0,0 +1,12 @@
++package ca.on.oicr.gsi.shesmu.plugin.filter;
++
++import java.time.Instant;
++import java.util.Optional;
++
++public class FilterStatusChanged extends RangeFilterJson {
++  @Override
++  public <F> F convert(
++      Optional<Instant> start, Optional<Instant> end, FilterBuilder<F> filterBuilder) {
++    return filterBuilder.statusChanged(start, end);
++  }
++}
+diff --git a/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterStatusChangedAgo.java b/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterStatusChangedAgo.java
+new file mode 100644
+index 00000000..fee32bb4
+--- /dev/null
++++ b/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterStatusChangedAgo.java
+@@ -0,0 +1,12 @@
++package ca.on.oicr.gsi.shesmu.plugin.filter;
++
++import java.time.Instant;
++import java.util.Optional;
++
++public class FilterStatusChangedAgo extends AgoFilterJson {
++  @Override
++  public <F> F convert(
++      Optional<Instant> start, Optional<Instant> end, FilterBuilder<F> filterBuilder) {
++    return filterBuilder.statusChanged(start, end);
++  }
++}
+diff --git a/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterTag.java b/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterTag.java
+new file mode 100644
+index 00000000..0f6e1421
+--- /dev/null
++++ b/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterTag.java
+@@ -0,0 +1,20 @@
++package ca.on.oicr.gsi.shesmu.plugin.filter;
++
++import java.util.stream.Stream;
++
++public class FilterTag extends FilterJson {
++  private String[] tags;
++
++  @Override
++  public <F> F convert(FilterBuilder<F> filterBuilder) {
++    return maybeNegate(filterBuilder.tags(Stream.of(tags)), filterBuilder);
++  }
++
++  public String[] getTags() {
++    return tags;
++  }
++
++  public void setTags(String[] tags) {
++    this.tags = tags;
++  }
++}
+diff --git a/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterText.java b/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterText.java
+new file mode 100644
+index 00000000..68875fa1
+--- /dev/null
++++ b/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterText.java
+@@ -0,0 +1,33 @@
++package ca.on.oicr.gsi.shesmu.plugin.filter;
++
++import java.util.regex.Pattern;
++
++public class FilterText extends FilterJson {
++  private boolean matchCase;
++  private String text;
++
++  @Override
++  public <F> F convert(FilterBuilder<F> filterBuilder) {
++    return maybeNegate(
++        filterBuilder.textSearch(
++            Pattern.compile(
++                "^.*" + Pattern.quote(text) + ".*$", matchCase ? 0 : Pattern.CASE_INSENSITIVE)),
++        filterBuilder);
++  }
++
++  public String getText() {
++    return text;
++  }
++
++  public boolean isMatchCase() {
++    return matchCase;
++  }
++
++  public void setMatchCase(boolean matchCase) {
++    this.matchCase = matchCase;
++  }
++
++  public void setText(String text) {
++    this.text = text;
++  }
++}
+diff --git a/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterType.java b/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterType.java
+new file mode 100644
+index 00000000..9c1cf323
+--- /dev/null
++++ b/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/FilterType.java
+@@ -0,0 +1,18 @@
++package ca.on.oicr.gsi.shesmu.plugin.filter;
++
++public class FilterType extends FilterJson {
++  private String[] types;
++
++  @Override
++  public <F> F convert(FilterBuilder<F> filterBuilder) {
++    return maybeNegate(filterBuilder.type(types), filterBuilder);
++  }
++
++  public String[] getTypes() {
++    return types;
++  }
++
++  public void setTypes(String[] types) {
++    this.types = types;
++  }
++}
+diff --git a/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/LocationJson.java b/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/LocationJson.java
+new file mode 100644
+index 00000000..4ace0f57
+--- /dev/null
++++ b/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/LocationJson.java
+@@ -0,0 +1,121 @@
++package ca.on.oicr.gsi.shesmu.plugin.filter;
++
++import ca.on.oicr.gsi.shesmu.plugin.SourceLocation;
++import java.util.function.Predicate;
++
++public final class LocationJson implements Predicate<SourceLocation> {
++  private Integer column;
++  private String file;
++  private Integer line;
++  private Long time;
++
++  @Override
++  public boolean equals(Object obj) {
++    if (this == obj) {
++      return true;
++    }
++    if (obj == null) {
++      return false;
++    }
++    if (getClass() != obj.getClass()) {
++      return false;
++    }
++    final LocationJson other = (LocationJson) obj;
++    if (column == null) {
++      if (other.column != null) {
++        return false;
++      }
++    } else if (!column.equals(other.column)) {
++      return false;
++    }
++    if (file == null) {
++      if (other.file != null) {
++        return false;
++      }
++    } else if (!file.equals(other.file)) {
++      return false;
++    }
++    if (line == null) {
++      if (other.line != null) {
++        return false;
++      }
++    } else if (!line.equals(other.line)) {
++      return false;
++    }
++    if (time == null) {
++      if (other.time != null) {
++        return false;
++      }
++    } else if (!time.equals(other.time)) {
++      return false;
++    }
++    return true;
++  }
++
++  public Integer getColumn() {
++    return column;
++  }
++
++  public String getFile() {
++    return file;
++  }
++
++  public Integer getLine() {
++    return line;
++  }
++
++  public Long getTime() {
++    return time;
++  }
++
++  @Override
++  public int hashCode() {
++    final int prime = 31;
++    int result = 1;
++    result = prime * result + (column == null ? 0 : column.hashCode());
++    result = prime * result + (file == null ? 0 : file.hashCode());
++    result = prime * result + (line == null ? 0 : line.hashCode());
++    result = prime * result + (time == null ? 0 : time.hashCode());
++    return result;
++  }
++
++  public void setColumn(Integer column) {
++    this.column = column;
++  }
++
++  public void setFile(String file) {
++    this.file = file;
++  }
++
++  public void setLine(Integer line) {
++    this.line = line;
++  }
++
++  public void setTime(Long time) {
++    this.time = time;
++  }
++
++  @Override
++  public boolean test(SourceLocation location) {
++    if (file == null || !file.equals(location.fileName())) {
++      return false;
++    }
++
++    if (line == null) {
++      return true;
++    }
++    if (location.line() != line) {
++      return false;
++    }
++    if (column == null) {
++      return true;
++    }
++    if (location.column() != column) {
++      return false;
++    }
++    if (time == null) {
++      return true;
++    }
++    return location.time().toEpochMilli() == time;
++  }
++}
+diff --git a/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/RangeFilterJson.java b/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/RangeFilterJson.java
+new file mode 100644
+index 00000000..60e0487b
+--- /dev/null
++++ b/shesmu-pluginapi/src/main/java/ca/on/oicr/gsi/shesmu/plugin/filter/RangeFilterJson.java
+@@ -0,0 +1,39 @@
++package ca.on.oicr.gsi.shesmu.plugin.filter;
++
++import java.time.Instant;
++import java.util.Optional;
++
++public abstract class RangeFilterJson extends FilterJson {
++  private Long end;
++
++  private Long start;
++
++  protected abstract <F> F convert(
++      Optional<Instant> start, Optional<Instant> end, FilterBuilder<F> filterBuilder);
++
++  @Override
++  public final <F> F convert(FilterBuilder<F> filterBuilder) {
++    return maybeNegate(
++        convert(
++            Optional.ofNullable(start).map(Instant::ofEpochMilli),
++            Optional.ofNullable(end).map(Instant::ofEpochMilli),
++            filterBuilder),
++        filterBuilder);
++  }
++
++  public final Long getEnd() {
++    return end;
++  }
++
++  public final Long getStart() {
++    return start;
++  }
++
++  public final void setEnd(Long end) {
++    this.end = end;
++  }
++
++  public final void setStart(Long start) {
++    this.start = start;
++  }
++}
+diff --git a/shesmu-server/src/main/java/ca/on/oicr/gsi/shesmu/Server.java b/shesmu-server/src/main/java/ca/on/oicr/gsi/shesmu/Server.java
+index c911f24b..1542c293 100644
+--- a/shesmu-server/src/main/java/ca/on/oicr/gsi/shesmu/Server.java
++++ b/shesmu-server/src/main/java/ca/on/oicr/gsi/shesmu/Server.java
+@@ -12,6 +12,7 @@
+ import ca.on.oicr.gsi.shesmu.compiler.description.Produces;
+ import ca.on.oicr.gsi.shesmu.core.StandardDefinitions;
+ import ca.on.oicr.gsi.shesmu.plugin.Parser;
++import ca.on.oicr.gsi.shesmu.plugin.SourceLocation;
+ import ca.on.oicr.gsi.shesmu.plugin.action.Action;
+ import ca.on.oicr.gsi.shesmu.plugin.action.ActionServices;
+ import ca.on.oicr.gsi.shesmu.plugin.cache.KeyValueCache;
+@@ -20,6 +21,8 @@
+ import ca.on.oicr.gsi.shesmu.plugin.dumper.Dumper;
+ import ca.on.oicr.gsi.shesmu.plugin.files.AutoUpdatingDirectory;
+ import ca.on.oicr.gsi.shesmu.plugin.files.FileWatcher;
++import ca.on.oicr.gsi.shesmu.plugin.filter.FilterJson;
++import ca.on.oicr.gsi.shesmu.plugin.filter.LocationJson;
+ import ca.on.oicr.gsi.shesmu.plugin.functions.FunctionParameter;
+ import ca.on.oicr.gsi.shesmu.plugin.grouper.GrouperDefinition;
+ import ca.on.oicr.gsi.shesmu.plugin.json.PackJsonArray;
+@@ -27,7 +30,6 @@
+ import ca.on.oicr.gsi.shesmu.runtime.*;
+ import ca.on.oicr.gsi.shesmu.server.*;
+ import ca.on.oicr.gsi.shesmu.server.ActionProcessor.Filter;
+-import ca.on.oicr.gsi.shesmu.server.Query.FilterJson;
+ import ca.on.oicr.gsi.shesmu.server.plugins.AnnotatedInputFormatDefinition;
+ import ca.on.oicr.gsi.shesmu.server.plugins.JarHashRepository;
+ import ca.on.oicr.gsi.shesmu.server.plugins.PluginManager;
+@@ -398,9 +400,9 @@ public String activeUrl() {
+ 
+                   final String savedString = parameters.get("saved");
+                   if (savedString != null) {
+-                    final Query.LocationJson savedLocation =
++                    final LocationJson savedLocation =
+                         RuntimeSupport.MAPPER.readValue(
+-                            URLDecoder.decode(savedString, "UTF-8"), Query.LocationJson.class);
++                            URLDecoder.decode(savedString, "UTF-8"), LocationJson.class);
+                     savedJson = RuntimeSupport.MAPPER.writeValueAsString(savedLocation);
+                   }
+                   userFilters =
+@@ -1454,8 +1456,8 @@ protected void renderContent(XMLStreamWriter writer) throws XMLStreamException {
+     add(
+         "/metrodiagram",
+         t -> {
+-          final Query.LocationJson location =
+-              RuntimeSupport.MAPPER.readValue(t.getRequestBody(), Query.LocationJson.class);
++          final LocationJson location =
++              RuntimeSupport.MAPPER.readValue(t.getRequestBody(), LocationJson.class);
+           final Pair<Pair<OliveRunInfo, FileTable>, OliveTable> match =
+               compiler
+                   .dashboard()
+@@ -1595,7 +1597,7 @@ protected void renderContent(XMLStreamWriter writer) throws XMLStreamException {
+                     RuntimeSupport.MAPPER,
+                     Stream.of(filters)
+                         .filter(Objects::nonNull)
+-                        .map(FilterJson::convert)
++                        .map(filterJson -> filterJson.convert(processor))
+                         .toArray(Filter[]::new)));
+           }
+         });
+@@ -1618,7 +1620,7 @@ protected void renderContent(XMLStreamWriter writer) throws XMLStreamException {
+                 processor.purge(
+                     Stream.of(filters)
+                         .filter(Objects::nonNull)
+-                        .map(FilterJson::convert)
++                        .map(filterJson -> filterJson.convert(processor))
+                         .toArray(Filter[]::new)));
+           }
+         });
+diff --git a/shesmu-server/src/main/java/ca/on/oicr/gsi/shesmu/core/input/shesmu/ShesmuIntrospectionValue.java b/shesmu-server/src/main/java/ca/on/oicr/gsi/shesmu/core/input/shesmu/ShesmuIntrospectionValue.java
+index 9ec0dbc0..91ac4e51 100644
+--- a/shesmu-server/src/main/java/ca/on/oicr/gsi/shesmu/core/input/shesmu/ShesmuIntrospectionValue.java
++++ b/shesmu-server/src/main/java/ca/on/oicr/gsi/shesmu/core/input/shesmu/ShesmuIntrospectionValue.java
+@@ -1,10 +1,10 @@
+ package ca.on.oicr.gsi.shesmu.core.input.shesmu;
+ 
++import ca.on.oicr.gsi.shesmu.plugin.SourceLocation;
+ import ca.on.oicr.gsi.shesmu.plugin.Tuple;
+ import ca.on.oicr.gsi.shesmu.plugin.action.Action;
+ import ca.on.oicr.gsi.shesmu.plugin.action.ActionState;
+ import ca.on.oicr.gsi.shesmu.plugin.input.ShesmuVariable;
+-import ca.on.oicr.gsi.shesmu.server.SourceLocation;
+ import java.nio.file.Paths;
+ import java.time.Instant;
+ import java.util.Set;
+diff --git a/shesmu-server/src/main/java/ca/on/oicr/gsi/shesmu/server/ActionProcessor.java b/shesmu-server/src/main/java/ca/on/oicr/gsi/shesmu/server/ActionProcessor.java
+index 7defec3b..a0f499b8 100644
+--- a/shesmu-server/src/main/java/ca/on/oicr/gsi/shesmu/server/ActionProcessor.java
++++ b/shesmu-server/src/main/java/ca/on/oicr/gsi/shesmu/server/ActionProcessor.java
+@@ -4,16 +4,18 @@
+ import ca.on.oicr.gsi.prometheus.LatencyHistogram;
+ import ca.on.oicr.gsi.shesmu.Server;
+ import ca.on.oicr.gsi.shesmu.core.input.shesmu.ShesmuIntrospectionValue;
++import ca.on.oicr.gsi.shesmu.plugin.SourceLocation;
++import ca.on.oicr.gsi.shesmu.plugin.SourceLocation.SourceLoctionLinker;
+ import ca.on.oicr.gsi.shesmu.plugin.Utils;
+ import ca.on.oicr.gsi.shesmu.plugin.action.Action;
+ import ca.on.oicr.gsi.shesmu.plugin.action.ActionServices;
+ import ca.on.oicr.gsi.shesmu.plugin.action.ActionState;
+ import ca.on.oicr.gsi.shesmu.plugin.dumper.Dumper;
++import ca.on.oicr.gsi.shesmu.plugin.filter.FilterBuilder;
+ import ca.on.oicr.gsi.shesmu.plugin.types.Imyhat;
+ import ca.on.oicr.gsi.shesmu.runtime.InputProvider;
+ import ca.on.oicr.gsi.shesmu.runtime.OliveServices;
+ import ca.on.oicr.gsi.shesmu.runtime.RuntimeSupport;
+-import ca.on.oicr.gsi.shesmu.server.SourceLocation.SourceLoctionLinker;
+ import ca.on.oicr.gsi.shesmu.server.plugins.PluginManager;
+ import ca.on.oicr.gsi.shesmu.util.AutoLock;
+ import com.fasterxml.jackson.annotation.JsonIgnore;
+@@ -52,7 +54,10 @@
+  * successful.
+  */
+ public final class ActionProcessor
+-    implements OliveServices, InputProvider, MetroDiagram.OliveFlowReader {
++    implements OliveServices,
++        InputProvider,
++        MetroDiagram.OliveFlowReader,
++        FilterBuilder<ActionProcessor.Filter> {
+ 
+   private interface Bin<T> extends Comparator<T> {
+     long bucket(T min, long width, T value);
+@@ -219,13 +224,17 @@ protected final boolean check(Action action, Information info) {
+     protected abstract Optional<Instant> get(Action action, Information info);
+   }
+ 
++  public Filter negate(Filter filter) {
++    return filter.negate();
++  }
++
+   /**
+    * Check that an action was last added in the time range provided
+    *
+    * @param start the exclusive cut-off timestamp
+    * @param end the exclusive cut-off timestamp
+    */
+-  public static Filter added(Optional<Instant> start, Optional<Instant> end) {
++  public Filter added(Optional<Instant> start, Optional<Instant> end) {
+     return new InstantFilter(start, end) {
+ 
+       @Override
+@@ -236,12 +245,13 @@ public static Filter added(Optional<Instant> start, Optional<Instant> end) {
+   }
+ 
+   /** Check that all of the filters match */
+-  public static Filter and(Filter... filters) {
++  public Filter and(Stream<Filter> filters) {
+     return new Filter() {
++      private final List<Filter> filterList = filters.collect(Collectors.toList());
+ 
+       @Override
+       protected boolean check(Action action, Information info) {
+-        return Stream.of(filters).allMatch(f -> f.check(action, info));
++        return filterList.stream().allMatch(f -> f.check(action, info));
+       }
+     };
+   }
+@@ -252,7 +262,7 @@ protected boolean check(Action action, Information info) {
+    * @param start the exclusive cut-off timestamp
+    * @param end the exclusive cut-off timestamp
+    */
+-  public static Filter checked(Optional<Instant> start, Optional<Instant> end) {
++  public Filter checked(Optional<Instant> start, Optional<Instant> end) {
+     return new InstantFilter(start, end) {
+ 
+       @Override
+@@ -268,7 +278,7 @@ public static Filter checked(Optional<Instant> start, Optional<Instant> end) {
+    * @param start the exclusive cut-off timestamp
+    * @param end the exclusive cut-off timestamp
+    */
+-  public static Filter external(Optional<Instant> start, Optional<Instant> end) {
++  public Filter external(Optional<Instant> start, Optional<Instant> end) {
+     return new InstantFilter(start, end) {
+ 
+       @Override
+@@ -283,7 +293,7 @@ public static Filter external(Optional<Instant> start, Optional<Instant> end) {
+    *
+    * @param locations the source locations
+    */
+-  public static Filter fromFile(Stream<Predicate<SourceLocation>> locations) {
++  public Filter fromSourceLocation(Stream<Predicate<SourceLocation>> locations) {
+     final List<Predicate<SourceLocation>> list = locations.collect(Collectors.toList());
+     return new Filter() {
+ 
+@@ -299,7 +309,7 @@ protected boolean check(Action action, Information info) {
+    *
+    * @param files the names of the files
+    */
+-  public static Filter fromFile(String... files) {
++  public Filter fromFile(String... files) {
+     final Set<String> set = Stream.of(files).collect(Collectors.toSet());
+     return new Filter() {
+ 
+@@ -315,7 +325,7 @@ protected boolean check(Action action, Information info) {
+    *
+    * @param ids the allowed identifiers
+    */
+-  public static Filter ids(List<String> ids) {
++  public Filter ids(List<String> ids) {
+     return new Filter() {
+ 
+       @Override
+@@ -330,7 +340,7 @@ protected boolean check(Action action, Information info) {
+    *
+    * @param states the permitted states
+    */
+-  public static Filter isState(ActionState... states) {
++  public Filter isState(ActionState... states) {
+     final EnumSet<ActionState> set = EnumSet.noneOf(ActionState.class);
+     set.addAll(Arrays.asList(states));
+     return new Filter() {
+@@ -343,14 +353,15 @@ protected boolean check(Action action, Information info) {
+   }
+ 
+   /** Check that any of the filters match */
+-  public static Filter or(Filter... filters) {
++  public Filter or(Stream<Filter> filters) {
+     return new Filter() {
++      private final List<Filter> filterList = filters.collect(Collectors.toList());
+ 
+       @Override
+       protected boolean check(Action action, Information info) {
+-        return Stream.of(filters).anyMatch(f -> f.check(action, info));
++        return filterList.stream().anyMatch(f -> f.check(action, info));
+       }
+-    };
++    }; // todo: cme back
+   }
+ 
+   private static <T extends Comparable<T>> void propertySummary(
+@@ -378,7 +389,7 @@ protected boolean check(Action action, Information info) {
+    * @param start the exclusive cut-off timestamp
+    * @param end the exclusive cut-off timestamp
+    */
+-  public static Filter statusChanged(Optional<Instant> start, Optional<Instant> end) {
++  public Filter statusChanged(Optional<Instant> start, Optional<Instant> end) {
+     return new InstantFilter(start, end) {
+ 
+       @Override
+@@ -393,7 +404,7 @@ public static Filter statusChanged(Optional<Instant> start, Optional<Instant> en
+    *
+    * @param tags the set of tags
+    */
+-  public static Filter tags(Stream<String> tags) {
++  public Filter tags(Stream<String> tags) {
+     final Set<String> tagSet = tags.collect(Collectors.toSet());
+     return new Filter() {
+       @Override
+@@ -408,7 +419,7 @@ protected boolean check(Action action, Information info) {
+    *
+    * @param pattern the pattern
+    */
+-  public static Filter textSearch(Pattern pattern) {
++  public Filter textSearch(Pattern pattern) {
+     return new Filter() {
+       @Override
+       protected boolean check(Action action, Information info) {
+@@ -418,7 +429,7 @@ protected boolean check(Action action, Information info) {
+   }
+ 
+   /** Check that an action has one of the types specified */
+-  public static Filter type(String... types) {
++  public Filter type(String... types) {
+     final Set<String> set = Stream.of(types).collect(Collectors.toSet());
+     return new Filter() {
+ 
+diff --git a/shesmu-server/src/main/java/ca/on/oicr/gsi/shesmu/server/MetroDiagram.java b/shesmu-server/src/main/java/ca/on/oicr/gsi/shesmu/server/MetroDiagram.java
+index b61868ae..12b29c3d 100644
+--- a/shesmu-server/src/main/java/ca/on/oicr/gsi/shesmu/server/MetroDiagram.java
++++ b/shesmu-server/src/main/java/ca/on/oicr/gsi/shesmu/server/MetroDiagram.java
+@@ -7,8 +7,9 @@
+ import ca.on.oicr.gsi.shesmu.compiler.description.OliveTable;
+ import ca.on.oicr.gsi.shesmu.compiler.description.VariableInformation;
+ import ca.on.oicr.gsi.shesmu.compiler.description.VariableInformation.Behaviour;
++import ca.on.oicr.gsi.shesmu.plugin.SourceLocation;
++import ca.on.oicr.gsi.shesmu.plugin.SourceLocation.SourceLoctionLinker;
+ import ca.on.oicr.gsi.shesmu.plugin.types.Imyhat;
+-import ca.on.oicr.gsi.shesmu.server.SourceLocation.SourceLoctionLinker;
+ import java.awt.Canvas;
+ import java.awt.Font;
+ import java.time.Instant;
+diff --git a/shesmu-server/src/main/java/ca/on/oicr/gsi/shesmu/server/Query.java b/shesmu-server/src/main/java/ca/on/oicr/gsi/shesmu/server/Query.java
+index d3970854..b74d5f42 100644
+--- a/shesmu-server/src/main/java/ca/on/oicr/gsi/shesmu/server/Query.java
++++ b/shesmu-server/src/main/java/ca/on/oicr/gsi/shesmu/server/Query.java
+@@ -1,472 +1,19 @@
+ package ca.on.oicr.gsi.shesmu.server;
+ 
+-import ca.on.oicr.gsi.shesmu.plugin.action.ActionState;
++import ca.on.oicr.gsi.shesmu.plugin.SourceLocation.SourceLoctionLinker;
++import ca.on.oicr.gsi.shesmu.plugin.filter.*;
+ import ca.on.oicr.gsi.shesmu.runtime.RuntimeSupport;
+ import ca.on.oicr.gsi.shesmu.server.ActionProcessor.Filter;
+-import ca.on.oicr.gsi.shesmu.server.SourceLocation.SourceLoctionLinker;
+-import com.fasterxml.jackson.annotation.JsonSubTypes;
+-import com.fasterxml.jackson.annotation.JsonSubTypes.Type;
+-import com.fasterxml.jackson.annotation.JsonTypeInfo;
+ import com.fasterxml.jackson.core.JsonEncoding;
+ import com.fasterxml.jackson.core.JsonFactory;
+ import com.fasterxml.jackson.core.JsonGenerator;
+ import java.io.IOException;
+ import java.io.OutputStream;
+-import java.time.Instant;
+ import java.util.Arrays;
+-import java.util.List;
+ import java.util.Objects;
+-import java.util.Optional;
+-import java.util.function.Predicate;
+-import java.util.regex.Pattern;
+-import java.util.stream.Stream;
+ 
+ /** Translate JSON-formatted queries into Java objects and perform the query */
+ public class Query {
+-  public abstract static class AgoFilterJson extends FilterJson {
+-    private long offset;
+-
+-    protected abstract Filter convert(Optional<Instant> start, Optional<Instant> end);
+-
+-    @Override
+-    public final Filter convert() {
+-      return maybeNegate(convert(Optional.of(Instant.now().minusMillis(offset)), Optional.empty()));
+-    }
+-
+-    public final long getOffset() {
+-      return offset;
+-    }
+-
+-    public final void setOffset(long offset) {
+-      this.offset = offset;
+-    }
+-  }
+-
+-  public abstract static class CollectionFilterJson extends FilterJson {
+-    private FilterJson[] filters;
+-
+-    @Override
+-    public final Filter convert() {
+-      return maybeNegate(
+-          convert(Stream.of(filters).map(FilterJson::convert).toArray(Filter[]::new)));
+-    }
+-
+-    protected abstract Filter convert(Filter[] filters);
+-
+-    public final FilterJson[] getFilters() {
+-      return filters;
+-    }
+-
+-    public final void setFilters(FilterJson[] filters) {
+-      this.filters = filters;
+-    }
+-  }
+-
+-  public static class FilterAdded extends RangeFilterJson {
+-    @Override
+-    protected Filter convert(Optional<Instant> start, Optional<Instant> end) {
+-      return ActionProcessor.added(start, end);
+-    }
+-  }
+-
+-  public static class FilterAddedAgo extends AgoFilterJson {
+-    @Override
+-    protected Filter convert(Optional<Instant> start, Optional<Instant> end) {
+-      return ActionProcessor.added(start, end);
+-    }
+-  }
+-
+-  public static class FilterAnd extends CollectionFilterJson {
+-    @Override
+-    public Filter convert(Filter[] filters) {
+-      return ActionProcessor.and(filters);
+-    }
+-  }
+-
+-  public static class FilterChecked extends RangeFilterJson {
+-    @Override
+-    public Filter convert(Optional<Instant> start, Optional<Instant> end) {
+-      return ActionProcessor.checked(start, end);
+-    }
+-  }
+-
+-  public static class FilterCheckedAgo extends AgoFilterJson {
+-    @Override
+-    public Filter convert(Optional<Instant> start, Optional<Instant> end) {
+-      return ActionProcessor.checked(start, end);
+-    }
+-  }
+-
+-  public static class FilterExternal extends RangeFilterJson {
+-    @Override
+-    public Filter convert(Optional<Instant> start, Optional<Instant> end) {
+-      return ActionProcessor.external(start, end);
+-    }
+-  }
+-
+-  public static class FilterExternalAgo extends AgoFilterJson {
+-    @Override
+-    public Filter convert(Optional<Instant> start, Optional<Instant> end) {
+-      return ActionProcessor.external(start, end);
+-    }
+-  }
+-
+-  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+-  @JsonSubTypes({
+-    @Type(value = FilterAdded.class, name = "added"),
+-    @Type(value = FilterAddedAgo.class, name = "addedago"),
+-    @Type(value = FilterAnd.class, name = "and"),
+-    @Type(value = FilterChecked.class, name = "checked"),
+-    @Type(value = FilterCheckedAgo.class, name = "checkedago"),
+-    @Type(value = FilterExternal.class, name = "external"),
+-    @Type(value = FilterExternalAgo.class, name = "externalago"),
+-    @Type(value = FilterIds.class, name = "id"),
+-    @Type(value = FilterOr.class, name = "or"),
+-    @Type(value = FilterRegex.class, name = "regex"),
+-    @Type(value = FilterSourceFile.class, name = "sourcefile"),
+-    @Type(value = FilterSourceLocation.class, name = "sourcelocation"),
+-    @Type(value = FilterStatus.class, name = "status"),
+-    @Type(value = FilterStatusChanged.class, name = "statuschanged"),
+-    @Type(value = FilterStatusChangedAgo.class, name = "statuschangedago"),
+-    @Type(value = FilterTag.class, name = "tag"),
+-    @Type(value = FilterText.class, name = "text"),
+-    @Type(value = FilterType.class, name = "type")
+-  })
+-  public abstract static class FilterJson {
+-    private boolean negate;
+-
+-    public abstract Filter convert();
+-
+-    public boolean isNegate() {
+-      return negate;
+-    }
+-
+-    protected Filter maybeNegate(Filter filter) {
+-      return negate ? filter.negate() : filter;
+-    }
+-
+-    public void setNegate(boolean negate) {
+-      this.negate = negate;
+-    }
+-  }
+-
+-  public static class FilterOr extends CollectionFilterJson {
+-    @Override
+-    public Filter convert(Filter[] filters) {
+-      return ActionProcessor.or(filters);
+-    }
+-  }
+-
+-  public static class FilterRegex extends FilterJson {
+-    private String pattern;
+-
+-    @Override
+-    public Filter convert() {
+-      return maybeNegate(ActionProcessor.textSearch(Pattern.compile(pattern)));
+-    }
+-
+-    public String getPattern() {
+-      return pattern;
+-    }
+-
+-    public void setPattern(String pattern) {
+-      this.pattern = pattern;
+-    }
+-  }
+-
+-  public static class FilterSourceFile extends FilterJson {
+-    private String[] files;
+-
+-    @Override
+-    public Filter convert() {
+-      return maybeNegate(ActionProcessor.fromFile(files));
+-    }
+-
+-    public String[] getFiles() {
+-      return files;
+-    }
+-
+-    public void setFiles(String[] files) {
+-      this.files = files;
+-    }
+-  }
+-
+-  public static class FilterSourceLocation extends FilterJson {
+-    private LocationJson[] locations;
+-
+-    @Override
+-    public Filter convert() {
+-      return maybeNegate(ActionProcessor.fromFile(Stream.of(locations)));
+-    }
+-
+-    public LocationJson[] getLocations() {
+-      return locations;
+-    }
+-
+-    public void setLocations(LocationJson[] locations) {
+-      this.locations = locations;
+-    }
+-  }
+-
+-  public static class FilterStatus extends FilterJson {
+-    private ActionState[] states;
+-
+-    @Override
+-    public Filter convert() {
+-      return maybeNegate(ActionProcessor.isState(states));
+-    }
+-
+-    public ActionState[] getStates() {
+-      return states;
+-    }
+-
+-    public void setState(ActionState[] states) {
+-      this.states = states;
+-    }
+-  }
+-
+-  public static class FilterIds extends FilterJson {
+-    private List<String> ids;
+-
+-    @Override
+-    public Filter convert() {
+-      return maybeNegate(ActionProcessor.ids(ids));
+-    }
+-
+-    public List<String> getIds() {
+-      return ids;
+-    }
+-
+-    public void setIds(List<String> ids) {
+-      this.ids = ids;
+-    }
+-  }
+-
+-  public static class FilterStatusChanged extends RangeFilterJson {
+-    @Override
+-    public Filter convert(Optional<Instant> start, Optional<Instant> end) {
+-      return ActionProcessor.statusChanged(start, end);
+-    }
+-  }
+-
+-  public static class FilterStatusChangedAgo extends AgoFilterJson {
+-    @Override
+-    public Filter convert(Optional<Instant> start, Optional<Instant> end) {
+-      return ActionProcessor.statusChanged(start, end);
+-    }
+-  }
+-
+-  public static class FilterTag extends FilterJson {
+-    private String[] tags;
+-
+-    @Override
+-    public Filter convert() {
+-      return maybeNegate(ActionProcessor.tags(Stream.of(tags)));
+-    }
+-
+-    public String[] getTags() {
+-      return tags;
+-    }
+-
+-    public void setTags(String[] tags) {
+-      this.tags = tags;
+-    }
+-  }
+-
+-  public static class FilterText extends FilterJson {
+-    private boolean matchCase;
+-    private String text;
+-
+-    @Override
+-    public Filter convert() {
+-      return maybeNegate(
+-          ActionProcessor.textSearch(
+-              Pattern.compile(
+-                  "^.*" + Pattern.quote(text) + ".*$", matchCase ? 0 : Pattern.CASE_INSENSITIVE)));
+-    }
+-
+-    public String getText() {
+-      return text;
+-    }
+-
+-    public boolean isMatchCase() {
+-      return matchCase;
+-    }
+-
+-    public void setMatchCase(boolean matchCase) {
+-      this.matchCase = matchCase;
+-    }
+-
+-    public void setText(String text) {
+-      this.text = text;
+-    }
+-  }
+-
+-  public static class FilterType extends FilterJson {
+-    private String[] types;
+-
+-    @Override
+-    public Filter convert() {
+-      return maybeNegate(ActionProcessor.type(types));
+-    }
+-
+-    public String[] getTypes() {
+-      return types;
+-    }
+-
+-    public void setTypes(String[] types) {
+-      this.types = types;
+-    }
+-  }
+-
+-  public static final class LocationJson implements Predicate<SourceLocation> {
+-    private Integer column;
+-    private String file;
+-    private Integer line;
+-    private Long time;
+-
+-    @Override
+-    public boolean equals(Object obj) {
+-      if (this == obj) {
+-        return true;
+-      }
+-      if (obj == null) {
+-        return false;
+-      }
+-      if (getClass() != obj.getClass()) {
+-        return false;
+-      }
+-      final LocationJson other = (LocationJson) obj;
+-      if (column == null) {
+-        if (other.column != null) {
+-          return false;
+-        }
+-      } else if (!column.equals(other.column)) {
+-        return false;
+-      }
+-      if (file == null) {
+-        if (other.file != null) {
+-          return false;
+-        }
+-      } else if (!file.equals(other.file)) {
+-        return false;
+-      }
+-      if (line == null) {
+-        if (other.line != null) {
+-          return false;
+-        }
+-      } else if (!line.equals(other.line)) {
+-        return false;
+-      }
+-      if (time == null) {
+-        if (other.time != null) {
+-          return false;
+-        }
+-      } else if (!time.equals(other.time)) {
+-        return false;
+-      }
+-      return true;
+-    }
+-
+-    public Integer getColumn() {
+-      return column;
+-    }
+-
+-    public String getFile() {
+-      return file;
+-    }
+-
+-    public Integer getLine() {
+-      return line;
+-    }
+-
+-    public Long getTime() {
+-      return time;
+-    }
+-
+-    @Override
+-    public int hashCode() {
+-      final int prime = 31;
+-      int result = 1;
+-      result = prime * result + (column == null ? 0 : column.hashCode());
+-      result = prime * result + (file == null ? 0 : file.hashCode());
+-      result = prime * result + (line == null ? 0 : line.hashCode());
+-      result = prime * result + (time == null ? 0 : time.hashCode());
+-      return result;
+-    }
+-
+-    public void setColumn(Integer column) {
+-      this.column = column;
+-    }
+-
+-    public void setFile(String file) {
+-      this.file = file;
+-    }
+-
+-    public void setLine(Integer line) {
+-      this.line = line;
+-    }
+-
+-    public void setTime(Long time) {
+-      this.time = time;
+-    }
+-
+-    @Override
+-    public boolean test(SourceLocation location) {
+-      if (file == null || !file.equals(location.fileName())) {
+-        return false;
+-      }
+-
+-      if (line == null) {
+-        return true;
+-      }
+-      if (location.line() != line) {
+-        return false;
+-      }
+-      if (column == null) {
+-        return true;
+-      }
+-      if (location.column() != column) {
+-        return false;
+-      }
+-      if (time == null) {
+-        return true;
+-      }
+-      return location.time().toEpochMilli() == time;
+-    }
+-  }
+-
+-  public abstract static class RangeFilterJson extends FilterJson {
+-    private Long end;
+-
+-    private Long start;
+-
+-    protected abstract Filter convert(Optional<Instant> start, Optional<Instant> end);
+-
+-    @Override
+-    public final Filter convert() {
+-      return maybeNegate(
+-          convert(
+-              Optional.ofNullable(start).map(Instant::ofEpochMilli),
+-              Optional.ofNullable(end).map(Instant::ofEpochMilli)));
+-    }
+-
+-    public final Long getEnd() {
+-      return end;
+-    }
+-
+-    public final Long getStart() {
+-      return start;
+-    }
+-
+-    public final void setEnd(Long end) {
+-      this.end = end;
+-    }
+-
+-    public final void setStart(Long start) {
+-      this.start = start;
+-    }
+-  }
+ 
+   FilterJson[] filters;
+ 
+@@ -491,7 +38,7 @@ public void perform(OutputStream output, SourceLoctionLinker linker, ActionProce
+     final Filter[] filters =
+         Arrays.stream(getFilters())
+             .filter(Objects::nonNull)
+-            .map(FilterJson::convert)
++            .map(filterJson -> filterJson.convert(processor))
+             .toArray(Filter[]::new);
+     final JsonGenerator jsonOutput = new JsonFactory().createGenerator(output, JsonEncoding.UTF8);
+     jsonOutput.setCodec(RuntimeSupport.MAPPER);
+diff --git a/shesmu-server/src/main/java/ca/on/oicr/gsi/shesmu/server/SavedSearch.java b/shesmu-server/src/main/java/ca/on/oicr/gsi/shesmu/server/SavedSearch.java
+index ba874a08..cd74aa34 100644
+--- a/shesmu-server/src/main/java/ca/on/oicr/gsi/shesmu/server/SavedSearch.java
++++ b/shesmu-server/src/main/java/ca/on/oicr/gsi/shesmu/server/SavedSearch.java
+@@ -1,8 +1,8 @@
+ package ca.on.oicr.gsi.shesmu.server;
+ 
+ import ca.on.oicr.gsi.shesmu.plugin.files.WatchedFileListener;
++import ca.on.oicr.gsi.shesmu.plugin.filter.FilterJson;
+ import ca.on.oicr.gsi.shesmu.runtime.RuntimeSupport;
+-import ca.on.oicr.gsi.shesmu.server.Query.FilterJson;
+ import com.fasterxml.jackson.databind.node.ObjectNode;
+ import java.nio.file.Path;
+ import java.util.Optional;
+diff --git a/shesmu-server/src/main/java/ca/on/oicr/gsi/shesmu/server/plugins/PluginManager.java b/shesmu-server/src/main/java/ca/on/oicr/gsi/shesmu/server/plugins/PluginManager.java
+index 4307bef2..8fd7096a 100644
+--- a/shesmu-server/src/main/java/ca/on/oicr/gsi/shesmu/server/plugins/PluginManager.java
++++ b/shesmu-server/src/main/java/ca/on/oicr/gsi/shesmu/server/plugins/PluginManager.java
+@@ -14,6 +14,7 @@
+ import ca.on.oicr.gsi.shesmu.compiler.definitions.SignatureVariableForDynamicSigner;
+ import ca.on.oicr.gsi.shesmu.compiler.definitions.SignatureVariableForStaticSigner;
+ import ca.on.oicr.gsi.shesmu.plugin.*;
++import ca.on.oicr.gsi.shesmu.plugin.SourceLocation.SourceLoctionLinker;
+ import ca.on.oicr.gsi.shesmu.plugin.action.Action;
+ import ca.on.oicr.gsi.shesmu.plugin.action.CustomActionParameter;
+ import ca.on.oicr.gsi.shesmu.plugin.action.ShesmuAction;
+@@ -36,7 +37,6 @@
+ import ca.on.oicr.gsi.shesmu.runtime.CompiledGenerator;
+ import ca.on.oicr.gsi.shesmu.runtime.InputProvider;
+ import ca.on.oicr.gsi.shesmu.runtime.RuntimeSupport;
+-import ca.on.oicr.gsi.shesmu.server.SourceLocation.SourceLoctionLinker;
+ import ca.on.oicr.gsi.status.ConfigurationSection;
+ import ca.on.oicr.gsi.status.SectionRenderer;
+ import ca.on.oicr.gsi.status.TableRowWriter;

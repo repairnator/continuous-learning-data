@@ -1,0 +1,9 @@
+@@ -3072,7 +3072,7 @@ public boolean accept(Element e, TypeMirror t) {
+         }
+         final TypeElement enclClass = scope.getEnclosingClass();
+         for (Element e : getLocalMembersAndVars(env)) {
+-            switch (e.getKind()) {
++            switch (simplifyElementKind(e.getKind())) {
+                 case FIELD:
+                     if (((VariableElement) e).getConstantValue() != null) {
+                         TypeMirror tm = asMemberOf(e, enclClass != null ? enclClass.asType() : null, types);

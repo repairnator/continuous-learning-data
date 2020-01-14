@@ -1,0 +1,79 @@
+diff --git a/core/persistence-api/src/main/java/org/apache/syncope/core/persistence/api/dao/RealmDAO.java b/core/persistence-api/src/main/java/org/apache/syncope/core/persistence/api/dao/RealmDAO.java
+index 42ba819568..800b49394d 100644
+--- a/core/persistence-api/src/main/java/org/apache/syncope/core/persistence/api/dao/RealmDAO.java
++++ b/core/persistence-api/src/main/java/org/apache/syncope/core/persistence/api/dao/RealmDAO.java
+@@ -27,7 +27,9 @@
+ 
+ public interface RealmDAO extends DAO<Realm> {
+ 
+-    Pattern PATH_PATTERN = Pattern.compile("^(/[A-Za-z0-9]+)+");
++    Pattern NAME_PATTERN = Pattern.compile("^[A-Za-z0-9~]+");
++
++    Pattern PATH_PATTERN = Pattern.compile("^(/[A-Za-z0-9~]+)+");
+ 
+     Realm getRoot();
+ 
+diff --git a/core/persistence-jpa/src/main/java/org/apache/syncope/core/persistence/jpa/validation/entity/RealmValidator.java b/core/persistence-jpa/src/main/java/org/apache/syncope/core/persistence/jpa/validation/entity/RealmValidator.java
+index 7a05ea8468..a4d51f1074 100644
+--- a/core/persistence-jpa/src/main/java/org/apache/syncope/core/persistence/jpa/validation/entity/RealmValidator.java
++++ b/core/persistence-jpa/src/main/java/org/apache/syncope/core/persistence/jpa/validation/entity/RealmValidator.java
+@@ -18,16 +18,14 @@
+  */
+ package org.apache.syncope.core.persistence.jpa.validation.entity;
+ 
+-import java.util.regex.Pattern;
+ import javax.validation.ConstraintValidatorContext;
+ import org.apache.syncope.common.lib.SyncopeConstants;
+ import org.apache.syncope.common.lib.types.EntityViolationType;
++import org.apache.syncope.core.persistence.api.dao.RealmDAO;
+ import org.apache.syncope.core.persistence.api.entity.Realm;
+ 
+ public class RealmValidator extends AbstractValidator<RealmCheck, Realm> {
+ 
+-    private static final Pattern REALM_NAME_PATTERN = Pattern.compile("^[A-Za-z0-9]+");
+-
+     @Override
+     public boolean isValid(final Realm realm, final ConstraintValidatorContext context) {
+         context.disableDefaultConstraintViolation();
+@@ -51,7 +49,7 @@ public boolean isValid(final Realm realm, final ConstraintValidatorContext conte
+                         addPropertyNode("parent").addConstraintViolation();
+             }
+ 
+-            if (!REALM_NAME_PATTERN.matcher(realm.getName()).matches()) {
++            if (!RealmDAO.NAME_PATTERN.matcher(realm.getName()).matches()) {
+                 isValid = false;
+ 
+                 context.buildConstraintViolationWithTemplate(
+diff --git a/fit/core-reference/src/test/java/org/apache/syncope/fit/core/RealmITCase.java b/fit/core-reference/src/test/java/org/apache/syncope/fit/core/RealmITCase.java
+index e1cf3f0436..134e0bba7d 100644
+--- a/fit/core-reference/src/test/java/org/apache/syncope/fit/core/RealmITCase.java
++++ b/fit/core-reference/src/test/java/org/apache/syncope/fit/core/RealmITCase.java
+@@ -72,7 +72,7 @@ public void list() {
+ 
+     @Test
+     public void createUpdate() {
+-        final RealmTO realm = new RealmTO();
++        RealmTO realm = new RealmTO();
+         realm.setName("last");
+ 
+         // 1. create
+@@ -125,6 +125,19 @@ public void createUpdate() {
+         }
+     }
+ 
++    @Test
++    public void createWithTilde() {
++        RealmTO realm = new RealmTO();
++        realm.setName("73~1~19534");
++
++        Response response = realmService.create("/even/two", realm);
++        assertEquals(Response.Status.CREATED.getStatusCode(), response.getStatus());
++
++        List<RealmTO> realms = realmService.list("/even/two/73~1~19534");
++        assertEquals(1, realms.size());
++        assertEquals(realm.getName(), realms.get(0).getName());
++    }
++
+     @Test
+     public void deletingAccountPolicy() {
+         // 1. create account policy

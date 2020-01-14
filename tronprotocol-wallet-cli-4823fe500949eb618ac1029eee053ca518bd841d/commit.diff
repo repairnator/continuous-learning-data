@@ -1,0 +1,1372 @@
+diff --git a/src/main/java/org/tron/common/crypto/Sha256Hash.java b/src/main/java/org/tron/common/crypto/Sha256Sm3Hash.java
+similarity index 59%
+rename from src/main/java/org/tron/common/crypto/Sha256Hash.java
+rename to src/main/java/org/tron/common/crypto/Sha256Sm3Hash.java
+index de00defd..85bd46f8 100644
+--- a/src/main/java/org/tron/common/crypto/Sha256Hash.java
++++ b/src/main/java/org/tron/common/crypto/Sha256Sm3Hash.java
+@@ -17,11 +17,14 @@
+  * limitations under the License.
+  */
+ 
++import static com.google.common.base.Preconditions.checkArgument;
++
+ import com.google.common.io.ByteStreams;
+ import com.google.common.primitives.Ints;
+ import com.google.common.primitives.Longs;
+ import com.google.protobuf.ByteString;
+-import org.tron.common.utils.ByteArray;
++import com.typesafe.config.Config;
++import org.spongycastle.crypto.digests.SM3Digest;
+ 
+ import java.io.File;
+ import java.io.FileInputStream;
+@@ -31,58 +34,48 @@
+ import java.security.MessageDigest;
+ import java.security.NoSuchAlgorithmException;
+ import java.util.Arrays;
++import org.tron.common.utils.ByteArray;
++import org.tron.core.config.Configuration;
+ 
+-import static com.google.common.base.Preconditions.checkArgument;
+ 
+ /**
+- * A Sha256Hash just wraps a byte[] so that equals and hashcode work correctly, allowing it to be
++ * A Sha256Sm3Hash just wraps a byte[] so that equals and hashcode work correctly, allowing it to be
+  * used as keys in a map. It also checks that the length is correct and provides a bit more type
+  * safety.
+  */
+-public class Sha256Hash implements Serializable, Comparable<Sha256Hash> {
++public class Sha256Sm3Hash implements Serializable, Comparable<Sha256Sm3Hash> {
+ 
+   public static final int LENGTH = 32; // bytes
+-  public static final Sha256Hash ZERO_HASH = wrap(new byte[LENGTH]);
++  public static final Sha256Sm3Hash ZERO_HASH = wrap(new byte[LENGTH]);
+ 
+   private final byte[] bytes;
++  private static boolean isEckey = true;
+ 
+-  private long blockNum;
+-
+-  private byte[] generateBlockId(long blockNum, Sha256Hash blockHash) {
+-    byte[] numBytes = Longs.toByteArray(blockNum);
+-    byte[] hash = blockHash.getBytes();
+-    System.arraycopy(numBytes, 0, hash, 0, 8);
+-    return hash;
+-  }
+-
+-  private byte[] generateBlockId(long blockNum, byte[] blockHash) {
+-    byte[] numBytes = Longs.toByteArray(blockNum);
+-    byte[] hash = blockHash;
+-    System.arraycopy(numBytes, 0, hash, 0, 8);
+-    return hash;
+-  }
+-
+-  public long getBlockNum() {
+-    return blockNum;
++  static {
++    Config config = Configuration.getByPath("config.conf"); // it is needs set to be a constant
++    if (config.hasPath("crypto.engine")) {
++      isEckey = config.getString("crypto.engine").equalsIgnoreCase("eckey");
++      System.out.println("Sha256Sm3Hash getConfig isEckey: " + isEckey);
++    }
+   }
+-
+-  public Sha256Hash(long num, byte[] hash) {
++  
++  public Sha256Sm3Hash(long num, byte[] hash) {
+     byte[] rawHashBytes = this.generateBlockId(num, hash);
+     checkArgument(rawHashBytes.length == LENGTH);
+     this.bytes = rawHashBytes;
+-    this.blockNum = num;
+   }
+ 
+-  public Sha256Hash(long num, Sha256Hash hash) {
++  public Sha256Sm3Hash(long num, Sha256Sm3Hash hash) {
+     byte[] rawHashBytes = this.generateBlockId(num, hash);
+     checkArgument(rawHashBytes.length == LENGTH);
+     this.bytes = rawHashBytes;
+-    this.blockNum = num;
+   }
+ 
+-  /** Use {@link #wrap(byte[])} instead. */
++  /**
++   * Use {@link #wrap(byte[])} instead.
++   */
+   @Deprecated
+-  public Sha256Hash(byte[] rawHashBytes) {
++  public Sha256Sm3Hash(byte[] rawHashBytes) {
+     checkArgument(rawHashBytes.length == LENGTH);
+     this.bytes = rawHashBytes;
+   }
+@@ -95,17 +88,19 @@ public Sha256Hash(byte[] rawHashBytes) {
+    * @throws IllegalArgumentException if the given array length is not exactly 32
+    */
+   @SuppressWarnings("deprecation") // the constructor will be made private in the future
+-  public static Sha256Hash wrap(byte[] rawHashBytes) {
+-    return new Sha256Hash(rawHashBytes);
++  public static Sha256Sm3Hash wrap(byte[] rawHashBytes) {
++    return new Sha256Sm3Hash(rawHashBytes);
+   }
+ 
+-  public static Sha256Hash wrap(ByteString rawHashByteString) {
++  public static Sha256Sm3Hash wrap(ByteString rawHashByteString) {
+     return wrap(rawHashByteString.toByteArray());
+   }
+ 
+-  /** Use {@link #of(byte[])} instead: this old name is ambiguous. */
++  /**
++   * Use {@link #of(byte[])} instead: this old name is ambiguous.
++   */
+   @Deprecated
+-  public static Sha256Hash create(byte[] contents) {
++  public static Sha256Sm3Hash create( byte[] contents) {
+     return of(contents);
+   }
+ 
+@@ -115,7 +110,7 @@ public static Sha256Hash create(byte[] contents) {
+    * @param contents the bytes on which the hash value is calculated
+    * @return a new instance containing the calculated (one-time) hash
+    */
+-  public static Sha256Hash of(byte[] contents) {
++  public static Sha256Sm3Hash of( byte[] contents) {
+     return wrap(hash(contents));
+   }
+ 
+@@ -128,17 +123,19 @@ public static Sha256Hash of(byte[] contents) {
+    * @return a new instance containing the calculated (one-time) hash
+    * @throws IOException if an error occurs while reading the file
+    */
+-  public static Sha256Hash of(File file) throws IOException {
++  public static Sha256Sm3Hash of( File file) throws IOException {
+ 
+     try (FileInputStream in = new FileInputStream(file)) {
+       return of(ByteStreams.toByteArray(in));
+     }
+   }
+ 
+-  /** Use {@link #twiceOf(byte[])} instead: this old name is ambiguous. */
++  /**
++   * Use {@link #twiceOf(byte[])} instead: this old name is ambiguous.
++   */
+   @Deprecated
+-  public static Sha256Hash createDouble(byte[] contents) {
+-    return twiceOf(contents);
++  public static Sha256Sm3Hash createDouble( byte[] contents) {
++    return twiceOf( contents);
+   }
+ 
+   /**
+@@ -147,8 +144,8 @@ public static Sha256Hash createDouble(byte[] contents) {
+    * @param contents the bytes on which the hash value is calculated
+    * @return a new instance containing the calculated (two-time) hash
+    */
+-  public static Sha256Hash twiceOf(byte[] contents) {
+-    return wrap(hashTwice(contents));
++  public static Sha256Sm3Hash twiceOf( byte[] contents) {
++    return wrap(hashTwice( contents));
+   }
+ 
+   /**
+@@ -161,18 +158,28 @@ public static MessageDigest newDigest() {
+     try {
+       return MessageDigest.getInstance("SHA-256");
+     } catch (NoSuchAlgorithmException e) {
+-      throw new RuntimeException(e); // Can't happen.
++      throw new RuntimeException(e);  // Can't happen.
+     }
+   }
+ 
++  /**
++   * Returns a new SM3 MessageDigest instance. This is a convenience method which wraps the
++   * checked exception that can never occur with a RuntimeException.
++   *
++   * @return a new SM3 MessageDigest instance
++   */
++  public static SM3Digest newSM3Digest() {
++    return new SM3Digest();
++  }
++
+   /**
+    * Calculates the SHA-256 hash of the given bytes.
+    *
+    * @param input the bytes to hash
+    * @return the hash (in big-endian order)
+    */
+-  public static byte[] hash(byte[] input) {
+-    return hash(input, 0, input.length);
++  public static byte[] hash( byte[] input) {
++    return hash( input, 0, input.length);
+   }
+ 
+   /**
+@@ -183,10 +190,19 @@ public static MessageDigest newDigest() {
+    * @param length the number of bytes to hash
+    * @return the hash (in big-endian order)
+    */
+-  public static byte[] hash(byte[] input, int offset, int length) {
+-    MessageDigest digest = newDigest();
+-    digest.update(input, offset, length);
+-    return digest.digest();
++  public static byte[] hash( byte[] input, int offset, int length) {
++    if (isEckey) {
++      MessageDigest digest = newDigest();
++      digest.update(input, offset, length);
++      return digest.digest();
++    } else {
++      SM3Digest digest = newSM3Digest();
++      digest.update(input, offset, length);
++      byte[] eHash = new byte[digest.getDigestSize()];
++      digest.doFinal(eHash, 0);
++      return eHash;
++    }
++
+   }
+ 
+   /**
+@@ -195,8 +211,8 @@ public static MessageDigest newDigest() {
+    * @param input the bytes to hash
+    * @return the double-hash (in big-endian order)
+    */
+-  public static byte[] hashTwice(byte[] input) {
+-    return hashTwice(input, 0, input.length);
++  public static byte[] hashTwice( byte[] input) {
++    return hashTwice( input, 0, input.length);
+   }
+ 
+   /**
+@@ -207,22 +223,59 @@ public static MessageDigest newDigest() {
+    * @param length the number of bytes to hash
+    * @return the double-hash (in big-endian order)
+    */
+-  public static byte[] hashTwice(byte[] input, int offset, int length) {
+-    MessageDigest digest = newDigest();
+-    digest.update(input, offset, length);
+-    return digest.digest(digest.digest());
++  public static byte[] hashTwice( byte[] input, int offset, int length) {
++    if (isEckey) {
++      MessageDigest digest = newDigest();
++      digest.update(input, offset, length);
++      return digest.digest(digest.digest());
++    } else {
++      SM3Digest digest = newSM3Digest();
++      digest.update(input, offset, length);
++      byte[] eHash = new byte[digest.getDigestSize()];
++      digest.doFinal(eHash, 0);
++      digest.reset();
++      digest.update(eHash,0,eHash.length);
++      digest.doFinal(eHash,0);
++      return eHash;
++    }
++
+   }
+ 
+   /**
+    * Calculates the hash of hash on the given byte ranges. This is equivalent to concatenating the
+    * two ranges and then passing the result to {@link #hashTwice(byte[])}.
+    */
+-  public static byte[] hashTwice(
+-      byte[] input1, int offset1, int length1, byte[] input2, int offset2, int length2) {
+-    MessageDigest digest = newDigest();
+-    digest.update(input1, offset1, length1);
+-    digest.update(input2, offset2, length2);
+-    return digest.digest(digest.digest());
++  public static byte[] hashTwice( byte[] input1, int offset1, int length1,
++                                 byte[] input2, int offset2, int length2) {
++    if (isEckey) {
++      MessageDigest digest = newDigest();
++      digest.update(input1, offset1, length1);
++      digest.update(input2, offset2, length2);
++      return digest.digest(digest.digest());
++    } else {
++      SM3Digest digest = newSM3Digest();
++      digest.update(input1, offset1, length1);
++      digest.update(input2, offset2, length2);
++      byte[] eHash = new byte[digest.getDigestSize()];
++      digest.doFinal(eHash,0);
++      return eHash;
++    }
++  }
++
++  private byte[] generateBlockId(long blockNum, Sha256Sm3Hash blockHash) {
++    byte[] numBytes = Longs.toByteArray(blockNum);
++    byte[] hash = new byte[blockHash.getBytes().length];
++    System.arraycopy(numBytes, 0, hash, 0, 8);
++    System.arraycopy(blockHash.getBytes(), 8, hash, 8, blockHash.getBytes().length - 8);
++    return hash;
++  }
++
++  private byte[] generateBlockId(long blockNum, byte[] blockHash) {
++    byte[] numBytes = Longs.toByteArray(blockNum);
++    byte[] hash = new byte[blockHash.length];
++    System.arraycopy(numBytes, 0, hash, 0, 8);
++    System.arraycopy(blockHash, 8, hash, 8, blockHash.length - 8);
++    return hash;
+   }
+ 
+   @Override
+@@ -230,10 +283,10 @@ public boolean equals(Object o) {
+     if (this == o) {
+       return true;
+     }
+-    if (o == null || !(o instanceof Sha256Hash)) {
++    if (o == null || !(o instanceof Sha256Sm3Hash)) {
+       return false;
+     }
+-    return Arrays.equals(bytes, ((Sha256Hash) o).bytes);
++    return Arrays.equals(bytes, ((Sha256Sm3Hash) o).bytes);
+   }
+ 
+   @Override
+@@ -249,11 +302,13 @@ public String toString() {
+   @Override
+   public int hashCode() {
+     // Use the last 4 bytes, not the first 4 which are often zeros in Bitcoin.
+-    return Ints.fromBytes(
+-        bytes[LENGTH - 4], bytes[LENGTH - 3], bytes[LENGTH - 2], bytes[LENGTH - 1]);
++    return Ints
++        .fromBytes(bytes[LENGTH - 4], bytes[LENGTH - 3], bytes[LENGTH - 2], bytes[LENGTH - 1]);
+   }
+ 
+-  /** Returns the bytes interpreted as a positive integer. */
++  /**
++   * Returns the bytes interpreted as a positive integer.
++   */
+   public BigInteger toBigInteger() {
+     return new BigInteger(1, bytes);
+   }
+@@ -266,13 +321,15 @@ public BigInteger toBigInteger() {
+     return bytes;
+   }
+ 
+-  /** For pb return ByteString. */
++  /**
++   * For pb return ByteString.
++   */
+   public ByteString getByteString() {
+     return ByteString.copyFrom(bytes);
+   }
+ 
+   @Override
+-  public int compareTo(final Sha256Hash other) {
++  public int compareTo(final Sha256Sm3Hash other) {
+     for (int i = LENGTH - 1; i >= 0; i--) {
+       final int thisByte = this.bytes[i] & 0xff;
+       final int otherByte = other.bytes[i] & 0xff;
+diff --git a/src/main/java/org/tron/common/crypto/SignInterface.java b/src/main/java/org/tron/common/crypto/SignInterface.java
+index eb21a792..b158c50b 100644
+--- a/src/main/java/org/tron/common/crypto/SignInterface.java
++++ b/src/main/java/org/tron/common/crypto/SignInterface.java
+@@ -4,7 +4,7 @@
+ 
+ public interface SignInterface {
+ 
+-  //  byte[] hash(byte[] message);
++  byte[] hash(byte[] message);
+ 
+   byte[] getPrivateKey();
+ 
+@@ -18,7 +18,7 @@
+ 
+   byte[] getNodeId();
+ 
+-  byte[] Base64toBytes(String signature);
++  byte[] Base64toBytes (String signature);
+ 
+   byte[] getPrivKeyBytes();
+ 
+diff --git a/src/main/java/org/tron/common/utils/TransactionUtils.java b/src/main/java/org/tron/common/utils/TransactionUtils.java
+index 0677fe74..ec994ff6 100644
+--- a/src/main/java/org/tron/common/utils/TransactionUtils.java
++++ b/src/main/java/org/tron/common/utils/TransactionUtils.java
+@@ -16,10 +16,11 @@
+ package org.tron.common.utils;
+ 
+ import com.google.protobuf.ByteString;
+-import com.typesafe.config.Config;
+-import org.tron.common.crypto.*;
++import org.tron.common.crypto.ECKey;
+ import org.tron.common.crypto.ECKey.ECDSASignature;
+-import org.tron.core.config.Configuration;
++import org.tron.common.crypto.Sha256Sm3Hash;
++import org.tron.common.crypto.SignInterface;
++import org.tron.common.crypto.SignatureInterface;
+ import org.tron.core.exception.CancelException;
+ import org.tron.protos.Protocol.Transaction;
+ 
+@@ -36,23 +37,11 @@
+    * @param transaction {@link Transaction} transaction
+    * @return byte[] the hash of the transaction's data bytes which have no id
+    */
+-  private static boolean isEckey = true;
+-
+-  static {
+-    Config config = Configuration.getByPath("config.conf"); // it is needs set to be a constant
+-    if (config.hasPath("crypto.engine")) {
+-      isEckey = config.getString("crypto.engine").equalsIgnoreCase("eckey");
+-    }
+-  }
+-
+   public static byte[] getHash(Transaction transaction) {
+     Transaction.Builder tmp = transaction.toBuilder();
+     // tmp.clearId();
+-    if (isEckey) {
+-      return Sha256Hash.hash(tmp.build().toByteArray());
+-    } else {
+-      return SM3Hash.hash(tmp.build().toByteArray());
+-    }
++
++    return Sha256Sm3Hash.hash(tmp.build().toByteArray());
+   }
+ 
+   public static byte[] getOwner(Transaction.Contract contract) {
+@@ -202,12 +191,7 @@ public static boolean validTransaction(Transaction signedTransaction) {
+     assert (signedTransaction.getSignatureCount()
+         == signedTransaction.getRawData().getContractCount());
+     List<Transaction.Contract> listContract = signedTransaction.getRawData().getContractList();
+-    byte[] hash;
+-    if (isEckey) {
+-      hash = Sha256Hash.hash(signedTransaction.getRawData().toByteArray());
+-    } else {
+-      hash = SM3Hash.hash(signedTransaction.getRawData().toByteArray());
+-    }
++    byte[] hash = Sha256Sm3Hash.hash(signedTransaction.getRawData().toByteArray());
+     int count = signedTransaction.getSignatureCount();
+     if (count == 0) {
+       return false;
+@@ -232,12 +216,7 @@ public static boolean validTransaction(Transaction signedTransaction) {
+ 
+   public static Transaction sign(Transaction transaction, SignInterface myKey) {
+     Transaction.Builder transactionBuilderSigned = transaction.toBuilder();
+-    byte[] hash;
+-    if (isEckey) {
+-      hash = Sha256Hash.hash(transaction.getRawData().toByteArray());
+-    } else {
+-      hash = SM3Hash.hash(transaction.getRawData().toByteArray());
+-    }
++    byte[] hash = Sha256Sm3Hash.hash(transaction.getRawData().toByteArray());
+     SignatureInterface signature = myKey.sign(hash);
+     ByteString bsSign = ByteString.copyFrom(signature.toByteArray());
+     transactionBuilderSigned.addSignature(bsSign);
+diff --git a/src/main/java/org/tron/common/utils/Utils.java b/src/main/java/org/tron/common/utils/Utils.java
+index d81861ad..15592373 100644
+--- a/src/main/java/org/tron/common/utils/Utils.java
++++ b/src/main/java/org/tron/common/utils/Utils.java
+@@ -23,12 +23,9 @@
+ import com.google.protobuf.Any;
+ import com.google.protobuf.InvalidProtocolBufferException;
+ import com.google.protobuf.Message;
+-import com.typesafe.config.Config;
+ import org.tron.api.GrpcAPI.*;
+ import org.tron.common.crypto.Hash;
+-import org.tron.common.crypto.SM3Hash;
+-import org.tron.common.crypto.Sha256Hash;
+-import org.tron.core.config.Configuration;
++import org.tron.common.crypto.Sha256Sm3Hash;
+ import org.tron.keystore.StringUtils;
+ import org.tron.protos.Contract.*;
+ import org.tron.protos.Protocol.Block;
+@@ -55,16 +52,6 @@
+   public static final String VALUE = "value";
+ 
+   private static SecureRandom random = new SecureRandom();
+-  private static boolean isEckey = true;
+-
+-  static {
+-    Config config = Configuration.getByPath("config.conf");
+-
+-    if (config.hasPath("crypto.engine")) {
+-      isEckey = config.getString("crypto.engine").equalsIgnoreCase("eckey");
+-      System.out.println("WalletApi getConfig isEckey: " + isEckey);
+-    }
+-  }
+ 
+   public static SecureRandom getRandom() {
+     return random;
+@@ -255,12 +242,7 @@ public static String printTransactionApprovedList(
+ 
+   public static byte[] generateContractAddress(Transaction trx, byte[] ownerAddress) {
+     // get tx hash
+-    byte[] txRawDataHash;
+-    if (isEckey) {
+-      txRawDataHash = Sha256Hash.of(trx.getRawData().toByteArray()).getBytes();
+-    } else {
+-      txRawDataHash = SM3Hash.of(trx.getRawData().toByteArray()).getBytes();
+-    }
++    byte[] txRawDataHash = Sha256Sm3Hash.of(trx.getRawData().toByteArray()).getBytes();
+ 
+     // combine
+     byte[] combined = new byte[txRawDataHash.length + ownerAddress.length];
+@@ -567,12 +549,7 @@ public static JSONObject printTransactionToJSON(Transaction transaction, boolean
+     jsonTransaction.put("raw_data", rawData);
+     String rawDataHex = ByteArray.toHexString(transaction.getRawData().toByteArray());
+     jsonTransaction.put("raw_data_hex", rawDataHex);
+-    String txID;
+-    if (isEckey) {
+-      txID = ByteArray.toHexString(Sha256Hash.hash(transaction.getRawData().toByteArray()));
+-    } else {
+-      txID = ByteArray.toHexString(SM3Hash.hash(transaction.getRawData().toByteArray()));
+-    }
++    String txID = ByteArray.toHexString(Sha256Sm3Hash.hash(transaction.getRawData().toByteArray()));
+     jsonTransaction.put("txID", txID);
+     return jsonTransaction;
+   }
+@@ -588,7 +565,6 @@ public static boolean confirmEncrption() {
+     }
+     return false;
+   }
+-
+   public static boolean isNumericString(String str) {
+     for (int i = str.length(); --i >= 0; ) {
+       if (!Character.isDigit(str.charAt(i))) {
+@@ -597,7 +573,6 @@ public static boolean isNumericString(String str) {
+     }
+     return true;
+   }
+-
+   public static boolean isHexString(String str) {
+     boolean bRet = false;
+     try {
+diff --git a/src/main/java/org/tron/demo/Debug.java b/src/main/java/org/tron/demo/Debug.java
+index ff5a0e24..4fd7b23e 100644
+--- a/src/main/java/org/tron/demo/Debug.java
++++ b/src/main/java/org/tron/demo/Debug.java
+@@ -3,7 +3,7 @@
+ import com.google.protobuf.ByteString;
+ import com.google.protobuf.InvalidProtocolBufferException;
+ import org.tron.common.crypto.ECKey;
+-import org.tron.common.crypto.Sha256Hash;
++import org.tron.common.crypto.Sha256Sm3Hash;
+ import org.tron.common.utils.ByteArray;
+ import org.tron.protos.Protocol.Transaction;
+ 
+@@ -14,7 +14,7 @@ public static void debug(String privateKey, String hexTransaction)
+     byte[] privateBytes = ByteArray.fromHexString(privateKey);
+     Transaction transaction = Transaction.parseFrom(ByteArray.fromHexString(hexTransaction));
+     byte[] rawData = transaction.getRawData().toByteArray();
+-    byte[] hash = Sha256Hash.hash(rawData);
++    byte[] hash = Sha256Sm3Hash.hash(rawData);
+     ECKey ecKey = ECKey.fromPrivate(privateBytes);
+     byte[] sign = ecKey.sign(hash).toByteArray();
+     transaction.toBuilder().addSignature(ByteString.copyFrom(sign)).build();
+@@ -22,7 +22,8 @@ public static void debug(String privateKey, String hexTransaction)
+ 
+   public static void main(String[] args) {
+     try {
+-      debug("77bb18757dd1687574d9d54e32738856e84aefab3a7ae73541ca8ea1912283f9",
++      debug(
++          "77bb18757dd1687574d9d54e32738856e84aefab3a7ae73541ca8ea1912283f9",
+           "0a7c0a02b7562208d3df68fd554637b940b8f7e7b6d52c5a65080112610a2d747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e5472616e73666572436f6e747261637412300a15412c20a3c84473df81ee23f84369711bf02cb81b64121541a1220729f9b1734adc923ae44f1dc0a107db0f1b1801");
+     } catch (Exception e) {
+       System.out.println(e.getMessage());
+diff --git a/src/main/java/org/tron/demo/ECKeyDemo.java b/src/main/java/org/tron/demo/ECKeyDemo.java
+index 7cdc7207..d0a23ea1 100644
+--- a/src/main/java/org/tron/demo/ECKeyDemo.java
++++ b/src/main/java/org/tron/demo/ECKeyDemo.java
+@@ -4,7 +4,7 @@
+ import org.springframework.util.StringUtils;
+ import org.tron.common.crypto.ECKey;
+ import org.tron.common.crypto.Hash;
+-import org.tron.common.crypto.Sha256Hash;
++import org.tron.common.crypto.Sha256Sm3Hash;
+ import org.tron.common.utils.Base58;
+ import org.tron.common.utils.ByteArray;
+ import org.tron.common.utils.Utils;
+@@ -33,10 +33,10 @@
+   }
+ 
+   public static String address2Encode58CheckDemo(byte[] input) {
+-    byte[] hash0 = Sha256Hash.hash(input);
++    byte[] hash0 = Sha256Sm3Hash.hash(input);
+     System.out.println("sha256_0: " + ByteArray.toHexString(hash0));
+ 
+-    byte[] hash1 = Sha256Hash.hash(hash0);
++    byte[] hash1 = Sha256Sm3Hash.hash(hash0);
+     System.out.println("sha256_1: " + ByteArray.toHexString(hash1));
+ 
+     byte[] inputCheck = new byte[input.length + 4];
+@@ -52,7 +52,7 @@ public static String address2Encode58CheckDemo(byte[] input) {
+   private static String private2Address(byte[] privateKey) throws CipherException {
+     ECKey eCkey;
+     if (StringUtils.isEmpty(privateKey)) {
+-      eCkey = new ECKey(Utils.getRandom());  //Gen new Keypair
++      eCkey = new ECKey(Utils.getRandom()); // Gen new Keypair
+     } else {
+       eCkey = ECKey.fromPrivate(privateKey);
+     }
+@@ -60,21 +60,21 @@ private static String private2Address(byte[] privateKey) throws CipherException
+ 
+     byte[] publicKey0 = eCkey.getPubKey();
+     byte[] publicKey1 = private2PublicDemo(eCkey.getPrivKeyBytes());
+-    if (!Arrays.equals(publicKey0, publicKey1)){
++    if (!Arrays.equals(publicKey0, publicKey1)) {
+       throw new CipherException("publickey error");
+     }
+     System.out.println("Public Key: " + ByteArray.toHexString(publicKey0));
+ 
+     byte[] address0 = eCkey.getAddress();
+     byte[] address1 = public2AddressDemo(publicKey0);
+-    if (!Arrays.equals(address0, address1)){
++    if (!Arrays.equals(address0, address1)) {
+       throw new CipherException("address error");
+     }
+     System.out.println("Address: " + ByteArray.toHexString(address0));
+ 
+     String base58checkAddress0 = WalletApi.encode58Check(address0);
+     String base58checkAddress1 = address2Encode58CheckDemo(address0);
+-    if (!base58checkAddress0.equals(base58checkAddress1)){
++    if (!base58checkAddress0.equals(base58checkAddress1)) {
+       throw new CipherException("base58checkAddress error");
+     }
+ 
+@@ -90,6 +90,5 @@ public static void main(String[] args) throws CipherException {
+ 
+     address = private2Address(null);
+     System.out.println("base58Address: " + address);
+-
+   }
+ }
+diff --git a/src/main/java/org/tron/demo/EasyTransferAssetDemo.java b/src/main/java/org/tron/demo/EasyTransferAssetDemo.java
+index b0fb8b91..b64faf72 100644
+--- a/src/main/java/org/tron/demo/EasyTransferAssetDemo.java
++++ b/src/main/java/org/tron/demo/EasyTransferAssetDemo.java
+@@ -2,7 +2,7 @@
+ 
+ import org.tron.api.GrpcAPI.EasyTransferResponse;
+ import org.tron.common.crypto.ECKey;
+-import org.tron.common.crypto.Sha256Hash;
++import org.tron.common.crypto.Sha256Sm3Hash;
+ import org.tron.common.utils.ByteArray;
+ import org.tron.common.utils.Utils;
+ import org.tron.protos.Protocol.Transaction;
+@@ -13,7 +13,7 @@
+ public class EasyTransferAssetDemo {
+ 
+   private static byte[] getAddressByPassphrase(String passPhrase) {
+-    byte[] privateKey = Sha256Hash.hash(passPhrase.getBytes());
++    byte[] privateKey = Sha256Sm3Hash.hash(passPhrase.getBytes());
+     ECKey ecKey = ECKey.fromPrivate(privateKey);
+     byte[] address = ecKey.getAddress();
+     return address;
+@@ -29,7 +29,8 @@ public static void main(String[] args) {
+     System.out.println("address === " + WalletApi.encode58Check(address));
+ 
+     EasyTransferResponse response = WalletApi
+-        .easyTransferAsset(passPhrase.getBytes(), getAddressByPassphrase("test pass phrase 2"),
++        .easyTransferAsset(
++            passPhrase.getBytes(), getAddressByPassphrase("test pass phrase 2"),
+             tokenId, 10000L);
+     if (response.getResult().getResult() == true) {
+       Transaction transaction = response.getTransaction();
+diff --git a/src/main/java/org/tron/demo/EasyTransferDemo.java b/src/main/java/org/tron/demo/EasyTransferDemo.java
+index 8b782730..1a57ff64 100644
+--- a/src/main/java/org/tron/demo/EasyTransferDemo.java
++++ b/src/main/java/org/tron/demo/EasyTransferDemo.java
+@@ -2,7 +2,7 @@
+ 
+ import org.tron.api.GrpcAPI.EasyTransferResponse;
+ import org.tron.common.crypto.ECKey;
+-import org.tron.common.crypto.Sha256Hash;
++import org.tron.common.crypto.Sha256Sm3Hash;
+ import org.tron.common.utils.ByteArray;
+ import org.tron.common.utils.Utils;
+ import org.tron.protos.Protocol.Transaction;
+@@ -13,7 +13,7 @@
+ public class EasyTransferDemo {
+ 
+   private static byte[] getAddressByPassphrase(String passPhrase) {
+-    byte[] privateKey = Sha256Hash.hash(passPhrase.getBytes());
++    byte[] privateKey = Sha256Sm3Hash.hash(passPhrase.getBytes());
+     ECKey ecKey = ECKey.fromPrivate(privateKey);
+     byte[] address = ecKey.getAddress();
+     return address;
+diff --git a/src/main/java/org/tron/demo/TransactionSignDemo.java b/src/main/java/org/tron/demo/TransactionSignDemo.java
+index 1ecbf579..6bb84275 100644
+--- a/src/main/java/org/tron/demo/TransactionSignDemo.java
++++ b/src/main/java/org/tron/demo/TransactionSignDemo.java
+@@ -6,7 +6,7 @@
+ import org.tron.api.GrpcAPI.Return;
+ import org.tron.api.GrpcAPI.TransactionExtention;
+ import org.tron.common.crypto.ECKey;
+-import org.tron.common.crypto.Sha256Hash;
++import org.tron.common.crypto.Sha256Sm3Hash;
+ import org.tron.common.utils.ByteArray;
+ import org.tron.core.exception.CancelException;
+ import org.tron.protos.Contract;
+@@ -23,29 +23,28 @@ public static Transaction setReference(Transaction transaction, Block newestBloc
+     byte[] blockHash = getBlockHash(newestBlock).getBytes();
+     byte[] refBlockNum = ByteArray.fromLong(blockHeight);
+     Transaction.raw rawData = transaction.getRawData().toBuilder()
+-        .setRefBlockHash(ByteString.copyFrom(ByteArray.subArray(blockHash, 8, 16)))
+-        .setRefBlockBytes(ByteString.copyFrom(ByteArray.subArray(refBlockNum, 6, 8)))
+-        .build();
++            .setRefBlockHash(ByteString.copyFrom(ByteArray.subArray(blockHash, 8, 16)))
++            .setRefBlockBytes(ByteString.copyFrom(ByteArray.subArray(refBlockNum, 6, 8)))
++            .build();
+     return transaction.toBuilder().setRawData(rawData).build();
+   }
+ 
+-  public static Sha256Hash getBlockHash(Block block) {
+-    return Sha256Hash.of(block.getBlockHeader().getRawData().toByteArray());
++  public static Sha256Sm3Hash getBlockHash(Block block) {
++    return Sha256Sm3Hash.of(block.getBlockHeader().getRawData().toByteArray());
+   }
+ 
+   public static String getTransactionHash(Transaction transaction) {
+-    String txid = ByteArray.toHexString(Sha256Hash.hash(transaction.getRawData().toByteArray()));
++    String txid = ByteArray.toHexString(Sha256Sm3Hash.hash(transaction.getRawData().toByteArray()));
+     return txid;
+   }
+ 
+-
+   public static Transaction createTransaction(byte[] from, byte[] to, long amount) {
+     Transaction.Builder transactionBuilder = Transaction.newBuilder();
+     Block newestBlock = WalletApi.getBlock(-1);
+ 
+     Transaction.Contract.Builder contractBuilder = Transaction.Contract.newBuilder();
+-    Contract.TransferContract.Builder transferContractBuilder = Contract.TransferContract
+-        .newBuilder();
++    Contract.TransferContract.Builder transferContractBuilder =
++        Contract.TransferContract.newBuilder();
+     transferContractBuilder.setAmount(amount);
+     ByteString bsTo = ByteString.copyFrom(to);
+     ByteString bsOwner = ByteString.copyFrom(from);
+@@ -66,13 +65,12 @@ public static Transaction createTransaction(byte[] from, byte[] to, long amount)
+     return refTransaction;
+   }
+ 
+-
+   private static byte[] signTransaction2Byte(byte[] transaction, byte[] privateKey)
+       throws InvalidProtocolBufferException {
+     ECKey ecKey = ECKey.fromPrivate(privateKey);
+     Transaction transaction1 = Transaction.parseFrom(transaction);
+     byte[] rawdata = transaction1.getRawData().toByteArray();
+-    byte[] hash = Sha256Hash.hash(rawdata);
++    byte[] hash = Sha256Sm3Hash.hash(rawdata);
+     byte[] sign = ecKey.sign(hash).toByteArray();
+     return transaction1.toBuilder().addSignature(ByteString.copyFrom(sign)).build().toByteArray();
+   }
+@@ -82,7 +80,7 @@ private static Transaction signTransaction2Object(byte[] transaction, byte[] pri
+     ECKey ecKey = ECKey.fromPrivate(privateKey);
+     Transaction transaction1 = Transaction.parseFrom(transaction);
+     byte[] rawdata = transaction1.getRawData().toByteArray();
+-    byte[] hash = Sha256Hash.hash(rawdata);
++    byte[] hash = Sha256Sm3Hash.hash(rawdata);
+     byte[] sign = ecKey.sign(hash).toByteArray();
+     return transaction1.toBuilder().addSignature(ByteString.copyFrom(sign)).build();
+   }
+@@ -109,7 +107,7 @@ public static void main(String[] args) throws InvalidProtocolBufferException, Ca
+     ECKey ecKey = ECKey.fromPrivate(privateBytes);
+     byte[] from = ecKey.getAddress();
+     byte[] to = WalletApi.decodeFromBase58Check("TGehVcNhud84JDCGrNHKVz9jEAVKUpbuiv");
+-    long amount = 100_000_000L; //100 TRX, api only receive trx in drop, and 1 trx = 1000000 drop
++    long amount = 100_000_000L; // 100 TRX, api only receive trx in drop, and 1 trx = 1000000 drop
+     Transaction transaction = createTransaction(from, to, amount);
+     byte[] transactionBytes = transaction.toByteArray();
+ 
+@@ -125,12 +123,13 @@ public static void main(String[] args) throws InvalidProtocolBufferException, Ca
+     System.out.println("transaction3 ::::: " + ByteArray.toHexString(transaction3.toByteArray()));
+     */
+ 
+-    //sign a transaction in byte format and return a Transaction in byte format
++    // sign a transaction in byte format and return a Transaction in byte format
+     byte[] transaction4 = signTransaction2Byte(transactionBytes, privateBytes);
+     System.out.println("transaction4 ::::: " + ByteArray.toHexString(transaction4));
+     Transaction transactionSigned;
+     if (WalletApi.getRpcVersion() == 2) {
+-      TransactionExtention transactionExtention = WalletApi.signTransactionByApi2(transaction, ecKey.getPrivKeyBytes());
++      TransactionExtention transactionExtention =
++          WalletApi.signTransactionByApi2(transaction, ecKey.getPrivKeyBytes());
+       if (transactionExtention == null) {
+         System.out.println("transactionExtention is null");
+         return;
+@@ -149,7 +148,7 @@ public static void main(String[] args) throws InvalidProtocolBufferException, Ca
+     }
+     byte[] transaction5 = transactionSigned.toByteArray();
+     System.out.println("transaction5 ::::: " + ByteArray.toHexString(transaction5));
+-    if (!Arrays.equals(transaction4, transaction5)){
++    if (!Arrays.equals(transaction4, transaction5)) {
+       System.out.println("transaction4 is not equals to transaction5 !!!!!");
+     }
+     boolean result = broadcast(transaction4);
+diff --git a/src/main/java/org/tron/demo/TransactionSignDemoForSM2.java b/src/main/java/org/tron/demo/TransactionSignDemoForSM2.java
+index 5a42e86d..0277798a 100644
+--- a/src/main/java/org/tron/demo/TransactionSignDemoForSM2.java
++++ b/src/main/java/org/tron/demo/TransactionSignDemoForSM2.java
+@@ -3,7 +3,7 @@
+ import com.google.protobuf.Any;
+ import com.google.protobuf.ByteString;
+ import com.google.protobuf.InvalidProtocolBufferException;
+-import org.tron.common.crypto.SM3Hash;
++import org.tron.common.crypto.Sha256Sm3Hash;
+ import org.tron.common.crypto.sm2.SM2;
+ import org.tron.common.utils.ByteArray;
+ import org.tron.core.exception.CancelException;
+@@ -18,22 +18,19 @@ public static Transaction setReference(Transaction transaction, Block newestBloc
+     long blockHeight = newestBlock.getBlockHeader().getRawData().getNumber();
+     byte[] blockHash = getBlockHash(newestBlock).getBytes();
+     byte[] refBlockNum = ByteArray.fromLong(blockHeight);
+-    Transaction.raw rawData =
+-        transaction
+-            .getRawData()
+-            .toBuilder()
++    Transaction.raw rawData = transaction.getRawData().toBuilder()
+             .setRefBlockHash(ByteString.copyFrom(ByteArray.subArray(blockHash, 8, 16)))
+             .setRefBlockBytes(ByteString.copyFrom(ByteArray.subArray(refBlockNum, 6, 8)))
+             .build();
+     return transaction.toBuilder().setRawData(rawData).build();
+   }
+ 
+-  public static SM3Hash getBlockHash(Block block) {
+-    return SM3Hash.of(block.getBlockHeader().getRawData().toByteArray());
++  public static Sha256Sm3Hash getBlockHash(Block block) {
++    return Sha256Sm3Hash.of(block.getBlockHeader().getRawData().toByteArray());
+   }
+ 
+   public static String getTransactionHash(Transaction transaction) {
+-    String txid = ByteArray.toHexString(SM3Hash.hash(transaction.getRawData().toByteArray()));
++    String txid = ByteArray.toHexString(Sha256Sm3Hash.hash(transaction.getRawData().toByteArray()));
+     return txid;
+   }
+ 
+@@ -56,12 +53,9 @@ public static Transaction createTransaction(byte[] from, byte[] to, long amount)
+       return null;
+     }
+     contractBuilder.setType(Transaction.Contract.ContractType.TransferContract);
+-    transactionBuilder
+-        .getRawDataBuilder()
+-        .addContract(contractBuilder)
++    transactionBuilder.getRawDataBuilder().addContract(contractBuilder)
+         .setTimestamp(System.currentTimeMillis())
+-        .setExpiration(
+-            newestBlock.getBlockHeader().getRawData().getTimestamp() + 10 * 60 * 60 * 1000);
++        .setExpiration(newestBlock.getBlockHeader().getRawData().getTimestamp() + 10 * 60 * 60 * 1000);
+     Transaction transaction = transactionBuilder.build();
+     Transaction refTransaction = setReference(transaction, newestBlock);
+     return refTransaction;
+@@ -104,11 +98,11 @@ private static void hexStringTobase58check() {
+   }
+ 
+   public static void main(String[] args) throws InvalidProtocolBufferException, CancelException {
+-    String privateStr = "4afbef627636b159614be6e210febd5f14dd6531874fb01ece956516541c41c7";
++    String privateStr = "D95611A9AF2A2A45359106222ED1AFED48853D9A44DEFF8DC7913F5CBA727366";
+     byte[] privateBytes = ByteArray.fromHexString(privateStr);
+     SM2 sm2 = SM2.fromPrivate(privateBytes);
+     byte[] from = sm2.getAddress();
+-    byte[] to = WalletApi.decodeFromBase58Check("TWdVF6Bdg4vzVAbyqZodMhEWFwNYmSH8nE");
++    byte[] to = WalletApi.decodeFromBase58Check("TGehVcNhud84JDCGrNHKVz9jEAVKUpbuiv");
+     long amount = 100_000_000L; // 100 TRX, api only receive trx in drop, and 1 trx = 1000000 drop
+     Transaction transaction = createTransaction(from, to, amount);
+     byte[] transactionBytes = transaction.toByteArray();
+diff --git a/src/main/java/org/tron/keystore/SKeyEncryptor.java b/src/main/java/org/tron/keystore/SKeyEncryptor.java
+index ad56b191..c545eb8d 100644
+--- a/src/main/java/org/tron/keystore/SKeyEncryptor.java
++++ b/src/main/java/org/tron/keystore/SKeyEncryptor.java
+@@ -5,7 +5,7 @@
+ import org.bouncycastle.crypto.generators.SCrypt;
+ import org.bouncycastle.crypto.params.KeyParameter;
+ import org.tron.common.crypto.Hash;
+-import org.tron.common.crypto.Sha256Hash;
++import org.tron.common.crypto.Sha256Sm3Hash;
+ import org.tron.common.utils.ByteArray;
+ import org.tron.core.exception.CipherException;
+ import org.tron.walletserver.WalletApi;
+@@ -51,11 +51,11 @@ public static SKeyCapsule create(byte[] password, byte[] skey, int n, int p)
+     byte[] iv = generateRandomBytes(16);
+ 
+     byte[] cipherText = performCipherOperation(Cipher.ENCRYPT_MODE, iv, encryptKey,
+-            skey);
++        skey);
+ 
+     byte[] mac = generateMac(derivedKey, cipherText);
+ 
+-    byte[] fp = Arrays.copyOfRange(Sha256Hash.hash(skey),0, 4);
++    byte[] fp = Arrays.copyOfRange(Sha256Sm3Hash.hash(skey), 0, 4);
+ 
+     return createSkey(fp, cipherText, iv, salt, mac, n, p);
+   }
+@@ -198,7 +198,7 @@ private static SKeyCapsule createSkey(
+     return privateKey;
+   }
+ 
+-  public static boolean validPassword (byte[] password, SKeyCapsule skey)
++  public static boolean validPassword(byte[] password, SKeyCapsule skey)
+       throws CipherException {
+ 
+     validate(skey);
+diff --git a/src/main/java/org/tron/test/Test.java b/src/main/java/org/tron/test/Test.java
+index 534a08a3..470a434f 100644
+--- a/src/main/java/org/tron/test/Test.java
++++ b/src/main/java/org/tron/test/Test.java
+@@ -6,7 +6,7 @@
+ import org.tron.common.crypto.ECKey;
+ import org.tron.common.crypto.ECKey.ECDSASignature;
+ import org.tron.common.crypto.Hash;
+-import org.tron.common.crypto.Sha256Hash;
++import org.tron.common.crypto.Sha256Sm3Hash;
+ import org.tron.common.crypto.SignInterface;
+ import org.tron.common.crypto.sm2.SM2;
+ import org.tron.common.utils.Base58;
+@@ -15,7 +15,6 @@
+ import org.tron.core.exception.CipherException;
+ import org.tron.keystore.CheckStrength;
+ import org.tron.keystore.Credentials;
+-import org.tron.keystore.CredentialsEckey;
+ import org.tron.keystore.WalletUtils;
+ import org.tron.protos.Contract;
+ import org.tron.protos.Contract.TransferContract;
+@@ -71,34 +70,6 @@ public static Transaction createTransactionEx(String toAddress, long amount) {
+     return transaction;
+   }
+ 
+-//  public static Transaction createTransactionAccount() {
+-//    Transaction.Builder transactionBuilder = Transaction.newBuilder();
+-//
+-//    for (int i = 0; i < 10; i++) {
+-//      Transaction.Contract.Builder contractBuilder = Transaction.Contract.newBuilder();
+-//      Contract.AccountCreateContract.Builder accountCreateContract = Contract.AccountCreateContract
+-//          .newBuilder();
+-//      accountCreateContract.setAccountName(ByteString.copyFrom("zawtest".getBytes()));
+-//
+-//      ByteString bsOwner = ByteString.copyFrom(ByteArray
+-//          .fromHexString("e1a17255ccf15d6b12dcc074ca1152477ccf9b84"));
+-//      accountCreateContract.setOwnerAddress(bsOwner);
+-//      try {
+-//        Any anyTo = Any.pack(accountCreateContract.build());
+-//        contractBuilder.setParameter(anyTo);
+-//      } catch (Exception e) {
+-//        return null;
+-//      }
+-//      contractBuilder.setType(Transaction.Contract.ContractType.AccountCreateContract);
+-//
+-//      transactionBuilder.getRawDataBuilder().addContract(contractBuilder);
+-//    }
+-//    transactionBuilder.getRawDataBuilder();
+-//
+-//    Transaction transaction = transactionBuilder.build();
+-//    return transaction;
+-//  }
+-
+   public static void test64() throws UnsupportedEncodingException {
+     Encoder encoder = Base64.getEncoder();
+     byte[] encode = encoder.encode("test string ".getBytes());
+@@ -116,7 +87,6 @@ public static void testDecode64()
+     System.out.println("address::::" + ByteArray.toHexString(account.getAddress().toByteArray()));
+   }
+ 
+-
+   public static void testECKey() {
+     Transaction transaction = createTransactionEx("e1a17255ccf15d6b12dcc074ca1152477ccf9b84", 10);
+     byte[] bytes = transaction.toByteArray();
+@@ -128,10 +98,11 @@ public static void testECKey() {
+     System.out.println("prikey ::: " + ByteArray.toHexString(priKey));
+     System.out.println("pubKey ::: " + ByteArray.toHexString(pubKey));
+     System.out.println("addresss ::: " + ByteArray.toHexString(addresss));
+-    byte[] msg = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0, 1, 2, 3, 4, 5, 6, 7, 8,
++    byte[] msg = {
++      0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0, 1, 2, 3, 4, 5, 6, 7, 8,
+         9, 10, 11, 12, 13, 14, 15};
+ 
+-    byte[] sha256 = Sha256Hash.hash(msg);
++    byte[] sha256 = Sha256Sm3Hash.hash(msg);
+     ECDSASignature signature = eCkey.sign(sha256);
+ 
+     System.out.println("hash:::" + ByteArray.toHexString(sha256));
+@@ -140,36 +111,12 @@ public static void testECKey() {
+     System.out.println("id:::" + signature.v);
+   }
+ 
+-//  public static void testTransaction() {
+-//    Transaction transaction = createTransactionAccount();
+-//    String priKey = "8e812436a0e3323166e1f0e8ba79e19e217b2c4a53c970d4cca0cfb1078979df";
+-//
+-//    ECKey eCkey = null;
+-//    try {
+-//      BigInteger priK = new BigInteger(priKey, 16);
+-//      eCkey = ECKey.fromPrivate(priK);
+-//    } catch (Exception ex) {
+-//      ex.printStackTrace();
+-//    }
+-//    byte[] msg = transaction.getRawData().toByteArray();
+-//    byte[] sha256 = Hash.sha256(msg);
+-//    eCkey.sign(sha256);
+-//
+-//    ECDSASignature signature = eCkey.sign(sha256);
+-//
+-//    System.out.println("msg:::" + ByteArray.toHexString(msg));
+-//    System.out.println("priKey:::" + ByteArray.toHexString(eCkey.getPrivKeyBytes()));
+-//    System.out.println("pubKey::" + ByteArray.toHexString(eCkey.getPubKey()));
+-//    System.out.println("hash:::" + ByteArray.toHexString(sha256));
+-//    System.out.println("r:::" + ByteArray.toHexString(signature.r.toByteArray()));
+-//    System.out.println("s:::" + ByteArray.toHexString(signature.s.toByteArray()));
+-//    System.out.println("id:::" + signature.v);
+-//  }
+ 
+   public static void testVerify() {
+     String hashBytes = "630211D6CA9440639F4965AA24831EB84815AB6BEF11E8BE6962A8540D861339";
+     String priKeyBytes = "8E812436A0E3323166E1F0E8BA79E19E217B2C4A53C970D4CCA0CFB1078979DF";
+-    String sign = "1D89243F93670AA2F209FD1E0BDACA67E327B78FA54D728628F4EBBF6B7917E5BB0642717EC2234D21BEFAA7577D5FC6B4D47C94F2C0618862CD4C9E3C839C464";
++    String sign =
++        "1D89243F93670AA2F209FD1E0BDACA67E327B78FA54D728628F4EBBF6B7917E5BB0642717EC2234D21BEFAA7577D5FC6B4D47C94F2C0618862CD4C9E3C839C464";
+     ECKey eCkey = null;
+     String signatureBase64 = "";
+     try {
+@@ -199,8 +146,8 @@ public static void testGenKey() {
+     byte[] hash = Hash.sha3(Arrays.copyOfRange(pubKey, 1, pubKey.length));
+     byte[] hash_ = Hash.sha3(pubKey);
+     byte[] address = eCkey.getAddress();
+-    byte[] hash0 = Sha256Hash.hash(address);
+-    byte[] hash1 = Sha256Hash.hash(hash0);
++    byte[] hash0 = Sha256Sm3Hash.hash(address);
++    byte[] hash1 = Sha256Sm3Hash.hash(hash0);
+     byte[] checkSum = Arrays.copyOfRange(hash1, 0, 4);
+     byte[] addchecksum = new byte[address.length + 4];
+     System.arraycopy(address, 0, addchecksum, 0, address.length);
+@@ -271,7 +218,6 @@ public static void testSignEx() {
+     System.out.println("prikey ::: " + ByteArray.toHexString(priKey1));
+     System.out.println("pubKey ::: " + ByteArray.toHexString(pubKey));
+     System.out.println("addresss ::: " + ByteArray.toHexString(addresss));
+-
+   }
+ 
+   public static void testBase58() {
+@@ -319,20 +265,20 @@ public static void testSha3() {
+   public static void testGenerateWalletFile() throws CipherException, IOException {
+     String PASSWORD = "Insecure Pa55w0rd";
+     String priKeyHex = "cba92a516ea09f620a16ff7ee95ce0df1d56550a8babe9964981a7144c8a784a";
+-//    ECKey eCkey = ECKey.fromPrivate(ByteArray.fromHexString(priKeyHex));
++    //    ECKey eCkey = ECKey.fromPrivate(ByteArray.fromHexString(priKeyHex));
+     SignInterface sm2 = SM2.fromPrivate(ByteArray.fromHexString(priKeyHex));
+     File file = new File("out");
+     String fileName = WalletUtils.generateWalletFile(PASSWORD.getBytes(), sm2, file, true);
+-    Credentials credentials = WalletUtils.loadCredentials(PASSWORD.getBytes(), new File(file, fileName));
++    Credentials credentials =
++        WalletUtils.loadCredentials(PASSWORD.getBytes(), new File(file, fileName));
+     String address = credentials.getAddress();
+     SignInterface pair = credentials.getPair();
+     String prikey = ByteArray.toHexString(pair.getPrivKeyBytes());
+     System.out.println("address = " + address);
+     System.out.println("prikey = " + prikey);
+-
+   }
+ 
+-  public static void testPasswordStrength(){
++  public static void testPasswordStrength() {
+     List<String> passwordList = new ArrayList<String>();
+     passwordList.add("ZAQ!xsw2");
+     passwordList.add("3EDC4rfv");
+@@ -371,6 +317,7 @@ public static void interfaceTest() {
+     String address = WalletApi.encode58Check(sm2.getAddress());
+     System.out.println(address);
+   }
++
+   public static void main(String[] args) throws Exception {
+ 
+     testPasswordStrength();
+diff --git a/src/main/java/org/tron/walletserver/WalletApi.java b/src/main/java/org/tron/walletserver/WalletApi.java
+index 24812eb5..c984905b 100644
+--- a/src/main/java/org/tron/walletserver/WalletApi.java
++++ b/src/main/java/org/tron/walletserver/WalletApi.java
+@@ -20,8 +20,7 @@
+ import org.tron.api.GrpcAPI.TransactionSignWeight.Result.response_code;
+ import org.tron.common.crypto.ECKey;
+ import org.tron.common.crypto.Hash;
+-import org.tron.common.crypto.SM3Hash;
+-import org.tron.common.crypto.Sha256Hash;
++import org.tron.common.crypto.Sha256Sm3Hash;
+ import org.tron.common.crypto.sm2.SM2;
+ import org.tron.common.utils.Base58;
+ import org.tron.common.utils.ByteArray;
+@@ -58,18 +57,6 @@
+ 
+   private static GrpcClient rpcCli = init();
+ 
+-  //  static {
+-  //    new Timer().schedule(new TimerTask() {
+-  //      @Override
+-  //      public void run() {
+-  //        String fullnode = selectFullNode();
+-  //        if(!"".equals(fullnode)) {
+-  //          rpcCli = new GrpcClient(fullnode);
+-  //        }
+-  //      }
+-  //    }, 3 * 60 * 1000, 3 * 60 * 1000);
+-  //  }
+-
+   public static GrpcClient init() {
+     Config config = Configuration.getByPath("config.conf");
+ 
+@@ -141,7 +128,9 @@ public static int getRpcVersion() {
+     return rpcVersion;
+   }
+ 
+-  /** Creates a new WalletApi with a random ECKey or no ECKey. */
++  /**
++   * Creates a new WalletApi with a random ECKey or no ECKey.
++   * */
+   public static WalletFile CreateWalletFile(byte[] password) throws CipherException {
+     WalletFile walletFile = null;
+     if (isEckey) {
+@@ -185,7 +174,9 @@ public boolean checkPassword(byte[] passwd) throws CipherException {
+     return Wallet.validPassword(passwd, this.walletFile.get(0));
+   }
+ 
+-  /** Creates a Wallet with an existing ECKey. */
++  /**
++   * Creates a Wallet with an existing ECKey.
++   * */
+   public WalletApi(WalletFile walletFile) {
+     if (this.walletFile.isEmpty()) {
+       this.walletFile.add(walletFile);
+@@ -261,12 +252,11 @@ public static File selcetWalletFile() {
+         try {
+           n = new Integer(num);
+         } catch (NumberFormatException e) {
+-          System.out.println("Invalid number of " + num);
++          System.out.println("Invaild number of " + num);
+           System.out.println("Please choose again between 1 and " + wallets.length);
+           continue;
+         }
+         if (n < 1 || n > wallets.length) {
+-          System.out.println("Invalid number of " + num);
+           System.out.println("Please choose again between 1 and " + wallets.length);
+           continue;
+         }
+@@ -320,7 +310,9 @@ private static WalletFile loadWalletFile() throws IOException {
+     return WalletUtils.loadWalletFile(wallet);
+   }
+ 
+-  /** load a Wallet from keystore */
++  /**
++   * load a Wallet from keystore
++   * */
+   public static WalletApi loadWalletFromKeystore() throws IOException {
+     WalletFile walletFile = loadWalletFile();
+     WalletApi walletApi = new WalletApi(walletFile);
+@@ -374,9 +366,6 @@ private Transaction signTransaction(Transaction transaction)
+       } else {
+         transaction = TransactionUtils.sign(transaction, this.getSM2(walletFile, passwd));
+       }
+-      //      System.out
+-      //          .println("current transaction hex string is " + ByteArray
+-      //              .toHexString(transaction.toByteArray()));
+       org.tron.keystore.StringUtils.clear(passwd);
+ 
+       TransactionSignWeight weight = getTransactionSignWeight(transaction);
+@@ -416,7 +405,6 @@ private Transaction signOnlyForShieldedTransaction(Transaction transaction)
+       } else {
+         transaction = TransactionUtils.sign(transaction, this.getSM2(walletFile, passwd));
+       }
+-
+       org.tron.keystore.StringUtils.clear(passwd);
+ 
+       TransactionSignWeight weight = getTransactionSignWeight(transaction);
+@@ -460,9 +448,8 @@ private boolean processTransactionExtention(TransactionExtention transactionExte
+     }
+ 
+     System.out.println(Utils.printTransactionExceptId(transactionExtention.getTransaction()));
+-    System.out.println(
+-        "before sign transaction hex string is "
+-            + ByteArray.toHexString(transaction.toByteArray()));
++    System.out.println("before sign transaction hex string is " +
++        ByteArray.toHexString(transaction.toByteArray()));
+     transaction = signTransaction(transaction);
+     showTransactionAfterSign(transaction);
+     return rpcCli.broadcastTransaction(transaction);
+@@ -470,29 +457,23 @@ private boolean processTransactionExtention(TransactionExtention transactionExte
+ 
+   private void showTransactionAfterSign(Transaction transaction)
+       throws InvalidProtocolBufferException {
+-    System.out.println(
+-        "after sign transaction hex string is " + ByteArray.toHexString(transaction.toByteArray()));
+-    if (isEckey) {
+-      System.out.println(
+-          "txid is "
+-              + ByteArray.toHexString(Sha256Hash.hash(transaction.getRawData().toByteArray())));
+-    } else {
+-      System.out.println(
+-          "txid is " + ByteArray.toHexString(SM3Hash.hash(transaction.getRawData().toByteArray())));
+-    }
++    System.out.println("after sign transaction hex string is " +
++        ByteArray.toHexString(transaction.toByteArray()));
++    System.out.println("txid is " +
++        ByteArray.toHexString(Sha256Sm3Hash.hash(transaction.getRawData().toByteArray())));
+ 
+     if (transaction.getRawData().getContract(0).getType() == ContractType.CreateSmartContract) {
+-      CreateSmartContract createSmartContract =
+-          transaction.getRawData().getContract(0).getParameter().unpack(CreateSmartContract.class);
+-      byte[] contractAddress =
+-          generateContractAddress(createSmartContract.getOwnerAddress().toByteArray(), transaction);
++      CreateSmartContract createSmartContract = transaction.getRawData().getContract(0)
++          .getParameter().unpack(CreateSmartContract.class);
++      byte[] contractAddress = generateContractAddress(
++          createSmartContract.getOwnerAddress().toByteArray(), transaction);
+       System.out.println(
+           "Your smart contract address will be: " + WalletApi.encode58Check(contractAddress));
+     }
+   }
+ 
+-  private static boolean processShieldedTransaction(
+-      TransactionExtention transactionExtention, WalletApi wallet)
++  private static boolean processShieldedTransaction(TransactionExtention transactionExtention,
++                                                    WalletApi wallet)
+       throws IOException, CipherException, CancelException {
+     if (transactionExtention == null) {
+       return false;
+@@ -528,14 +509,10 @@ private static boolean processShieldedTransaction(
+ 
+     System.out.println(
+         "transaction hex string is " + ByteArray.toHexString(transaction.toByteArray()));
+-    if (isEckey) {
+-      System.out.println(
+-          "txid is "
+-              + ByteArray.toHexString(Sha256Hash.hash(transaction.getRawData().toByteArray())));
+-    } else {
+-      System.out.println(
+-          "txid is " + ByteArray.toHexString(SM3Hash.hash(transaction.getRawData().toByteArray())));
+-    }
++    System.out.println(
++        "txid is "
++            + ByteArray.toHexString(Sha256Sm3Hash.hash(transaction.getRawData().toByteArray())));
++
+     return rpcCli.broadcastTransaction(transaction);
+   }
+ 
+@@ -1010,15 +987,8 @@ public static boolean addressValid(byte[] address) {
+   }
+ 
+   public static String encode58Check(byte[] input) {
+-    byte[] hash0;
+-    byte[] hash1;
+-    if (isEckey) {
+-      hash0 = Sha256Hash.hash(input);
+-      hash1 = Sha256Hash.hash(hash0);
+-    } else {
+-      hash0 = SM3Hash.hash(input);
+-      hash1 = SM3Hash.hash(hash0);
+-    }
++    byte[] hash0 = Sha256Sm3Hash.hash(input);
++    byte[] hash1 = Sha256Sm3Hash.hash(hash0);
+     byte[] inputCheck = new byte[input.length + 4];
+     System.arraycopy(input, 0, inputCheck, 0, input.length);
+     System.arraycopy(hash1, 0, inputCheck, input.length, 4);
+@@ -1032,15 +1002,8 @@ public static String encode58Check(byte[] input) {
+     }
+     byte[] decodeData = new byte[decodeCheck.length - 4];
+     System.arraycopy(decodeCheck, 0, decodeData, 0, decodeData.length);
+-    byte[] hash0;
+-    byte[] hash1;
+-    if (isEckey) {
+-      hash0 = Sha256Hash.hash(decodeData);
+-      hash1 = Sha256Hash.hash(hash0);
+-    } else {
+-      hash0 = SM3Hash.hash(decodeData);
+-      hash1 = SM3Hash.hash(hash0);
+-    }
++    byte[] hash0 = Sha256Sm3Hash.hash(decodeData);
++    byte[] hash1 = Sha256Sm3Hash.hash(hash0);
+     if (hash1[0] == decodeCheck[decodeData.length]
+         && hash1[1] == decodeCheck[decodeData.length + 1]
+         && hash1[2] == decodeCheck[decodeData.length + 2]
+@@ -1075,6 +1038,21 @@ public static boolean priKeyValid(byte[] priKey) {
+     return true;
+   }
+ 
++  //  public static Optional<AccountList> listAccounts() {
++  //    Optional<AccountList> result = rpcCli.listAccounts();
++  //    if (result.isPresent()) {
++  //      AccountList accountList = result.get();
++  //      List<Account> list = accountList.getAccountsList();
++  //      List<Account> newList = new ArrayList();
++  //      newList.addAll(list);
++  //      newList.sort(new AccountComparator());
++  //      AccountList.Builder builder = AccountList.newBuilder();
++  //      newList.forEach(account -> builder.addAccounts(account));
++  //      result = Optional.of(builder.build());
++  //    }
++  //    return result;
++  //  }
++
+   public static Optional<WitnessList> listWitnesses() {
+     Optional<WitnessList> result = rpcCli.listWitnesses();
+     if (result.isPresent()) {
+@@ -1096,6 +1074,19 @@ public int compare(Witness o1, Witness o2) {
+     return result;
+   }
+ 
++  //  public static Optional<AssetIssueList> getAssetIssueListByTimestamp(long timestamp) {
++  //    return rpcCli.getAssetIssueListByTimestamp(timestamp);
++  //  }
++  //
++  //  public static Optional<TransactionList> getTransactionsByTimestamp(long start, long end,
++  //      int offset, int limit) {
++  //    return rpcCli.getTransactionsByTimestamp(start, end, offset, limit);
++  //  }
++  //
++  //  public static GrpcAPI.NumberMessage getTransactionsByTimestampCount(long start, long end) {
++  //    return rpcCli.getTransactionsByTimestampCount(start, end);
++  //  }
++
+   public static Optional<AssetIssueList> getAssetIssueList() {
+     return rpcCli.getAssetIssueList();
+   }
+@@ -1157,6 +1148,9 @@ public static AssetIssueContract getAssetIssueById(String assetId) {
+       byte[] address, int offset, int limit) {
+     return rpcCli.getTransactionsFromThis2(address, offset, limit);
+   }
++  //  public static GrpcAPI.NumberMessage getTransactionsFromThisCount(byte[] address) {
++  //    return rpcCli.getTransactionsFromThisCount(address);
++  //  }
+ 
+   public static Optional<TransactionList> getTransactionsToThis(
+       byte[] address, int offset, int limit) {
+@@ -1167,6 +1161,9 @@ public static AssetIssueContract getAssetIssueById(String assetId) {
+       byte[] address, int offset, int limit) {
+     return rpcCli.getTransactionsToThis2(address, offset, limit);
+   }
++  //  public static GrpcAPI.NumberMessage getTransactionsToThisCount(byte[] address) {
++  //    return rpcCli.getTransactionsToThisCount(address);
++  //  }
+ 
+   public static Optional<Transaction> getTransactionById(String txID) {
+     return rpcCli.getTransactionById(txID);
+@@ -1872,12 +1869,7 @@ public static CreateSmartContract createContractDeployContract(
+ 
+   public byte[] generateContractAddress(byte[] ownerAddress, Transaction trx) {
+     // get tx hash
+-    byte[] txRawDataHash;
+-    if (isEckey) {
+-      txRawDataHash = Sha256Hash.of(trx.getRawData().toByteArray()).getBytes();
+-    } else {
+-      txRawDataHash = SM3Hash.of(trx.getRawData().toByteArray()).getBytes();
+-    }
++    byte[] txRawDataHash = Sha256Sm3Hash.of(trx.getRawData().toByteArray()).getBytes();
+ 
+     // combine
+     byte[] combined = new byte[txRawDataHash.length + ownerAddress.length];
+diff --git a/src/main/resources/config-back.conf b/src/main/resources/config-back.conf
+new file mode 100644
+index 00000000..17152076
+--- /dev/null
++++ b/src/main/resources/config-back.conf
+@@ -0,0 +1,20 @@
++net {
++ type = mainnet
++}
++
++fullnode = {
++  ip.list = [
++    "47.89.189.124:50055",
++    "47.89.178.193:50055"
++  ]
++}
++
++#soliditynode = {
++#  ip.list = [
++#    "127.0.0.1:50052"
++#  ]
++#}
++crypto {
++    engine=sm2
++}
++RPC_version = 2

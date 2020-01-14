@@ -1,0 +1,9 @@
+@@ -116,7 +116,7 @@ public float calculateHeating(int id) {
+             if(cubature != 0) {
+                 return (building.calculateHeating() / cubature);
+             }
+-            return 0;
++            return 0f;
+         }
+         logger.info("Cannot calculate heating: "+ id);
+         return -1f;

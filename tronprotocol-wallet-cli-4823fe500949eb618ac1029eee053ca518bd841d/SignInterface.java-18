@@ -1,0 +1,9 @@
+@@ -18,7 +18,7 @@
+ 
+   byte[] getNodeId();
+ 
+-  byte[] Base64toBytes(String signature);
++  byte[] Base64toBytes (String signature);
+ 
+   byte[] getPrivKeyBytes();
+ 

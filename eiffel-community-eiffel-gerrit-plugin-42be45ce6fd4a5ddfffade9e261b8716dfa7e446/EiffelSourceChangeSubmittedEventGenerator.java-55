@@ -1,0 +1,9 @@
+@@ -55,7 +55,7 @@ public static EiffelSourceChangeSubmittedEvent generate(ChangeMergedEvent change
+         final String email = patchSetAttribute.author.email;
+         final String changeId = changeMergedEvent.changeKey.toString();
+ 
+-        EiffelSourceChangeSubmittedEvent eiffelEvent = new EiffelSourceChangeSubmittedEvent();
++        final EiffelSourceChangeSubmittedEvent eiffelEvent = new EiffelSourceChangeSubmittedEvent();
+         eiffelEvent.msgParams.meta.type = TYPE;
+         eiffelEvent.msgParams.meta.source.name = META_SOURCE_NAME;
+         eiffelEvent.msgParams.meta.source.host = determineHostName();

@@ -1,0 +1,9 @@
+@@ -15,7 +15,7 @@
+  */
+ package org.springframework.data.jpa.repository.support;
+ 
+-import static org.springframework.data.querydsl.QuerydslUtils.QUERY_DSL_PRESENT;
++import static org.springframework.data.querydsl.QuerydslUtils.*;
+ 
+ import lombok.extern.slf4j.Slf4j;
+ 

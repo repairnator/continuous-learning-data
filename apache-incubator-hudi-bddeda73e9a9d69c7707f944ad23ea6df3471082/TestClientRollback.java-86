@@ -1,0 +1,9 @@
+@@ -86,7 +86,7 @@ public void testSavepointAndRollback() throws Exception {
+ 
+       client.savepoint("hoodie-unit-test", "test");
+ 
+-      /**
++      /*
+        * Write 3 (updates)
+        */
+       newCommitTime = "003";

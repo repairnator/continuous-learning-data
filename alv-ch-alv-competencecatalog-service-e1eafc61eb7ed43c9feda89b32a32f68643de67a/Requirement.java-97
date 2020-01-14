@@ -1,0 +1,9 @@
+@@ -97,7 +97,7 @@ public void update(final RequirementUpdater updater) {
+             updater.setDraft(true);
+         }
+         if (updater.changedSections.contains(RequirementUpdater.Section.STATUS)) {
+-            changeLog.merge(updateStatus(updater.draft, updater.published));
++            changeLog.merge(updateStatus(updater));
+         }
+ 
+         if (changeLog.hasChanges()) {

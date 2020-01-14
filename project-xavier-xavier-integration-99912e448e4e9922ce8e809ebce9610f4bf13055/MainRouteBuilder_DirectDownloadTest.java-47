@@ -1,0 +1,9 @@
+@@ -47,7 +47,7 @@ public void mainRouteBuilder_DirectDownloadFile_PersistedNotificationGiven_Shoul
+         camelContext.getRouteDefinition("download-file").adviceWith(camelContext, new AdviceWithRouteBuilder() {
+             @Override
+             public void configure() {
+-                weaveByToUri("http4:.*").after()
++                weaveByToUri("http.*").after()
+                         .setHeader(Exchange.HTTP_RESPONSE_CODE, simple("200"))
+                         .setBody(exchange -> this.getClass().getClassLoader().getResourceAsStream("cloudforms-export-v1_0_0.json"));
+             }

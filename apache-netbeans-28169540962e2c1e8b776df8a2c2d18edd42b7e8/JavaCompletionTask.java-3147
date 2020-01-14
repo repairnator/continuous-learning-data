@@ -1,0 +1,9 @@
+@@ -3147,7 +3147,7 @@ public boolean accept(Element e, TypeMirror t) {
+         }
+         final TypeElement enclClass = scope.getEnclosingClass();
+         for (Element e : locals) {
+-            switch (e.getKind()) {
++            switch (simplifyElementKind(e.getKind())) {
+                 case ENUM_CONSTANT:
+                 case EXCEPTION_PARAMETER:
+                 case LOCAL_VARIABLE:

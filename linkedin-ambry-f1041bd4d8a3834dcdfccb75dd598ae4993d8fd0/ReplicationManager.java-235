@@ -1,0 +1,9 @@
+@@ -235,7 +235,7 @@ public void onPartitionBecomeBootstrapFromOffline(String partitionName) {
+         logger.info("Didn't find replica {} in replication manager, starting to add it.", partitionName);
+         if (!addReplica(replica)) {
+           throw new StateTransitionException("Failed to add new replica " + partitionName + " into replication manager",
+-              StateTransitionException.TransitionErrorCode.ReplicaOperationFailure);
++              ReplicaOperationFailure);
+         }
+       }
+     }

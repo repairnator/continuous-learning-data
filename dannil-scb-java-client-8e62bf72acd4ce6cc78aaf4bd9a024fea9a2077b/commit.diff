@@ -1,0 +1,564 @@
+diff --git a/.travis.yml b/.travis.yml
+index df99ae7b..8988384d 100644
+--- a/.travis.yml
++++ b/.travis.yml
+@@ -7,6 +7,7 @@ jdk:
+   - openjdk10
+   - openjdk11
+   - openjdk12
++  - openjdk13
+ git:
+   depth: 99999
+ branches:
+diff --git a/README.md b/README.md
+index 93884d06..68254458 100644
+--- a/README.md
++++ b/README.md
+@@ -25,18 +25,18 @@ If you have an improvement, feel free to make a pull request or start an issue i
+ <dependency>
+   <groupId>com.github.dannil</groupId>
+   <artifactId>scb-java-client</artifactId>
+-  <version>2.4.1</version>
++  <version>2.5.0</version>
+ </dependency>
+ ```
+ 
+ ### Gradle
+ ```xml
+-compile 'com.github.dannil:scb-java-client:2.4.1'
++compile 'com.github.dannil:scb-java-client:2.5.0'
+ ```
+ 
+ ### SBT
+ ```xml
+-libraryDependencies += "com.github.dannil" % "scb-java-client" % "2.4.1"
++libraryDependencies += "com.github.dannil" % "scb-java-client" % "2.5.0"
+ ```
+ 
+ ## Usage
+diff --git a/pom.xml b/pom.xml
+index 33e43e1a..41eb4f89 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -5,7 +5,7 @@
+   <modelVersion>4.0.0</modelVersion>
+   <groupId>com.github.dannil</groupId>
+   <artifactId>scb-java-client</artifactId>
+-  <version>2.5.0-SNAPSHOT</version>
++  <version>2.6.0-SNAPSHOT</version>
+   <packaging>jar</packaging>
+ 
+   <name>scb-java-client</name>
+@@ -64,12 +64,12 @@
+     <dependency>
+       <groupId>com.fasterxml.jackson.core</groupId>
+       <artifactId>jackson-core</artifactId>
+-      <version>2.10.0.pr3</version>
++      <version>2.10.1</version>
+     </dependency>
+     <dependency>
+       <groupId>com.fasterxml.jackson.core</groupId>
+       <artifactId>jackson-databind</artifactId>
+-      <version>2.10.0.pr3</version>
++      <version>2.10.1</version>
+     </dependency>
+ 
+     <!-- Core dependencies (logging) -->
+@@ -101,7 +101,7 @@
+     <dependency>
+       <groupId>org.mockito</groupId>
+       <artifactId>mockito-core</artifactId>
+-      <version>3.0.0</version>
++      <version>3.2.4</version>
+       <scope>test</scope>
+     </dependency>
+     <dependency>
+@@ -115,7 +115,7 @@
+     <dependency>
+       <groupId>org.apache.logging.log4j</groupId>
+       <artifactId>log4j-slf4j18-impl</artifactId>
+-      <version>2.12.1</version>
++      <version>2.13.0</version>
+       <scope>test</scope>
+       <exclusions>
+         <exclusion>
+@@ -219,7 +219,7 @@
+       <plugin>
+         <groupId>org.apache.maven.plugins</groupId>
+         <artifactId>maven-surefire-plugin</artifactId>
+-        <version>3.0.0-M3</version>
++        <version>3.0.0-M4</version>
+         <configuration>
+           <forkCount>3</forkCount>
+           <reuseForks>true</reuseForks>
+@@ -228,7 +228,7 @@
+       <plugin>
+         <groupId>org.apache.maven.plugins</groupId>
+         <artifactId>maven-failsafe-plugin</artifactId>
+-        <version>3.0.0-M3</version>
++        <version>3.0.0-M4</version>
+         <configuration>
+           <systemPropertyVariables>
+             <testsDayLimit>7</testsDayLimit>
+@@ -252,7 +252,7 @@
+       <plugin>
+         <groupId>org.jacoco</groupId>
+         <artifactId>jacoco-maven-plugin</artifactId>
+-        <version>0.8.4</version>
++        <version>0.8.5</version>
+         <executions>
+           <!-- Prepares the property pointing to the JaCoCo runtime agent which is passed as a VM argument when maven-surefire-plugin 
+             is executed -->
+@@ -362,12 +362,18 @@
+       <plugin>
+         <groupId>com.github.siom79.japicmp</groupId>
+         <artifactId>japicmp-maven-plugin</artifactId>
+-        <version>0.14.1</version>
++        <version>0.14.3</version>
+         <configuration>
+           <parameter>
+             <onlyModified>false</onlyModified>
+             <onlyBinaryIncompatible>false</onlyBinaryIncompatible>
+             <breakBuildBasedOnSemanticVersioning>true</breakBuildBasedOnSemanticVersioning>
++            <overrideCompatibilityChangeParameters>
++              <overrideCompatibilityChangeParameter>
++                <compatibilityChange>METHOD_ADDED_TO_PUBLIC_CLASS</compatibilityChange>
++                <semanticVersionLevel>MINOR</semanticVersionLevel>
++              </overrideCompatibilityChangeParameter>
++            </overrideCompatibilityChangeParameters>
+           </parameter>
+         </configuration>
+         <executions>
+@@ -387,7 +393,7 @@
+           <dependency>
+             <groupId>com.puppycrawl.tools</groupId>
+             <artifactId>checkstyle</artifactId>
+-            <version>8.24</version>
++            <version>8.27</version>
+           </dependency>
+         </dependencies>
+         <executions>
+@@ -430,7 +436,7 @@
+       <plugin>
+         <groupId>org.apache.maven.plugins</groupId>
+         <artifactId>maven-enforcer-plugin</artifactId>
+-        <version>3.0.0-M2</version>
++        <version>3.0.0-M3</version>
+         <executions>
+           <execution>
+             <id>enforce-consistency</id>
+@@ -499,7 +505,7 @@
+                   <excludes>
+                     <!--Due to changes in the logging system for slf4j versions 2.0.0 and over, which breaks logging in applications 
+                       using this library, only versions below this (i.e. 1.8.0) is allowed -->
+-                    <exclude>org.slf4j:slf4j-api:2.0.0*</exclude>
++                    <exclude>org.slf4j:slf4j-api:1.9*</exclude>
+                   </excludes>
+                 </bannedDependencies>
+               </rules>
+@@ -582,7 +588,7 @@
+       <plugin>
+         <groupId>org.apache.maven.plugins</groupId>
+         <artifactId>maven-jar-plugin</artifactId>
+-        <version>3.1.2</version>
++        <version>3.2.0</version>
+       </plugin>
+       <plugin>
+         <groupId>org.apache.maven.plugins</groupId>
+@@ -591,7 +597,7 @@
+       <plugin>
+         <groupId>org.apache.maven.plugins</groupId>
+         <artifactId>maven-release-plugin</artifactId>
+-        <version>2.5.3</version>
++        <version>3.0.0-M1</version>
+       </plugin>
+       <plugin>
+         <groupId>org.apache.maven.plugins</groupId>
+@@ -606,7 +612,7 @@
+       <plugin>
+         <groupId>org.apache.maven.plugins</groupId>
+         <artifactId>maven-source-plugin</artifactId>
+-        <version>3.1.0</version>
++        <version>3.2.0</version>
+         <executions>
+           <execution>
+             <id>attach-sources</id>
+diff --git a/src/main/java/com/github/dannil/scbjavaclient/client/AbstractClient.java b/src/main/java/com/github/dannil/scbjavaclient/client/AbstractClient.java
+index 17540e1b..fb9dfa7d 100644
+--- a/src/main/java/com/github/dannil/scbjavaclient/client/AbstractClient.java
++++ b/src/main/java/com/github/dannil/scbjavaclient/client/AbstractClient.java
+@@ -189,16 +189,17 @@ protected String doPostRequest(String url, String query) {
+     private String handleRequest(AbstractRequester requester, String url) {
+         HttpResponse response = requester.getResponse(url);
+         String body = null;
++        URLEndpoint endpointUrl = new URLEndpoint(url);
++        String urlLanguage = endpointUrl.getLanguage();
+         if (response.getStatus() == HttpStatusCode.OK) {
+             body = response.getBody();
+         } else if (response.getStatus() == HttpStatusCode.NOT_FOUND
+-                && !Objects.equals(this.locale, APIConstants.FALLBACK_LOCALE)) {
++                && !Objects.equals(urlLanguage, APIConstants.FALLBACK_LOCALE.getLanguage())) {
+             // HTTP code 404, call the API again with the fallback language
+-            URLEndpoint endpointUrl = new URLEndpoint(url);
+             URLEndpoint fallbackEndpointUrl = endpointUrl.toURL(APIConstants.FALLBACK_LOCALE);
+             LOGGER.debug("Couldn't find table {} for locale {}, retrying with fallback locale {}",
+                     endpointUrl.getTable(), this.locale.getLanguage(), APIConstants.FALLBACK_LOCALE.getLanguage());
+-            body = requester.getResponse(fallbackEndpointUrl.toString()).getBody();
++            return handleRequest(requester, fallbackEndpointUrl.toString());
+         } else if (response.getStatus() == HttpStatusCode.FORBIDDEN) {
+             throw new SCBClientResponseTooLargeException("The response exceeded the maximum size allowed by the API");
+         }
+diff --git a/src/main/java/com/github/dannil/scbjavaclient/client/businessactivities/accomodationstatistics/month/BusinessActivitiesAccomodationStatisticsMonthClient.java b/src/main/java/com/github/dannil/scbjavaclient/client/businessactivities/accomodationstatistics/month/BusinessActivitiesAccomodationStatisticsMonthClient.java
+index a394b67a..65554776 100644
+--- a/src/main/java/com/github/dannil/scbjavaclient/client/businessactivities/accomodationstatistics/month/BusinessActivitiesAccomodationStatisticsMonthClient.java
++++ b/src/main/java/com/github/dannil/scbjavaclient/client/businessactivities/accomodationstatistics/month/BusinessActivitiesAccomodationStatisticsMonthClient.java
+@@ -33,6 +33,8 @@
+  */
+ public class BusinessActivitiesAccomodationStatisticsMonthClient extends AbstractClient {
+ 
++    private static final String TYPESOFESTABLISHMENTS_CODE = "Anlaggning";
++
+     /**
+      * <p>Default constructor.</p>
+      */
+@@ -76,7 +78,7 @@ public BusinessActivitiesAccomodationStatisticsMonthClient(Locale locale) {
+      */
+     public List<ResponseModel> getTotalCapacity(Collection<String> typesOfEstablishments, Collection<String> months) {
+         Map<String, Collection<?>> mappings = new HashMap<>();
+-        mappings.put("Anlaggning", typesOfEstablishments);
++        mappings.put(TYPESOFESTABLISHMENTS_CODE, typesOfEstablishments);
+         mappings.put(APIConstants.TIME_CODE, months);
+ 
+         return getResponseModels("NV1701T3M", mappings);
+@@ -176,7 +178,7 @@ public BusinessActivitiesAccomodationStatisticsMonthClient(Locale locale) {
+             Collection<String> months) {
+         Map<String, Collection<?>> mappings = new HashMap<>();
+         mappings.put(APIConstants.REGION_CODE, regions);
+-        mappings.put("Anlaggning", typesOfEstablishments);
++        mappings.put(TYPESOFESTABLISHMENTS_CODE, typesOfEstablishments);
+         mappings.put(APIConstants.TIME_CODE, months);
+ 
+         return getResponseModels("NV1701T10M", mappings);
+@@ -266,7 +268,7 @@ public BusinessActivitiesAccomodationStatisticsMonthClient(Locale locale) {
+             Collection<String> months) {
+         Map<String, Collection<?>> mappings = new HashMap<>();
+         mappings.put(APIConstants.REGION_CODE, regions);
+-        mappings.put("Anlaggning", typesOfEstablishments);
++        mappings.put(TYPESOFESTABLISHMENTS_CODE, typesOfEstablishments);
+         mappings.put(APIConstants.TIME_CODE, months);
+ 
+         return getResponseModels("NV1701T6MN", mappings);
+diff --git a/src/main/java/com/github/dannil/scbjavaclient/client/educationandresearch/communityinnovationsurvey/cooperation/EducationAndResearchCommunityInnovationSurveyCooperationClient.java b/src/main/java/com/github/dannil/scbjavaclient/client/educationandresearch/communityinnovationsurvey/cooperation/EducationAndResearchCommunityInnovationSurveyCooperationClient.java
+index 6c202657..7539d12a 100644
+--- a/src/main/java/com/github/dannil/scbjavaclient/client/educationandresearch/communityinnovationsurvey/cooperation/EducationAndResearchCommunityInnovationSurveyCooperationClient.java
++++ b/src/main/java/com/github/dannil/scbjavaclient/client/educationandresearch/communityinnovationsurvey/cooperation/EducationAndResearchCommunityInnovationSurveyCooperationClient.java
+@@ -59,7 +59,9 @@ public EducationAndResearchCommunityInnovationSurveyCooperationClient(Locale loc
+      *
+      * @see #getNumberOfInnovativeEnterprises(Collection, Collection, Collection,
+      *      Collection)
++     * @deprecated table removed from API
+      */
++    @Deprecated
+     public List<ResponseModel> getNumberOfInnovativeEnterprises() {
+         return getNumberOfInnovativeEnterprises(null, null, null, null);
+     }
+@@ -79,7 +81,9 @@ public EducationAndResearchCommunityInnovationSurveyCooperationClient(Locale loc
+      * @return the data wrapped in a list of
+      *         {@link com.github.dannil.scbjavaclient.model.ResponseModel ResponseModel}
+      *         objects
++     * @deprecated table removed from API
+      */
++    @Deprecated
+     public List<ResponseModel> getNumberOfInnovativeEnterprises(Collection<String> industrialClassifications,
+             Collection<String> sizeClasses, Collection<String> typesOfValues, Collection<String> periods) {
+         Map<String, Collection<?>> mappings = new HashMap<>();
+diff --git a/src/main/java/com/github/dannil/scbjavaclient/client/environment/localitiesareasandpopulation/population/EnvironmentLocalitiesAreasAndPopulationPopulationClient.java b/src/main/java/com/github/dannil/scbjavaclient/client/environment/localitiesareasandpopulation/population/EnvironmentLocalitiesAreasAndPopulationPopulationClient.java
+index 92240f9e..9d720b88 100644
+--- a/src/main/java/com/github/dannil/scbjavaclient/client/environment/localitiesareasandpopulation/population/EnvironmentLocalitiesAreasAndPopulationPopulationClient.java
++++ b/src/main/java/com/github/dannil/scbjavaclient/client/environment/localitiesareasandpopulation/population/EnvironmentLocalitiesAreasAndPopulationPopulationClient.java
+@@ -82,7 +82,7 @@ public EnvironmentLocalitiesAreasAndPopulationPopulationClient(Locale locale) {
+         mappings.put(APIConstants.REGION_CODE, regions);
+         mappings.put(APIConstants.TIME_CODE, years);
+ 
+-        return getResponseModels("LandarealTatort", mappings);
++        return getResponseModels("LandarealTatortN", mappings);
+     }
+ 
+     /**
+diff --git a/src/main/java/com/github/dannil/scbjavaclient/client/environment/seea/materialflowaccounts/EnvironmentSEEAMaterialFlowAccountsClient.java b/src/main/java/com/github/dannil/scbjavaclient/client/environment/seea/materialflowaccounts/EnvironmentSEEAMaterialFlowAccountsClient.java
+index 802b4dfc..5c91dbb7 100644
+--- a/src/main/java/com/github/dannil/scbjavaclient/client/environment/seea/materialflowaccounts/EnvironmentSEEAMaterialFlowAccountsClient.java
++++ b/src/main/java/com/github/dannil/scbjavaclient/client/environment/seea/materialflowaccounts/EnvironmentSEEAMaterialFlowAccountsClient.java
+@@ -79,7 +79,7 @@ public EnvironmentSEEAMaterialFlowAccountsClient(Locale locale) {
+         mappings.put("MatKat", categories);
+         mappings.put(APIConstants.TIME_CODE, years);
+ 
+-        return getResponseModels("MI1301MFTA01", mappings);
++        return getResponseModels("MI1301MFTA01N", mappings);
+     }
+ 
+     @Override
+diff --git a/src/main/java/com/github/dannil/scbjavaclient/client/goodsandservices/turnoverservicesector/turnover/GoodsAndServicesTurnoverServiceSectorTurnoverClient.java b/src/main/java/com/github/dannil/scbjavaclient/client/goodsandservices/turnoverservicesector/turnover/GoodsAndServicesTurnoverServiceSectorTurnoverClient.java
+index 5ed0525a..a8426f8d 100644
+--- a/src/main/java/com/github/dannil/scbjavaclient/client/goodsandservices/turnoverservicesector/turnover/GoodsAndServicesTurnoverServiceSectorTurnoverClient.java
++++ b/src/main/java/com/github/dannil/scbjavaclient/client/goodsandservices/turnoverservicesector/turnover/GoodsAndServicesTurnoverServiceSectorTurnoverClient.java
+@@ -94,7 +94,9 @@ public GoodsAndServicesTurnoverServiceSectorTurnoverClient(Locale locale) {
+      *         objects
+      *
+      * @see #getRetailSaleIndexSIC2007Yearly(Collection, Collection)
++     * @deprecated table removed from API
+      */
++    @Deprecated
+     public List<ResponseModel> getRetailSaleIndexSIC2007Yearly() {
+         return getRetailSaleIndexSIC2007Yearly(null, null);
+     }
+@@ -110,7 +112,9 @@ public GoodsAndServicesTurnoverServiceSectorTurnoverClient(Locale locale) {
+      * @return the data wrapped in a list of
+      *         {@link com.github.dannil.scbjavaclient.model.ResponseModel ResponseModel}
+      *         objects
++     * @deprecated table removed from API
+      */
++    @Deprecated
+     public List<ResponseModel> getRetailSaleIndexSIC2007Yearly(Collection<String> industrialClassifications,
+             Collection<Integer> years) {
+         Map<String, Collection<?>> mappings = new HashMap<>();
+diff --git a/src/main/java/com/github/dannil/scbjavaclient/communication/URLEndpoint.java b/src/main/java/com/github/dannil/scbjavaclient/communication/URLEndpoint.java
+index 66d09475..6752f6ca 100644
+--- a/src/main/java/com/github/dannil/scbjavaclient/communication/URLEndpoint.java
++++ b/src/main/java/com/github/dannil/scbjavaclient/communication/URLEndpoint.java
+@@ -68,6 +68,35 @@ public URLEndpoint append(String str) {
+         return new URLEndpoint(this.url + str);
+     }
+ 
++    /**
++     * <p>Returns the language portion of this URL.</p>
++     *
++     * <p>Example: URL of
++     * <b>https://api.scb.se/OV0104/v1/doris/sv/ssd/BE/BE0401/BE0401A/</b> is converted to
++     * <b>sv</b>.</p>
++     *
++     * <p>Due to speed efficiency, this method does not perform any validity check on the
++     * specified URL. Calling this method without a valid URL for the API may (and
++     * probably will) result in undefined behavior.</p>
++     *
++     * @return the language portion of this URL
++     */
++    public String getLanguage() {
++        StringBuilder builder = new StringBuilder(this.url);
++
++        // Specify the starting point. For this implementation, the starting
++        // point is the segment preceding the language tag segment in the URL
++        String startSegment = "doris";
++
++        // Find the index where the language tag starts
++        int start = builder.toString().indexOf(startSegment) + startSegment.length() + 1;
++        // Find the index where the language tag ends
++        int end = builder.toString().indexOf('/', start);
++
++        // Return the extracted language
++        return builder.substring(start, end);
++    }
++
+     /**
+      * <p>Returns the table portion of this URL.</p>
+      *
+diff --git a/src/main/java/com/github/dannil/scbjavaclient/utility/QueryBuilder.java b/src/main/java/com/github/dannil/scbjavaclient/utility/QueryBuilder.java
+index 9ee3a640..e2d912cd 100644
+--- a/src/main/java/com/github/dannil/scbjavaclient/utility/QueryBuilder.java
++++ b/src/main/java/com/github/dannil/scbjavaclient/utility/QueryBuilder.java
+@@ -85,7 +85,7 @@ private static void filterValue(Collection<?> collection, Object value) {
+      * <p>Constructs a query which matches the format the API expects. This method
+      * performs two distinct steps:</p>
+      *
+-     * <h1>1. Filter out the null keys and values</h1>
++     * <b>1. Filter out the null keys and values</b>
+      *
+      * <p>If a key (such as region or year) is defined and it's value is either defined as
+      * null or as an empty list, it means that all data for this key should be fetched
+@@ -93,7 +93,7 @@ private static void filterValue(Collection<?> collection, Object value) {
+      * to the API it recognizes that it should respond with all data corresponding to this
+      * key.</p>
+      *
+-     * <h1>2. Construct the query</h1>
++     * <b>2. Construct the query</b>
+      *
+      * <p>For every key in the input map, it creates an entry for this key. It then writes
+      * all of the values corresponding with this key (defined somewhere by using the
+diff --git a/src/test/java/com/github/dannil/scbjavaclient/client/businessactivities/productionvalueindex/BusinessActivitiesProductionValueIndexClientIT.java b/src/test/java/com/github/dannil/scbjavaclient/client/businessactivities/productionvalueindex/BusinessActivitiesProductionValueIndexClientIT.java
+index 26178ad4..c8beb941 100644
+--- a/src/test/java/com/github/dannil/scbjavaclient/client/businessactivities/productionvalueindex/BusinessActivitiesProductionValueIndexClientIT.java
++++ b/src/test/java/com/github/dannil/scbjavaclient/client/businessactivities/productionvalueindex/BusinessActivitiesProductionValueIndexClientIT.java
+@@ -40,7 +40,7 @@ public void setup() {
+     }
+ 
+     @Test
+-    @Date("2017-12-29")
++    @Date("2019-10-27")
+     @AllowFailure
+     public void getProductionValueIndex() {
+         assertNotEquals(0, this.client.getProductionValueIndex().size());
+diff --git a/src/test/java/com/github/dannil/scbjavaclient/client/educationandresearch/communityinnovationsurvey/cooperation/EducationAndResearchCommunityInnovationSurveyCooperationClientIT.java b/src/test/java/com/github/dannil/scbjavaclient/client/educationandresearch/communityinnovationsurvey/cooperation/EducationAndResearchCommunityInnovationSurveyCooperationClientIT.java
+index 5f3313c5..a02f4ae3 100644
+--- a/src/test/java/com/github/dannil/scbjavaclient/client/educationandresearch/communityinnovationsurvey/cooperation/EducationAndResearchCommunityInnovationSurveyCooperationClientIT.java
++++ b/src/test/java/com/github/dannil/scbjavaclient/client/educationandresearch/communityinnovationsurvey/cooperation/EducationAndResearchCommunityInnovationSurveyCooperationClientIT.java
+@@ -20,6 +20,7 @@
+ import java.util.Collections;
+ import java.util.List;
+ 
++import com.github.dannil.scbjavaclient.test.extensions.AllowFailure;
+ import com.github.dannil.scbjavaclient.test.extensions.Date;
+ import com.github.dannil.scbjavaclient.test.extensions.Remote;
+ import com.github.dannil.scbjavaclient.test.extensions.Suite;
+@@ -38,14 +39,18 @@ public void setup() {
+         this.client = new EducationAndResearchCommunityInnovationSurveyCooperationClient();
+     }
+ 
++    @SuppressWarnings("deprecation")
+     @Test
+-    @Date("2017-07-11")
++    @Date("2019-11-10")
++    @AllowFailure
+     public void getNumberOfInnovativeEnterprises() {
+         assertNotEquals(0, this.client.getNumberOfInnovativeEnterprises().size());
+     }
+ 
++    @SuppressWarnings("deprecation")
+     @Test
+-    @Date("2017-07-11")
++    @Date("2019-11-10")
++    @AllowFailure
+     public void getNumberOfInnovativeEnterprisesWithParametersEmptyLists() {
+         assertNotEquals(0,
+                 this.client.getNumberOfInnovativeEnterprises(Collections.<String>emptyList(),
+@@ -53,8 +58,10 @@ public void getNumberOfInnovativeEnterprisesWithParametersEmptyLists() {
+                         Collections.<String>emptyList()).size());
+     }
+ 
++    @SuppressWarnings("deprecation")
+     @Test
+-    @Date("2017-07-11")
++    @Date("2019-11-10")
++    @AllowFailure
+     public void getNumberOfInnovativeEnterprisesWithParameters() {
+         List<String> industrialClassifications = Arrays.asList("64-66", "71+72");
+         List<String> sizeClasses = Arrays.asList("10-49", "50-249");
+diff --git a/src/test/java/com/github/dannil/scbjavaclient/client/environment/localitiesareasandpopulation/population/EnvironmentLocalitiesAreasAndPopulationPopulationClientIT.java b/src/test/java/com/github/dannil/scbjavaclient/client/environment/localitiesareasandpopulation/population/EnvironmentLocalitiesAreasAndPopulationPopulationClientIT.java
+index 850bd23e..ed99a2e9 100644
+--- a/src/test/java/com/github/dannil/scbjavaclient/client/environment/localitiesareasandpopulation/population/EnvironmentLocalitiesAreasAndPopulationPopulationClientIT.java
++++ b/src/test/java/com/github/dannil/scbjavaclient/client/environment/localitiesareasandpopulation/population/EnvironmentLocalitiesAreasAndPopulationPopulationClientIT.java
+@@ -42,7 +42,7 @@ public void setup() {
+ 
+     // Daniel 2017-03-29: Returns HTTP 403
+     @Test
+-    @Date("2018-06-28")
++    @Date("2019-10-26")
+     public void getPopulationAndLandAreaWithinLocalities() {
+         assertThrows(SCBClientResponseTooLargeException.class,
+                 () -> this.client.getPopulationAndLandAreaWithinLocalities());
+@@ -50,7 +50,7 @@ public void getPopulationAndLandAreaWithinLocalities() {
+ 
+     // Daniel 2017-03-29: Returns HTTP 403
+     @Test
+-    @Date("2018-06-28")
++    @Date("2019-10-26")
+     public void getPopulationAndLandAreaWithinLocalitiesWithParametersEmptyLists() {
+         assertThrows(SCBClientResponseTooLargeException.class,
+                 () -> this.client.getPopulationAndLandAreaWithinLocalities(Collections.<String>emptyList(),
+@@ -58,7 +58,7 @@ public void getPopulationAndLandAreaWithinLocalitiesWithParametersEmptyLists() {
+     }
+ 
+     @Test
+-    @Date("2018-03-29")
++    @Date("2019-10-26")
+     public void getPopulationAndLandAreaWithinLocalitiesWithParameters() {
+         List<String> regions = Arrays.asList("T0132", "T0164");
+         List<Integer> years = Arrays.asList(1990, 1995);
+diff --git a/src/test/java/com/github/dannil/scbjavaclient/client/environment/seea/materialflowaccounts/EnvironmentSEEAMaterialFlowAccountsClientIT.java b/src/test/java/com/github/dannil/scbjavaclient/client/environment/seea/materialflowaccounts/EnvironmentSEEAMaterialFlowAccountsClientIT.java
+index 94114dfb..b2a54c9b 100644
+--- a/src/test/java/com/github/dannil/scbjavaclient/client/environment/seea/materialflowaccounts/EnvironmentSEEAMaterialFlowAccountsClientIT.java
++++ b/src/test/java/com/github/dannil/scbjavaclient/client/environment/seea/materialflowaccounts/EnvironmentSEEAMaterialFlowAccountsClientIT.java
+@@ -39,20 +39,20 @@ public void setup() {
+     }
+ 
+     @Test
+-    @Date("2017-05-29")
++    @Date("2019-12-18")
+     public void getMaterialFlows() {
+         assertNotEquals(0, this.client.getMaterialFlows().size());
+     }
+ 
+     @Test
+-    @Date("2017-05-29")
++    @Date("2019-12-18")
+     public void getMaterialFlowsWithParametersEmptyLists() {
+         assertNotEquals(0,
+                 this.client.getMaterialFlows(Collections.<String>emptyList(), Collections.<Integer>emptyList()).size());
+     }
+ 
+     @Test
+-    @Date("2017-05-29")
++    @Date("2019-12-18")
+     public void getMaterialFlowsWithParameters() {
+         List<String> categories = Arrays.asList("1.2.1", "1.2.2");
+         List<Integer> years = Arrays.asList(2010, 2011);
+diff --git a/src/test/java/com/github/dannil/scbjavaclient/client/goodsandservices/turnoverservicesector/turnover/GoodsAndServicesTurnoverServiceSectorTurnoverClientIT.java b/src/test/java/com/github/dannil/scbjavaclient/client/goodsandservices/turnoverservicesector/turnover/GoodsAndServicesTurnoverServiceSectorTurnoverClientIT.java
+index 60afa935..2e687812 100644
+--- a/src/test/java/com/github/dannil/scbjavaclient/client/goodsandservices/turnoverservicesector/turnover/GoodsAndServicesTurnoverServiceSectorTurnoverClientIT.java
++++ b/src/test/java/com/github/dannil/scbjavaclient/client/goodsandservices/turnoverservicesector/turnover/GoodsAndServicesTurnoverServiceSectorTurnoverClientIT.java
+@@ -20,6 +20,7 @@
+ import java.util.Collections;
+ import java.util.List;
+ 
++import com.github.dannil.scbjavaclient.test.extensions.AllowFailure;
+ import com.github.dannil.scbjavaclient.test.extensions.Date;
+ import com.github.dannil.scbjavaclient.test.extensions.Remote;
+ import com.github.dannil.scbjavaclient.test.extensions.Suite;
+@@ -60,21 +61,27 @@ public void getRetailSaleIndexSIC2007MonthlyWithParameters() {
+         assertNotEquals(0, this.client.getRetailSaleIndexSIC2007Monthly(industrialClassifications, months).size());
+     }
+ 
++    @SuppressWarnings("deprecation")
+     @Test
+-    @Date("2017-12-18")
++    @Date("2019-12-22")
++    @AllowFailure
+     public void getRetailSaleIndexSIC2007Yearly() {
+         assertNotEquals(0, this.client.getRetailSaleIndexSIC2007Yearly().size());
+     }
+ 
++    @SuppressWarnings("deprecation")
+     @Test
+-    @Date("2017-12-18")
++    @Date("2019-12-22")
++    @AllowFailure
+     public void getRetailSaleIndexSIC2007YearlyWithParametersEmptyLists() {
+         assertNotEquals(0, this.client.getRetailSaleIndexSIC2007Yearly(Collections.<String>emptyList(),
+                 Collections.<Integer>emptyList()).size());
+     }
+ 
++    @SuppressWarnings("deprecation")
+     @Test
+-    @Date("2017-12-18")
++    @Date("2019-12-22")
++    @AllowFailure
+     public void getRetailSaleIndexSIC2007YearlyWithParameters() {
+         List<String> industrialClassifications = Arrays.asList("47.2exkl47.25", "47.51+47.71-72");
+         List<Integer> years = Arrays.asList(2001, 2002);
+diff --git a/src/test/java/com/github/dannil/scbjavaclient/communication/URLEndpointTest.java b/src/test/java/com/github/dannil/scbjavaclient/communication/URLEndpointTest.java
+index 3a75d233..6c0627a5 100644
+--- a/src/test/java/com/github/dannil/scbjavaclient/communication/URLEndpointTest.java
++++ b/src/test/java/com/github/dannil/scbjavaclient/communication/URLEndpointTest.java
+@@ -78,6 +78,13 @@ public void toURLWithStringAndNullCommunicationProtocol() {
+ 
+         assertEquals("https://api.scb.se/OV0104/v1/doris/fr/ssd/AM/", url.toString());
+     }
++    
++    @Test
++    public void getLanguage() {
++        URLEndpoint url = new URLEndpoint("http://api.scb.se/OV0104/v1/doris/fr/ssd/BE/BE0401/BE0401A/");
++
++        assertEquals("fr", url.getLanguage());
++    }
+ 
+     @Test
+     public void getTable() {

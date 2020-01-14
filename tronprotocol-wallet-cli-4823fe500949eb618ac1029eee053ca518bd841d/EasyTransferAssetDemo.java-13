@@ -1,0 +1,9 @@
+@@ -13,7 +13,7 @@
+ public class EasyTransferAssetDemo {
+ 
+   private static byte[] getAddressByPassphrase(String passPhrase) {
+-    byte[] privateKey = Sha256Hash.hash(passPhrase.getBytes());
++    byte[] privateKey = Sha256Sm3Hash.hash(passPhrase.getBytes());
+     ECKey ecKey = ECKey.fromPrivate(privateKey);
+     byte[] address = ecKey.getAddress();
+     return address;

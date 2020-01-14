@@ -1,0 +1,9 @@
+@@ -38,7 +38,7 @@
+ // end::sharedContainerConfig[]
+ public class ErrorPathIT {
+     
+-    @Inject
++    @RESTClient
+     public static PersonService personSvc;
+     
+     @Test

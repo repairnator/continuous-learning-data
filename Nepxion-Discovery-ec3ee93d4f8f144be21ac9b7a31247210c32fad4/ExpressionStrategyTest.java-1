@@ -1,0 +1,6 @@
+@@ -1,4 +1,4 @@
+-package com.nepxion.discovery.plugin.framework.loadbalance;
++package com.nepxion.discovery.plugin.strategy.condition;
+ 
+ /**
+  * <p>Title: Nepxion Discovery</p>

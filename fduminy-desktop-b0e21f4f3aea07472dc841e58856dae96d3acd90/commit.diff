@@ -1,0 +1,206 @@
+diff --git a/etc/spotbugs-exclude-filter.xml b/etc/spotbugs-exclude-filter.xml
+index f58032a..5142877 100644
+--- a/etc/spotbugs-exclude-filter.xml
++++ b/etc/spotbugs-exclude-filter.xml
+@@ -1,6 +1,6 @@
+ <FindBugsFilter>
+     <Match>
+-        <Class name="fr.duminy.desktop.adapter.swing.DefaultDesktopTest"/>
++        <Class name="fr.duminy.desktop.adapter.swing.SwingDesktopTest"/>
+         <Bug code="BC"/>
+     </Match>
+     <Match>
+diff --git a/src/main/java/fr/duminy/desktop/adapter/swing/DefaultDesktop.java b/src/main/java/fr/duminy/desktop/adapter/swing/SwingDesktop.java
+similarity index 84%
+rename from src/main/java/fr/duminy/desktop/adapter/swing/DefaultDesktop.java
+rename to src/main/java/fr/duminy/desktop/adapter/swing/SwingDesktop.java
+index fc57ec7..e9d8c43 100644
+--- a/src/main/java/fr/duminy/desktop/adapter/swing/DefaultDesktop.java
++++ b/src/main/java/fr/duminy/desktop/adapter/swing/SwingDesktop.java
+@@ -10,14 +10,14 @@
+ import static java.awt.BorderLayout.CENTER;
+ 
+ @SuppressWarnings("serial")
+-class DefaultDesktop extends JPanel implements Desktop {
+-    private final CustomDesktopManager manager;
++class SwingDesktop extends JPanel implements Desktop {
++    private final SwingDesktopManager manager;
+     private final JDesktopPane desktopPane;
+ 
+-    DefaultDesktop() {
++    SwingDesktop() {
+         super(new BorderLayout());
+ 
+-        manager = new CustomDesktopManager();
++        manager = new SwingDesktopManager();
+         desktopPane = new JDesktopPane();
+         desktopPane.setDesktopManager(manager);
+         desktopPane.addContainerListener(manager);
+diff --git a/src/main/java/fr/duminy/desktop/adapter/swing/CustomDesktopManager.java b/src/main/java/fr/duminy/desktop/adapter/swing/SwingDesktopManager.java
+similarity index 95%
+rename from src/main/java/fr/duminy/desktop/adapter/swing/CustomDesktopManager.java
+rename to src/main/java/fr/duminy/desktop/adapter/swing/SwingDesktopManager.java
+index 22b5cc3..dcd2352 100644
+--- a/src/main/java/fr/duminy/desktop/adapter/swing/CustomDesktopManager.java
++++ b/src/main/java/fr/duminy/desktop/adapter/swing/SwingDesktopManager.java
+@@ -12,7 +12,7 @@
+ import java.util.function.BiConsumer;
+ 
+ @SuppressWarnings("serial")
+-class CustomDesktopManager extends DefaultDesktopManager implements ContainerListener {
++class SwingDesktopManager extends DefaultDesktopManager implements ContainerListener {
+     private final EventListenerList listeners = new EventListenerList();
+ 
+     @Override public final void componentAdded(ContainerEvent event) {
+diff --git a/src/main/java/fr/duminy/desktop/adapter/swing/SwingUserInterface.java b/src/main/java/fr/duminy/desktop/adapter/swing/SwingUserInterface.java
+index 1d99559..bb7de49 100644
+--- a/src/main/java/fr/duminy/desktop/adapter/swing/SwingUserInterface.java
++++ b/src/main/java/fr/duminy/desktop/adapter/swing/SwingUserInterface.java
+@@ -17,7 +17,7 @@
+     static JFrame startUI() {
+         JFrame frame = new JFrame("Desktop");
+         frame.setDefaultCloseOperation(EXIT_ON_CLOSE);
+-        frame.setContentPane(new DefaultDesktop());
++        frame.setContentPane(new SwingDesktop());
+         frame.setMinimumSize(new Dimension(800, 400));
+         frame.pack();
+         frame.setVisible(true);
+diff --git a/src/test/java/fr/duminy/desktop/adapter/swing/DesktopStage.java b/src/test/java/fr/duminy/desktop/adapter/swing/DesktopStage.java
+index 20e81ff..bea6655 100644
+--- a/src/test/java/fr/duminy/desktop/adapter/swing/DesktopStage.java
++++ b/src/test/java/fr/duminy/desktop/adapter/swing/DesktopStage.java
+@@ -3,20 +3,20 @@
+ import com.tngtech.jgiven.Stage;
+ import fr.duminy.desktop.domain.model.WindowListener;
+ 
+-import static fr.duminy.desktop.adapter.swing.DefaultDesktopDemo.getJDesktopPane;
++import static fr.duminy.desktop.adapter.swing.SwingDesktopDemo.getJDesktopPane;
+ import static org.assertj.swing.edt.GuiActionRunner.execute;
+ import static org.mockito.Mockito.*;
+ 
+ @SuppressWarnings("unused")
+ class DesktopStage extends Stage<DesktopStage> {
+     private final WindowFactory windowFactory = new WindowFactory();
+-    private final DefaultDesktop desktop;
++    private final SwingDesktop desktop;
+     private WindowListener listener;
+     private SwingWindow window;
+ 
+     DesktopStage() {
+         super();
+-        DefaultDesktopDemo demo = new DefaultDesktopDemo();
++        SwingDesktopDemo demo = new SwingDesktopDemo();
+         demo.init();
+ 
+         desktop = demo.getDesktop();
+diff --git a/src/test/java/fr/duminy/desktop/adapter/swing/DefaultDesktopDemo.java b/src/test/java/fr/duminy/desktop/adapter/swing/SwingDesktopDemo.java
+similarity index 85%
+rename from src/test/java/fr/duminy/desktop/adapter/swing/DefaultDesktopDemo.java
+rename to src/test/java/fr/duminy/desktop/adapter/swing/SwingDesktopDemo.java
+index 889a1b9..151551c 100644
+--- a/src/test/java/fr/duminy/desktop/adapter/swing/DefaultDesktopDemo.java
++++ b/src/test/java/fr/duminy/desktop/adapter/swing/SwingDesktopDemo.java
+@@ -16,35 +16,37 @@
+ import static org.assertj.swing.edt.GuiActionRunner.execute;
+ import static org.slf4j.LoggerFactory.getLogger;
+ 
+-public class DefaultDesktopDemo {
+-    private static final Logger LOG = getLogger(DefaultDesktopDemo.class);
++public class SwingDesktopDemo {
++    private static final Logger LOG = getLogger(SwingDesktopDemo.class);
+ 
+     private final WindowFactory windowFactory = new WindowFactory();
+ 
+-    private DefaultDesktop desktop;
++    private SwingDesktop desktop;
+ 
+     public static void main(String[] args) {
+-        new DefaultDesktopDemo().init();
++        new SwingDesktopDemo().init();
+     }
+ 
+-    static JDesktopPane getJDesktopPane(DefaultDesktop desktop) {
++    @VisibleForTesting
++    static JDesktopPane getJDesktopPane(SwingDesktop desktop) {
+         return desktop.getDesktopPane();
+     }
+ 
++    @VisibleForTesting
+     final void init() {
+         desktop = execute(new CreateDesktopQuery());
+     }
+ 
+     @VisibleForTesting
+-    DefaultDesktop getDesktop() {
++    SwingDesktop getDesktop() {
+         return desktop;
+     }
+ 
+-    private class CreateDesktopQuery extends GuiQuery<DefaultDesktop> {
++    private class CreateDesktopQuery extends GuiQuery<SwingDesktop> {
+         @Override
+-        protected DefaultDesktop executeInEDT() {
++        protected SwingDesktop executeInEDT() {
+             JFrame frame = startUI();
+-            DefaultDesktop desktop = (DefaultDesktop) frame.getContentPane();
++            SwingDesktop desktop = (SwingDesktop) frame.getContentPane();
+             JPanel content = new JPanel(new BorderLayout());
+             content.add(buildCommandPanel(), WEST);
+             content.add(desktop, CENTER);
+diff --git a/src/test/java/fr/duminy/desktop/adapter/swing/DefaultDesktopTest.java b/src/test/java/fr/duminy/desktop/adapter/swing/SwingDesktopTest.java
+similarity index 75%
+rename from src/test/java/fr/duminy/desktop/adapter/swing/DefaultDesktopTest.java
+rename to src/test/java/fr/duminy/desktop/adapter/swing/SwingDesktopTest.java
+index 13d9e7b..e985270 100644
+--- a/src/test/java/fr/duminy/desktop/adapter/swing/DefaultDesktopTest.java
++++ b/src/test/java/fr/duminy/desktop/adapter/swing/SwingDesktopTest.java
+@@ -1,5 +1,6 @@
+ package fr.duminy.desktop.adapter.swing;
+ 
++import com.google.common.annotations.VisibleForTesting;
+ import com.tngtech.jgiven.annotation.ScenarioStage;
+ import com.tngtech.jgiven.junit5.JGivenExtension;
+ import fr.duminy.desktop.junit5.TestLogExtension;
+@@ -8,29 +9,37 @@
+ 
+ @ExtendWith({JGivenExtension.class, TestLogExtension.class})
+ @SuppressWarnings({"serial", "squid:S2699"})
+-class DefaultDesktopTest extends AssertJSwingTestCaseTemplateJUnit5 {
++class SwingDesktopTest extends AssertJSwingTestCaseTemplateJUnit5 {
+     @SuppressWarnings("unused") @ScenarioStage private DesktopStage stage;
+ 
+-    @Test void windowRegistered_event_is_sent_to_listeners() {
++    @VisibleForTesting
++    @Test
++    void windowRegistered_event_is_sent_to_listeners() {
+         stage.given().no_windows_is_opened();
+         stage.when().addWindowListener().and().create_new_window();
+         stage.then().windowRegistered_is_called().and().no_more_listener_method_is_called();
+     }
+ 
+-    @Test void windowRegistered_event_is_not_sent_to_listeners() {
++    @VisibleForTesting
++    @Test
++    void windowRegistered_event_is_not_sent_to_listeners() {
+         stage.given().no_windows_is_opened().and().addWindowListener();
+         stage.when().removeWindowListener().and().create_new_window();
+         stage.then().windowRegistered_is_not_called().and().no_more_listener_method_is_called();
+     }
+ 
+-    @Test void windowUnregistered_event_is_sent_to_listeners() {
++    @VisibleForTesting
++    @Test
++    void windowUnregistered_event_is_sent_to_listeners() {
+         stage.given().no_windows_is_opened().and().addWindowListener().and().create_new_window();
+         stage.when().close_window();
+         stage.then().windowRegistered_is_called().and().windowUnregistered_is_called().and()
+              .no_more_listener_method_is_called();
+     }
+ 
+-    @Test void windowUnregistered_event_is_not_sent_to_listeners() {
++    @VisibleForTesting
++    @Test
++    void windowUnregistered_event_is_not_sent_to_listeners() {
+         stage.given().no_windows_is_opened().and().addWindowListener().and().create_new_window().and()
+              .removeWindowListener();
+         stage.when().close_window();

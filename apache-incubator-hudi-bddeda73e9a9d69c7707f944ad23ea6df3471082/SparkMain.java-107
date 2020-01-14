@@ -1,0 +1,9 @@
+@@ -107,7 +107,7 @@ public static void main(String[] args) throws Exception {
+       case COMPACT_SCHEDULE:
+         assert (args.length >= 6);
+         propsFilePath = null;
+-        if (!Strings.isNullOrEmpty(args[5])) {
++        if (!StringUtils.isNullOrEmpty(args[5])) {
+           propsFilePath = args[5];
+         }
+         configs = new ArrayList<>();

@@ -1,0 +1,9 @@
+@@ -176,7 +176,7 @@ public void testSizeEstimator() throws IOException, URISyntaxException {
+     final Schema simpleSchemaWithMetadata = HoodieAvroUtils.addMetadataFields(SchemaTestUtil.getSimpleSchema());
+     indexedRecords = SchemaTestUtil.generateHoodieTestRecords(0, 1);
+     hoodieRecords = indexedRecords.stream()
+-        .map(r -> new HoodieRecord(new HoodieKey(UUID.randomUUID().toString(), "0000/00/00"),
++        .map(r -> new HoodieRecord<>(new HoodieKey(UUID.randomUUID().toString(), "0000/00/00"),
+             new AvroBinaryTestPayload(
+                 Option.of(HoodieAvroUtils.rewriteRecord((GenericRecord) r, simpleSchemaWithMetadata)))))
+         .collect(Collectors.toList());

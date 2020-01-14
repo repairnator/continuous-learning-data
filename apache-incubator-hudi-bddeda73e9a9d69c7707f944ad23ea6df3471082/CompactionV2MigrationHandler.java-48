@@ -1,0 +1,9 @@
+@@ -48,7 +48,7 @@ public Integer getManagedVersion() {
+ 
+   @Override
+   public HoodieCompactionPlan upgradeFrom(HoodieCompactionPlan input) {
+-    Preconditions.checkArgument(input.getVersion() == 1, "Input version is " + input.getVersion() + ". Must be 1");
++    ValidationUtils.checkArgument(input.getVersion() == 1, "Input version is " + input.getVersion() + ". Must be 1");
+     HoodieCompactionPlan compactionPlan = new HoodieCompactionPlan();
+     List<HoodieCompactionOperation> v2CompactionOperationList = new ArrayList<>();
+     if (null != input.getOperations()) {

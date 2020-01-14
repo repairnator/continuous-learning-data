@@ -1,0 +1,9 @@
+@@ -216,7 +216,7 @@ private void updatePartitionInfoMaps(List<RemoteReplicaInfo> remoteReplicaInfos,
+   /**
+    * {@link PartitionStateChangeListener} to capture changes in partition state.
+    */
+-  private class PartitionStateChangeListenerImpl implements PartitionStateChangeListener {
++  class PartitionStateChangeListenerImpl implements PartitionStateChangeListener {
+ 
+     @Override
+     public void onPartitionBecomeBootstrapFromOffline(String partitionName) {

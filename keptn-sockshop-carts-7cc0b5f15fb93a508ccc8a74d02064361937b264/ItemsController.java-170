@@ -1,0 +1,9 @@
+@@ -170,7 +170,7 @@ public Item addToCart(@PathVariable String customerId, @RequestBody Item item) t
+ 
+                     /////////////
+                     int reqPerMin = getRequestsPerMinute();
+-                    int sleepTime = 1200;
++                    double sleepTime = 1200.0;
+ 
+                     if (reqPerMin <= 70) {
+                         sleepTime = Math.pow(reqPerMin, 2) - Math.pow(reqPerMin, 3) / 100;

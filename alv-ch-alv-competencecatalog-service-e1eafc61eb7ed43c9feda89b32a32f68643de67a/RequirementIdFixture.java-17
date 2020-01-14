@@ -1,0 +1,9 @@
+@@ -17,7 +17,7 @@
+     private RequirementIdFixture() {
+     }
+ 
+-    public static Set<RequirementId> setOf(final RequirementId... ids) {
++    public static Set<RequirementId> setOf(RequirementId... ids) {
+         return new HashSet<>(Arrays.asList(ids));
+     }
+ }

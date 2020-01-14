@@ -1,0 +1,9 @@
+@@ -210,7 +210,7 @@ private void testReader(boolean partitioned) throws Exception {
+             action.equals(HoodieTimeline.ROLLBACK_ACTION) ? String.valueOf(baseInstantTs + logVersion - 2)
+                 : instantTime;
+ 
+-        HoodieLogFormat.Writer writer = null;
++        HoodieLogFormat.Writer writer;
+         if (action.equals(HoodieTimeline.ROLLBACK_ACTION)) {
+           writer = writeRollback(partitionDir, schema, "fileid0", baseInstant, instantTime,
+               String.valueOf(baseInstantTs + logVersion - 1), logVersion);

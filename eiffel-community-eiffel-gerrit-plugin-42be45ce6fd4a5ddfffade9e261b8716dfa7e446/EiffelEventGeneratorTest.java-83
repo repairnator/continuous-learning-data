@@ -1,0 +1,9 @@
+@@ -83,7 +83,7 @@
+ 
+     private CommitInformation commitInformation;
+ 
+-    private File pluginDirectory;
++    private EiffelPluginConfiguration pluginConfig;
+ 
+     @Captor
+     private ArgumentCaptor<String> keyCaptor;

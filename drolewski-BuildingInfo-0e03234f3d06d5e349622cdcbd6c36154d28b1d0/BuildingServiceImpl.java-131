@@ -1,0 +1,9 @@
+@@ -131,7 +131,7 @@ public float calculateLighting(int id) {
+             if(surface != 0) {
+                 return (building.calculateLighting() / surface);
+             }
+-            return 0;
++            return 0f;
+         }
+         logger.info("Cannot calculate lighting: "+ id);
+         return -1f;

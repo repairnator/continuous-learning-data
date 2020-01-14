@@ -1,0 +1,9 @@
+@@ -134,7 +134,7 @@ protected static HiveSyncConfig getHiveSyncConfig(String basePath, String tableN
+     hiveSyncConfig.basePath = basePath;
+     hiveSyncConfig.assumeDatePartitioning = false;
+     hiveSyncConfig.usePreApacheInputFormat = false;
+-    hiveSyncConfig.partitionFields = new ImmutableList.Builder<String>().add("datestr").build();
++    hiveSyncConfig.partitionFields = CollectionUtils.createImmutableList("datestr");
+     return hiveSyncConfig;
+   }
+ 

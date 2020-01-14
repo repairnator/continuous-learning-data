@@ -1,0 +1,42 @@
+diff --git a/src/main/java/urjc/isi/controladores/PeliculasController.java b/src/main/java/urjc/isi/controladores/PeliculasController.java
+index 8edd14b..f81ba34 100644
+--- a/src/main/java/urjc/isi/controladores/PeliculasController.java
++++ b/src/main/java/urjc/isi/controladores/PeliculasController.java
+@@ -165,7 +165,7 @@ public static String calificacion(Request request, Response response) throws SQL
+ 		
+ 		if(request.queryParams("pelicula") != null) {
+ 			output = ps.getCalificacionForPelicula(request.queryParams("pelicula"));
+-			//result = result + "La calificacion de la pelicula es:" + "<br/><br/>";
++			result = "";
+ 		} else {
+ 			output = null;
+ 		}
+diff --git a/src/main/java/urjc/isi/dao/implementaciones/PeliculasDAOImpl.java b/src/main/java/urjc/isi/dao/implementaciones/PeliculasDAOImpl.java
+index f9ef558..83c20bf 100644
+--- a/src/main/java/urjc/isi/dao/implementaciones/PeliculasDAOImpl.java
++++ b/src/main/java/urjc/isi/dao/implementaciones/PeliculasDAOImpl.java
+@@ -229,20 +229,20 @@ public void deleteByID(String idpelicula){
+ 	
+ 	@Override
+ 	public List<Peliculas> selectCalificacionForPelicula(String name){
+-		List<Peliculas> calificacion = new ArrayList<>();
+-		String sql = "SELECT calificacion from peliculas";
++		List<Peliculas> calificacionList = new ArrayList<>();
++		String sql = "SELECT peliculas.calificacion from peliculas";
+ 		String cond = "WHERE";
+ 		cond += "titulo="+"'"+name+"'";
+ 		try (PreparedStatement pstmt = c.prepareStatement(sql+cond)) {
+ 			ResultSet rs = pstmt.executeQuery();
+ 			c.commit();
+ 			while(rs.next()){
+-				calificacion.add(fromResultSet(rs));
++				calificacionList.add(fromResultSet(rs));
+ 			}
+ 		} catch (SQLException e) {
+ 			System.out.println(e.getMessage());
+ 		}
+ 		
+-		return calificacion;
++		return calificacionList;
+ 	}
+ }

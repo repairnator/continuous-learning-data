@@ -1,0 +1,9 @@
+@@ -237,7 +237,7 @@ static void fixnumUpto(ThreadContext context, long from, long to, Block block) {
+         }
+     }
+ 
+-    private static void duckUpto(ThreadContext context, IRubyObject from, IRubyObject to, Block block) {
++    static void duckUpto(ThreadContext context, IRubyObject from, IRubyObject to, Block block) {
+         Ruby runtime = context.runtime;
+         IRubyObject i = from;
+         RubyFixnum one = RubyFixnum.one(runtime);

@@ -1,0 +1,9 @@
+@@ -36,7 +36,7 @@
+ import org.microshed.testing.SharedContainerConfig;
+ // end::importSharedContainerConfig[]
+ // tag::importMPApp[]
+-import org.microshed.testing.testcontainers.MicroProfileApplication;
++import org.microshed.testing.testcontainers.ApplicationContainer;
+ // end::importMPApp[]
+ // tag::importContainer[]
+ import org.testcontainers.junit.jupiter.Container;

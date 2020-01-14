@@ -1,0 +1,354 @@
+diff --git a/aggregating-profiler/build.gradle.kts b/aggregating-profiler/build.gradle.kts
+index 26a7d63..835cd52 100644
+--- a/aggregating-profiler/build.gradle.kts
++++ b/aggregating-profiler/build.gradle.kts
+@@ -22,6 +22,7 @@ dependencies {
+     testCompile(Libs.kotlin_jdk8)
+     testCompile(Libs.kotlin_stdlib)
+     testCompile(Libs.kotlin_reflect)
++    testCompile(Libs.kotlinx_coroutines)
+ 
+     testCompile(Libs.slf4j_simple)
+     testCompile(Libs.hamcrest)
+diff --git a/aggregating-profiler/src/main/java/ru/fix/aggregating/profiler/AggregatingProfiler.java b/aggregating-profiler/src/main/java/ru/fix/aggregating/profiler/AggregatingProfiler.java
+index ded4f04..42df31b 100644
+--- a/aggregating-profiler/src/main/java/ru/fix/aggregating/profiler/AggregatingProfiler.java
++++ b/aggregating-profiler/src/main/java/ru/fix/aggregating/profiler/AggregatingProfiler.java
+@@ -34,7 +34,7 @@ public AggregatingProfiler() {
+     /**
+      * if 0 then tracking uncompleted profiled calls is disabled
+      */
+-    private final AtomicInteger numberOfActiveCallsToTrackAndKeepBetweenReports = new AtomicInteger(10);
++    private final AtomicInteger numberOfLongestActiveCallsToTrack = new AtomicInteger(10);
+ 
+     public ProfiledCall profiledCall(String name) {
+         return profiledCall(new Identity(name));
+@@ -99,7 +99,7 @@ public ProfilerReporter createReporter() {
+         AggregatingReporter[] reporter = new AggregatingReporter[1];
+         reporter[0] = new AggregatingReporter(
+                 this,
+-                numberOfActiveCallsToTrackAndKeepBetweenReports,
++                numberOfLongestActiveCallsToTrack,
+                 percentileSettings,
+                 () -> this.unregisterReporter(reporter[0]),
+                 new NoopLabelSticker());
+@@ -109,15 +109,15 @@ public ProfilerReporter createReporter() {
+     }
+ 
+     /**
+-     * @param numberOfActiveCallsToTrackAndKeepBetweenReports if 0 then tracking uncompleted profiled calls is disabled
++     * @param numberOfLongestActiveCallsToTrack if 0 then tracking uncompleted profiled calls is disabled
+      */
+-    public AggregatingProfiler setNumberOfActiveCallsToTrackAndKeepBetweenReports(
+-            int numberOfActiveCallsToTrackAndKeepBetweenReports) {
+-        this.numberOfActiveCallsToTrackAndKeepBetweenReports.set(numberOfActiveCallsToTrackAndKeepBetweenReports);
++    public AggregatingProfiler setNumberOfLongestActiveCallsToTrack(
++            int numberOfLongestActiveCallsToTrack) {
++        this.numberOfLongestActiveCallsToTrack.set(numberOfLongestActiveCallsToTrack);
+         return this;
+     }
+ 
+-    public int getNumberOfActiveCallsToTrackAndKeepBetweenReports(){
+-        return numberOfActiveCallsToTrackAndKeepBetweenReports.get();
++    public int getNumberOfLongestActiveCallsToTrack(){
++        return numberOfLongestActiveCallsToTrack.get();
+     }
+ }
+diff --git a/aggregating-profiler/src/main/java/ru/fix/aggregating/profiler/engine/AggregatingReporter.java b/aggregating-profiler/src/main/java/ru/fix/aggregating/profiler/engine/AggregatingReporter.java
+index 81733dc..97b1864 100644
+--- a/aggregating-profiler/src/main/java/ru/fix/aggregating/profiler/engine/AggregatingReporter.java
++++ b/aggregating-profiler/src/main/java/ru/fix/aggregating/profiler/engine/AggregatingReporter.java
+@@ -23,18 +23,18 @@
+ 
+     private final AtomicLong lastReportTimestamp;
+ 
+-    private final AtomicInteger numberOfActiveCallsToTrackAndKeepBetweenReports;
++    private final AtomicInteger numberOfLongestActiveCallsToTrack;
+     private final ClosingCallback closingCallback;
+     private final PercentileSettings percentileSettings;
+     private volatile LabelSticker labelSticker;
+ 
+     public AggregatingReporter(AggregatingProfiler profiler,
+-                               AtomicInteger numberOfActiveCallsToTrackAndKeepBetweenReports,
++                               AtomicInteger numberOfLongestActiveCallsToTrack,
+                                PercentileSettings percentileSettings,
+                                ClosingCallback closingCallback,
+                                LabelSticker labelSticker) {
+         this.profiler = profiler;
+-        this.numberOfActiveCallsToTrackAndKeepBetweenReports = numberOfActiveCallsToTrackAndKeepBetweenReports;
++        this.numberOfLongestActiveCallsToTrack = numberOfLongestActiveCallsToTrack;
+         this.closingCallback = closingCallback;
+         this.labelSticker = labelSticker;
+         this.percentileSettings = percentileSettings;
+@@ -45,13 +45,11 @@ public void setLabelSticker(LabelSticker labelSticker) {
+         Objects.requireNonNull(labelSticker);
+         this.labelSticker = labelSticker;
+ 
+-        this.sharedCounters.forEach((identity, aggregate) -> {
+-            labelSticker.buildLabels(identity.getName()).forEach(aggregate::setAutoLabel);
+-        });
++        this.sharedCounters.forEach((identity, aggregate) ->
++                labelSticker.buildLabels(identity.getName()).forEach(aggregate::setAutoLabel));
+ 
+-        profiler.getIndicators().forEach((indicatorIdentity, indicatorProvider) -> {
+-            labelSticker.buildLabels(indicatorIdentity.getName()).forEach(indicatorProvider::setAutoLabel);
+-        });
++        profiler.getIndicators().forEach((indicatorIdentity, indicatorProvider) ->
++                labelSticker.buildLabels(indicatorIdentity.getName()).forEach(indicatorProvider::setAutoLabel));
+     }
+ 
+     public void updateCallAggregates(Identity callIdentity, Consumer<CallAggregate> updateAction) {
+@@ -61,7 +59,7 @@ public void updateCallAggregates(Identity callIdentity, Consumer<CallAggregate>
+                         key -> {
+                             CallAggregate aggregate = new CallAggregate(
+                                     callIdentity,
+-                                    numberOfActiveCallsToTrackAndKeepBetweenReports,
++                                    numberOfLongestActiveCallsToTrack,
+                                     percentileSettings);
+                             labelSticker.buildLabels(callIdentity.getName()).forEach(aggregate::setAutoLabel);
+                             return aggregate;
+@@ -101,7 +99,7 @@ private ProfilerReport buildReportAndReset(Optional<ReportFilter> reportFilter)
+                 .map(entry -> {
+                     Identity name = entry.getKey();
+                     try {
+-                        return new SimpleEntry<Identity, Long>(name, entry.getValue().getProvider().get());
++                        return new SimpleEntry<>(name, entry.getValue().getProvider().get());
+                     } catch (Exception ex) {
+                         log.error("Retrieve value for "
+                                         + entry.getKey()
+diff --git a/aggregating-profiler/src/main/java/ru/fix/aggregating/profiler/engine/CallAggregate.java b/aggregating-profiler/src/main/java/ru/fix/aggregating/profiler/engine/CallAggregate.java
+index bc7e42e..20887fc 100644
+--- a/aggregating-profiler/src/main/java/ru/fix/aggregating/profiler/engine/CallAggregate.java
++++ b/aggregating-profiler/src/main/java/ru/fix/aggregating/profiler/engine/CallAggregate.java
+@@ -31,7 +31,7 @@
+     final MaxThroughputPerSecondAccumulator startMaxThroughputPerSecondAcc = new MaxThroughputPerSecondAccumulator();
+     final MaxThroughputPerSecondAccumulator stopMaxThroughputPerSecondAcc = new MaxThroughputPerSecondAccumulator();
+ 
+-    final AtomicInteger numberOfActiveCallsToTrackAndKeepBetweenReports;
++    final AtomicInteger numberOfLongestActiveCallsToTrack;
+ 
+     final LongAdder activeCallsCountSumAdder = new LongAdder();
+     final Set<AggregatingCall> activeCalls = ConcurrentHashMap.newKeySet();
+@@ -42,11 +42,11 @@
+ 
+     public CallAggregate(
+             Identity callIdentity,
+-            AtomicInteger numberOfActiveCallsToTrackAndKeepBetweenReports,
++            AtomicInteger numberOfLongestActiveCallsToTrack,
+             PercentileSettings percentileSettings
+     ) {
+         this.callIdentity = callIdentity;
+-        this.numberOfActiveCallsToTrackAndKeepBetweenReports = numberOfActiveCallsToTrackAndKeepBetweenReports;
++        this.numberOfLongestActiveCallsToTrack = numberOfLongestActiveCallsToTrack;
+         this.latencyPercentile = new PercentileAccumulator(percentileSettings);
+ 
+     }
+@@ -89,7 +89,7 @@ public void start(AggregatingCall profiledCall, long currentTimestamp) {
+         startMaxThroughputPerSecondAcc.call(currentTimestamp, 1);
+ 
+         activeCallsCountSumAdder.increment();
+-        if (numberOfActiveCallsToTrackAndKeepBetweenReports.get() > 0) {
++        if (numberOfLongestActiveCallsToTrack.get() > activeCalls.size()) {
+             activeCalls.add(profiledCall);
+         }
+ 
+@@ -124,8 +124,8 @@ public void close(AggregatingCall call) {
+         activeCallsCountSumAdder.decrement();
+     }
+ 
+-    public Optional<AggregatingCall> resetActiveCallsAndGetLongest() {
+-        if (numberOfActiveCallsToTrackAndKeepBetweenReports.get() == 0) {
++    public Optional<AggregatingCall> findLongestActiveCall() {
++        if (numberOfLongestActiveCallsToTrack.get() == 0) {
+             if (!activeCalls.isEmpty()) {
+                 activeCalls.clear();
+                 activeCallsCountSumAdder.reset();
+@@ -133,23 +133,7 @@ public void close(AggregatingCall call) {
+             return Optional.empty();
+         }
+ 
+-        AggregatingCall[] longest = new AggregatingCall[1];
+-
+-        Set<AggregatingCall> top = new HashSet<>();
+-        activeCalls
+-                .stream()
+-                .sorted(Comparator.comparingLong(AggregatingCall::startNanoTime))
+-                .limit(numberOfActiveCallsToTrackAndKeepBetweenReports.get())
+-                .forEachOrdered(call -> {
+-                    if (top.isEmpty()) {
+-                        longest[0] = call;
+-                    }
+-                    top.add(call);
+-                });
+-
+-        activeCalls.removeIf(call -> !top.contains(call));
+-
+-        return Optional.ofNullable(longest[0]);
++        return activeCalls.stream().min(Comparator.comparingLong(AggregatingCall::startNanoTime));
+     }
+ 
+     public ProfiledCallReport buildReportAndReset(long elapsed) {
+@@ -160,7 +144,7 @@ public ProfiledCallReport buildReportAndReset(long elapsed) {
+                 .setReportingTimeAvg(elapsed)
+ 
+                 .setActiveCallsCountMax(activeCallsCountSumAdder.sum())
+-                .setActiveCallsLatencyMax(activeCallsMaxLatencyAndResetActiveCalls());
++                .setActiveCallsLatencyMax(calculateActiveCallsMaxLatency());
+ 
+         if (stopSum == 0) {
+             return report;
+@@ -194,8 +178,8 @@ public ProfiledCallReport buildReportAndReset(long elapsed) {
+                 ;
+     }
+ 
+-    private long activeCallsMaxLatencyAndResetActiveCalls() {
+-        Optional<AggregatingCall> longestCall = resetActiveCallsAndGetLongest();
++    private long calculateActiveCallsMaxLatency() {
++        Optional<AggregatingCall> longestCall = findLongestActiveCall();
+         return longestCall
+                 .map(AggregatingCall::timeFromCallStart)
+                 .orElse(0L);
+diff --git a/aggregating-profiler/src/test/java/ru/fix/aggregating/profiler/engine/AggregatingReporterActiveCallsTest.java b/aggregating-profiler/src/test/java/ru/fix/aggregating/profiler/engine/AggregatingReporterActiveCallsTest.java
+index 50554c8..a4b1e99 100644
+--- a/aggregating-profiler/src/test/java/ru/fix/aggregating/profiler/engine/AggregatingReporterActiveCallsTest.java
++++ b/aggregating-profiler/src/test/java/ru/fix/aggregating/profiler/engine/AggregatingReporterActiveCallsTest.java
+@@ -18,12 +18,12 @@
+     private AggregatingProfiler profiler;
+     private AggregatingReporter reporter;
+ 
+-    private final int numberOfActiveCallsToTrackAndKeepBetweenReports = 25;
++    private final int numberOfLongestActiveCallsToTrack = 25;
+ 
+     @BeforeEach
+     public void setup() {
+         profiler = new AggregatingProfiler()
+-                        .setNumberOfActiveCallsToTrackAndKeepBetweenReports(25);
++                        .setNumberOfLongestActiveCallsToTrack(25);
+         reporter = (AggregatingReporter) profiler.createReporter();
+     }
+ 
+@@ -87,7 +87,7 @@ public void hasActiveAndEndedCalls_usesCorrectCallForActiveCallsMaxLatency() thr
+     @Test
+     public void hasEndedCalls_resetsActiveCallsToLimit() throws Exception {
+         Collection<ProfiledCall> longestCalls = new ArrayList<>();
+-        for (int i = 0; i < numberOfActiveCallsToTrackAndKeepBetweenReports; i++) {
++        for (int i = 0; i < numberOfLongestActiveCallsToTrack; i++) {
+             longestCalls.add(profiler.start("Test"));
+         }
+ 
+@@ -100,7 +100,7 @@ public void hasEndedCalls_resetsActiveCallsToLimit() throws Exception {
+         reporter.buildReportAndReset();
+ 
+         reporter.updateCallAggregates(new Identity("Test"), counters -> {
+-            assertEquals(numberOfActiveCallsToTrackAndKeepBetweenReports, counters.activeCalls.size());
++            assertEquals(numberOfLongestActiveCallsToTrack, counters.activeCalls.size());
+             assertTrue(counters.activeCalls.containsAll(longestCalls));
+         });
+     }
+@@ -108,7 +108,7 @@ public void hasEndedCalls_resetsActiveCallsToLimit() throws Exception {
+     @Test
+     public void noCallsEnded_resetsActiveCallsToLimit() throws Exception{
+         Collection<ProfiledCall> longestCalls = new ArrayList<>();
+-        for (int i = 0; i < numberOfActiveCallsToTrackAndKeepBetweenReports; i++) {
++        for (int i = 0; i < numberOfLongestActiveCallsToTrack; i++) {
+             longestCalls.add(profiler.start("Test"));
+         }
+ 
+@@ -120,7 +120,7 @@ public void noCallsEnded_resetsActiveCallsToLimit() throws Exception{
+         reporter.buildReportAndReset();
+ 
+         reporter.updateCallAggregates(new Identity("Test"), counters -> {
+-            assertEquals(numberOfActiveCallsToTrackAndKeepBetweenReports, counters.activeCalls.size());
++            assertEquals(numberOfLongestActiveCallsToTrack, counters.activeCalls.size());
+             assertTrue(counters.activeCalls.containsAll(longestCalls));
+         });
+     }
+@@ -130,7 +130,7 @@ public void disableActiveCallsMaxLatency_afterCallsWereStarted_removesCallsFromA
+         profiler.start("Test");
+         profiler.start("Test");
+ 
+-        profiler.setNumberOfActiveCallsToTrackAndKeepBetweenReports(0);
++        profiler.setNumberOfLongestActiveCallsToTrack(0);
+ 
+         reporter.buildReportAndReset();
+ 
+diff --git a/aggregating-profiler/src/test/kotlin/ru/fix/aggregating/profiler/engine/ActiveCallsLimitTest.kt b/aggregating-profiler/src/test/kotlin/ru/fix/aggregating/profiler/engine/ActiveCallsLimitTest.kt
+new file mode 100644
+index 0000000..5918b37
+--- /dev/null
++++ b/aggregating-profiler/src/test/kotlin/ru/fix/aggregating/profiler/engine/ActiveCallsLimitTest.kt
+@@ -0,0 +1,53 @@
++package ru.fix.aggregating.profiler.engine
++
++import kotlinx.coroutines.GlobalScope
++import kotlinx.coroutines.delay
++import kotlinx.coroutines.launch
++import kotlinx.coroutines.runBlocking
++import org.junit.jupiter.api.AfterEach
++import org.junit.jupiter.api.Assertions.assertTrue
++import org.junit.jupiter.api.BeforeEach
++import org.junit.jupiter.api.Test
++import ru.fix.aggregating.profiler.AggregatingProfiler
++import ru.fix.aggregating.profiler.Identity
++
++class ActiveCallsLimitTest {
++
++    private val numberOfActiveCalls = 25
++
++    private lateinit var profiler: AggregatingProfiler
++    private lateinit var reporter: AggregatingReporter
++
++    @BeforeEach
++    fun setup() {
++        profiler = AggregatingProfiler().setNumberOfLongestActiveCallsToTrack(numberOfActiveCalls)
++        reporter = profiler.createReporter() as AggregatingReporter
++    }
++
++    @AfterEach
++    fun tearDown() {
++        reporter.close()
++    }
++
++    @Test
++    fun `start profiling concurrently and count active calls`() {
++        for (jobs in 1 .. 1000) {
++            GlobalScope.launch {
++                for (metrics in 1 .. 100) {
++                    profiler.start("Test")
++                }
++            }
++        }
++
++        runBlocking {
++            delay(1000)
++        }
++
++        reporter.buildReportAndReset()
++
++        reporter.updateCallAggregates(Identity("Test")) {counters ->
++            assertTrue(counters.activeCalls.size >= numberOfActiveCalls)
++            assertTrue(counters.activeCalls.size < numberOfActiveCalls * 2)
++        }
++    }
++}
+\ No newline at end of file
+diff --git a/buildSrc/src/main/kotlin/Dependencies.kt b/buildSrc/src/main/kotlin/Dependencies.kt
+index a11a90b..765e480 100644
+--- a/buildSrc/src/main/kotlin/Dependencies.kt
++++ b/buildSrc/src/main/kotlin/Dependencies.kt
+@@ -2,6 +2,7 @@ object Vers {
+     val asciidoctor = "1.5.9.2"
+     val kotlin = "1.3.41"
+     val kotlin_logging = "1.6.22"
++    val kotlinx_coroutines = "1.3.3"
+     val sl4j = "1.7.25"
+     val dokkav = "0.9.18"
+     val gradle_release_plugin = "1.3.9"
+@@ -23,6 +24,7 @@ object Libs {
+     val kotlin_stdlib = "org.jetbrains.kotlin:kotlin-stdlib:${Vers.kotlin}"
+     val kotlin_jdk8 = "org.jetbrains.kotlin:kotlin-stdlib-jdk8:${Vers.kotlin}"
+     val kotlin_reflect = "org.jetbrains.kotlin:kotlin-reflect:${Vers.kotlin}"
++    val kotlinx_coroutines = "org.jetbrains.kotlinx:kotlinx-coroutines-core:${Vers.kotlinx_coroutines}"
+ 
+     val slf4j_api = "org.slf4j:slf4j-api:${Vers.sl4j}"
+     val slf4j_simple = "org.slf4j:slf4j-simple:${Vers.sl4j}"

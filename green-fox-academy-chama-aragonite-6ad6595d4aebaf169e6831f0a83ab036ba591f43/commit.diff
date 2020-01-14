@@ -1,0 +1,282 @@
+diff --git a/src/main/java/com/greenfoxacademy/chamaaragonite/building/ProductionBuilding.java b/src/main/java/com/greenfoxacademy/chamaaragonite/building/ProductionBuilding.java
+new file mode 100644
+index 0000000..411b384
+--- /dev/null
++++ b/src/main/java/com/greenfoxacademy/chamaaragonite/building/ProductionBuilding.java
+@@ -0,0 +1,17 @@
++package com.greenfoxacademy.chamaaragonite.building;
++
++import javax.persistence.Entity;
++import lombok.EqualsAndHashCode;
++import lombok.Getter;
++import lombok.Setter;
++
++@Getter
++@Setter
++@EqualsAndHashCode(callSuper = true)
++@Entity
++public abstract class ProductionBuilding extends Building {
++
++  // region Fields
++  private int amountPerMinute;
++  // endregion Fields
++}
+diff --git a/src/main/java/com/greenfoxacademy/chamaaragonite/building/buildingtypes/Farm.java b/src/main/java/com/greenfoxacademy/chamaaragonite/building/buildingtypes/Farm.java
+index 24b6976..8491029 100644
+--- a/src/main/java/com/greenfoxacademy/chamaaragonite/building/buildingtypes/Farm.java
++++ b/src/main/java/com/greenfoxacademy/chamaaragonite/building/buildingtypes/Farm.java
+@@ -1,6 +1,6 @@
+ package com.greenfoxacademy.chamaaragonite.building.buildingtypes;
+ 
+-import com.greenfoxacademy.chamaaragonite.building.Building;
++import com.greenfoxacademy.chamaaragonite.building.ProductionBuilding;
+ import javax.persistence.Entity;
+ import lombok.EqualsAndHashCode;
+ import lombok.Getter;
+@@ -10,11 +10,12 @@
+ @Setter
+ @EqualsAndHashCode(callSuper = true)
+ @Entity
+-public class Farm extends Building {
++public class Farm extends ProductionBuilding {
+ 
+   // region Constructors
+   public Farm() {
+     this.setHp(20);
++    this.setAmountPerMinute(15);
+   }
+   // endregion Constructors
+ }
+diff --git a/src/main/java/com/greenfoxacademy/chamaaragonite/building/buildingtypes/Mine.java b/src/main/java/com/greenfoxacademy/chamaaragonite/building/buildingtypes/Mine.java
+index a9a9b48..2da1efb 100644
+--- a/src/main/java/com/greenfoxacademy/chamaaragonite/building/buildingtypes/Mine.java
++++ b/src/main/java/com/greenfoxacademy/chamaaragonite/building/buildingtypes/Mine.java
+@@ -1,6 +1,6 @@
+ package com.greenfoxacademy.chamaaragonite.building.buildingtypes;
+ 
+-import com.greenfoxacademy.chamaaragonite.building.Building;
++import com.greenfoxacademy.chamaaragonite.building.ProductionBuilding;
+ import javax.persistence.Entity;
+ import lombok.EqualsAndHashCode;
+ import lombok.Getter;
+@@ -10,11 +10,12 @@
+ @Setter
+ @EqualsAndHashCode(callSuper = true)
+ @Entity
+-public class Mine extends Building {
++public class Mine extends ProductionBuilding {
+ 
+   // region Constructors
+   public Mine() {
+     this.setHp(40);
++    this.setAmountPerMinute(15);
+   }
+   // endregion Constructors
+ }
+diff --git a/src/main/java/com/greenfoxacademy/chamaaragonite/dtos/AuthenticationResponseDTO.java b/src/main/java/com/greenfoxacademy/chamaaragonite/dtos/AuthenticationResponseDTO.java
+index 5fae3bf..01d9624 100644
+--- a/src/main/java/com/greenfoxacademy/chamaaragonite/dtos/AuthenticationResponseDTO.java
++++ b/src/main/java/com/greenfoxacademy/chamaaragonite/dtos/AuthenticationResponseDTO.java
+@@ -7,5 +7,7 @@
+ @AllArgsConstructor
+ public class AuthenticationResponseDTO extends ResponseDTO {
+ 
++  // region Fields
+   private final String jwt;
++  // endregion Fields
+ }
+diff --git a/src/main/java/com/greenfoxacademy/chamaaragonite/dtos/BuildingResponseDTO.java b/src/main/java/com/greenfoxacademy/chamaaragonite/dtos/BuildingResponseDTO.java
+new file mode 100644
+index 0000000..95b0259
+--- /dev/null
++++ b/src/main/java/com/greenfoxacademy/chamaaragonite/dtos/BuildingResponseDTO.java
+@@ -0,0 +1,46 @@
++package com.greenfoxacademy.chamaaragonite.dtos;
++
++import com.fasterxml.jackson.annotation.JsonInclude;
++import com.fasterxml.jackson.annotation.JsonInclude.Include;
++import com.fasterxml.jackson.annotation.JsonProperty;
++import com.greenfoxacademy.chamaaragonite.building.Building;
++import com.greenfoxacademy.chamaaragonite.building.ProductionBuilding;
++import lombok.AllArgsConstructor;
++import lombok.Getter;
++import lombok.NoArgsConstructor;
++import lombok.Setter;
++
++@Getter
++@Setter
++@NoArgsConstructor
++@AllArgsConstructor
++@JsonInclude(Include.NON_NULL)
++public class BuildingResponseDTO extends ResponseDTO {
++
++  // region Fields
++  private long id;
++  private String type;
++  private int level;
++  private int hp;
++  private Integer amountPerMinute;
++
++  @JsonProperty(value = "finished_at")
++  private long updatedAt;
++  // endregion Fields
++
++
++  // region Constructors
++  public BuildingResponseDTO(ProductionBuilding productionBuilding) {
++    this((Building) productionBuilding);
++    this.amountPerMinute = productionBuilding.getAmountPerMinute();
++  }
++
++  public BuildingResponseDTO(Building building) {
++    this.id = building.getId();
++    this.type = building.getClass().getSimpleName();
++    this.level = building.getLevel();
++    this.hp = building.getHp();
++    this.updatedAt = building.getUpdatedAt();
++  }
++  // endregion Constructors
++}
+diff --git a/src/main/java/com/greenfoxacademy/chamaaragonite/dtos/TroopRequestDTO.java b/src/main/java/com/greenfoxacademy/chamaaragonite/dtos/TroopRequestDTO.java
+index 669f741..c733e8a 100644
+--- a/src/main/java/com/greenfoxacademy/chamaaragonite/dtos/TroopRequestDTO.java
++++ b/src/main/java/com/greenfoxacademy/chamaaragonite/dtos/TroopRequestDTO.java
+@@ -11,5 +11,7 @@
+ @AllArgsConstructor
+ public class TroopRequestDTO extends RequestDTO {
+ 
++  // region Fields
+   public String troopType;
++  // endregion Fields
+ }
+diff --git a/src/main/java/com/greenfoxacademy/chamaaragonite/kingdom/KingdomController.java b/src/main/java/com/greenfoxacademy/chamaaragonite/kingdom/KingdomController.java
+index e5c0103..41c0a2f 100644
+--- a/src/main/java/com/greenfoxacademy/chamaaragonite/kingdom/KingdomController.java
++++ b/src/main/java/com/greenfoxacademy/chamaaragonite/kingdom/KingdomController.java
+@@ -1,5 +1,8 @@
+ package com.greenfoxacademy.chamaaragonite.kingdom;
+ 
++import com.greenfoxacademy.chamaaragonite.building.Building;
++import com.greenfoxacademy.chamaaragonite.building.ProductionBuilding;
++import com.greenfoxacademy.chamaaragonite.dtos.BuildingResponseDTO;
+ import com.greenfoxacademy.chamaaragonite.dtos.ErrorResponseDTO;
+ import com.greenfoxacademy.chamaaragonite.dtos.KingdomPublicResponseDTO;
+ import com.greenfoxacademy.chamaaragonite.dtos.ResourceResponseDTO;
+@@ -11,6 +14,7 @@
+ import com.greenfoxacademy.chamaaragonite.exceptions.MissingBuildingException;
+ import com.greenfoxacademy.chamaaragonite.troop.Troop;
+ import java.security.Principal;
++import java.util.ArrayList;
+ import java.util.List;
+ import java.util.stream.Collectors;
+ import org.springframework.beans.factory.annotation.Autowired;
+@@ -63,6 +67,21 @@ public ResponseEntity getKingdomTroops(Principal principal) {
+         .collect(Collectors.toList());
+     return ResponseEntity.ok(responseDTOs);
+   }
++
++  @GetMapping(value = "/kingdom/buildings")
++  public ResponseEntity getKingdomBuildings(Principal principal) {
++    Kingdom kingdom = this.kingdomService.findByAppUserUsername(principal.getName());
++    List<BuildingResponseDTO> responseDTOs = new ArrayList<>();
++
++    for (Building building : kingdom.getBuildings()) {
++      if (building instanceof ProductionBuilding) {
++        responseDTOs.add(new BuildingResponseDTO((ProductionBuilding) building));
++      } else {
++        responseDTOs.add(new BuildingResponseDTO(building));
++      }
++    }
++    return ResponseEntity.ok(responseDTOs);
++  }
+   // endregion GetMappings
+ 
+ 
+diff --git a/src/test/java/com/greenfoxacademy/chamaaragonite/kingdom/KingdomControllerTest.java b/src/test/java/com/greenfoxacademy/chamaaragonite/kingdom/KingdomControllerTest.java
+index 69fccc5..4179c39 100644
+--- a/src/test/java/com/greenfoxacademy/chamaaragonite/kingdom/KingdomControllerTest.java
++++ b/src/test/java/com/greenfoxacademy/chamaaragonite/kingdom/KingdomControllerTest.java
+@@ -11,6 +11,13 @@
+ import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup;
+ 
+ import com.fasterxml.jackson.databind.ObjectMapper;
++import com.greenfoxacademy.chamaaragonite.building.Building;
++import com.greenfoxacademy.chamaaragonite.building.ProductionBuilding;
++import com.greenfoxacademy.chamaaragonite.building.buildingtypes.Academy;
++import com.greenfoxacademy.chamaaragonite.building.buildingtypes.Farm;
++import com.greenfoxacademy.chamaaragonite.building.buildingtypes.Mine;
++import com.greenfoxacademy.chamaaragonite.building.buildingtypes.Townhall;
++import com.greenfoxacademy.chamaaragonite.dtos.BuildingResponseDTO;
+ import com.greenfoxacademy.chamaaragonite.dtos.ErrorResponseDTO;
+ import com.greenfoxacademy.chamaaragonite.dtos.KingdomPublicResponseDTO;
+ import com.greenfoxacademy.chamaaragonite.dtos.ResourceResponseDTO;
+@@ -190,7 +197,8 @@ public void createTroop_NotEnoughGoldCorrectType_CustomErrorMsgStatus400() throw
+ 
+   @Test
+   @WithMockUser
+-  public void createTroop_NoAcademyCorrecTypeEnoughGold_CustomErrorMsgStatus400() throws Exception {
++  public void createTroop_NoAcademyCorrectTypeEnoughGold_CustomErrorMsgStatus400()
++      throws Exception {
+     when(this.principal.getName()).thenReturn("anyString()");
+     when(this.kingdomService.createTroop("pikeman", "anyString()"))
+         .thenThrow(new MissingBuildingException("Academy does not exist!"));
+@@ -205,8 +213,9 @@ public void createTroop_NoAcademyCorrecTypeEnoughGold_CustomErrorMsgStatus400()
+     this.mockMvc.perform(requestBuilder)
+         .andExpect(status().isBadRequest())
+         .andExpect(content().contentType(this.contentType))
+-        .andExpect(content().json(this.objectMapper.writeValueAsString(
+-            new ErrorResponseDTO("error", "Academy does not exist!"))));
++        .andExpect(content().json(
++            this.objectMapper.writeValueAsString(
++                new ErrorResponseDTO("error", "Academy does not exist!"))));
+   }
+ 
+   @Test
+@@ -229,8 +238,45 @@ public void createTroop_EnoughGoldCorrectType_TroopCreated() throws Exception {
+         .andExpect(status().isOk())
+         .andExpect(content().contentType(this.contentType))
+         .andExpect(content().json(
+-            this.objectMapper.writeValueAsString(
+-                new TroopResponseDTO(troop))));
++            this.objectMapper.writeValueAsString(new TroopResponseDTO(troop))));
+   }
+   // endregion PostKingdomTroopsTests
++
++
++  // region GetBuildingsTests
++  @Test
++  @WithMockUser
++  public void getKingdomBuildings_AuthenticatedUser_ListOfDTOsStatus200()
++      throws Exception {
++    Kingdom kingdom = new Kingdom();
++    List<Building> buildings = new ArrayList<>(
++        List.of(
++            new Academy(),
++            new Farm(),
++            new Mine(),
++            new Townhall()
++        )
++    );
++    kingdom.setBuildings(buildings);
++
++    List<BuildingResponseDTO> responseDTOs = new ArrayList<>();
++    for (Building building : kingdom.getBuildings()) {
++      if (building instanceof ProductionBuilding) {
++        responseDTOs.add(new BuildingResponseDTO((ProductionBuilding) building));
++      } else {
++        responseDTOs.add(new BuildingResponseDTO(building));
++      }
++    }
++
++    when(this.principal.getName()).thenReturn("yolo");
++    when(this.kingdomService.findByAppUserUsername(any())).thenReturn(kingdom);
++
++    this.mockMvc.perform(get("/kingdom/buildings").principal(this.principal))
++        .andExpect(status().isOk())
++        .andExpect(content().contentType(this.contentType))
++        .andExpect(content().json(
++            this.objectMapper.writeValueAsString(responseDTOs)
++        ));
++  }
++  // endregion GetBuildingsTests
+ }

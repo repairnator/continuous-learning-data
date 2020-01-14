@@ -1,0 +1,214 @@
+diff --git a/src/main/java/org/springframework/data/jpa/repository/query/JpaQueryLookupStrategy.java b/src/main/java/org/springframework/data/jpa/repository/query/JpaQueryLookupStrategy.java
+index 317ce74845..9a9edefc50 100644
+--- a/src/main/java/org/springframework/data/jpa/repository/query/JpaQueryLookupStrategy.java
++++ b/src/main/java/org/springframework/data/jpa/repository/query/JpaQueryLookupStrategy.java
+@@ -19,7 +19,6 @@
+ 
+ import javax.persistence.EntityManager;
+ 
+-import org.springframework.data.jpa.provider.QueryExtractor;
+ import org.springframework.data.jpa.repository.Query;
+ import org.springframework.data.projection.ProjectionFactory;
+ import org.springframework.data.repository.core.NamedQueries;
+@@ -55,21 +54,20 @@ private JpaQueryLookupStrategy() {}
+ 	private abstract static class AbstractQueryLookupStrategy implements QueryLookupStrategy {
+ 
+ 		private final EntityManager em;
+-		private final QueryExtractor provider;
+ 		private final JpaQueryMethodFactory queryMethodFactory;
+ 
+ 		/**
+ 		 * Creates a new {@link AbstractQueryLookupStrategy}.
+ 		 *
+-		 * @param em
+-		 * @param extractor
+-		 * @param queryMethodFactory
++		 * @param em must not be {@literal null}.
++		 * @param queryMethodFactory must not be {@literal null}.
+ 		 */
+-		public AbstractQueryLookupStrategy(EntityManager em, QueryExtractor extractor,
+-				JpaQueryMethodFactory queryMethodFactory) {
++		public AbstractQueryLookupStrategy(EntityManager em, JpaQueryMethodFactory queryMethodFactory) {
++
++			Assert.notNull(em, "EntityManager must not be null!");
++			Assert.notNull(queryMethodFactory, "JpaQueryMethodFactory must not be null!");
+ 
+ 			this.em = em;
+-			this.provider = extractor;
+ 			this.queryMethodFactory = queryMethodFactory;
+ 		}
+ 
+@@ -96,10 +94,10 @@ public final RepositoryQuery resolveQuery(Method method, RepositoryMetadata meta
+ 
+ 		private final EscapeCharacter escape;
+ 
+-		public CreateQueryLookupStrategy(EntityManager em, QueryExtractor extractor, EscapeCharacter escape,
+-				JpaQueryMethodFactory queryMethodFactory) {
++		public CreateQueryLookupStrategy(EntityManager em, JpaQueryMethodFactory queryMethodFactory,
++				EscapeCharacter escape) {
+ 
+-			super(em, extractor, queryMethodFactory);
++			super(em, queryMethodFactory);
+ 
+ 			this.escape = escape;
+ 		}
+@@ -130,10 +128,10 @@ protected RepositoryQuery resolveQuery(JpaQueryMethod method, EntityManager em,
+ 		 * @param queryMethodFactory
+ 		 * @param evaluationContextProvider
+ 		 */
+-		public DeclaredQueryLookupStrategy(EntityManager em, QueryExtractor extractor,
+-				JpaQueryMethodFactory queryMethodFactory, QueryMethodEvaluationContextProvider evaluationContextProvider) {
++		public DeclaredQueryLookupStrategy(EntityManager em, JpaQueryMethodFactory queryMethodFactory,
++				QueryMethodEvaluationContextProvider evaluationContextProvider) {
+ 
+-			super(em, extractor, queryMethodFactory);
++			super(em, queryMethodFactory);
+ 
+ 			this.evaluationContextProvider = evaluationContextProvider;
+ 		}
+@@ -190,17 +188,18 @@ protected RepositoryQuery resolveQuery(JpaQueryMethod method, EntityManager em,
+ 		/**
+ 		 * Creates a new {@link CreateIfNotFoundQueryLookupStrategy}.
+ 		 *
+-		 * @param em
+-		 * @param extractor
+-		 * @param queryMethodFactory
+-		 * @param createStrategy
+-		 * @param lookupStrategy
++		 * @param em must not be {@literal null}.
++		 * @param queryMethodFactory must not be {@literal null}.
++		 * @param createStrategy must not be {@literal null}.
++		 * @param lookupStrategy must not be {@literal null}.
+ 		 */
+-		public CreateIfNotFoundQueryLookupStrategy(EntityManager em, QueryExtractor extractor,
+-				JpaQueryMethodFactory queryMethodFactory, CreateQueryLookupStrategy createStrategy,
+-				DeclaredQueryLookupStrategy lookupStrategy) {
++		public CreateIfNotFoundQueryLookupStrategy(EntityManager em, JpaQueryMethodFactory queryMethodFactory,
++				CreateQueryLookupStrategy createStrategy, DeclaredQueryLookupStrategy lookupStrategy) {
++
++			super(em, queryMethodFactory);
+ 
+-			super(em, extractor, queryMethodFactory);
++			Assert.notNull(createStrategy, "CreateQueryLookupStrategy must not be null!");
++			Assert.notNull(lookupStrategy, "DeclaredQueryLookupStrategy must not be null!");
+ 
+ 			this.createStrategy = createStrategy;
+ 			this.lookupStrategy = lookupStrategy;
+@@ -225,30 +224,28 @@ protected RepositoryQuery resolveQuery(JpaQueryMethod method, EntityManager em,
+ 	 * Creates a {@link QueryLookupStrategy} for the given {@link EntityManager} and {@link Key}.
+ 	 *
+ 	 * @param em must not be {@literal null}.
+-	 * @param key may be {@literal null}.
+-	 * @param extractor must not be {@literal null}.
+ 	 * @param queryMethodFactory must not be {@literal null}.
++	 * @param key may be {@literal null}.
+ 	 * @param evaluationContextProvider must not be {@literal null}.
+ 	 * @param escape
++	 * @param extractor must not be {@literal null}.
+ 	 * @return
+ 	 */
+-	public static QueryLookupStrategy create(EntityManager em, @Nullable Key key, QueryExtractor extractor,
+-			JpaQueryMethodFactory queryMethodFactory, QueryMethodEvaluationContextProvider evaluationContextProvider,
+-			EscapeCharacter escape) {
++	public static QueryLookupStrategy create(EntityManager em, JpaQueryMethodFactory queryMethodFactory,
++			@Nullable Key key, QueryMethodEvaluationContextProvider evaluationContextProvider, EscapeCharacter escape) {
+ 
+ 		Assert.notNull(em, "EntityManager must not be null!");
+-		Assert.notNull(extractor, "QueryExtractor must not be null!");
+ 		Assert.notNull(evaluationContextProvider, "EvaluationContextProvider must not be null!");
+ 
+ 		switch (key != null ? key : Key.CREATE_IF_NOT_FOUND) {
+ 			case CREATE:
+-				return new CreateQueryLookupStrategy(em, extractor, escape, queryMethodFactory);
++				return new CreateQueryLookupStrategy(em, queryMethodFactory, escape);
+ 			case USE_DECLARED_QUERY:
+-				return new DeclaredQueryLookupStrategy(em, extractor, queryMethodFactory, evaluationContextProvider);
++				return new DeclaredQueryLookupStrategy(em, queryMethodFactory, evaluationContextProvider);
+ 			case CREATE_IF_NOT_FOUND:
+-				return new CreateIfNotFoundQueryLookupStrategy(em, extractor, queryMethodFactory,
+-						new CreateQueryLookupStrategy(em, extractor, escape, queryMethodFactory),
+-						new DeclaredQueryLookupStrategy(em, extractor, queryMethodFactory, evaluationContextProvider));
++				return new CreateIfNotFoundQueryLookupStrategy(em, queryMethodFactory,
++						new CreateQueryLookupStrategy(em, queryMethodFactory, escape),
++						new DeclaredQueryLookupStrategy(em, queryMethodFactory, evaluationContextProvider));
+ 			default:
+ 				throw new IllegalArgumentException(String.format("Unsupported query lookup strategy %s!", key));
+ 		}
+diff --git a/src/main/java/org/springframework/data/jpa/repository/support/JpaMetamodelEntityInformation.java b/src/main/java/org/springframework/data/jpa/repository/support/JpaMetamodelEntityInformation.java
+index c02b1337c9..0b58e50a45 100644
+--- a/src/main/java/org/springframework/data/jpa/repository/support/JpaMetamodelEntityInformation.java
++++ b/src/main/java/org/springframework/data/jpa/repository/support/JpaMetamodelEntityInformation.java
+@@ -425,7 +425,9 @@ private boolean isIdentifierDerivationNecessary(@Nullable Object value) {
+ 
+ 			ManagedType<?> managedType = this.metamodel.managedType(userClass);
+ 
+-			Assert.state(managedType != null, "ManagedType must not be null. We checked that it exists before.");
++			if (managedType == null) {
++				throw new IllegalStateException("ManagedType must not be null. We checked that it exists before.");
++			}
+ 
+ 			return managedType.getPersistenceType() == PersistenceType.ENTITY;
+ 		}
+diff --git a/src/main/java/org/springframework/data/jpa/repository/support/JpaRepositoryFactory.java b/src/main/java/org/springframework/data/jpa/repository/support/JpaRepositoryFactory.java
+index 12debcf371..03ec571dbf 100644
+--- a/src/main/java/org/springframework/data/jpa/repository/support/JpaRepositoryFactory.java
++++ b/src/main/java/org/springframework/data/jpa/repository/support/JpaRepositoryFactory.java
+@@ -15,7 +15,7 @@
+  */
+ package org.springframework.data.jpa.repository.support;
+ 
+-import static org.springframework.data.querydsl.QuerydslUtils.QUERY_DSL_PRESENT;
++import static org.springframework.data.querydsl.QuerydslUtils.*;
+ 
+ import lombok.extern.slf4j.Slf4j;
+ 
+@@ -140,8 +140,9 @@ public void setEscapeCharacter(EscapeCharacter escapeCharacter) {
+ 	}
+ 
+ 	/**
+-	 * Configures the {@link JpaQueryMethodFactory} to be used. Defaults to {@link JpaQueryMethod.DefaultJpaQueryMethodFactory#INSTANCE}.
+-	 * 
++	 * Configures the {@link JpaQueryMethodFactory} to be used. Defaults to
++	 * {@link JpaQueryMethod.DefaultJpaQueryMethodFactory#INSTANCE}.
++	 *
+ 	 * @param queryMethodFactory must not be {@literal null}.
+ 	 */
+ 	public void setQueryMethodFactory(JpaQueryMethodFactory queryMethodFactory) {
+@@ -213,9 +214,8 @@ protected ProjectionFactory getProjectionFactory(ClassLoader classLoader, BeanFa
+ 	@Override
+ 	protected Optional<QueryLookupStrategy> getQueryLookupStrategy(@Nullable Key key,
+ 			QueryMethodEvaluationContextProvider evaluationContextProvider) {
+-		return Optional
+-				.of(
+-				JpaQueryLookupStrategy.create(entityManager, key, extractor, queryMethodFactory, evaluationContextProvider, escapeCharacter));
++		return Optional.of(JpaQueryLookupStrategy.create(entityManager, queryMethodFactory, key, evaluationContextProvider,
++				escapeCharacter));
+ 	}
+ 
+ 	/*
+diff --git a/src/test/java/org/springframework/data/jpa/repository/query/JpaQueryLookupStrategyUnitTests.java b/src/test/java/org/springframework/data/jpa/repository/query/JpaQueryLookupStrategyUnitTests.java
+index 49562261af..116f6f2fc3 100644
+--- a/src/test/java/org/springframework/data/jpa/repository/query/JpaQueryLookupStrategyUnitTests.java
++++ b/src/test/java/org/springframework/data/jpa/repository/query/JpaQueryLookupStrategyUnitTests.java
+@@ -79,8 +79,8 @@ public void setUp() {
+ 	@Test // DATAJPA-226
+ 	public void invalidAnnotatedQueryCausesException() throws Exception {
+ 
+-		QueryLookupStrategy strategy = JpaQueryLookupStrategy.create(em, Key.CREATE_IF_NOT_FOUND, extractor,
+-				queryMethodFactory, EVALUATION_CONTEXT_PROVIDER, EscapeCharacter.DEFAULT);
++		QueryLookupStrategy strategy = JpaQueryLookupStrategy.create(em, queryMethodFactory, Key.CREATE_IF_NOT_FOUND,
++				EVALUATION_CONTEXT_PROVIDER, EscapeCharacter.DEFAULT);
+ 		Method method = UserRepository.class.getMethod("findByFoo", String.class);
+ 		RepositoryMetadata metadata = new DefaultRepositoryMetadata(UserRepository.class);
+ 
+@@ -95,8 +95,8 @@ public void invalidAnnotatedQueryCausesException() throws Exception {
+ 	@Test // DATAJPA-554
+ 	public void sholdThrowMorePreciseExceptionIfTryingToUsePaginationInNativeQueries() throws Exception {
+ 
+-		QueryLookupStrategy strategy = JpaQueryLookupStrategy.create(em, Key.CREATE_IF_NOT_FOUND, extractor,
+-				queryMethodFactory, EVALUATION_CONTEXT_PROVIDER, EscapeCharacter.DEFAULT);
++		QueryLookupStrategy strategy = JpaQueryLookupStrategy.create(em, queryMethodFactory, Key.CREATE_IF_NOT_FOUND,
++				EVALUATION_CONTEXT_PROVIDER, EscapeCharacter.DEFAULT);
+ 		Method method = UserRepository.class.getMethod("findByInvalidNativeQuery", String.class, Sort.class);
+ 		RepositoryMetadata metadata = new DefaultRepositoryMetadata(UserRepository.class);
+ 

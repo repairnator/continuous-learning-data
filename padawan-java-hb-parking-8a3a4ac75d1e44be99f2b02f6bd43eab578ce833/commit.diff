@@ -1,0 +1,466 @@
+diff --git a/src/main/java/br/com/hbparking/colaborador/ColaboradorController.java b/src/main/java/br/com/hbparking/colaborador/ColaboradorController.java
+index fa3f86d..5116819 100644
+--- a/src/main/java/br/com/hbparking/colaborador/ColaboradorController.java
++++ b/src/main/java/br/com/hbparking/colaborador/ColaboradorController.java
+@@ -2,7 +2,7 @@
+ 
+ import br.com.hbparking.file.FileNotSupportedException;
+ import br.com.hbparking.security.jwt.JwtProvider;
+-import br.com.hbparking.vehicleException.ContentDispositionException;
++import br.com.hbparking.vehicleexception.ContentDispositionException;
+ import org.springframework.web.bind.annotation.*;
+ import org.springframework.web.multipart.MultipartFile;
+ 
+diff --git a/src/main/java/br/com/hbparking/colaborador/ColaboradorService.java b/src/main/java/br/com/hbparking/colaborador/ColaboradorService.java
+index f5d83e7..7e20e8a 100644
+--- a/src/main/java/br/com/hbparking/colaborador/ColaboradorService.java
++++ b/src/main/java/br/com/hbparking/colaborador/ColaboradorService.java
+@@ -9,7 +9,7 @@
+ import br.com.hbparking.security.user.UserService;
+ import br.com.hbparking.util.DateHelper;
+ import br.com.hbparking.util.ReadFileCSV;
+-import br.com.hbparking.vehicleException.ContentDispositionException;
++import br.com.hbparking.vehicleexception.ContentDispositionException;
+ import org.apache.commons.lang3.StringUtils;
+ import org.slf4j.Logger;
+ import org.slf4j.LoggerFactory;
+diff --git a/src/main/java/br/com/hbparking/csv/VehicleModelExport.java b/src/main/java/br/com/hbparking/csv/VehicleModelExport.java
+index f86301d..ca4fb12 100644
+--- a/src/main/java/br/com/hbparking/csv/VehicleModelExport.java
++++ b/src/main/java/br/com/hbparking/csv/VehicleModelExport.java
+@@ -1,6 +1,6 @@
+ package br.com.hbparking.csv;
+ 
+-import br.com.hbparking.vehicleModel.VehicleModelService;
++import br.com.hbparking.vehiclemodel.VehicleModelService;
+ import org.springframework.beans.factory.annotation.Autowired;
+ import org.springframework.http.HttpHeaders;
+ import org.springframework.stereotype.Component;
+diff --git a/src/main/java/br/com/hbparking/csv/VehicleModelImport.java b/src/main/java/br/com/hbparking/csv/VehicleModelImport.java
+index 53f4c41..8f20f0f 100644
+--- a/src/main/java/br/com/hbparking/csv/VehicleModelImport.java
++++ b/src/main/java/br/com/hbparking/csv/VehicleModelImport.java
+@@ -4,8 +4,8 @@
+ import br.com.hbparking.marcas.Marca;
+ import br.com.hbparking.marcas.MarcaService;
+ import br.com.hbparking.util.ReadFileCSV;
+-import br.com.hbparking.vehicleModel.VehicleModel;
+-import br.com.hbparking.vehicleModel.VehicleModelService;
++import br.com.hbparking.vehiclemodel.VehicleModel;
++import br.com.hbparking.vehiclemodel.VehicleModelService;
+ import org.springframework.stereotype.Component;
+ import org.springframework.transaction.annotation.Transactional;
+ import org.springframework.web.multipart.MultipartFile;
+diff --git a/src/main/java/br/com/hbparking/marcas/MarcaService.java b/src/main/java/br/com/hbparking/marcas/MarcaService.java
+index 59c82ef..453f163 100644
+--- a/src/main/java/br/com/hbparking/marcas/MarcaService.java
++++ b/src/main/java/br/com/hbparking/marcas/MarcaService.java
+@@ -1,7 +1,7 @@
+ package br.com.hbparking.marcas;
+ 
+ import br.com.hbparking.util.Extension;
+-import br.com.hbparking.vehicleException.ContentDispositionException;
++import br.com.hbparking.vehicleexception.ContentDispositionException;
+ import com.opencsv.*;
+ import org.apache.commons.io.FilenameUtils;
+ import org.apache.commons.lang.StringUtils;
+diff --git a/src/main/java/br/com/hbparking/periodo/IPeriodoRepository.java b/src/main/java/br/com/hbparking/periodo/IPeriodoRepository.java
+index 9e5f094..e9a943b 100644
+--- a/src/main/java/br/com/hbparking/periodo/IPeriodoRepository.java
++++ b/src/main/java/br/com/hbparking/periodo/IPeriodoRepository.java
+@@ -9,6 +9,4 @@
+ @Repository
+ public interface IPeriodoRepository extends JpaRepository<Periodo, Long> {
+     List<Periodo> findAllByTipoVeiculo(VehicleType tipoVeiculo);
+-
+-
+ }
+diff --git a/src/main/java/br/com/hbparking/periodo/InvalidPeriodDatesException.java b/src/main/java/br/com/hbparking/periodo/InvalidPeriodDatesException.java
+new file mode 100644
+index 0000000..d2948c7
+--- /dev/null
++++ b/src/main/java/br/com/hbparking/periodo/InvalidPeriodDatesException.java
+@@ -0,0 +1,11 @@
++package br.com.hbparking.periodo;
++
++import org.springframework.http.HttpStatus;
++import org.springframework.web.bind.annotation.ResponseStatus;
++
++@ResponseStatus(HttpStatus.FOUND)
++public class InvalidPeriodDatesException extends Exception {
++    public InvalidPeriodDatesException(String message) {
++        super(message);
++    }
++}
+diff --git a/src/main/java/br/com/hbparking/periodo/PeriodoController.java b/src/main/java/br/com/hbparking/periodo/PeriodoController.java
+index 2c11ed4..68342f4 100644
+--- a/src/main/java/br/com/hbparking/periodo/PeriodoController.java
++++ b/src/main/java/br/com/hbparking/periodo/PeriodoController.java
+@@ -17,7 +17,7 @@ public PeriodoController(PeriodoService periodoService) {
+     }
+ 
+     @PostMapping("/periodo/criar")
+-    public PeriodoDTO save(@RequestBody PeriodoDTO periodoDTO) {
++    public PeriodoDTO save(@RequestBody PeriodoDTO periodoDTO) throws InvalidPeriodDatesException {
+         return this.periodoService.create(periodoDTO);
+     }
+ 
+diff --git a/src/main/java/br/com/hbparking/periodo/PeriodoService.java b/src/main/java/br/com/hbparking/periodo/PeriodoService.java
+index ae68cf3..ae591e9 100644
+--- a/src/main/java/br/com/hbparking/periodo/PeriodoService.java
++++ b/src/main/java/br/com/hbparking/periodo/PeriodoService.java
+@@ -11,6 +11,10 @@
+ import java.util.Optional;
+ import java.util.stream.Collectors;
+ 
++import static br.com.hbparking.util.DateHelper.validateDateIsAfter;
++import static br.com.hbparking.util.DateHelper.validateDateIsEqual;
++import static br.com.hbparking.util.ValidationUtils.validateNotNull;
++
+ @Service
+ public class PeriodoService {
+ 
+@@ -22,8 +26,9 @@ public PeriodoService(IPeriodoRepository iPeriodoRepository) {
+         this.iPeriodoRepository = iPeriodoRepository;
+     }
+ 
+-    public PeriodoDTO create(PeriodoDTO periodoDTO) {
++    public PeriodoDTO create(PeriodoDTO periodoDTO) throws InvalidPeriodDatesException {
+         this.validarPeriodo(periodoDTO);
++        this.validateIfPeriodoIsBetween(periodoDTO);
+         LOGGER.info("Criando periodo");
+         return PeriodoDTO.of(this.iPeriodoRepository.save(new Periodo(periodoDTO.getVehicleType(), periodoDTO.getDataInicial(), periodoDTO.getDataFinal())));
+     }
+@@ -52,7 +57,6 @@ public Periodo findById(Long id) {
+     }
+ 
+ 
+-
+     public List<PeriodoDTO> parsePeriodoListToPeriodoDTOList(List<Periodo> periodosList) {
+         List<PeriodoDTO> periodoDTOList = new ArrayList<>();
+         List<Periodo> periodosFiltrada = periodosList.stream().filter(periodo -> periodo.getDataFinal().isAfter(LocalDate.now())).collect(Collectors.toList());
+@@ -60,23 +64,35 @@ public Periodo findById(Long id) {
+         return periodoDTOList;
+     }
+ 
+-    private void validarPeriodo(PeriodoDTO periodoDTO) {
++    private void validarPeriodo(PeriodoDTO periodoDTO) throws InvalidPeriodDatesException {
+         LOGGER.info("Validando periodo");
+ 
+-        if (periodoDTO.getDataInicial() == null) {
+-            throw new IllegalArgumentException("Data inicial não pode ser nula");
+-        }
+-        if (periodoDTO.getDataFinal() == null) {
+-            throw new IllegalArgumentException("Data final não pode ser nula");
+-        }
+-        if (periodoDTO.getVehicleType() == null) {
+-            throw new IllegalArgumentException("Tipo de veículo não pode ser nulo");
+-        }
+-        if (periodoDTO.getDataInicial().isAfter(periodoDTO.getDataFinal())) {
+-            throw new IllegalArgumentException("Data final deve ser após data inicial");
+-        }
+-        if (periodoDTO.getDataInicial().isEqual(periodoDTO.getDataFinal())) {
+-            throw new IllegalArgumentException("Um periodo deve ter data inicial e final distintas");
++        validateNotNull(periodoDTO, "Periodo DTO não pode ser nulo");
++        validateNotNull(periodoDTO.getDataFinal(), "Data Final não pode ser nula");
++        validateNotNull(periodoDTO.getDataInicial(), "Data inicial não pode ser nula");
++        validateNotNull(periodoDTO.getVehicleType(), "Tipo do veículo não pode ser nulo");
++        validateDateIsAfter(periodoDTO.getDataInicial(), periodoDTO.getDataFinal());
++        validateDateIsEqual(periodoDTO.getDataInicial(), periodoDTO.getDataFinal());
++
++        this.validateIfPeriodoIsBetween(periodoDTO);
++    }
++
++    public void validateIfPeriodoIsBetween(PeriodoDTO periodoDTO) throws InvalidPeriodDatesException {
++        for (Periodo periodo : this.iPeriodoRepository.findAll()) {
++            if (periodo.getTipoVeiculo().equals(periodoDTO.getVehicleType())) {
++                if (periodoDTO.getDataInicial().isAfter(periodo.getDataInicial()) && periodoDTO.getDataFinal().isBefore(periodo.getDataFinal())) {
++                    throw new InvalidPeriodDatesException("Período não pode iniciar e finalizar dentro de outro período");
++                }
++                if (periodoDTO.getDataInicial().isBefore(periodo.getDataFinal()) && periodoDTO.getDataFinal().isBefore(periodo.getDataFinal())) {
++                    throw new InvalidPeriodDatesException("Período não pode começar dentro de outro período que ainda está vigente");
++                }
++                if (periodoDTO.getDataInicial().isBefore(periodo.getDataInicial()) && periodoDTO.getDataFinal().isAfter(periodo.getDataFinal())) {
++                    throw new InvalidPeriodDatesException("Período não pode iniciar antes de um período já existente e finalizar depois dele");
++                }
++                if (periodoDTO.getDataInicial().isEqual(periodo.getDataInicial()) || periodoDTO.getDataFinal().isEqual(periodo.getDataFinal()) || periodoDTO.getDataInicial().isEqual(periodo.getDataFinal()) || periodoDTO.getDataFinal().isEqual(periodo.getDataInicial())) {
++                    throw new InvalidPeriodDatesException("Existem correspondências iguais de datas informadas");
++                }
++            }
+         }
+     }
+ }
+diff --git a/src/main/java/br/com/hbparking/util/DateHelper.java b/src/main/java/br/com/hbparking/util/DateHelper.java
+index 96674bf..7b9c522 100644
+--- a/src/main/java/br/com/hbparking/util/DateHelper.java
++++ b/src/main/java/br/com/hbparking/util/DateHelper.java
+@@ -5,11 +5,10 @@
+ 
+ public class DateHelper {
+ 
+-    private DateHelper(){
++    private DateHelper() {
+         throw new IllegalStateException("Utility class");
+     }
+ 
+-
+     public static String formatDate(LocalDate date) {
+         return DateTimeFormatter.ofPattern("dd/MM/yyyy").format(date);
+     }
+@@ -24,4 +23,16 @@ public static LocalDate formatDateFromCSVToLocalDate(String[] dateSplitted) {
+         int year = Integer.parseInt(dateSplitted[2]);
+         return LocalDate.of(year, month, day);
+     }
++
++    public static void validateDateIsAfter(LocalDate initialDate, LocalDate finalDate) {
++        if (initialDate.isAfter(finalDate)) {
++            throw new IllegalArgumentException("Data inicial não pode ser igual a final");
++        }
++    }
++
++    public static void validateDateIsEqual(LocalDate initialDate, LocalDate finalDate) {
++        if (initialDate.isEqual(finalDate)) {
++            throw new IllegalArgumentException("Datas não podem ser iguais");
++        }
++    }
+ }
+diff --git a/src/main/java/br/com/hbparking/util/ReadFileCSV.java b/src/main/java/br/com/hbparking/util/ReadFileCSV.java
+index 06cf068..96b97d8 100644
+--- a/src/main/java/br/com/hbparking/util/ReadFileCSV.java
++++ b/src/main/java/br/com/hbparking/util/ReadFileCSV.java
+@@ -1,7 +1,7 @@
+ package br.com.hbparking.util;
+ 
+ import br.com.hbparking.file.FileNotSupportedException;
+-import br.com.hbparking.vehicleException.ContentDispositionException;
++import br.com.hbparking.vehicleexception.ContentDispositionException;
+ import org.apache.commons.io.FilenameUtils;
+ import org.springframework.stereotype.Component;
+ import org.springframework.web.multipart.MultipartFile;
+diff --git a/src/main/java/br/com/hbparking/util/ValidationUtils.java b/src/main/java/br/com/hbparking/util/ValidationUtils.java
+new file mode 100644
+index 0000000..aa02871
+--- /dev/null
++++ b/src/main/java/br/com/hbparking/util/ValidationUtils.java
+@@ -0,0 +1,10 @@
++package br.com.hbparking.util;
++
++public interface ValidationUtils {
++
++    static void validateNotNull(Object object, String errorMessage) {
++        if (object == null) {
++            throw new IllegalArgumentException(errorMessage);
++        }
++    }
++}
+diff --git a/src/main/java/br/com/hbparking/vagadegaragem/VagaGaragem.java b/src/main/java/br/com/hbparking/vagadegaragem/VagaGaragem.java
+index 757ab41..157de39 100644
+--- a/src/main/java/br/com/hbparking/vagadegaragem/VagaGaragem.java
++++ b/src/main/java/br/com/hbparking/vagadegaragem/VagaGaragem.java
+@@ -5,7 +5,7 @@
+ import br.com.hbparking.marcas.Marca;
+ import br.com.hbparking.periodo.Periodo;
+ import br.com.hbparking.tipoveiculo.VehicleType;
+-import br.com.hbparking.vehicleModel.VehicleModel;
++import br.com.hbparking.vehiclemodel.VehicleModel;
+ import lombok.AllArgsConstructor;
+ import lombok.Data;
+ import lombok.NoArgsConstructor;
+diff --git a/src/main/java/br/com/hbparking/vagadegaragem/VagaGaragemService.java b/src/main/java/br/com/hbparking/vagadegaragem/VagaGaragemService.java
+index c1b13a6..7ea14ad 100644
+--- a/src/main/java/br/com/hbparking/vagadegaragem/VagaGaragemService.java
++++ b/src/main/java/br/com/hbparking/vagadegaragem/VagaGaragemService.java
+@@ -11,8 +11,8 @@
+ import br.com.hbparking.periodo.PeriodoService;
+ import br.com.hbparking.tipoveiculo.VehicleType;
+ import br.com.hbparking.vagainfo.*;
+-import br.com.hbparking.vehicleModel.VehicleModel;
+-import br.com.hbparking.vehicleModel.VehicleModelService;
++import br.com.hbparking.vehiclemodel.VehicleModel;
++import br.com.hbparking.vehiclemodel.VehicleModelService;
+ import lombok.AllArgsConstructor;
+ import org.apache.commons.lang3.EnumUtils;
+ import org.slf4j.Logger;
+@@ -32,8 +32,6 @@
+ import java.io.PrintWriter;
+ import java.time.LocalDate;
+ import java.util.*;
+-import java.util.regex.Matcher;
+-import java.util.regex.Pattern;
+ import java.util.stream.Collectors;
+ 
+ import static br.com.hbparking.util.PlacaUtils.transformPlate;
+diff --git a/src/main/java/br/com/hbparking/vehicleException/ContentDispositionException.java b/src/main/java/br/com/hbparking/vehicleexception/ContentDispositionException.java
+similarity index 87%
+rename from src/main/java/br/com/hbparking/vehicleException/ContentDispositionException.java
+rename to src/main/java/br/com/hbparking/vehicleexception/ContentDispositionException.java
+index 90c6964..af74fc9 100644
+--- a/src/main/java/br/com/hbparking/vehicleException/ContentDispositionException.java
++++ b/src/main/java/br/com/hbparking/vehicleexception/ContentDispositionException.java
+@@ -1,4 +1,4 @@
+-package br.com.hbparking.vehicleException;
++package br.com.hbparking.vehicleexception;
+ 
+ import org.springframework.http.HttpStatus;
+ import org.springframework.web.bind.annotation.ResponseStatus;
+diff --git a/src/main/java/br/com/hbparking/vehicleException/EmptyMapException.java b/src/main/java/br/com/hbparking/vehicleexception/EmptyMapException.java
+similarity index 75%
+rename from src/main/java/br/com/hbparking/vehicleException/EmptyMapException.java
+rename to src/main/java/br/com/hbparking/vehicleexception/EmptyMapException.java
+index c3b1438..04f1492 100644
+--- a/src/main/java/br/com/hbparking/vehicleException/EmptyMapException.java
++++ b/src/main/java/br/com/hbparking/vehicleexception/EmptyMapException.java
+@@ -1,4 +1,4 @@
+-package br.com.hbparking.vehicleException;
++package br.com.hbparking.vehicleexception;
+ 
+ public class EmptyMapException extends Exception{
+     public EmptyMapException(String message){
+diff --git a/src/main/java/br/com/hbparking/vehicleModel/IVehicleModelRepository.java b/src/main/java/br/com/hbparking/vehiclemodel/IVehicleModelRepository.java
+similarity index 92%
+rename from src/main/java/br/com/hbparking/vehicleModel/IVehicleModelRepository.java
+rename to src/main/java/br/com/hbparking/vehiclemodel/IVehicleModelRepository.java
+index 1f9c826..6a23796 100644
+--- a/src/main/java/br/com/hbparking/vehicleModel/IVehicleModelRepository.java
++++ b/src/main/java/br/com/hbparking/vehiclemodel/IVehicleModelRepository.java
+@@ -1,4 +1,4 @@
+-package br.com.hbparking.vehicleModel;
++package br.com.hbparking.vehiclemodel;
+ 
+ import br.com.hbparking.csv.VehicleGroupDTO;
+ import br.com.hbparking.marcas.Marca;
+@@ -8,7 +8,6 @@
+ 
+ import java.util.List;
+ import java.util.Optional;
+-import java.util.stream.Stream;
+ 
+ @Repository
+ public interface IVehicleModelRepository extends JpaRepository<VehicleModel, Long> {
+diff --git a/src/main/java/br/com/hbparking/vehicleModel/VehicleModel.java b/src/main/java/br/com/hbparking/vehiclemodel/VehicleModel.java
+similarity index 95%
+rename from src/main/java/br/com/hbparking/vehicleModel/VehicleModel.java
+rename to src/main/java/br/com/hbparking/vehiclemodel/VehicleModel.java
+index 6b5abd5..acbdf29 100644
+--- a/src/main/java/br/com/hbparking/vehicleModel/VehicleModel.java
++++ b/src/main/java/br/com/hbparking/vehiclemodel/VehicleModel.java
+@@ -1,4 +1,4 @@
+-package br.com.hbparking.vehicleModel;
++package br.com.hbparking.vehiclemodel;
+ 
+ import br.com.hbparking.marcas.Marca;
+ 
+diff --git a/src/main/java/br/com/hbparking/vehicleModel/VehicleModelController.java b/src/main/java/br/com/hbparking/vehiclemodel/VehicleModelController.java
+similarity index 98%
+rename from src/main/java/br/com/hbparking/vehicleModel/VehicleModelController.java
+rename to src/main/java/br/com/hbparking/vehiclemodel/VehicleModelController.java
+index 74aa46b..f2691b8 100644
+--- a/src/main/java/br/com/hbparking/vehicleModel/VehicleModelController.java
++++ b/src/main/java/br/com/hbparking/vehiclemodel/VehicleModelController.java
+@@ -1,4 +1,4 @@
+-package br.com.hbparking.vehicleModel;
++package br.com.hbparking.vehiclemodel;
+ 
+ import br.com.hbparking.csv.VehicleModelExport;
+ import br.com.hbparking.csv.VehicleModelImport;
+diff --git a/src/main/java/br/com/hbparking/vehicleModel/VehicleModelDTO.java b/src/main/java/br/com/hbparking/vehiclemodel/VehicleModelDTO.java
+similarity index 96%
+rename from src/main/java/br/com/hbparking/vehicleModel/VehicleModelDTO.java
+rename to src/main/java/br/com/hbparking/vehiclemodel/VehicleModelDTO.java
+index 037a874..b43c38f 100644
+--- a/src/main/java/br/com/hbparking/vehicleModel/VehicleModelDTO.java
++++ b/src/main/java/br/com/hbparking/vehiclemodel/VehicleModelDTO.java
+@@ -1,4 +1,4 @@
+-package br.com.hbparking.vehicleModel;
++package br.com.hbparking.vehiclemodel;
+ 
+ public class VehicleModelDTO {
+ 
+diff --git a/src/main/java/br/com/hbparking/vehicleModel/VehicleModelService.java b/src/main/java/br/com/hbparking/vehiclemodel/VehicleModelService.java
+similarity index 98%
+rename from src/main/java/br/com/hbparking/vehicleModel/VehicleModelService.java
+rename to src/main/java/br/com/hbparking/vehiclemodel/VehicleModelService.java
+index d4f59b1..52a29bd 100644
+--- a/src/main/java/br/com/hbparking/vehicleModel/VehicleModelService.java
++++ b/src/main/java/br/com/hbparking/vehiclemodel/VehicleModelService.java
+@@ -1,4 +1,4 @@
+-package br.com.hbparking.vehicleModel;
++package br.com.hbparking.vehiclemodel;
+ 
+ import br.com.hbparking.csv.VehicleGroupDTO;
+ import br.com.hbparking.marcas.Marca;
+diff --git a/src/test/java/br/com/hbparking/marca/MarcaServiceTest.java b/src/test/java/br/com/hbparking/marca/MarcaServiceTest.java
+index 7af7978..ea2d42d 100644
+--- a/src/test/java/br/com/hbparking/marca/MarcaServiceTest.java
++++ b/src/test/java/br/com/hbparking/marca/MarcaServiceTest.java
+@@ -1,7 +1,7 @@
+ package br.com.hbparking.marca;
+ 
+ import br.com.hbparking.marcas.*;
+-import br.com.hbparking.vehicleException.ContentDispositionException;
++import br.com.hbparking.vehicleexception.ContentDispositionException;
+ import com.opencsv.CSVReader;
+ import org.apache.commons.lang3.EnumUtils;
+ import org.apache.commons.lang3.StringUtils;
+diff --git a/src/test/java/br/com/hbparking/periodo/PeriodoServiceTest.java b/src/test/java/br/com/hbparking/periodo/PeriodoServiceTest.java
+index 0a99d3a..e6620b4 100644
+--- a/src/test/java/br/com/hbparking/periodo/PeriodoServiceTest.java
++++ b/src/test/java/br/com/hbparking/periodo/PeriodoServiceTest.java
+@@ -15,6 +15,7 @@
+ 
+ import static org.assertj.core.api.Assertions.assertThat;
+ import static org.junit.jupiter.api.Assertions.assertEquals;
++import static org.junit.jupiter.api.Assertions.assertThrows;
+ import static org.mockito.ArgumentMatchers.any;
+ import static org.mockito.BDDMockito.given;
+ import static org.mockito.Mockito.*;
+@@ -28,12 +29,12 @@
+     private PeriodoService periodoService;
+ 
+     @Before
+-    public void setUp() throws Exception {
++    public void setUp() {
+         periodoService = new PeriodoService(iPeriodoRepository);
+     }
+ 
+     @Test
+-    public void createPeriodo_ShouldReturnPeriodo() {
++    public void createPeriodo_ShouldReturnPeriodo() throws InvalidPeriodDatesException {
+         PeriodoDTO periodoDTO = new PeriodoDTO(VehicleType.CARRO, LocalDate.parse("2019-12-12"), LocalDate.parse("2019-12-15"));
+ 
+         when(iPeriodoRepository.save(any(Periodo.class))).thenReturn(new Periodo(VehicleType.CARRO, LocalDate.parse("2019-12-12"), LocalDate.parse("2019-12-15")));
+@@ -64,4 +65,18 @@ public void getAllPeriodosByVehicleType_ShouldReturnPeriodoList() {
+         assertThat(periodoFilteredWithVehicleType).isNotNull();
+         assertEquals(2, periodoFilteredWithVehicleType.size());
+     }
++
++    @Test
++    public void validateIfPeriodoIsBetween() {
++        PeriodoDTO periodoDTO = new PeriodoDTO(VehicleType.CARRO, LocalDate.of(2019, 10, 7), LocalDate.of(2019, 10, 10));
++
++        List<Periodo> periodoList = new ArrayList<>();
++        periodoList.add(new Periodo(VehicleType.CARRO, LocalDate.of(2019, 10, 7), LocalDate.of(2019, 10, 10)));
++        periodoList.add(new Periodo(VehicleType.CARRO, LocalDate.of(2019, 10, 11), LocalDate.of(2019, 10, 20)));
++        periodoList.add(new Periodo(VehicleType.CARRO, LocalDate.of(2019, 10, 21), LocalDate.of(2019, 10, 23)));
++
++        given(iPeriodoRepository.findAll()).willReturn(periodoList);
++
++        assertThrows(InvalidPeriodDatesException.class, () -> periodoService.validateIfPeriodoIsBetween(periodoDTO));
++    }
+ }
+\ No newline at end of file
+diff --git a/src/test/java/br/com/hbparking/vehiclemodel/VehicleModelImportTest.java b/src/test/java/br/com/hbparking/vehiclemodel/VehicleModelImportTest.java
+index 7fa3bd4..233700c 100644
+--- a/src/test/java/br/com/hbparking/vehiclemodel/VehicleModelImportTest.java
++++ b/src/test/java/br/com/hbparking/vehiclemodel/VehicleModelImportTest.java
+@@ -4,9 +4,7 @@
+ import br.com.hbparking.marcas.IMarcaRepository;
+ import br.com.hbparking.marcas.MarcaService;
+ import br.com.hbparking.util.ReadFileCSV;
+-import br.com.hbparking.vehicleException.ContentDispositionException;
+-import br.com.hbparking.vehicleModel.IVehicleModelRepository;
+-import br.com.hbparking.vehicleModel.VehicleModelService;
++import br.com.hbparking.vehicleexception.ContentDispositionException;
+ import org.junit.Test;
+ import org.junit.runner.RunWith;
+ import org.mockito.InjectMocks;

@@ -1,0 +1,9 @@
+@@ -61,7 +61,7 @@
+     @Container
+     // end::container[]
+     // tag::mpApp[]
+-    public static MicroProfileApplication app = new MicroProfileApplication()
++    public static ApplicationContainer app = new ApplicationContainer()
+                     // tag::withAppContextRoot[]
+                     .withAppContextRoot("/guide-microshed-testing")
+                     // end::withAppContextRoot[]

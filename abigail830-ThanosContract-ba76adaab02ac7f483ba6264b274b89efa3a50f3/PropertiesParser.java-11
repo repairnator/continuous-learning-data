@@ -1,0 +1,9 @@
+@@ -11,7 +11,7 @@
+ @Slf4j
+ public class PropertiesParser {
+ 
+-    private static String PROP_FILE_NAME = "application.properties";
++    private static final String PROP_FILE_NAME = "application.properties";
+     private static Properties prop;
+     private InputStream inputStream;
+ 

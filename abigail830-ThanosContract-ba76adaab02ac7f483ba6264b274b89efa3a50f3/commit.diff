@@ -1,0 +1,513 @@
+diff --git a/MockServer/src/main/java/MockServerMain.java b/MockServer/src/main/java/MockServerMain.java
+index eb79c8c..07c5bc9 100644
+--- a/MockServer/src/main/java/MockServerMain.java
++++ b/MockServer/src/main/java/MockServerMain.java
+@@ -14,8 +14,7 @@
+ @Slf4j
+ public class MockServerMain {
+ 
+-    private static int httpPort = 8082;
+-    private static String mode = "STANDALONE";
++    private static int httpPort = 8080;
+ 
+     private static MuServer webServer;
+     private static MockServerController mockServerController;
+@@ -31,14 +30,10 @@ public static void start() {
+             propertiesParser.init();
+ 
+             //startup web server
+-            PropertiesParser.getPropValues("port")
+-                    .ifPresent(s -> httpPort = Integer.valueOf(s));
+             startupWebServer();
+ 
+-            PropertiesParser.getPropValues("mode")
+-                    .ifPresent(m -> mode = m);
+-
+-            mockServerController = new MockServerController();
++            //startup mockController
++            mockServerController = new MockServerController(PropertiesParser.getStandaloneFlag());
+             mockServerController.initMock();
+ 
+             printStartupLog();
+@@ -52,6 +47,7 @@ public static void start() {
+     }
+ 
+     synchronized static void printStartupLog() {
++        log.info("Startup as standalone mode: {}", PropertiesParser.getStandaloneFlag());
+         log.info("###########################################");
+         log.info("            Service is up!                 ");
+         log.info("###########################################");
+@@ -68,6 +64,9 @@ static void addShutdownHook() {
+     }
+ 
+     private static void startupWebServer() throws IOException {
++        PropertiesParser.getPropValues("port")
++                .ifPresent(s -> httpPort = Integer.valueOf(s));
++
+         webServer = httpServer()
+                 .withHttpPort(httpPort)
+                 .addHandler(RestHandlerBuilder.restHandler(new RestApiController())
+diff --git a/MockServer/src/main/java/com/thanos/contract/mockserver/controller/MockServerController.java b/MockServer/src/main/java/com/thanos/contract/mockserver/controller/MockServerController.java
+index 6e2bc33..f7ff4f6 100644
+--- a/MockServer/src/main/java/com/thanos/contract/mockserver/controller/MockServerController.java
++++ b/MockServer/src/main/java/com/thanos/contract/mockserver/controller/MockServerController.java
+@@ -2,7 +2,7 @@
+ 
+ import com.google.common.eventbus.AsyncEventBus;
+ import com.google.common.eventbus.Subscribe;
+-import com.thanos.contract.mockserver.domain.contract.MockServerProcessor;
++import com.thanos.contract.mockserver.domain.contract.MockServerService;
+ import com.thanos.contract.mockserver.domain.contract.MockServerThread;
+ import com.thanos.contract.mockserver.domain.mapping.MockMapping;
+ import com.thanos.contract.mockserver.domain.mapping.MockMappingService;
+@@ -16,7 +16,6 @@
+ import java.util.List;
+ import java.util.concurrent.ExecutorService;
+ import java.util.concurrent.Executors;
+-import java.util.stream.Collectors;
+ 
+ @Slf4j
+ public class MockServerController {
+@@ -26,12 +25,14 @@
+     private List<String> startedIndexs = new ArrayList<>();
+ 
+     private MockMappingService mockMappingService;
+-    private MockServerProcessor mockServerProcessor;
++    private MockServerService mockServerService;
+     private AsyncEventBus asyncEventBus;
++    private Boolean standalone;
+ 
+-    public MockServerController() {
++    public MockServerController(Boolean standalone) {
++        this.standalone = standalone;
+         mockMappingService = new MockMappingService();
+-        mockServerProcessor = new MockServerProcessor();
++        mockServerService = new MockServerService();
+ 
+         asyncEventBus = EventBusFactory.getInstance();
+         asyncEventBus.register(this);
+@@ -41,10 +42,9 @@ public MockServerController() {
+      * Group mock server by provider-consumer
+      */
+     public synchronized void initMock() {
+-        startedIndexs = mockMappingService.getAllMockMapping().stream()
+-                .map(MockMapping::getIndex).collect(Collectors.toList());
++        startedIndexs = mockMappingService.getAllMockMappingIndexs();
+ 
+-        final List<String> allContractIndex = mockServerProcessor.getAllContractIndex();
++        final List<String> allContractIndex = mockServerService.getAllContractIndex();
+ 
+         allContractIndex.stream().filter(index -> !startedIndexs.contains(index))
+                 .forEach(this::createNewMockForIndex);
+@@ -52,7 +52,7 @@ public synchronized void initMock() {
+ 
+     void createNewMockForIndex(String index) {
+         log.info("Creating new mock server: {}", index);
+-        executor.execute(new MockServerThread(index, mockServerProcessor));
++        executor.execute(new MockServerThread(index, mockServerService));
+     }
+ 
+     @Subscribe
+diff --git a/MockServer/src/main/java/com/thanos/contract/mockserver/domain/contract/FileBaseCache.java b/MockServer/src/main/java/com/thanos/contract/mockserver/domain/contract/FileBaseCache.java
+new file mode 100644
+index 0000000..e7df36d
+--- /dev/null
++++ b/MockServer/src/main/java/com/thanos/contract/mockserver/domain/contract/FileBaseCache.java
+@@ -0,0 +1,79 @@
++package com.thanos.contract.mockserver.domain.contract;
++
++import com.thanos.contract.mockserver.domain.contract.model.Contract;
++import com.thanos.contract.mockserver.domain.contract.model.Schema;
++import lombok.extern.slf4j.Slf4j;
++
++import java.io.IOException;
++import java.net.URL;
++import java.nio.file.Files;
++import java.nio.file.Path;
++import java.nio.file.Paths;
++import java.util.*;
++import java.util.stream.Collectors;
++
++@Slf4j
++public class FileBaseCache {
++
++    private static final String CONTRACTS_PATH = "contracts";
++    private static final String SCHEMAS_PATH = "schemas";
++
++    private static Map<String, List<Contract>> contractsMap = new HashMap<>();
++    private static Map<String, List<Schema>> schemasMap = new HashMap<>();
++
++//    static {
++//        final List<String> contractPaths = getAllContractPaths();
++//        final ContractParser contractParser = new ContractParser();
++//
++//        contracts = contractPaths.stream()
++//                .map(contractParser::parse)
++//                .flatMap(Collection::stream).collect(Collectors.toList());
++//    }
++//
++//    static {
++//        final List<String> schemaPaths = getAllSchemaPaths();
++//        final SchemaParser schemaParser = new SchemaParser();
++//        schemas = schemaPaths.stream()
++//                .map(schemaParser::parse)
++//                .flatMap(Collection::stream).collect(Collectors.toList());
++//    }
++
++    static List<String> getAllContractPaths() {
++        final URL resource = FileBaseCache.class.getClassLoader().getResource(CONTRACTS_PATH);
++        try {
++            return Files.walk(Paths.get(resource.getPath()))
++                    .filter(Files::isRegularFile)
++                    .map(Path::toString)
++                    .collect(Collectors.toList());
++        } catch (IOException e) {
++            log.warn("Fail to getAllContractPaths");
++            return Collections.EMPTY_LIST;
++        }
++    }
++
++    static List<String> getAllSchemaPaths() {
++        final URL resource = FileBaseCache.class.getClassLoader().getResource(SCHEMAS_PATH);
++        try {
++            return Files.walk(Paths.get(resource.getPath()))
++                    .filter(Files::isRegularFile)
++                    .map(Path::toString)
++                    .collect(Collectors.toList());
++        } catch (IOException e) {
++            log.warn("Fail to getAllContractPaths");
++            return Collections.EMPTY_LIST;
++        }
++    }
++
++    public static synchronized List<Contract> getContractByIndex(String index) {
++        final List<Contract> result = contractsMap.get(index);
++        return Optional.ofNullable(result).orElse(new ArrayList<>());
++    }
++
++    public static synchronized List<Schema> getSchemaByIndex(List<String> schemaNeeded) {
++        final List<Schema> result = schemaNeeded.stream()
++                .map(s -> schemasMap.get(s))
++                .flatMap(Collection::stream)
++                .collect(Collectors.toList());
++        return Optional.ofNullable(result).orElse(new ArrayList<>());
++    }
++}
+diff --git a/MockServer/src/main/java/com/thanos/contract/mockserver/domain/contract/MockServerProcessor.java b/MockServer/src/main/java/com/thanos/contract/mockserver/domain/contract/MockServerProcessor.java
+deleted file mode 100644
+index a4c236a..0000000
+--- a/MockServer/src/main/java/com/thanos/contract/mockserver/domain/contract/MockServerProcessor.java
++++ /dev/null
+@@ -1,46 +0,0 @@
+-package com.thanos.contract.mockserver.domain.contract;
+-
+-import com.thanos.contract.mockserver.domain.contract.model.Contract;
+-import com.thanos.contract.mockserver.domain.contract.model.Schema;
+-import com.thanos.contract.mockserver.infrastructure.client.MockServerRepositoryImpl;
+-import lombok.extern.slf4j.Slf4j;
+-
+-import java.util.ArrayList;
+-import java.util.List;
+-
+-@Slf4j
+-public class MockServerProcessor {
+-
+-    private MockServerRepository mockServerRepository;
+-
+-    public MockServerProcessor() {
+-        this.mockServerRepository = new MockServerRepositoryImpl();
+-    }
+-
+-    public List<String> getAllContractIndex() {
+-        try {
+-            return mockServerRepository.getAllContractIndex();
+-        } catch (Exception e) {
+-            log.error("HTTP GET fail when getAllContractIndex: {}", e);
+-            return new ArrayList<>();
+-        }
+-    }
+-
+-    public List<Contract> getContractByIndex(String index) {
+-        try {
+-            return mockServerRepository.getContractByIndex(index);
+-        } catch (Exception e) {
+-            log.error("HTTP GET fail when getContractByIndex[{}]: {}", index, e);
+-            return new ArrayList<>();
+-        }
+-    }
+-
+-    public List<Schema> getSchemaByIndex(List<String> schemaNeeded) {
+-        try {
+-            return mockServerRepository.getSchemaByIndex(schemaNeeded);
+-        } catch (Exception e) {
+-            log.error("HTTP GET fail when getSchemaByIndex[{}]: {}", schemaNeeded, e);
+-            return new ArrayList<>();
+-        }
+-    }
+-}
+diff --git a/MockServer/src/main/java/com/thanos/contract/mockserver/domain/contract/MockServerService.java b/MockServer/src/main/java/com/thanos/contract/mockserver/domain/contract/MockServerService.java
+new file mode 100644
+index 0000000..e86c024
+--- /dev/null
++++ b/MockServer/src/main/java/com/thanos/contract/mockserver/domain/contract/MockServerService.java
+@@ -0,0 +1,31 @@
++package com.thanos.contract.mockserver.domain.contract;
++
++import com.thanos.contract.mockserver.domain.contract.model.Contract;
++import com.thanos.contract.mockserver.domain.contract.model.Schema;
++import com.thanos.contract.mockserver.infrastructure.client.MockServerRepositoryImpl;
++import lombok.extern.slf4j.Slf4j;
++
++import java.util.List;
++
++@Slf4j
++public class MockServerService {
++
++    private MockServerRepository mockServerRepository;
++
++    public MockServerService() {
++        this.mockServerRepository = new MockServerRepositoryImpl();
++    }
++
++    public List<String> getAllContractIndex() {
++        return mockServerRepository.getAllContractIndex();
++    }
++
++    public List<Contract> getContractByIndex(String index) {
++        return mockServerRepository.getContractByIndex(index);
++    }
++
++    public List<Schema> getSchemaByIndex(List<String> schemaNeeded) {
++        return mockServerRepository.getSchemaByIndex(schemaNeeded);
++
++    }
++}
+diff --git a/MockServer/src/main/java/com/thanos/contract/mockserver/domain/contract/MockServerThread.java b/MockServer/src/main/java/com/thanos/contract/mockserver/domain/contract/MockServerThread.java
+index deaaff4..1779925 100644
+--- a/MockServer/src/main/java/com/thanos/contract/mockserver/domain/contract/MockServerThread.java
++++ b/MockServer/src/main/java/com/thanos/contract/mockserver/domain/contract/MockServerThread.java
+@@ -35,9 +35,9 @@
+     private List<String> schemaNeeded = new ArrayList<>();
+     private AsyncEventBus asyncEventBus;
+ 
+-    private MockServerProcessor mockServerProcessor;
++    private MockServerService mockServerProcessor;
+ 
+-    public MockServerThread(String index, MockServerProcessor mockServerProcessor) {
++    public MockServerThread(String index, MockServerService mockServerProcessor) {
+         this.mockServerProcessor = mockServerProcessor;
+         this.index = index;
+ 
+diff --git a/MockServer/src/main/java/com/thanos/contract/mockserver/domain/mapping/MockMappingService.java b/MockServer/src/main/java/com/thanos/contract/mockserver/domain/mapping/MockMappingService.java
+index f5f799f..3ddbe60 100644
+--- a/MockServer/src/main/java/com/thanos/contract/mockserver/domain/mapping/MockMappingService.java
++++ b/MockServer/src/main/java/com/thanos/contract/mockserver/domain/mapping/MockMappingService.java
+@@ -2,6 +2,7 @@
+ 
+ import com.thanos.contract.mockserver.exception.BizException;
+ 
++import java.util.ArrayList;
+ import java.util.List;
+ import java.util.Map;
+ import java.util.stream.Collectors;
+@@ -20,4 +21,9 @@ public void addNewMockMapping(MockMapping mockMapping) throws BizException {
+         MockMappingCache.addNewMockMapping(mockMapping);
+     }
+ 
++    public List<String> getAllMockMappingIndexs() throws BizException {
++        final Map<String, Integer> allMockMapping = MockMappingCache.getAllMockMapping();
++        return new ArrayList<>(allMockMapping.keySet());
++    }
++
+ }
+diff --git a/MockServer/src/main/java/com/thanos/contract/mockserver/infrastructure/client/MockServerRepositoryImpl.java b/MockServer/src/main/java/com/thanos/contract/mockserver/infrastructure/client/MockServerRepositoryImpl.java
+index d3f0d83..27bc021 100644
+--- a/MockServer/src/main/java/com/thanos/contract/mockserver/infrastructure/client/MockServerRepositoryImpl.java
++++ b/MockServer/src/main/java/com/thanos/contract/mockserver/infrastructure/client/MockServerRepositoryImpl.java
+@@ -6,11 +6,14 @@
+ import com.thanos.contract.mockserver.exception.BizException;
+ import com.thanos.contract.mockserver.infrastructure.client.dto.ContractDTO;
+ import com.thanos.contract.mockserver.infrastructure.client.dto.SchemaDTO;
++import lombok.extern.slf4j.Slf4j;
+ 
+ import java.io.IOException;
++import java.util.ArrayList;
+ import java.util.List;
+ import java.util.stream.Collectors;
+ 
++@Slf4j
+ public class MockServerRepositoryImpl implements MockServerRepository {
+ 
+     private ContractRestClient restClient = new ContractRestClient();
+@@ -20,7 +23,8 @@
+         try {
+             return restClient.getAllContractIndex();
+         } catch (Exception e) {
+-            throw new BizException(e.getMessage(), e);
++            log.error("Fail to HTTP GET getAllContractIndex", e);
++            return new ArrayList<>();
+         }
+     }
+ 
+@@ -30,7 +34,8 @@
+             return restClient.getContractByIndex(index).stream()
+                     .map(ContractDTO::toContract).collect(Collectors.toList());
+         } catch (Exception e) {
+-            throw new BizException(e.getMessage(), e);
++            log.error("Fail to HTTP GET getContractByIndex", e);
++            return new ArrayList<>();
+         }
+     }
+ 
+@@ -40,7 +45,8 @@
+             return restClient.getSchemaByIndex(schemaNeeded).stream()
+                     .map(SchemaDTO::toSchema).collect(Collectors.toList());
+         } catch (IOException e) {
+-            throw new BizException(e.getMessage(), e);
++            log.error("Fail to HTTP GET getSchemaByIndex", e);
++            return new ArrayList<>();
+         }
+     }
+ }
+diff --git a/MockServer/src/main/java/com/thanos/contract/mockserver/infrastructure/parser/PropertiesParser.java b/MockServer/src/main/java/com/thanos/contract/mockserver/infrastructure/parser/PropertiesParser.java
+index 35e9bd7..034b104 100644
+--- a/MockServer/src/main/java/com/thanos/contract/mockserver/infrastructure/parser/PropertiesParser.java
++++ b/MockServer/src/main/java/com/thanos/contract/mockserver/infrastructure/parser/PropertiesParser.java
+@@ -11,7 +11,7 @@
+ @Slf4j
+ public class PropertiesParser {
+ 
+-    private static String PROP_FILE_NAME = "application.properties";
++    private static final String PROP_FILE_NAME = "application.properties";
+     private static Properties prop;
+     private InputStream inputStream;
+ 
+@@ -28,4 +28,8 @@ public void init() throws IOException {
+             throw new FileNotFoundException("property file '" + PROP_FILE_NAME + "' not found in the classpath");
+         }
+     }
++
++    public static Boolean getStandaloneFlag() {
++        return new Boolean(prop.getProperty("standalone"));
++    }
+ }
+diff --git a/MockServer/src/main/resources/application.properties b/MockServer/src/main/resources/application.properties
+index 7437616..ec06ebf 100644
+--- a/MockServer/src/main/resources/application.properties
++++ b/MockServer/src/main/resources/application.properties
+@@ -1,2 +1,2 @@
+ port=8082
+-mode=STANDALONE
+\ No newline at end of file
++standalone=false
+\ No newline at end of file
+diff --git a/MockServer/src/main/resources/schemas/provider_schema1_v1.yml b/MockServer/src/main/resources/schemas/provider_schema1_v1.yml
+new file mode 100644
+index 0000000..138c5b8
+--- /dev/null
++++ b/MockServer/src/main/resources/schemas/provider_schema1_v1.yml
+@@ -0,0 +1,40 @@
++name: 'schema1'
++version: 'v1'
++provider: 'provider'
++request:
++- fields:
++  - name: MSG_TYPE
++    type: CHAR
++    length: 1
++    validation: 'regex(0|1)'
++  - name: TRAN_ASYNC
++    type: CHAR
++    length: 1
++    validation: 'regex(0|1)'
++  - name: MESSAGE_TYPE
++    type: NUM
++    length: 5
++    validation: '10400'
++  - name: TCODE
++    type: NUM
++    length: 6
++    validation: 'regex(\d{6})'
++  - name: ACCT_NO
++    type: NUM
++    length: 17
++    validation: 'regex(\d{17})'
++  - name: CHOICE
++    type: CHAR
++    length: 1
++    validation: 'regex(1|3|4)'
++response:
++- fields:
++  - name: SUPPLEMENT
++    type: CHAR
++    length: 10
++    validation: 'regex([a-zA-Z0-9]{10})'
++  - name: MEMO
++    type: CHAR
++    length: 40
++    validation: 'regex([a-zA-Z0-9]{40})'
++
+diff --git a/MockServer/src/main/resources/schemas/provider_schema2_v1.yml b/MockServer/src/main/resources/schemas/provider_schema2_v1.yml
+new file mode 100644
+index 0000000..22d7879
+--- /dev/null
++++ b/MockServer/src/main/resources/schemas/provider_schema2_v1.yml
+@@ -0,0 +1,36 @@
++name: 'schema2'
++version: 'v1'
++provider: 'provider'
++request:
++- fields:
++  - name: MSG_TYPE
++    type: CHAR
++    length: 1
++    validation: 'regex(0|1)'
++  - name: TRAN_ASYNC
++    type: CHAR
++    length: 1
++    validation: 'regex(0|1)'
++  - name: MESSAGE_TYPE
++    type: NUM
++    length: 5
++    validation: '10400'
++  - name: TCODE
++    type: NUM
++    length: 6
++    validation: 'regex(\d{6})'
++  - name: ACCT_NO
++    type: NUM
++    length: 17
++    validation: 'regex(\d{17})'
++  - name: CHOICE
++    type: CHAR
++    length: 1
++    validation: '2'
++response:
++- fields:
++  - name: SUPPLEMENT
++    type: CHAR
++    length: 10
++    validation: 'regex([a-zA-Z0-9]{10})'
++
+diff --git a/MockServer/src/test/java/com/thanos/contract/mockserver/controller/MockServerControllerTest.java b/MockServer/src/test/java/com/thanos/contract/mockserver/controller/MockServerControllerTest.java
+index 35c2c30..fbb1bc8 100644
+--- a/MockServer/src/test/java/com/thanos/contract/mockserver/controller/MockServerControllerTest.java
++++ b/MockServer/src/test/java/com/thanos/contract/mockserver/controller/MockServerControllerTest.java
+@@ -1,7 +1,7 @@
+ package com.thanos.contract.mockserver.controller;
+ 
+ import com.google.common.eventbus.AsyncEventBus;
+-import com.thanos.contract.mockserver.domain.contract.MockServerProcessor;
++import com.thanos.contract.mockserver.domain.contract.MockServerService;
+ import com.thanos.contract.mockserver.domain.mapping.MockMapping;
+ import com.thanos.contract.mockserver.domain.mapping.MockMappingService;
+ import org.junit.Test;
+@@ -26,7 +26,7 @@
+     @Mock
+     MockMappingService mockMappingService;
+     @Mock
+-    MockServerProcessor contractService;
++    MockServerService contractService;
+     @Mock
+     AsyncEventBus asyncEventBus;
+ 

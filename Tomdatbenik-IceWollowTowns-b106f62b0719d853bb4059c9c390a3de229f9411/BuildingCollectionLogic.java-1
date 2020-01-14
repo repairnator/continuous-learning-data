@@ -1,0 +1,9 @@
+@@ -1,7 +1,7 @@
+ package settlementcomponent.logic;
+ 
+ import org.springframework.lang.Nullable;
+-import settlementcomponent.Factories.BuildingFactory;
++import settlementcomponent.factories.BuildingFactory;
+ import settlementcomponent.interfaces.IBuildingCollectionRepo;
+ import settlementcomponent.models.Construction;
+ import settlementcomponent.models.Settlement;

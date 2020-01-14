@@ -1,0 +1,9 @@
+@@ -25,7 +25,7 @@
+     @Override
+     public List<Employee> getAllAvailableEmployees(LocalDate projectStartDate, LocalDate projectEndDate) {
+         // http request
+-        // List<Employee> employees = getAllEmployees();
++        List<EmployeeProfile> employees = getAllEmployees();
+ 
+         // filter out unavailable employees
+        /* Stream<Employee> employeesReturningFromLeave = employees.stream().filter(Employee::isEmployee_onleave).filter(

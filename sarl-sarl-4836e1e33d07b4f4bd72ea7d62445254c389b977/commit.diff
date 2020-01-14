@@ -1,0 +1,528 @@
+diff --git a/contribs/io.sarl.examples/io.sarl.examples.feature/feature.xml b/contribs/io.sarl.examples/io.sarl.examples.feature/feature.xml
+index 96092c2de..6b3251cff 100644
+--- a/contribs/io.sarl.examples/io.sarl.examples.feature/feature.xml
++++ b/contribs/io.sarl.examples/io.sarl.examples.feature/feature.xml
+@@ -225,6 +225,7 @@
+       <import plugin="io.sarl.eclipse" version="0.11.0" match="greaterOrEqual"/>
+       <import plugin="io.sarl.m2e" version="0.11.0" match="greaterOrEqual"/>
+       <import plugin="org.eclipse.emf.common.ui" version="2.18.0" match="greaterOrEqual"/>
++      <import plugin="org.eclipse.xtext.ui" version="2.20.0" match="greaterOrEqual"/>
+       <import plugin="org.eclipse.ui" version="3.115.0" match="greaterOrEqual"/>
+       <import plugin="org.eclipse.core.runtime" version="3.17.0" match="greaterOrEqual"/>
+       <import plugin="org.eclipse.ui.ide" version="3.16.100" match="greaterOrEqual"/>
+diff --git a/contribs/io.sarl.examples/io.sarl.examples.plugin/META-INF/MANIFEST.MF b/contribs/io.sarl.examples/io.sarl.examples.plugin/META-INF/MANIFEST.MF
+index f0a5faa18..d06d1325d 100644
+--- a/contribs/io.sarl.examples/io.sarl.examples.plugin/META-INF/MANIFEST.MF
++++ b/contribs/io.sarl.examples/io.sarl.examples.plugin/META-INF/MANIFEST.MF
+@@ -10,7 +10,7 @@ Bundle-ActivationPolicy: lazy
+ Bundle-Activator: io.sarl.examples.SARLExamplePlugin
+ Require-Bundle: io.sarl.eclipse;bundle-version="0.11.0",
+  io.sarl.m2e;bundle-version="0.11.0",
+- org.eclipse.xtext.ui;bundle-version="2.19.0",
++ org.eclipse.xtext.ui;bundle-version="2.20.0",
+  org.eclipse.ui;bundle-version="3.115.0",
+  org.eclipse.core.runtime;bundle-version="3.17.0",
+  org.eclipse.emf.common.ui;bundle-version="2.18.0",
+diff --git a/contribs/io.sarl.experienceindex/io.sarl.experienceindex.feature/feature.xml b/contribs/io.sarl.experienceindex/io.sarl.experienceindex.feature/feature.xml
+index 87c4a4352..56df1e4c1 100644
+--- a/contribs/io.sarl.experienceindex/io.sarl.experienceindex.feature/feature.xml
++++ b/contribs/io.sarl.experienceindex/io.sarl.experienceindex.feature/feature.xml
+@@ -226,7 +226,7 @@
+       <import plugin="io.sarl.eclipse" version="0.11.0" match="greaterOrEqual"/>
+       <import plugin="io.sarl.lang.ui" version="0.11.0" match="greaterOrEqual"/>
+       <import plugin="com.google.inject" version="4.1.0" match="greaterOrEqual"/>
+-      <import plugin="org.eclipse.xtext.ui" version="2.19.0" match="greaterOrEqual"/>
++      <import plugin="org.eclipse.xtext.ui" version="2.20.0" match="greaterOrEqual"/>
+       <import plugin="org.eclipse.osgi" version="3.15.100" match="greaterOrEqual"/>
+       <import plugin="org.eclipse.core.commands" version="3.9.600" match="greaterOrEqual"/>
+       <import plugin="org.eclipse.core.runtime" version="3.17.0" match="greaterOrEqual"/>
+diff --git a/contribs/io.sarl.experienceindex/io.sarl.experienceindex.plugin/META-INF/MANIFEST.MF b/contribs/io.sarl.experienceindex/io.sarl.experienceindex.plugin/META-INF/MANIFEST.MF
+index 5d56c45e3..0ac0acf27 100644
+--- a/contribs/io.sarl.experienceindex/io.sarl.experienceindex.plugin/META-INF/MANIFEST.MF
++++ b/contribs/io.sarl.experienceindex/io.sarl.experienceindex.plugin/META-INF/MANIFEST.MF
+@@ -12,7 +12,7 @@ Export-Package: io.sarl.experienceindex,
+ Require-Bundle: io.sarl.lang.core;bundle-version="0.11.0",
+  io.sarl.eclipse;bundle-version="0.11.0",
+  io.sarl.lang.ui;bundle-version="0.11.0",
+- org.eclipse.xtext.ui;bundle-version="2.19.0",
++ org.eclipse.xtext.ui;bundle-version="2.20.0",
+  org.eclipse.osgi;bundle-version="3.15.100",
+  org.eclipse.core.commands;bundle-version="3.9.600",
+  org.eclipse.core.runtime;bundle-version="3.17.0",
+diff --git a/contribs/io.sarl.pythongenerator/io.sarl.pythongenerator.generator/META-INF/MANIFEST.MF b/contribs/io.sarl.pythongenerator/io.sarl.pythongenerator.generator/META-INF/MANIFEST.MF
+index 0fd298bff..2f1310ef3 100644
+--- a/contribs/io.sarl.pythongenerator/io.sarl.pythongenerator.generator/META-INF/MANIFEST.MF
++++ b/contribs/io.sarl.pythongenerator/io.sarl.pythongenerator.generator/META-INF/MANIFEST.MF
+@@ -13,10 +13,10 @@ Export-Package: io.sarl.pythongenerator.generator,
+  io.sarl.pythongenerator.generator.validator
+ Bundle-Activator: io.sarl.pythongenerator.generator.PyGeneratorPlugin
+ Require-Bundle: io.sarl.lang;bundle-version="0.11.0",
+- org.eclipse.xtext.common.types;bundle-version="2.19.0",
+- org.eclipse.xtext.xbase;bundle-version="2.19.0",
+- org.eclipse.xtext;bundle-version="2.19.0",
+- org.eclipse.xtend.core;bundle-version="2.19.0",
+- org.eclipse.core.runtime;bundle-version="3.16.0",
+- org.eclipse.core.resources;bundle-version="3.13.500"
++ org.eclipse.xtext.common.types;bundle-version="2.20.0",
++ org.eclipse.xtext.xbase;bundle-version="2.20.0",
++ org.eclipse.xtext;bundle-version="2.20.0",
++ org.eclipse.xtend.core;bundle-version="2.20.0",
++ org.eclipse.core.runtime;bundle-version="3.17.0",
++ org.eclipse.core.resources;bundle-version="3.13.600"
+ 
+diff --git a/contribs/io.sarl.pythongenerator/io.sarl.pythongenerator.ui/META-INF/MANIFEST.MF b/contribs/io.sarl.pythongenerator/io.sarl.pythongenerator.ui/META-INF/MANIFEST.MF
+index ae9376918..886fb0805 100644
+--- a/contribs/io.sarl.pythongenerator/io.sarl.pythongenerator.ui/META-INF/MANIFEST.MF
++++ b/contribs/io.sarl.pythongenerator/io.sarl.pythongenerator.ui/META-INF/MANIFEST.MF
+@@ -16,7 +16,7 @@ Bundle-Activator: io.sarl.pythongenerator.ui.PyGeneratorUiPlugin
+ Require-Bundle: io.sarl.lang;bundle-version="0.11.0",
+  io.sarl.lang.ui;bundle-version="0.11.0",
+  io.sarl.pythongenerator.generator;bundle-version="0.11.0",
+- org.eclipse.xtext.ui;bundle-version="2.19.0",
++ org.eclipse.xtext.ui;bundle-version="2.20.0",
+  org.eclipse.ui;bundle-version="3.115.0",
+  org.eclipse.core.runtime;bundle-version="3.17.0"
+ 
+diff --git a/main/coreplugins/io.sarl.eclipse/META-INF/MANIFEST.MF b/main/coreplugins/io.sarl.eclipse/META-INF/MANIFEST.MF
+index 8de8c0052..10772886c 100644
+--- a/main/coreplugins/io.sarl.eclipse/META-INF/MANIFEST.MF
++++ b/main/coreplugins/io.sarl.eclipse/META-INF/MANIFEST.MF
+@@ -8,10 +8,10 @@ Automatic-Module-Name: io.sarl.eclipse
+ Bundle-RequiredExecutionEnvironment: JavaSE-1.8
+ Bundle-ActivationPolicy: lazy
+ Require-Bundle: io.sarl.lang.ui;bundle-version="0.11.0";visibility:=reexport,
+- org.eclipse.xtend.core;bundle-version="2.19.0",
+- org.eclipse.xtext.ui;bundle-version="2.19.0",
+- org.eclipse.xtext.xbase.ui;bundle-version="2.19.0",
+- org.eclipse.xtext.common.types.ui;bundle-version="2.19.0",
++ org.eclipse.xtend.core;bundle-version="2.20.0",
++ org.eclipse.xtext.ui;bundle-version="2.20.0",
++ org.eclipse.xtext.xbase.ui;bundle-version="2.20.0",
++ org.eclipse.xtext.common.types.ui;bundle-version="2.20.0",
+  org.eclipse.ui.ide;bundle-version="3.16.100",
+  org.eclipse.core.filesystem;bundle-version="1.7.600",
+  org.eclipse.equinox.bidi;bundle-version="1.2.200",
+diff --git a/main/coreplugins/io.sarl.lang.core/META-INF/MANIFEST.MF b/main/coreplugins/io.sarl.lang.core/META-INF/MANIFEST.MF
+index 77de6b185..7dd4cbecd 100644
+--- a/main/coreplugins/io.sarl.lang.core/META-INF/MANIFEST.MF
++++ b/main/coreplugins/io.sarl.lang.core/META-INF/MANIFEST.MF
+@@ -6,8 +6,8 @@ Automatic-Module-Name: io.sarl.lang.core
+ Bundle-Version: 0.11.0.qualifier
+ Bundle-RequiredExecutionEnvironment: JavaSE-1.8
+ Bundle-Vendor: %Bundle-Vendor
+-Require-Bundle: org.eclipse.xtext.xbase.lib;bundle-version="2.19.0";visibility:=reexport,
+- org.eclipse.xtend.lib;bundle-version="2.19.0",
++Require-Bundle: org.eclipse.xtext.xbase.lib;bundle-version="2.20.0";visibility:=reexport,
++ org.eclipse.xtend.lib;bundle-version="2.20.0",
+  javax.inject;bundle-version="1.0.0"
+ Export-Package: io.sarl.bootstrap,
+  io.sarl.lang,
+diff --git a/main/coreplugins/io.sarl.lang.core/src/io/sarl/lang/SARLVersion.java b/main/coreplugins/io.sarl.lang.core/src/io/sarl/lang/SARLVersion.java
+index cf8bbee21..4283c3194 100644
+--- a/main/coreplugins/io.sarl.lang.core/src/io/sarl/lang/SARLVersion.java
++++ b/main/coreplugins/io.sarl.lang.core/src/io/sarl/lang/SARLVersion.java
+@@ -83,7 +83,7 @@
+ 
+ 	/** The minimal Xtext version to use SARL features.
+ 	 */
+-	public static final String MINIMAL_XTEXT_VERSION = "2.19.0"; //$NON-NLS-1$
++	public static final String MINIMAL_XTEXT_VERSION = "2.20.0"; //$NON-NLS-1$
+ 
+ 	/** The minimal version of the JDK that must be used for running the SARL compilation tools (IDE, or sarlc).
+ 	 *
+diff --git a/main/coreplugins/io.sarl.lang.mwe2/META-INF/MANIFEST.MF b/main/coreplugins/io.sarl.lang.mwe2/META-INF/MANIFEST.MF
+index 6bc624cfe..9bc9259e4 100644
+--- a/main/coreplugins/io.sarl.lang.mwe2/META-INF/MANIFEST.MF
++++ b/main/coreplugins/io.sarl.lang.mwe2/META-INF/MANIFEST.MF
+@@ -8,14 +8,14 @@ Automatic-Module-Name: io.sarl.lang.mwe2
+ Bundle-ActivationPolicy: lazy
+ Bundle-RequiredExecutionEnvironment: JavaSE-1.8
+ Require-Bundle: io.sarl.lang.core;bundle-version="0.11.0",
+- org.eclipse.xtext.generator;bundle-version="2.19.0",
+- org.eclipse.xtext.xbase.ui;bundle-version="2.19.0",
+- org.eclipse.xtext.ui;bundle-version="2.19.0",
+- org.eclipse.xtend.ide;bundle-version="2.19.0",
+- org.eclipse.xtext.common.types.ui;bundle-version="2.19.0",
+- org.eclipse.xtend.core;bundle-version="2.19.0",
+- org.eclipse.xtext.ui.codetemplates.ui;bundle-version="2.19.0",
+- org.eclipse.xtext.builder;bundle-version="2.19.0",
++ org.eclipse.xtext.generator;bundle-version="2.20.0",
++ org.eclipse.xtext.xbase.ui;bundle-version="2.20.0",
++ org.eclipse.xtext.ui;bundle-version="2.20.0",
++ org.eclipse.xtend.ide;bundle-version="2.20.0",
++ org.eclipse.xtext.common.types.ui;bundle-version="2.20.0",
++ org.eclipse.xtend.core;bundle-version="2.20.0",
++ org.eclipse.xtext.ui.codetemplates.ui;bundle-version="2.20.0",
++ org.eclipse.xtext.builder;bundle-version="2.20.0",
+  org.eclipse.emf.mwe2.launch;bundle-version="2.11.1",
+  org.apache.log4j;bundle-version="1.2.15",
+  org.eclipse.equinox.common;bundle-version="3.10.600",
+diff --git a/main/coreplugins/io.sarl.lang.ui/META-INF/MANIFEST.MF b/main/coreplugins/io.sarl.lang.ui/META-INF/MANIFEST.MF
+index 697d19cdb..cdd025fe0 100644
+--- a/main/coreplugins/io.sarl.lang.ui/META-INF/MANIFEST.MF
++++ b/main/coreplugins/io.sarl.lang.ui/META-INF/MANIFEST.MF
+@@ -7,14 +7,14 @@ Bundle-SymbolicName: io.sarl.lang.ui; singleton:=true
+ Automatic-Module-Name: io.sarl.lang.ui
+ Bundle-ActivationPolicy: lazy
+ Require-Bundle: io.sarl.lang;bundle-version="0.11.0";visibility:=reexport,
+- org.eclipse.xtext.ui;bundle-version="2.19.0",
+- org.eclipse.xtext.ui.shared;bundle-version="2.19.0",
+- org.eclipse.xtext.ui.codetemplates.ui;bundle-version="2.19.0",
+- org.eclipse.xtext.xbase.ui;bundle-version="2.19.0",
+- org.eclipse.xtext.builder;bundle-version="2.19.0",
+- org.eclipse.xtend.ide;bundle-version="2.19.0",
+- org.eclipse.xtend.core;bundle-version="2.19.0",
+- org.eclipse.xtext.common.types.ui;bundle-version="2.19.0",
++ org.eclipse.xtext.ui;bundle-version="2.20.0",
++ org.eclipse.xtext.ui.shared;bundle-version="2.20.0",
++ org.eclipse.xtext.ui.codetemplates.ui;bundle-version="2.20.0",
++ org.eclipse.xtext.xbase.ui;bundle-version="2.20.0",
++ org.eclipse.xtext.builder;bundle-version="2.20.0",
++ org.eclipse.xtend.ide;bundle-version="2.20.0",
++ org.eclipse.xtend.core;bundle-version="2.20.0",
++ org.eclipse.xtext.common.types.ui;bundle-version="2.20.0",
+  org.apache.log4j;bundle-version="1.2.15",
+  org.eclipse.jdt.core;bundle-version="3.20.0",
+  org.eclipse.jdt.ui;bundle-version="3.20.0",
+diff --git a/main/coreplugins/io.sarl.lang/META-INF/MANIFEST.MF b/main/coreplugins/io.sarl.lang/META-INF/MANIFEST.MF
+index 66eefe644..5e7c5597a 100644
+--- a/main/coreplugins/io.sarl.lang/META-INF/MANIFEST.MF
++++ b/main/coreplugins/io.sarl.lang/META-INF/MANIFEST.MF
+@@ -8,12 +8,12 @@ Automatic-Module-Name: io.sarl.lang
+ Bundle-ActivationPolicy: lazy
+ Bundle-RequiredExecutionEnvironment: JavaSE-1.8
+ Require-Bundle: io.sarl.lang.core;bundle-version="0.11.0";visibility:=reexport,
+- org.eclipse.xtend.core;bundle-version="2.19.0",
+- org.eclipse.xtext;bundle-version="2.19.0",
+- org.eclipse.xtext.xbase;bundle-version="2.19.0",
+- org.eclipse.xtext.xbase.lib;bundle-version="2.19.0",
+- org.eclipse.xtext.common.types;bundle-version="2.19.0",
+- org.eclipse.xtext.util;bundle-version="2.19.0",
++ org.eclipse.xtend.core;bundle-version="2.20.0",
++ org.eclipse.xtext;bundle-version="2.20.0",
++ org.eclipse.xtext.xbase;bundle-version="2.20.0",
++ org.eclipse.xtext.xbase.lib;bundle-version="2.20.0",
++ org.eclipse.xtext.common.types;bundle-version="2.20.0",
++ org.eclipse.xtext.util;bundle-version="2.20.0",
+  org.eclipse.emf.codegen;bundle-version="2.19.0",
+  org.eclipse.osgi;bundle-version="3.15.100",
+  org.antlr.runtime;bundle-version="3.2.0",
+@@ -28,7 +28,6 @@ Require-Bundle: io.sarl.lang.core;bundle-version="0.11.0";visibility:=reexport,
+ Bundle-Activator: io.sarl.lang.SARLLangActivator
+ Export-Package: io.sarl.lang,
+  io.sarl.lang.bugfixes.pending.bug621,
+- io.sarl.lang.bugfixes.pending.bugxtext1251,
+  io.sarl.lang.bugfixes.unpublished,
+  io.sarl.lang.codebuilder,
+  io.sarl.lang.codebuilder.appenders,
+diff --git a/main/coreplugins/io.sarl.lang/src/io/sarl/lang/bugfixes/pending/bugxtext1251/BugXtext1251Files.java b/main/coreplugins/io.sarl.lang/src/io/sarl/lang/bugfixes/pending/bugxtext1251/BugXtext1251Files.java
+deleted file mode 100644
+index 5f7952588..000000000
+--- a/main/coreplugins/io.sarl.lang/src/io/sarl/lang/bugfixes/pending/bugxtext1251/BugXtext1251Files.java
++++ /dev/null
+@@ -1,111 +0,0 @@
+-/*
+- * $Id$
+- *
+- * SARL is an general-purpose agent programming language.
+- * More details on http://www.sarl.io
+- *
+- * Copyright (C) 2014-2019 the original authors or authors.
+- *
+- * Licensed under the Apache License, Version 2.0 (the "License");
+- * you may not use this file except in compliance with the License.
+- * You may obtain a copy of the License at
+- *
+- *      http://www.apache.org/licenses/LICENSE-2.0
+- *
+- * Unless required by applicable law or agreed to in writing, software
+- * distributed under the License is distributed on an "AS IS" BASIS,
+- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+- * See the License for the specific language governing permissions and
+- * limitations under the License.
+- */
+-
+-package io.sarl.lang.bugfixes.pending.bugxtext1251;
+-
+-import java.io.File;
+-import java.io.FileFilter;
+-import java.io.FileNotFoundException;
+-import java.util.Arrays;
+-import java.util.Deque;
+-import java.util.LinkedList;
+-
+-import org.eclipse.xtext.util.Files;
+-
+-/**
+- * Fixing the Xtext PR 1251: Fixing the behavior of the cleanFolder function in Files class.
+- *
+- * <p>Issue is due to Xtend PR 1251 (https://github.com/eclipse/xtext-core/pull/1251)
+- *
+- * <p>Fixing the behavior of cleanFolders
+- *
+- * @author $Author: sgalland$
+- * @version $FullVersion$
+- * @mavengroupid $GroupId$
+- * @mavenartifactid $ArtifactId$
+- * @see "https://github.com/eclipse/xtext-core/pull/1251"
+- */
+-public final class BugXtext1251Files extends Files {
+-
+-	private BugXtext1251Files() {
+-		//
+-	}
+-
+-	/** Clean the content of the the given folder.
+-	 *
+-	 * @param parentFolder the folder to be cleaned. It must not be {@code null}.
+-	 * @param filter a filter for selecting the files to be removed. If it is {@code null}, all the files are removed.
+-	 * @param continueOnError indicates if the cleaning should continue after an error occurs.
+-	 * @param deleteParentFolder indicates if {@code parentFolder} should be also deleted if it becomes empty.
+-	 * @return {@code true} if the cleaning process goes through all the folders and files. {@code false} if the process
+-	 *     has been stopped before its termination. The value {@code false} could be replied only if the value of
+-	 *     {@code continueOnError} is {@code false}.
+-	 * @throws FileNotFoundException if the given {@code parentFolder} does not exists.
+-	 */
+-	@SuppressWarnings("checkstyle:npathcomplexity")
+-	public static boolean cleanFolder(final File parentFolder, final FileFilter filter, boolean continueOnError,
+-			boolean deleteParentFolder) throws FileNotFoundException {
+-		if (!parentFolder.exists()) {
+-			throw new FileNotFoundException(parentFolder.getAbsolutePath());
+-		}
+-		final FileFilter myFilter = filter == null ? it -> true : filter;
+-		//log.debug("Cleaning folder " + parentFolder.toString());
+-		final File[] contents = parentFolder.listFiles(myFilter);
+-		if (contents != null) {
+-			final Deque<File> filesToRemove = new LinkedList<>(Arrays.asList(contents));
+-			while (!filesToRemove.isEmpty()) {
+-				final File file = filesToRemove.pop();
+-				if (file.isDirectory()) {
+-					final File[] children = file.listFiles(myFilter);
+-					if (children != null && children.length > 0) {
+-						// Push back the folder in order to be removed after all its children.
+-						filesToRemove.push(file);
+-						// Push the children in order to be removed before the parent folder.
+-						for (int i = 0; i < children.length; ++i) {
+-							filesToRemove.push(children[i]);
+-						}
+-					} else if (!file.delete()) {
+-						//log.error("Couldn't delete " + file.getAbsolutePath());
+-						if (!continueOnError) {
+-							return false;
+-						}
+-					}
+-				} else {
+-					if (!file.delete()) {
+-						//log.error("Couldn't delete " + file.getAbsolutePath());
+-						if (!continueOnError) {
+-							return false;
+-						}
+-					}
+-				}
+-			}
+-		}
+-		if (deleteParentFolder) {
+-			final String[] children = parentFolder.list();
+-			if (children != null && children.length == 0 && !parentFolder.delete()) {
+-				//log.error("Couldn't delete " + parentFolder.getAbsolutePath());
+-				return false;
+-			}
+-		}
+-		return true;
+-	}
+-
+-}
+diff --git a/main/coreplugins/io.sarl.lang/src/io/sarl/lang/compiler/batch/SarlBatchCompiler.java b/main/coreplugins/io.sarl.lang/src/io/sarl/lang/compiler/batch/SarlBatchCompiler.java
+index b510ca17c..a8aba40b9 100644
+--- a/main/coreplugins/io.sarl.lang/src/io/sarl/lang/compiler/batch/SarlBatchCompiler.java
++++ b/main/coreplugins/io.sarl.lang/src/io/sarl/lang/compiler/batch/SarlBatchCompiler.java
+@@ -88,6 +88,7 @@
+ import org.eclipse.xtext.resource.XtextResourceSet;
+ import org.eclipse.xtext.resource.persistence.StorageAwareResource;
+ import org.eclipse.xtext.util.CancelIndicator;
++import org.eclipse.xtext.util.Files;
+ import org.eclipse.xtext.util.JavaVersion;
+ import org.eclipse.xtext.util.Strings;
+ import org.eclipse.xtext.util.UriUtil;
+@@ -108,7 +109,6 @@
+ import org.slf4j.LoggerFactory;
+ 
+ import io.sarl.lang.SARLConfig;
+-import io.sarl.lang.bugfixes.pending.bugxtext1251.BugXtext1251Files;
+ import io.sarl.lang.compiler.GeneratorConfig2;
+ import io.sarl.lang.compiler.GeneratorConfigProvider2;
+ import io.sarl.lang.compiler.IGeneratorConfigProvider2;
+@@ -1962,7 +1962,7 @@ protected boolean cleanFolder(File parentFolder, FileFilter filter) {
+ 			if (getLogger().isDebugEnabled()) {
+ 				getLogger().debug(Messages.SarlBatchCompiler_9, parentFolder.toString());
+ 			}
+-			return BugXtext1251Files.cleanFolder(parentFolder, null, true, true);
++			return Files.cleanFolder(parentFolder, null, true, true);
+ 		} catch (FileNotFoundException e) {
+ 			return true;
+ 		}
+diff --git a/main/coreplugins/io.sarl.m2e/META-INF/MANIFEST.MF b/main/coreplugins/io.sarl.m2e/META-INF/MANIFEST.MF
+index 2dad35c71..3f863915f 100644
+--- a/main/coreplugins/io.sarl.m2e/META-INF/MANIFEST.MF
++++ b/main/coreplugins/io.sarl.m2e/META-INF/MANIFEST.MF
+@@ -9,8 +9,8 @@ Bundle-RequiredExecutionEnvironment: JavaSE-1.8
+ Bundle-ActivationPolicy: lazy
+ Bundle-Activator: io.sarl.m2e.SARLMavenEclipsePlugin
+ Require-Bundle: io.sarl.eclipse;bundle-version="0.11.0",
+- org.eclipse.xtext.util;bundle-version="2.19.0",
+- org.eclipse.xtext.ui;bundle-version="2.19.0",
++ org.eclipse.xtext.util;bundle-version="2.20.0",
++ org.eclipse.xtext.ui;bundle-version="2.20.0",
+  org.eclipse.emf.common;bundle-version="2.17.0",
+  org.eclipse.emf.ecore;bundle-version="2.20.0",
+  org.eclipse.core.runtime;bundle-version="3.17.0",
+diff --git a/main/features/io.sarl.compiler/feature.xml b/main/features/io.sarl.compiler/feature.xml
+index 8dce488b7..288e245ec 100644
+--- a/main/features/io.sarl.compiler/feature.xml
++++ b/main/features/io.sarl.compiler/feature.xml
+@@ -223,12 +223,6 @@
+ 
+    <requires>
+       <import plugin="io.sarl.lang.core" version="0.11.0" match="greaterOrEqual"/>
+-      <import plugin="org.eclipse.xtend.core" version="2.19.0" match="greaterOrEqual"/>
+-      <import plugin="org.eclipse.xtext" version="2.19.0" match="greaterOrEqual"/>
+-      <import plugin="org.eclipse.xtext.xbase" version="2.19.0" match="greaterOrEqual"/>
+-      <import plugin="org.eclipse.xtext.xbase.lib" version="2.19.0" match="greaterOrEqual"/>
+-      <import plugin="org.eclipse.xtext.common.types" version="2.19.0" match="greaterOrEqual"/>
+-      <import plugin="org.eclipse.xtext.util" version="2.19.0" match="greaterOrEqual"/>
+       <import plugin="org.eclipse.emf.codegen" version="2.19.0" match="greaterOrEqual"/>
+       <import plugin="org.antlr.runtime" version="3.2.0" match="greaterOrEqual"/>
+       <import plugin="com.google.inject" version="4.1.0" match="greaterOrEqual"/>
+@@ -236,13 +230,6 @@
+       <import plugin="slf4j.api" version="2.0.0" match="greaterOrEqual"/>
+       <import plugin="org.apache.log4j"/>
+       <import plugin="io.sarl.lang" version="0.11.0" match="greaterOrEqual"/>
+-      <import plugin="org.eclipse.xtext.ui" version="2.19.0" match="greaterOrEqual"/>
+-      <import plugin="org.eclipse.xtext.ui.shared" version="2.19.0" match="greaterOrEqual"/>
+-      <import plugin="org.eclipse.xtext.ui.codetemplates.ui" version="2.19.0" match="greaterOrEqual"/>
+-      <import plugin="org.eclipse.xtext.xbase.ui" version="2.19.0" match="greaterOrEqual"/>
+-      <import plugin="org.eclipse.xtext.builder" version="2.19.0" match="greaterOrEqual"/>
+-      <import plugin="org.eclipse.xtend.ide" version="2.19.0" match="greaterOrEqual"/>
+-      <import plugin="org.eclipse.xtext.common.types.ui" version="2.19.0" match="greaterOrEqual"/>
+       <import plugin="org.apache.log4j" version="1.2.15" match="greaterOrEqual"/>
+       <import plugin="org.eclipse.xtext.ui.codemining"/>
+       <import plugin="org.eclipse.core.runtime" version="3.6.0" match="compatible"/>
+@@ -269,11 +256,24 @@
+       <import plugin="org.eclipse.core.expressions" version="3.6.0" match="greaterOrEqual"/>
+       <import plugin="org.eclipse.xtext.xbase.ide"/>
+       <import plugin="org.eclipse.xtend.lib" version="2.14.0" match="greaterOrEqual"/>
++      <import plugin="org.eclipse.xtend.core" version="2.20.0" match="greaterOrEqual"/>
++      <import plugin="org.eclipse.xtext" version="2.20.0" match="greaterOrEqual"/>
++      <import plugin="org.eclipse.xtext.xbase" version="2.20.0" match="greaterOrEqual"/>
++      <import plugin="org.eclipse.xtext.xbase.lib" version="2.20.0" match="greaterOrEqual"/>
++      <import plugin="org.eclipse.xtext.common.types" version="2.20.0" match="greaterOrEqual"/>
++      <import plugin="org.eclipse.xtext.util" version="2.20.0" match="greaterOrEqual"/>
+       <import plugin="org.eclipse.osgi" version="3.15.100" match="greaterOrEqual"/>
+       <import plugin="org.eclipse.jdt.core" version="3.20.0" match="greaterOrEqual"/>
+       <import plugin="org.eclipse.emf.ecore" version="2.20.0" match="greaterOrEqual"/>
+       <import plugin="org.eclipse.emf.common" version="2.17.0" match="greaterOrEqual"/>
+       <import plugin="org.eclipse.core.runtime" version="3.17.0" match="greaterOrEqual"/>
++      <import plugin="org.eclipse.xtext.ui" version="2.20.0" match="greaterOrEqual"/>
++      <import plugin="org.eclipse.xtext.ui.shared" version="2.20.0" match="greaterOrEqual"/>
++      <import plugin="org.eclipse.xtext.ui.codetemplates.ui" version="2.20.0" match="greaterOrEqual"/>
++      <import plugin="org.eclipse.xtext.xbase.ui" version="2.20.0" match="greaterOrEqual"/>
++      <import plugin="org.eclipse.xtext.builder" version="2.20.0" match="greaterOrEqual"/>
++      <import plugin="org.eclipse.xtend.ide" version="2.20.0" match="greaterOrEqual"/>
++      <import plugin="org.eclipse.xtext.common.types.ui" version="2.20.0" match="greaterOrEqual"/>
+       <import plugin="org.eclipse.jdt.ui" version="3.20.0" match="greaterOrEqual"/>
+       <import plugin="org.eclipse.compare" version="3.7.800" match="greaterOrEqual"/>
+       <import plugin="org.eclipse.jdt.debug.ui" version="3.10.500" match="greaterOrEqual"/>
+diff --git a/main/features/io.sarl.ide/feature.xml b/main/features/io.sarl.ide/feature.xml
+index a0c60109d..832008232 100644
+--- a/main/features/io.sarl.ide/feature.xml
++++ b/main/features/io.sarl.ide/feature.xml
+@@ -224,15 +224,10 @@ tools upon the Eclipse IDE.
+ 
+    <requires>
+       <import plugin="io.sarl.lang.ui" version="0.11.0" match="greaterOrEqual"/>
+-      <import plugin="org.eclipse.xtend.core" version="2.19.0" match="greaterOrEqual"/>
+-      <import plugin="org.eclipse.xtext.ui" version="2.19.0" match="greaterOrEqual"/>
+-      <import plugin="org.eclipse.xtext.xbase.ui" version="2.19.0" match="greaterOrEqual"/>
+-      <import plugin="org.eclipse.xtext.common.types.ui" version="2.19.0" match="greaterOrEqual"/>
+       <import plugin="org.eclipse.ui.intro.quicklinks" version="1.0.300" match="greaterOrEqual"/>
+       <import plugin="org.arakhne.afc.core.vmutils" version="16.0.0" match="greaterOrEqual"/>
+       <import plugin="com.google.gson" version="2.8.5" match="greaterOrEqual"/>
+       <import plugin="io.sarl.eclipse" version="0.11.0" match="greaterOrEqual"/>
+-      <import plugin="org.eclipse.xtext.util" version="2.19.0" match="greaterOrEqual"/>
+       <import plugin="org.eclipse.core.expressions" version="3.4.0" match="compatible"/>
+       <import plugin="org.eclipse.core.variables" version="3.2.800" match="compatible"/>
+       <import plugin="org.eclipse.ui.console" version="3.5.300" match="compatible"/>
+@@ -249,6 +244,10 @@ tools upon the Eclipse IDE.
+       <import plugin="org.eclipse.equinox.common"/>
+       <import plugin="org.eclipse.xtext"/>
+       <import plugin="slf4j.api" version="2.0.0" match="greaterOrEqual"/>
++      <import plugin="org.eclipse.xtend.core" version="2.20.0" match="greaterOrEqual"/>
++      <import plugin="org.eclipse.xtext.ui" version="2.20.0" match="greaterOrEqual"/>
++      <import plugin="org.eclipse.xtext.xbase.ui" version="2.20.0" match="greaterOrEqual"/>
++      <import plugin="org.eclipse.xtext.common.types.ui" version="2.20.0" match="greaterOrEqual"/>
+       <import plugin="org.eclipse.ui.ide" version="3.16.100" match="greaterOrEqual"/>
+       <import plugin="org.eclipse.core.filesystem" version="1.7.600" match="greaterOrEqual"/>
+       <import plugin="org.eclipse.equinox.bidi" version="1.2.200" match="greaterOrEqual"/>
+@@ -266,6 +265,7 @@ tools upon the Eclipse IDE.
+       <import plugin="org.eclipse.ui" version="3.115.0" match="greaterOrEqual"/>
+       <import plugin="org.eclipse.ui.intro" version="3.5.800" match="greaterOrEqual"/>
+       <import plugin="org.eclipse.ui.intro.universal" version="3.3.700" match="greaterOrEqual"/>
++      <import plugin="org.eclipse.xtext.util" version="2.20.0" match="greaterOrEqual"/>
+       <import plugin="org.eclipse.emf.common" version="2.17.0" match="greaterOrEqual"/>
+       <import plugin="org.eclipse.emf.ecore" version="2.20.0" match="greaterOrEqual"/>
+       <import plugin="org.eclipse.core.runtime" version="3.17.0" match="greaterOrEqual"/>
+diff --git a/main/features/io.sarl.lib/feature.xml b/main/features/io.sarl.lib/feature.xml
+index 14542ffc4..4bea778b0 100644
+--- a/main/features/io.sarl.lib/feature.xml
++++ b/main/features/io.sarl.lib/feature.xml
+@@ -226,9 +226,9 @@
+       <import plugin="io.sarl.util" version="0.11.0" match="greaterOrEqual"/>
+       <import plugin="com.google.inject" version="4.1.0" match="greaterOrEqual"/>
+       <import plugin="javax.inject" version="1.0.0" match="greaterOrEqual"/>
+-      <import plugin="org.eclipse.xtext.xbase.lib" version="2.19.0" match="greaterOrEqual"/>
+-      <import plugin="org.eclipse.xtend.lib" version="2.19.0" match="greaterOrEqual"/>
+       <import plugin="org.eclipse.osgi" version="3.15.100" match="greaterOrEqual"/>
++      <import plugin="org.eclipse.xtext.xbase.lib" version="2.20.0" match="greaterOrEqual"/>
++      <import plugin="org.eclipse.xtend.lib" version="2.20.0" match="greaterOrEqual"/>
+    </requires>
+ 
+    <plugin
+diff --git a/pom.xml b/pom.xml
+index 3e7b45ba3..37d3095b0 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -60,10 +60,10 @@
+ 		<!-- The versions of the following Xtext libraries are available at: https://eclipse.org/Xtext/documentation/350_continuous_integration.html -->
+ 
+ 		<!-- Version of the Xtext API -->
+-		<xtext.version>2.19.0</xtext.version>
+-		<xtext.version.current>2.19.0</xtext.version.current>
+-		<xtext.version.next>2.19.1</xtext.version.next>
+-		<xtext.version.javadoc>2.19</xtext.version.javadoc>
++		<xtext.version>2.20.0</xtext.version>
++		<xtext.version.current>2.20.0</xtext.version.current>
++		<xtext.version.next>2.20.1</xtext.version.next>
++		<xtext.version.javadoc>2.20</xtext.version.javadoc>
+ 
+ 		<!-- Version of the MWE2 library (used for accessing the mwe2 P2 http://download.eclipse.org/modeling/emft/mwe/updates/releases/,
+ 			see compositeContent.{xml,jar,xz,xml.xz} file) -->
+diff --git a/tests/io.sarl.lang.tests/src/test/java/io/sarl/lang/tests/modules/util/UtilsTest.java b/tests/io.sarl.lang.tests/src/test/java/io/sarl/lang/tests/modules/util/UtilsTest.java
+index 8a1b038fa..4225199fe 100644
+--- a/tests/io.sarl.lang.tests/src/test/java/io/sarl/lang/tests/modules/util/UtilsTest.java
++++ b/tests/io.sarl.lang.tests/src/test/java/io/sarl/lang/tests/modules/util/UtilsTest.java
+@@ -283,8 +283,14 @@ public void isCompatibleXtextVersion_String() {
+ 		assertFalse(Utils.isCompatibleXtextVersion("2.17"));
+ 		assertFalse(Utils.isCompatibleXtextVersion("2.17.1"));
+ 		assertFalse(Utils.isCompatibleXtextVersion("2.18"));
+-		assertTrue(Utils.isCompatibleXtextVersion("2.19"));
++		assertFalse(Utils.isCompatibleXtextVersion("2.19"));
+ 		assertTrue(Utils.isCompatibleXtextVersion("2.20"));
++		assertTrue(Utils.isCompatibleXtextVersion("2.21"));
++		assertTrue(Utils.isCompatibleXtextVersion("2.22"));
++		assertTrue(Utils.isCompatibleXtextVersion("2.23"));
++		assertTrue(Utils.isCompatibleXtextVersion("2.24"));
++		assertTrue(Utils.isCompatibleXtextVersion("2.25"));
++		assertTrue(Utils.isCompatibleXtextVersion("2.26"));
+ 	}
+ 
+ 	@Test

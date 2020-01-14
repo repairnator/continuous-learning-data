@@ -1,0 +1,9 @@
+@@ -23,7 +23,7 @@
+ import org.wso2.carbon.identity.application.common.cache.BaseCache;
+ 
+ /**
+- * This class is used to cache Authorization code  against session ID (sid) for OIDCBackChannel Logout
++ * This class is used to cache Authorization code  against session ID (sid) for OIDCBackChannel Logout.
+  */
+ public class OIDCBackChannelAuthCodeCache extends BaseCache<OIDCBackChannelAuthCodeCacheKey,
+         OIDCBackChannelAuthCodeCacheEntry> {

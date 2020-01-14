@@ -1,0 +1,9 @@
+@@ -61,7 +61,7 @@
+     private static AtomicBoolean initialized = new AtomicBoolean();
+     private static ThreadPoolExecutor executor;
+ 
+-    private final BlockingQueue<Runnable> queue = new ArrayBlockingQueue<Runnable>(QUEUE_SIZE);
++    private final BlockingQueue<Runnable> queue = new ArrayBlockingQueue<>(QUEUE_SIZE);
+ 
+     @Inject
+     private com.google.gerrit.server.config.PluginConfigFactory pluginConfigFactory;

@@ -1,0 +1,9 @@
+@@ -2830,7 +2830,7 @@ public boolean accept(Element e, TypeMirror t) {
+                             @Override
+                             public boolean accept(Element e, TypeMirror t) {
+                                 return (method == null || method == e.getEnclosingElement() || e.getModifiers().contains(FINAL)
+-                                        || EnumSet.of(LOCAL_VARIABLE, PARAMETER, EXCEPTION_PARAMETER, RESOURCE_VARIABLE).contains(e.getKind()) && controller.getSourceVersion().compareTo(SourceVersion.RELEASE_8) >= 0 && controller.getElementUtilities().isEffectivelyFinal((VariableElement)e))
++                                        || EnumSet.of(LOCAL_VARIABLE, PARAMETER, EXCEPTION_PARAMETER, RESOURCE_VARIABLE).contains(simplifyElementKind(e.getKind())) && controller.getSourceVersion().compareTo(SourceVersion.RELEASE_8) >= 0 && controller.getElementUtilities().isEffectivelyFinal((VariableElement)e))
+                                         && !illegalForwardRefs.containsKey(e.getSimpleName());
+                             }
+                         };

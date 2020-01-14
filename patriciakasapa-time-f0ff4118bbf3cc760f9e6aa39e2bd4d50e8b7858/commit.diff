@@ -1,0 +1,141 @@
+diff --git a/src/main/java/io/turntabl/TimeApplication.java b/src/main/java/io/turntabl/TimeApplication.java
+index 87bd95b..9d932c4 100644
+--- a/src/main/java/io/turntabl/TimeApplication.java
++++ b/src/main/java/io/turntabl/TimeApplication.java
+@@ -1,54 +1,17 @@
+ package io.turntabl;
+ 
+-import com.fasterxml.jackson.core.type.TypeReference;
+-import com.fasterxml.jackson.databind.DeserializationConfig;
+-import com.fasterxml.jackson.databind.JsonNode;
+-import com.fasterxml.jackson.databind.ObjectMapper;
+-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+-import io.turntabl.models.Employee;
+-import io.turntabl.models.EmployeeProfile;
+-import io.turntabl.models.Project;
+-import io.turntabl.models.Tech;
+ import io.turntabl.services.AvailableEmployeesImpl;
+-import org.springframework.beans.factory.annotation.Autowired;
+ import org.springframework.boot.SpringApplication;
+ import org.springframework.boot.autoconfigure.SpringBootApplication;
+ import org.springframework.context.annotation.Bean;
+ import springfox.documentation.swagger2.annotations.EnableSwagger2;
+ 
+-import javax.annotation.PostConstruct;
+-import java.io.IOException;
+-import java.net.MalformedURLException;
+-import java.net.URL;
+-import java.util.ArrayList;
+-import java.util.Arrays;
+-import java.util.List;
+-
+ @EnableSwagger2
+ @SpringBootApplication
+ public class TimeApplication {
+ 
+ 	public static void main(String[] args) {
+-        ObjectMapper objectMapper = new ObjectMapper();
+-        objectMapper.registerModule(new JavaTimeModule());
+-
+-        List<EmployeeProfile> employeeProfiles = new ArrayList<>();
+-        try {
+-            JsonNode jsonNode = objectMapper.readTree(new URL("http://employementprofilingapp-env.snvx8mbkdw.us-east-2.elasticbeanstalk.com/v1/api/employees")).get("data");
+-            for (JsonNode next : jsonNode) {
+-                EmployeeProfile employeeProfile = new EmployeeProfile();
+-                employeeProfile.setEmployee(objectMapper.treeToValue(next.get("employee"), Employee.class));
+-                Project[] projects1 = objectMapper.treeToValue(next.get("projects"), Project[].class);
+-                employeeProfile.setProjects(Arrays.asList(projects1));
+-
+-                Tech[] tech_stacks = objectMapper.treeToValue(next.get("tech_stack"), Tech[].class);
+-                employeeProfile.setTech_stack(Arrays.asList(tech_stacks));
+-
+-                employeeProfiles.add(employeeProfile);
+-            }
+-        } catch (IOException e) { e.printStackTrace(); return new ArrayList<>();}
+-        employeeProfiles.forEach(y -> System.out.println(y.toString()));
+-        // SpringApplication.run(TimeApplication.class, args);
++        SpringApplication.run(TimeApplication.class, args);
+ 	}
+ 	@Bean
+ 	public AvailableEmployeesImpl getEmployeeService(){
+diff --git a/src/main/java/io/turntabl/controllers/EmployeeController.java b/src/main/java/io/turntabl/controllers/EmployeeController.java
+index 55c4711..2e51d5d 100644
+--- a/src/main/java/io/turntabl/controllers/EmployeeController.java
++++ b/src/main/java/io/turntabl/controllers/EmployeeController.java
+@@ -1,24 +1,24 @@
+ package io.turntabl.controllers;
+ 
+-import io.turntabl.models.Employee;
+-import io.turntabl.services.AvailableEmployeesImpl;
+ import io.swagger.annotations.Api;
+ import io.swagger.annotations.ApiOperation;
++import io.turntabl.models.Employee;
++import io.turntabl.services.AvailableEmployeesImpl;
+ import org.springframework.beans.factory.annotation.Autowired;
+-import org.springframework.web.bind.annotation.*;
++import org.springframework.web.bind.annotation.CrossOrigin;
++import org.springframework.web.bind.annotation.GetMapping;
++import org.springframework.web.bind.annotation.RequestParam;
++import org.springframework.web.bind.annotation.RestController;
+ 
+-import java.text.ParseException;
+ import java.text.SimpleDateFormat;
+ import java.time.LocalDate;
+ import java.util.ArrayList;
+-import java.util.Date;
+ import java.util.List;
+ 
+ @Api
+ @RestController
+ @CrossOrigin(origins = "*")
+ public class EmployeeController {
+-    public static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd");
+ 
+     @Autowired
+     private AvailableEmployeesImpl employeeService;
+@@ -37,6 +37,5 @@
+         }else {
+             return employeeService.getAllAvailableEmployees(start, end);
+         }
+-        // return employeeService.getAllAvailableEmployees(start, end);
+     }
+ }
+diff --git a/src/main/java/io/turntabl/services/AvailableEmployeesImpl.java b/src/main/java/io/turntabl/services/AvailableEmployeesImpl.java
+index df19f66..0fb45bc 100644
+--- a/src/main/java/io/turntabl/services/AvailableEmployeesImpl.java
++++ b/src/main/java/io/turntabl/services/AvailableEmployeesImpl.java
+@@ -25,7 +25,7 @@
+     @Override
+     public List<Employee> getAllAvailableEmployees(LocalDate projectStartDate, LocalDate projectEndDate) {
+         // http request
+-        // List<Employee> employees = getAllEmployees();
++        List<EmployeeProfile> employees = getAllEmployees();
+ 
+         // filter out unavailable employees
+        /* Stream<Employee> employeesReturningFromLeave = employees.stream().filter(Employee::isEmployee_onleave).filter(
+@@ -39,18 +39,19 @@
+ 
+ 
+        // I'm here
+-        /*Stream<Employee> employeeStream = employees.stream()
++        Stream<Employee> employeeStream = employees.stream()
+                                                 .filter( employee -> {
+-                                                    System.out.println( employee);
+                                                     employee.getProjects().sort(comparing(Project::getProject_start_date));
+-                                                    List<Project> projectList = employee.getProjects().stream().filter(x -> x.getProject_end_date().isAfter(LocalDate.now())).collect(Collectors.toList());
++                                                    List<Project> projectList = employee.getProjects().stream()
++                                                                                        .filter(x -> x.getProject_end_date().isAfter(LocalDate.now()))
++                                                                                        .collect(Collectors.toList());
+                                                     employee.setProjects(projectList);
+                                                     return fitEmployee(projectList, projectStartDate, projectEndDate );
+-                                                });
++                                                })
++                                                .map(EmployeeProfile::getEmployee);
+ 
+         // return the list of employees
+-        return employeeStream.collect(Collectors.toList());*/
+-        return new ArrayList<>();
++        return employeeStream.collect(Collectors.toList());
+     }
+ 
+     private boolean fitEmployee(List<Project> projects, LocalDate projectStartDate, LocalDate projectEndDate) {

@@ -1,0 +1,169 @@
+diff --git a/build.gradle b/build.gradle
+index 6bfc721..36b3a62 100644
+--- a/build.gradle
++++ b/build.gradle
+@@ -1,18 +1,7 @@
+-buildscript {
+-    repositories {
+-        mavenCentral()
+-        jcenter()
+-    }
+-}
+-
+ plugins {
+     id "org.jetbrains.intellij" version "0.4.15"
+ }
+ 
+-apply plugin: 'java'
+-apply plugin: 'idea'
+-apply plugin: 'org.jetbrains.intellij'
+-
+ intellij {
+     version ideaVersion
+     pluginName "MyBatisBuilder"
+diff --git a/gradle.properties b/gradle.properties
+index 1e4d739..5f745d3 100644
+--- a/gradle.properties
++++ b/gradle.properties
+@@ -1,5 +1,5 @@
+ version = 1.1.1
+-ideaVersion = IC-2019.1
++ideaVersion = IC-2018.1
+ customUtilBuild = 194.*
+ isEAP = false
+ pluginChannels = nightly
+diff --git a/src/main/java/com/chuntung/plugin/mybatis/builder/action/ObjectTreeHandler.java b/src/main/java/com/chuntung/plugin/mybatis/builder/action/ObjectTreeHandler.java
+index 9c42dde..e9aaa48 100755
+--- a/src/main/java/com/chuntung/plugin/mybatis/builder/action/ObjectTreeHandler.java
++++ b/src/main/java/com/chuntung/plugin/mybatis/builder/action/ObjectTreeHandler.java
+@@ -200,7 +200,7 @@ public MouseListener getMouseListener() {
+             @Override
+             public void invokePopup(Component comp, int x, int y) {
+                 JTree source = (JTree) comp;
+-                TreePath path = source.getPathForLocation(x, y);
++                TreePath path = source.getClosestPathForLocation(x, y);
+ 
+                 // save current tree path for popup action
+                 currentTreePath = path;
+diff --git a/src/main/java/com/chuntung/plugin/mybatis/builder/util/JsonUtil.java b/src/main/java/com/chuntung/plugin/mybatis/builder/util/JsonUtil.java
+index 053d845..cb57f6e 100644
+--- a/src/main/java/com/chuntung/plugin/mybatis/builder/util/JsonUtil.java
++++ b/src/main/java/com/chuntung/plugin/mybatis/builder/util/JsonUtil.java
+@@ -4,36 +4,34 @@
+ 
+ package com.chuntung.plugin.mybatis.builder.util;
+ 
+-import com.fasterxml.jackson.core.JsonProcessingException;
+-import com.fasterxml.jackson.databind.DeserializationFeature;
+-import com.fasterxml.jackson.databind.ObjectMapper;
+-import com.fasterxml.jackson.databind.SerializationFeature;
+-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+-
+-import java.io.IOException;
++import com.google.gson.Gson;
++import com.google.gson.GsonBuilder;
+ 
+ public class JsonUtil {
+-    private static final ObjectMapper mapper = new ObjectMapper();
+-
+-    static {
+-        mapper.disable(SerializationFeature.FAIL_ON_EMPTY_BEANS);
+-        mapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+-        mapper.setNodeFactory(JsonNodeFactory.withExactBigDecimals(true));
+-        mapper.enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS);
+-    }
++    private static final Gson gson = new GsonBuilder().create();
++//    private static final ObjectMapper mapper = new ObjectMapper();
++//
++//    static {
++//        mapper.disable(SerializationFeature.FAIL_ON_EMPTY_BEANS);
++//        mapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
++//        mapper.setNodeFactory(JsonNodeFactory.withExactBigDecimals(true));
++//        mapper.enable(DeserializationFeature.USE_BIG_DECIMAL_FOR_FLOATS);
++//    }
+ 
+     public static String toJson(Object bean) {
+         try {
+-            return mapper.writeValueAsString(bean);
+-        } catch (JsonProcessingException e) {
++//            return mapper.writeValueAsString(bean);
++            return gson.toJson(bean);
++        } catch (RuntimeException e) {
+             return null;
+         }
+     }
+ 
+     public static <T> T fromJson(String json, Class<T> clazz) {
+         try {
+-            return mapper.readValue(json, clazz);
+-        } catch (IOException e) {
++//            return mapper.readValue(json, clazz);
++            return gson.fromJson(json, clazz);
++        } catch (RuntimeException e) {
+             return null;
+         }
+     }
+diff --git a/src/main/java/com/chuntung/plugin/mybatis/builder/view/AboutDialog.form b/src/main/java/com/chuntung/plugin/mybatis/builder/view/AboutDialog.form
+index 61dc1ab..4f8895c 100644
+--- a/src/main/java/com/chuntung/plugin/mybatis/builder/view/AboutDialog.form
++++ b/src/main/java/com/chuntung/plugin/mybatis/builder/view/AboutDialog.form
+@@ -46,7 +46,6 @@
+           <grid row="3" column="1" row-span="1" col-span="1" vsize-policy="0" hsize-policy="0" anchor="8" fill="0" indent="0" use-parent-layout="false"/>
+         </constraints>
+         <properties>
+-          <foreground color="-16776961"/>
+           <text value="Paypal"/>
+         </properties>
+       </component>
+@@ -55,7 +54,6 @@
+           <grid row="3" column="2" row-span="1" col-span="1" vsize-policy="0" hsize-policy="0" anchor="8" fill="0" indent="1" use-parent-layout="false"/>
+         </constraints>
+         <properties>
+-          <foreground color="-16776961"/>
+           <text value="Alipay"/>
+         </properties>
+       </component>
+@@ -63,17 +61,13 @@
+         <constraints>
+           <grid row="1" column="1" row-span="1" col-span="2" vsize-policy="0" hsize-policy="0" anchor="8" fill="0" indent="0" use-parent-layout="false"/>
+         </constraints>
+-        <properties>
+-          <foreground color="-16776961"/>
+-        </properties>
++        <properties/>
+       </component>
+       <component id="17b82" class="javax.swing.JLabel" binding="homeLabel" custom-create="true">
+         <constraints>
+           <grid row="2" column="1" row-span="1" col-span="2" vsize-policy="0" hsize-policy="0" anchor="8" fill="0" indent="0" use-parent-layout="false"/>
+         </constraints>
+-        <properties>
+-          <foreground color="-16776961"/>
+-        </properties>
++        <properties/>
+       </component>
+       <hspacer id="3edea">
+         <constraints>
+diff --git a/src/main/java/com/chuntung/plugin/mybatis/builder/view/AboutDialog.java b/src/main/java/com/chuntung/plugin/mybatis/builder/view/AboutDialog.java
+index 2b679ec..12669b5 100644
+--- a/src/main/java/com/chuntung/plugin/mybatis/builder/view/AboutDialog.java
++++ b/src/main/java/com/chuntung/plugin/mybatis/builder/view/AboutDialog.java
+@@ -11,18 +11,15 @@
+ import com.intellij.openapi.project.Project;
+ import com.intellij.openapi.ui.DialogWrapper;
+ import com.intellij.ui.components.labels.LinkLabel;
+-import com.intellij.util.Url;
+ import org.jetbrains.annotations.Nullable;
+ 
+ import javax.swing.*;
+ import java.awt.*;
+-import java.awt.event.MouseAdapter;
+-import java.awt.event.MouseEvent;
+ 
+ public class AboutDialog extends DialogWrapper {
+     private JPanel contentPanel;
+-    private JLabel authorLabel;
+     private JLabel pluginLabel;
++    private JLabel authorLabel;
+     private JLabel homeLabel;
+     private JLabel paypalLabel;
+     private JLabel alipayLabel;

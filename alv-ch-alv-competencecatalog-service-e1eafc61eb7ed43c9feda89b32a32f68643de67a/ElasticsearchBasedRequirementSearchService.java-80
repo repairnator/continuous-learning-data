@@ -1,0 +1,9 @@
+@@ -80,7 +80,7 @@ public ElasticsearchBasedRequirementSearchService(
+         return elasticsearchTemplate.query(searchQuery, response -> extractSearchResult(pageable, response));
+     }
+ 
+-    private BoolQueryBuilder createQueryBuilder(final RequirementSearchRequest searchRequest) {
++    private BoolQueryBuilder createQueryBuilder(RequirementSearchRequest searchRequest) {
+         if (!hasText(searchRequest.getQuery())) {
+             return boolQuery().must(matchAllQuery());
+         }

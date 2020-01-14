@@ -1,0 +1,9 @@
+@@ -123,7 +123,7 @@ protected void addPendingCompactionOperations(Stream<Pair<String, CompactionOper
+   void removePendingCompactionOperations(Stream<Pair<String, CompactionOperation>> operations) {
+     rocksDB.writeBatch(batch -> {
+       operations.forEach(opInstantPair -> {
+-        Preconditions.checkArgument(
++        ValidationUtils.checkArgument(
+             getPendingCompactionOperationWithInstant(opInstantPair.getValue().getFileGroupId()) != null,
+             "Trying to remove a FileGroupId which is not found in pending compaction operations. FgId :"
+                 + opInstantPair.getValue().getFileGroupId());

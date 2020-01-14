@@ -1,0 +1,9 @@
+@@ -11,7 +11,7 @@
+ 
+     private RequirementId requirementId;
+ 
+-    RequirementEvent(final DomainEventType domainEventType, final Requirement requirement) {
++    RequirementEvent(DomainEventType domainEventType, Requirement requirement) {
+         super(domainEventType, AGGREGATE_TYPE);
+         requirementId = requirement.getId();
+     }

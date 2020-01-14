@@ -1,0 +1,9 @@
+@@ -440,7 +440,7 @@ public void testBasicAppendAndScanMultipleFiles() throws IOException, URISyntaxE
+         HoodieLogFormat.newWriterBuilder().onParentPath(partitionPath).withFileExtension(HoodieLogFile.DELTA_EXTENSION)
+             .withSizeThreshold(1024).withFileId("test-fileid1").overBaseCommit("100").withFs(fs).build();
+     Schema schema = HoodieAvroUtils.addMetadataFields(getSimpleSchema());
+-    Map<HoodieLogBlock.HeaderMetadataType, String> header = Maps.newHashMap();
++    Map<HoodieLogBlock.HeaderMetadataType, String> header = new HashMap<>();
+     header.put(HoodieLogBlock.HeaderMetadataType.INSTANT_TIME, "100");
+     header.put(HoodieLogBlock.HeaderMetadataType.SCHEMA, getSimpleSchema().toString());
+ 

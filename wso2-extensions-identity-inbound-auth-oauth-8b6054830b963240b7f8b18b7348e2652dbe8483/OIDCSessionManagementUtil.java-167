@@ -1,0 +1,9 @@
+@@ -167,7 +167,7 @@ public static Cookie addOPBrowserStateCookie(HttpServletResponse response) {
+     }
+ 
+     /**
+-     * Invalidate the browser state cookie
++     * Invalidate the browser state cookie.
+      *
+      * @param request
+      * @param response

@@ -1,0 +1,6 @@
+@@ -1,4 +1,4 @@
+-package settlementcomponent.Factories;
++package settlementcomponent.factories;
+ 
+ import settlementcomponent.dal.context.SettlementContextSql;
+ import settlementcomponent.dal.context.SettlementContextTestDB;

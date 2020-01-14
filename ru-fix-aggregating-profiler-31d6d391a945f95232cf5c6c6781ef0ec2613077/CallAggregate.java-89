@@ -1,0 +1,9 @@
+@@ -89,7 +89,7 @@ public void start(AggregatingCall profiledCall, long currentTimestamp) {
+         startMaxThroughputPerSecondAcc.call(currentTimestamp, 1);
+ 
+         activeCallsCountSumAdder.increment();
+-        if (numberOfActiveCallsToTrackAndKeepBetweenReports.get() > 0) {
++        if (numberOfLongestActiveCallsToTrack.get() > activeCalls.size()) {
+             activeCalls.add(profiledCall);
+         }
+ 

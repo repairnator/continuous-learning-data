@@ -1,0 +1,9 @@
+@@ -45,7 +45,7 @@ public void storeOIDCSessionState(String sessionId, OIDCSessionState sessionStat
+     }
+ 
+     /**
+-     * Retrieves session state for the given session id
++     * Retrieves session state for the given session id.
+      *
+      * @param sessionId session id value
+      * @return OIDCSessionState instance

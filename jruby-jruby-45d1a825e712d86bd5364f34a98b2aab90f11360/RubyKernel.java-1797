@@ -1,0 +1,9 @@
+@@ -1797,7 +1797,7 @@ private static IRubyObject execCommon(ThreadContext context, IRubyObject env, IR
+         if (env != null && env != context.nil) {
+             RubyHash envMap = env.convertToHash();
+             if (envMap != null) {
+-                runtime.getENV().merge_bang(context, envMap, Block.NULL_BLOCK);
++                runtime.getENV().merge_bang(context, new IRubyObject[]{envMap}, Block.NULL_BLOCK);
+             }
+         }
+ 

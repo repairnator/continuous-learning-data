@@ -1,0 +1,9 @@
+@@ -1962,7 +1962,7 @@ protected boolean cleanFolder(File parentFolder, FileFilter filter) {
+ 			if (getLogger().isDebugEnabled()) {
+ 				getLogger().debug(Messages.SarlBatchCompiler_9, parentFolder.toString());
+ 			}
+-			return BugXtext1251Files.cleanFolder(parentFolder, null, true, true);
++			return Files.cleanFolder(parentFolder, null, true, true);
+ 		} catch (FileNotFoundException e) {
+ 			return true;
+ 		}

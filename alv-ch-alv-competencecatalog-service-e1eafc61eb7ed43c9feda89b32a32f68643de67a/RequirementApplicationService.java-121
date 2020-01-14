@@ -1,0 +1,9 @@
+@@ -121,7 +121,7 @@ public void technicalCreateOrUpdate(final RequirementDto requirementDto) {
+     }
+ 
+     // FIXME Only for technical user
+-    public void technicalDelete(final RequirementDto requirementDto) {
++    public void technicalDelete(RequirementDto requirementDto) {
+         requirementRepository.findById(requirementDto.getId())
+                 .ifPresent(requirement -> {
+                     requirementRepository.delete(requirement);

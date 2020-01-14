@@ -1,0 +1,9 @@
+@@ -4161,7 +4161,7 @@ public boolean accept(Element e, TypeMirror t) {
+                     ElementUtilities.ElementAcceptor acceptor = new ElementUtilities.ElementAcceptor() {
+                         @Override
+                         public boolean accept(Element e, TypeMirror t) {
+-                            switch (e.getKind()) {
++                            switch (simplifyElementKind(e.getKind())) {
+                                 case LOCAL_VARIABLE:
+                                 case RESOURCE_VARIABLE:
+                                 case EXCEPTION_PARAMETER:

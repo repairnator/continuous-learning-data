@@ -1,0 +1,9 @@
+@@ -99,7 +99,7 @@
+       kryo.setRegistrationRequired(false);
+     }
+ 
+-    byte[] serialize(Object obj) throws IOException {
++    byte[] serialize(Object obj) {
+       kryo.reset();
+       baos.reset();
+       Output output = new Output(baos);

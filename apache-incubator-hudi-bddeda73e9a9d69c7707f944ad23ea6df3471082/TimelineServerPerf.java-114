@@ -1,0 +1,9 @@
+@@ -114,7 +114,7 @@ public void run() throws IOException {
+     d2.close();
+ 
+     System.out.println("\n\n\nDumping all File Slices");
+-    selected.stream().forEach(p -> fsView.getAllFileSlices(p).forEach(s -> System.out.println("\tMyFileSlice=" + s)));
++    selected.forEach(p -> fsView.getAllFileSlices(p).forEach(s -> System.out.println("\tMyFileSlice=" + s)));
+ 
+     // Waiting for curl queries
+     if (!useExternalTimelineServer && cfg.waitForManualQueries) {

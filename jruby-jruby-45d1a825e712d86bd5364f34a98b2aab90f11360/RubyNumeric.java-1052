@@ -1,0 +1,9 @@
+@@ -1052,7 +1052,7 @@ private IRubyObject stepCommon(ThreadContext context, IRubyObject to, IRubyObjec
+                     desc,
+                     block);
+         } else if (this instanceof RubyFloat || to instanceof RubyFloat || step instanceof RubyFloat) {
+-            floatStep(context, runtime, this, to, step, false, block);
++            floatStep(context, runtime, this, to, step, false, false, block);
+         } else {
+             duckStep(context, this, to, step, inf, desc, block);
+         }

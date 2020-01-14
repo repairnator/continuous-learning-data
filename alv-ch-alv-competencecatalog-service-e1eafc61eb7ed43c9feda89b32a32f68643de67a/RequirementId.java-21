@@ -1,0 +1,9 @@
+@@ -21,7 +21,7 @@ protected RequirementId() {
+         this(IdGenerator.timeBasedUUID().toString());
+     }
+ 
+-    public RequirementId(final String value) {
++    public RequirementId(String value) {
+         this.value = Condition.notBlank(value);
+     }
+ 

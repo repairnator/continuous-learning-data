@@ -1,0 +1,9 @@
+@@ -134,7 +134,7 @@ public RemoteHoodieTableFileSystemView(String server, int port, HoodieTableMetaC
+ 
+   private <T> T executeRequest(String requestPath, Map<String, String> queryParameters, TypeReference reference,
+       RequestMethod method) throws IOException {
+-    Preconditions.checkArgument(!closed, "View already closed");
++    ValidationUtils.checkArgument(!closed, "View already closed");
+ 
+     URIBuilder builder =
+         new URIBuilder().setHost(serverHost).setPort(serverPort).setPath(requestPath).setScheme("http");

@@ -1,0 +1,9 @@
+@@ -193,7 +193,7 @@ public void testSizeEstimatorPerformance() throws IOException, URISyntaxExceptio
+     // Test sizeEstimatorPerformance with simpleSchema
+     Schema schema = SchemaTestUtil.getSimpleSchema();
+     List<HoodieRecord> hoodieRecords = SchemaTestUtil.generateHoodieTestRecords(0, 1, schema);
+-    HoodieRecordSizeEstimator sizeEstimator = new HoodieRecordSizeEstimator(schema);
++    HoodieRecordSizeEstimator sizeEstimator = new HoodieRecordSizeEstimator<>(schema);
+     HoodieRecord record = hoodieRecords.remove(0);
+     long startTime = System.currentTimeMillis();
+     SpillableMapUtils.computePayloadSize(record, sizeEstimator);

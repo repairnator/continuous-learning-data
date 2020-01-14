@@ -1,0 +1,9 @@
+@@ -104,7 +104,7 @@ public void onEvent(final Event gerritEvent) {
+      * @return EiffelPluginConfiguration
+      */
+     public EiffelPluginConfiguration createPluginConfig(final Event gerritEvent) {
+-        ChangeEvent changeEvent = (ChangeEvent) gerritEvent;
++        final ChangeEvent changeEvent = (ChangeEvent) gerritEvent;
+         final Project.NameKey projectNameKey = changeEvent.getProjectNameKey();
+         final EiffelPluginConfiguration pluginConfig = new EiffelPluginConfiguration(pluginName,
+                 projectNameKey, pluginConfigFactory);

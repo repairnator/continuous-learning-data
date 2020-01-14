@@ -1,0 +1,9 @@
+@@ -239,7 +239,7 @@ public void testStatusUnpublishApproved() {
+         domainEventMockUtils.assertMultipleDomainEventPublished(RequirementUpdatedEvent.class, RequirementUnpublishedEvent.class);
+     }
+ 
+-    private Requirement initializeWithStatus(final boolean draft, final boolean published) {
++    private Requirement initializeWithStatus(boolean draft, boolean published) {
+         return RequirementFixture.requirement(
+                 RequirementIdFixture.VRS_1,
+                 TranslatedStringFixture.TS_1,

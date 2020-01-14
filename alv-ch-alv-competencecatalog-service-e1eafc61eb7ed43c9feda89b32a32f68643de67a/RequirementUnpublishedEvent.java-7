@@ -1,0 +1,9 @@
+@@ -7,7 +7,7 @@
+ 
+     private final Requirement requirement;
+ 
+-    public RequirementUnpublishedEvent(final Requirement requirement) {
++    public RequirementUnpublishedEvent(Requirement requirement) {
+         super(new DomainEventType("RequirementUnpublishedEvent"), requirement);
+         this.requirement = requirement;
+     }

@@ -1,0 +1,9 @@
+@@ -88,7 +88,7 @@ public Configurator iterations(final int iterations) {
+ 
+     }
+ 
+-    interface SparseDelegate {
++    public interface SparseDelegate {
+ 
+         double resolve(List<Equation> equations, final PhysicalStore<Double> solution);
+ 

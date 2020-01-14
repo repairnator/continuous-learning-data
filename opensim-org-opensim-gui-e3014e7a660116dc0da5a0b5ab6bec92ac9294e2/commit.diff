@@ -1,0 +1,57 @@
+diff --git a/Gui/opensim/view/src/org/opensim/view/Installer.java b/Gui/opensim/view/src/org/opensim/view/Installer.java
+index a5d21131..e1c83a95 100644
+--- a/Gui/opensim/view/src/org/opensim/view/Installer.java
++++ b/Gui/opensim/view/src/org/opensim/view/Installer.java
+@@ -37,6 +37,7 @@
+ import org.openide.modules.ModuleInstall;
+ import org.openide.util.Exceptions;
+ import org.openide.windows.WindowManager;
++import org.opensim.logger.OpenSimLogger;
+ import org.opensim.utils.ApplicationState;
+ import org.opensim.utils.ErrorDialog;
+ import org.opensim.utils.TheApp;
+@@ -91,14 +92,14 @@ public void restored() {
+         } catch (UnsupportedLookAndFeelException ex) {
+             ex.printStackTrace();
+         }
+-        // Force creation of Model-database OpenSimDB 
+-        // and a View-database ViewDB
+-        // and register View as Observer of Model
+-        OpenSimDB.getInstance().addObserver(ViewDB.getInstance());
+         /**
+          * @todo open explorer window, Restore default directory and Bones directories, ..
+          */
+         restorePrefs();
++        // Force creation of Model-database OpenSimDB 
++        // and a View-database ViewDB
++        // and register View as Observer of Model
++        OpenSimDB.getInstance().addObserver(ViewDB.getInstance());
+         
+         String saved = TheApp.getCurrentVersionPreferences().get("Application: Restore Models on Startup", "Off");
+         if (saved.equalsIgnoreCase("on")){ 
+@@ -168,10 +169,11 @@ public void run() {
+          
+          String defaultGeometryPath = TheApp.getDefaultGeometrySearchPath();
+          String saved=TheApp.getCurrentVersionPreferences().get("Paths: Geometry Search Path", defaultGeometryPath);
++         OpenSimLogger.logMessage("\nGeometrySeach path set to "+saved, OpenSimLogger.INFO);
+          if (saved.isEmpty()||saved.equalsIgnoreCase("")){
+              saved = defaultGeometryPath;
+-             TheApp.getCurrentVersionPreferences().put("Paths: Geometry Search Path", saved);
+          }
++         TheApp.getCurrentVersionPreferences().put("Paths: Geometry Search Path", saved);
+          // If saved is not blank we assume user knows what s/he's doing and leave it alone. Fixes issue #1115
+          // Push changes to API side
+          GeometryFileLocator.updateGeometrySearchPathsFromPreferences();
+diff --git a/Gui/opensim/view/src/org/opensim/view/pub/GeometryFileLocator.java b/Gui/opensim/view/src/org/opensim/view/pub/GeometryFileLocator.java
+index 946dbffc..5f62703c 100644
+--- a/Gui/opensim/view/src/org/opensim/view/pub/GeometryFileLocator.java
++++ b/Gui/opensim/view/src/org/opensim/view/pub/GeometryFileLocator.java
+@@ -62,7 +62,7 @@ public static GeometryFileLocator getInstance(){
+    }
+ 
+     public static void updateGeometrySearchPathsFromPreferences() {
+-        String userGeometryPath=TheApp.getCurrentVersionPreferences().get("Paths: Geometry Search Path", ".");
++        String userGeometryPath=TheApp.getCurrentVersionPreferences().get("Paths: Geometry Search Path", "");
+         String dirs[] = userGeometryPath.split(File.pathSeparator);
+         for (int i=0; i< dirs.length; i++)
+             ModelVisualizer.addDirToGeometrySearchPaths(dirs[i]);

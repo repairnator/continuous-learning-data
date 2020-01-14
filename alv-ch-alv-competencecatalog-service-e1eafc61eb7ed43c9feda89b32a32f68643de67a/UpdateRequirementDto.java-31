@@ -1,0 +1,9 @@
+@@ -31,7 +31,7 @@ public boolean isPublished() {
+         return published;
+     }
+ 
+-    public UpdateRequirementDto setPublished(final boolean published) {
++    public UpdateRequirementDto setPublished(boolean published) {
+         this.published = published;
+         return this;
+     }

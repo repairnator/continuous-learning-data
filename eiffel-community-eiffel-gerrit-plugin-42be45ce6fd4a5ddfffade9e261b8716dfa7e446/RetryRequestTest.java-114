@@ -1,0 +1,9 @@
+@@ -114,7 +114,7 @@ public void testPrepareAndSendEiffelEvent() throws Exception {
+         assertEquals(errorMessage, expectedValue, actualValue);
+ 
+         boolean finished = false;
+-        long stopTime = System.currentTimeMillis() + 30000;
++        final long stopTime = System.currentTimeMillis() + 30000;
+         while (!finished && stopTime > System.currentTimeMillis()) {
+             if (executor.getActiveCount() > 0) {
+                 Thread.sleep(1000);

@@ -1,0 +1,9 @@
+@@ -5,7 +5,7 @@
+ 
+ public class RequirementCreatedEvent extends RequirementEvent {
+ 
+-    public RequirementCreatedEvent(final Requirement requirement) {
++    public RequirementCreatedEvent(Requirement requirement) {
+         super(new DomainEventType("RequiremendCreatedEvent"), requirement);
+     }
+ }

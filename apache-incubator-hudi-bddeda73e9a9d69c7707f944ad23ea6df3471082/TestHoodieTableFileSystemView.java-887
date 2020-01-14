@@ -1,0 +1,9 @@
+@@ -887,7 +887,7 @@ protected void testStreamLatestVersionsBefore(boolean isLatestFileSliceOnly) thr
+         roView.getLatestDataFilesBeforeOrOn(partitionPath, commitTime2).collect(Collectors.toList());
+     if (!isLatestFileSliceOnly) {
+       assertEquals(2, dataFiles.size());
+-      Set<String> filenames = Sets.newHashSet();
++      Set<String> filenames = new HashSet<>();
+       for (HoodieDataFile status : dataFiles) {
+         filenames.add(status.getFileName());
+       }

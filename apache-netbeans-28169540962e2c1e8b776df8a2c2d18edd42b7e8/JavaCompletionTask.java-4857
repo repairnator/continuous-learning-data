@@ -1,0 +1,9 @@
+@@ -4857,7 +4857,7 @@ public boolean accept(Element e, TypeMirror t) {
+                 if (!e.getSimpleName().contentEquals(simpleName)) {
+                     return false;
+                 }
+-                switch (e.getKind()) {
++                switch (simplifyElementKind(e.getKind())) {
+                     case LOCAL_VARIABLE:
+                     case RESOURCE_VARIABLE:
+                         if (isStatic && (e.getSimpleName().contentEquals(THIS_KEYWORD) || e.getSimpleName().contentEquals(SUPER_KEYWORD))) {

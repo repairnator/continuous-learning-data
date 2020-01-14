@@ -1,0 +1,201 @@
+diff --git a/guess-game-server/src/main/java/guess/domain/source/Talk.java b/guess-game-server/src/main/java/guess/domain/source/Talk.java
+index 0a30a78..4b733ac 100644
+--- a/guess-game-server/src/main/java/guess/domain/source/Talk.java
++++ b/guess-game-server/src/main/java/guess/domain/source/Talk.java
+@@ -9,6 +9,9 @@
+ public class Talk {
+     private long id;
+     private List<LocaleItem> name;
++    private List<LocaleItem> shortDescription;
++    private List<LocaleItem> longDescription;
++    private String videoLink;
+ 
+     private List<Long> speakerIds;
+     private List<Speaker> speakers = new ArrayList<>();
+@@ -16,9 +19,13 @@
+     public Talk() {
+     }
+ 
+-    public Talk(long id, List<LocaleItem> name, List<Speaker> speakers) {
++    public Talk(long id, List<LocaleItem> name, List<LocaleItem> shortDescription, List<LocaleItem> longDescription,
++                String videoLink, List<Speaker> speakers) {
+         this.id = id;
+         this.name = name;
++        this.shortDescription = shortDescription;
++        this.longDescription = longDescription;
++        this.videoLink = videoLink;
+         this.speakers = speakers;
+     }
+ 
+@@ -38,6 +45,30 @@ public void setName(List<LocaleItem> name) {
+         this.name = name;
+     }
+ 
++    public List<LocaleItem> getShortDescription() {
++        return shortDescription;
++    }
++
++    public void setShortDescription(List<LocaleItem> shortDescription) {
++        this.shortDescription = shortDescription;
++    }
++
++    public List<LocaleItem> getLongDescription() {
++        return longDescription;
++    }
++
++    public void setLongDescription(List<LocaleItem> longDescription) {
++        this.longDescription = longDescription;
++    }
++
++    public String getVideoLink() {
++        return videoLink;
++    }
++
++    public void setVideoLink(String videoLink) {
++        this.videoLink = videoLink;
++    }
++
+     public List<Long> getSpeakerIds() {
+         return speakerIds;
+     }
+@@ -59,6 +90,9 @@ public String toString() {
+         return "Talk{" +
+                 "id=" + id +
+                 ", name=" + name +
++                ", shortDescription=" + shortDescription +
++                ", longDescription=" + longDescription +
++                ", videoLink=" + videoLink +
+                 ", speakers=" + speakers +
+                 '}';
+     }
+diff --git a/guess-game-server/src/main/java/guess/domain/source/contentful/talk/ContentfulTalkFields.java b/guess-game-server/src/main/java/guess/domain/source/contentful/talk/ContentfulTalkFields.java
+index 6a6f7bc..4e1d5c1 100644
+--- a/guess-game-server/src/main/java/guess/domain/source/contentful/talk/ContentfulTalkFields.java
++++ b/guess-game-server/src/main/java/guess/domain/source/contentful/talk/ContentfulTalkFields.java
+@@ -1,8 +1,21 @@
+ package guess.domain.source.contentful.talk;
+ 
++import com.fasterxml.jackson.annotation.JsonProperty;
++
+ public class ContentfulTalkFields {
+     private String name;
+     private String nameEn;
++
++    @JsonProperty("short")
++    private String shortRu;
++    private String shortEn;
++
++    @JsonProperty("long")
++    private String longRu;
++    private String longEn;
++
++    private String video;
++
+     private Boolean sdTrack;
+     private Boolean demoStage;
+ 
+@@ -22,6 +35,46 @@ public void setNameEn(String nameEn) {
+         this.nameEn = nameEn;
+     }
+ 
++    public String getShortRu() {
++        return shortRu;
++    }
++
++    public void setShortRu(String shortRu) {
++        this.shortRu = shortRu;
++    }
++
++    public String getShortEn() {
++        return shortEn;
++    }
++
++    public void setShortEn(String shortEn) {
++        this.shortEn = shortEn;
++    }
++
++    public String getLongRu() {
++        return longRu;
++    }
++
++    public void setLongRu(String longRu) {
++        this.longRu = longRu;
++    }
++
++    public String getLongEn() {
++        return longEn;
++    }
++
++    public void setLongEn(String longEn) {
++        this.longEn = longEn;
++    }
++
++    public String getVideo() {
++        return video;
++    }
++
++    public void setVideo(String video) {
++        this.video = video;
++    }
++
+     public Boolean getSdTrack() {
+         return sdTrack;
+     }
+diff --git a/guess-game-server/src/main/java/guess/util/ConferenceDataLoader.java b/guess-game-server/src/main/java/guess/util/ConferenceDataLoader.java
+index 48ebc7b..f08d6a4 100644
+--- a/guess-game-server/src/main/java/guess/util/ConferenceDataLoader.java
++++ b/guess-game-server/src/main/java/guess/util/ConferenceDataLoader.java
+@@ -27,15 +27,14 @@ private static void load(Conference conference, LocalDate startDate, String conf
+         Optional<EventType> eventTypeOptional = sourceInformation.getEventTypes().stream()
+                 .filter(et -> et.getConference().equals(conference))
+                 .findFirst();
+-        Event event = eventTypeOptional.flatMap(
++        Optional<Event> eventOptional = eventTypeOptional.flatMap(
+                 et -> et.getEvents().stream()
+                         .filter(e -> e.getStartDate().equals(startDate))
+-                        .findFirst()
+-        ).orElse(null);
++                        .findFirst());
+ 
+         // Read talks from Contentful
+         List<Talk> talks = ContentfulUtils.getTalks(conference, conferenceCode);
+-        log.info("Talks: {}, {}", talks.size(), talks);
++        log.info("Talks: {}", talks.size());
+         talks.forEach(
+                 t -> log.info("Talk: nameEn: {}, name: {}",
+                         LocalizationUtils.getString(t.getName(), Language.ENGLISH),
+diff --git a/guess-game-server/src/main/java/guess/util/ContentfulUtils.java b/guess-game-server/src/main/java/guess/util/ContentfulUtils.java
+index 808c68a..5f3cccb 100644
+--- a/guess-game-server/src/main/java/guess/util/ContentfulUtils.java
++++ b/guess-game-server/src/main/java/guess/util/ContentfulUtils.java
+@@ -238,7 +238,7 @@
+                 .fromUriString(BASE_URL)
+                 .queryParam("access_token", accessToken)
+                 .queryParam("content_type", "talks")
+-                .queryParam("select", "fields.name,fields.nameEn,fields.sdTrack,fields.demoStage")
++                .queryParam("select", "fields.name,fields.nameEn,fields.short,fields.shortEn,fields.long,fields.longEn,fields.video,fields.sdTrack,fields.demoStage")
+                 .queryParam("order", "fields.talkDay,fields.trackTime,fields.track")
+                 .queryParam("limit", 1000);
+ 
+@@ -265,6 +265,21 @@
+                                 new LocaleItem(
+                                         Language.RUSSIAN.getCode(),
+                                         t.getFields().getName())),
++                        Arrays.asList(
++                                new LocaleItem(
++                                        Language.ENGLISH.getCode(),
++                                        t.getFields().getShortEn()),
++                                new LocaleItem(
++                                        Language.RUSSIAN.getCode(),
++                                        t.getFields().getShortRu())),
++                        Arrays.asList(
++                                new LocaleItem(
++                                        Language.ENGLISH.getCode(),
++                                        t.getFields().getLongEn()),
++                                new LocaleItem(
++                                        Language.RUSSIAN.getCode(),
++                                        t.getFields().getLongRu())),
++                        t.getFields().getVideo(),
+                         new ArrayList<>()))
+                 .collect(Collectors.toList());
+     }

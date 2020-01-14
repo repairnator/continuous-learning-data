@@ -1,0 +1,9 @@
+@@ -148,7 +148,7 @@ public String getBasePath() {
+     /**
+      * Set base path
+      *
+-     * @param basePath Base path of the URL (e.g http://localhost/api
++     * @param basePath Base path of the URL (e.g http://localhost
+      * @return An instance of OkHttpClient
+      */
+     public ApiClient setBasePath(String basePath) {

@@ -1,0 +1,9 @@
+@@ -24,7 +24,7 @@
+ 
+ @WebAppConfiguration
+ @ContextConfiguration(classes = {UserAccountControllerTestConfig.class, GsonConfig.class})
+-class UserAccountControllerMockMvcTest extends AbstractMockitoSpringContextTests {
++class UserAccountControllerMockMvcTest extends AbstractMolgenisSpringTest {
+   @Autowired private UserAccountControllerTestConfig config;
+   @Autowired private UserAccountController userAccountController;
+   @Autowired private GsonHttpMessageConverter gsonHttpMessageConverter;

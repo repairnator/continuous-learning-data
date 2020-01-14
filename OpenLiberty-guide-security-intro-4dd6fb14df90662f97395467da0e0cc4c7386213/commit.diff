@@ -1,0 +1,1177 @@
+diff --git a/.travis.yml b/.travis.yml
+index c157da3..9e5e251 100644
+--- a/.travis.yml
++++ b/.travis.yml
+@@ -2,19 +2,21 @@ language: java
+ before_script:
+ - unset _JAVA_OPTIONS
+ - cd finish
++- chmod +x ../scripts/travisTest.sh
+ script:
+-- mvn -q clean install
+-- build=$(grep "Open Liberty" target/liberty/wlp/usr/servers/defaultServer/logs/console.log
++- ../scripts/travisTest.sh
++- serverName=$(target/liberty/wlp/bin/server list | cut -d '.' -f2| tr -d '\n');
++- build=$(grep "Open Liberty" target/liberty/wlp/usr/servers/"$serverName"/logs/console.log
+   | cut -d' ' -f5 | cut -d')' -f1 ); release=$( echo "$build" | cut -d'/' -f1); number=$(
+-  echo "$build" | cut -d'/' -f2); ol_jv=$(grep -i "on java" target/liberty/wlp/usr/servers/defaultServer/logs/console.log);
++  echo "$build" | cut -d'/' -f2); ol_jv=$(grep -i "version" target/liberty/wlp/usr/servers/"$serverName"/logs/console.log);
+   jv=$(printf '%s\n' "${ol_jv//$' on '/$'\n'}" | sed '2q;d'); echo -e "\n"; echo -e  "\033[1;34mOpen
+   Liberty release:\033[0m \033[1;36m$release\033[0m"; echo -e "\033[1;34mOpen Liberty
+   build number:\033[0m \033[1;36m$number\033[0m"; echo -e "\033[1;34mJava version:\033[0m
+   \033[1;36m$jv\033[0m";
+-- cd target/liberty/wlp/usr/servers/defaultServer/logs/; repo_name=$(echo "$TRAVIS_REPO_SLUG"
++- cd target/liberty/wlp/usr/servers/"$serverName"/logs/; repo_name=$(echo "$TRAVIS_REPO_SLUG"
+   | sed -e "s/\//-/g"); if [ "$TRAVIS_TEST_RESULT" -eq 0 ]; then result="passed";
+   else result="failed"; fi; serverlogsarchive="$repo_name-$TRAVIS_BUILD_NUMBER-$result.zip";zip
+-  -r "$serverlogsarchive" .; curl /dev/null -s -I -H "$JFROG_TOKEN" -T "$serverlogsarchive"
++  -r "$serverlogsarchive" .; curl -H "$JFROG_TOKEN" -T "$serverlogsarchive" 
+   "https://na.artifactory.swg-devops.com/artifactory/hyc-openliberty-guides-files-generic-local/";
+ notifications:
+   slack:
+diff --git a/README.adoc b/README.adoc
+index a38d87f..5ea9932 100644
+--- a/README.adoc
++++ b/README.adoc
+@@ -11,14 +11,14 @@
+ :page-duration: 15 minutes
+ :page-releasedate: 2018-10-19
+ :page-description: Learn how to secure a web application through authentication and authorization.
+-:page-tags: ['Java EE', 'Jakarta EE', 'Security']
++:page-tags: ['Jakarta EE', 'Security']
+ :page-related-guides: ['microprofile-jwt', 'cdi-intro']
+ :page-guide-category: none
+ :page-permalink: /guides/{projectid}
+ :common-includes: https://raw.githubusercontent.com/OpenLiberty/guides-common/master
+ :source-highlighter: prettify
+ :page-seo-title: Securing a web application
+-:page-seo-description: Learn how to secure a web application through authentication and authorization using Java EE 8 Security API.
++:page-seo-description: Learn how to use the Jakarta EE 8 Security API to secure a web application through authentication and authorization.
+ :guide-author: Open Liberty
+ = Securing a web application
+ 
+@@ -33,11 +33,16 @@ Learn how to secure a web application through authentication and authorization.
+ 
+ == What you'll learn
+ 
+-You'll learn how to secure a web application by performing authentication and authorization using Java EE Security. Authentication confirms the identity of the user by verifying a user's credentials while authorization determines whether a user has access to restricted resources.
++You'll learn how to secure a web application by performing authentication and authorization using Jakarta EE Security. 
++Authentication confirms the identity of the user by verifying a user's credentials while authorization
++determines whether a user has access to restricted resources.
+ 
+-Java EE Security provides capability to configure the basic authentication, form authentication or custom form authentication mechanism by using annotations in servlets. It also provides SecurityContext API for programmatic security checks in application code.
++Jakarta EE Security provides capability to configure the basic authentication, form authentication, or custom 
++form authentication mechanism by using annotations in servlets. It also provides the SecurityContext API for
++programmatic security checks in application code.
+ 
+-You’ll implement form authentication for a simple web frontend. You'll also learn to specify security constraints for a servlet and use the SecurityContext API to determine the role of a logged in user.
++You’ll implement form authentication for a simple web front end. You'll also learn to specify security
++constraints for a servlet and use the SecurityContext API to determine the role of a logged-in user.
+ 
+ // =================================================================================================
+ // Getting Started
+@@ -47,19 +52,21 @@ include::{common-includes}/gitclone.adoc[]
+ 
+ === Try what you'll build
+ 
+-The `finish` directory in the root of this guide contains the finished application secured with form authentication. Feel free to give it a try before you proceed.
++The `finish` directory in the root of this guide contains the finished application that is secured with form authentication. 
++Give it a try before you proceed.
+ 
+-To try out the application, first navigate to the `finish` directory and then run the following Maven goals to build the application and run it inside Open Liberty:
+ [role='command']
+-```
+-mvn install liberty:start-server
+-```
++include::{common-includes}/twyb-intro.adoc[tag=runCommand]
+ 
+ Navigate your browser to this URL to access the application: http://localhost:9080[http://localhost:9080^]
+ 
+-The application automatically switches from an HTTP connection to a secure HTTPS connection and forwards you to a login page. If the browser gives you a certificate warning, it's because the Liberty server created a self-signed SSL certificate by default. You may follow your browser's provided instructions to accept the certificate and continue.
++The application automatically switches from an HTTP connection to a secure HTTPS connection 
++and forwards you to a login page. If the browser gives you a certificate warning, it's because the 
++Open Liberty server created a self-signed SSL certificate by default. You can follow your browser's 
++provided instructions to accept the certificate and continue.
+ 
+-Sign into the application with one of the following user credentials from the user registry, which have been provided to you:
++Sign in to the application with one of the following user credentials from the user registry, 
++which are provided to you:
+ 
+ |===
+ |Username|Password|Role|Group
+@@ -85,15 +92,13 @@ Sign into the application with one of the following user credentials from the us
+ |PartTime
+ |===
+ 
+-Notice that when you sign in as Bob or Carl, the browser redirects to the `admin` page and you can view their names and roles.
++Notice that when you sign in as Bob or Carl, the browser redirects to the `admin` page and you can view their names and roles. 
+ When you sign in as Alice, you can only view Alice's name.
+-When you sign in as Dave, you'll be blocked and will see a `Error 403: Authorization failed` message because Dave doesn't have a role supported by the application.
++When you sign in as Dave, you are blocked and see an `Error 403: Authorization failed` message 
++because Dave doesn't have a role that is supported by the application.
+ 
+-Once you're done checking out the application, log out and stop the Open Liberty server:
+ [role='command']
+-```
+-mvn liberty:stop-server
+-```
++include::{common-includes}/twyb-end.adoc[]
+ 
+ // =================================================================================================
+ // Adding authentication and authorization
+@@ -101,9 +106,16 @@ mvn liberty:stop-server
+ 
+ == Adding authentication and authorization
+ 
+-For this application, users will be asked to login with a form when they access the application. Users are authenticated and depending on their roles, they will be redirected to the pages that they are authorized to access. If authentication or authorization failed, users will be sent to an error page. The application supports two roles, `admin` and `user`.
++For this application, users are asked to log in with a form when they access the application. 
++Users are authenticated and depending on their roles, they are redirected to the pages that they 
++are authorized to access. If authentication or authorization fails, users are sent to an error page. 
++The application supports two roles, `admin` and `user`.
+ 
+ Navigate to the `start` directory to begin.
++
++[role='command']
++include::{common-includes}/devmode-start.adoc[]
++
+ [role="code_command hotspot", subs="quotes"]
+ ----
+ #Create the `HomeServlet` class.#
+@@ -111,22 +123,43 @@ Navigate to the `start` directory to begin.
+ ----
+ 
+ HomeServlet.java
+-[source, java, linenums, role='code_column hide_tags=homeservlet,copyright']
++[source, java, linenums, role='code_column hide_tags=copyright,javaDoc1,javaDoc2']
+ ----
+ include::finish/src/main/java/io/openliberty/guides/ui/HomeServlet.java[]
+ ----
+ 
+-The [hotspot=HomeServlet file=0]`HomeServlet` servlet is the entry point of the application. To enable form authentication for the [hotspot=HomeServlet  file=0]`HomeServlet` class, define the [hotspot=AuthenticationMechanism file=0]`@FormAuthenticationMechanismDefinition` annotation and set its [hotspot=loginToContinue file=0]`loginToContinue` attribute with a [hotspot=loginToContinue file=0]`@LoginToContinue` annotation defining [hotspot=loginPage file=0]`welcome.html` as the login page and [hotspot=errorPage file=0]`error.html` as the error page.
+-
+-The [hotspot=loginPage file=0]`welcome.html` and [hotspot=errorPage file=0]`error.html` pages that implement the login form and error page respectively are provided for you under the `src/main/webapp` directory. The login form in the [hotspot=loginPage file=0]`welcome.html` page uses the `j_security_check` action, which is defined by Java EE and available by default.
+-
+-Authorization determines whether a user can access a resource. To restrict access to authenticated users with `user` and `admin` roles only, define the [hotspot=ServletSecurity file=0]`@ServletSecurity` annotation with the [hotspot=HttpConstraint file=0]`@HttpConstraint` annotation and set the [hotspot=HttpConstraint file=0]`rolesAllowed` attribute to these two roles.
+-
+-The [hotspot=TransportGuarantee file=0]`transportGuarantee` attribute defines the constraint on the traffic between the client and the application. Set it to [hotspot=TransportGuarantee file=0]`CONFIDENTIAL` to enforce that all user data must be encrypted, which is why an HTTP connection from a browser will be switched to an HTTPS one.
+-
+-The SecurityContext interface provides programmatic access to Java EE Security API. Inject a SecurityContext instance into the [hotspot=HomeServlet file=0]`HomeServlet` class. The [hotspot=doGet file=0]`doGet()` method uses the [hotspot=CallerInRole file=0]`isCallerInRole()` method from SecurityContext API to check a user's role and then forwards the response to the appropriate page.
+-
+-The [hotspot=webxmlsecurity file=1]`src/main/webapp/WEB-INF/web.xml` file contains the rest of the security declaration for the application.
++The [hotspot=HomeServlet file=0]`HomeServlet` servlet is the entry point of the application. 
++To enable form authentication for the [hotspot=HomeServlet file=0]`HomeServlet` class, 
++define the [hotspot=AuthenticationMechanism file=0]`@FormAuthenticationMechanismDefinition` annotation 
++and set its [hotspot=loginToContinue file=0]`loginToContinue` attribute with a 
++[hotspot=loginToContinue file=0]`@LoginToContinue` annotation. 
++This [hotspot=AuthenticationMechanism file=0]`@FormAuthenticationMechanismDefinition` annotation 
++defines [hotspot=loginPage file=0]`welcome.html` 
++as the login page and [hotspot=errorPage file=0]`error.html` as the error page.
++
++The [hotspot=loginPage file=0]`welcome.html` page implements the login form, and the [hotspot=errorPage file=0]`error.html` page
++implements the error page. Both pages are provided for you under the 
++`src/main/webapp` directory. The login form in the [hotspot=loginPage file=0]`welcome.html` page 
++uses the `j_security_check` action, which is defined by Jakarta EE and available by default.
++
++Authorization determines whether a user can access a resource. To restrict access to 
++authenticated users with `user` and `admin` roles, define the 
++[hotspot=ServletSecurity file=0]`@ServletSecurity` annotation with the 
++[hotspot=HttpConstraint file=0]`@HttpConstraint` annotation and set the 
++[hotspot=HttpConstraint file=0]`rolesAllowed` attribute to these two roles.
++
++The [hotspot=TransportGuarantee file=0]`transportGuarantee` attribute defines the constraint
++on the traffic between the client and the application. 
++Set it to [hotspot=TransportGuarantee file=0]`CONFIDENTIAL` to enforce that all user data must be encrypted, 
++which is why an HTTP connection from a browser switches to HTTPS.
++
++The SecurityContext interface provides programmatic access to the Jakarta EE Security API. 
++Inject a SecurityContext instance into the [hotspot=HomeServlet file=0]`HomeServlet` class. 
++The [hotspot=doGet file=0]`doGet()` method uses the [hotspot=CallerInRole file=0]`isCallerInRole()` method 
++from the SecurityContext API to check a user's role and then forwards the response to the appropriate page.
++
++The [hotspot=webxmlsecurity file=1]`src/main/webapp/WEB-INF/web.xml` file 
++contains the rest of the security declaration for the application.
+ 
+ web.xml
+ [source, xml, linenums, role='code_column hide_tags=copyright']
+@@ -134,7 +167,12 @@ web.xml
+ include::finish/src/main/webapp/WEB-INF/web.xml[]
+ ----
+ 
+-The [hotspot=security-role file=1]`<security-role/>` elements define the roles supported by the application, which are [hotspot=role-name-user file=1]`user` and [hotspot=role-name-admin file=1]`admin`. The [hotspot=security-constraint file=1]`<security-constraint/>` elements further specify that JSF resources like the [hotspot=url-pattern-user file=1]`user.jsf` and [hotspot=url-pattern-admin file=1]`admin.jsf` pages can only be accessed by users with [hotspot=role-name-user file=1]`user` and [hotspot=role-name-admin file=1]`admin` role respectively.
++The [hotspot=security-role file=1]`<security-role/>` elements define the roles that are supported by the application, 
++which are [hotspot=role-name-user file=1]`user` and [hotspot=role-name-admin file=1]`admin`. 
++The [hotspot=security-constraint file=1]`<security-constraint/>` elements specify that JSF resources 
++like the [hotspot=url-pattern-user file=1]`user.jsf` and [hotspot=url-pattern-admin file=1]`admin.jsf` pages 
++can be accessed only by users with [hotspot=role-name-user file=1]`user` and 
++[hotspot=role-name-admin file=1]`admin` roles.
+ 
+ // =================================================================================================
+ // Configuring the user registry
+@@ -142,13 +180,16 @@ The [hotspot=security-role file=1]`<security-role/>` elements define the roles s
+ 
+ == Configuring the user registry
+ 
+-User registries store user account information, such as username and password, for use by applications to perform security-related operations. Typically, application servers would be configured to use an external registry like a Lightweight Directory Access Protocol (LDAP) registry and applications would access information in the registry for authentication and authorization using API like Java EE Security API.
++User registries store user account information, such as username and password, for use by applications 
++to perform security-related operations. Typically, application servers would be configured to use an 
++external registry like a Lightweight Directory Access Protocol (LDAP) registry. Applications would 
++access information in the registry for authentication and authorization by using APIs like the Jakarta EE Security API.
+ 
+ Open Liberty provides an easy-to-use basic user registry for developers, which you will configure.
+ 
+ [role="code_command hotspot", subs="quotes"]
+ ----
+-#Create the `UserRegistry` configuration file.#
++#Create the `userRegistry` configuration file.#
+ `src/main/liberty/config/userRegistry.xml` 
+ ----
+ 
+@@ -158,11 +199,14 @@ userRegistry.xml
+ include::finish/src/main/liberty/config/userRegistry.xml[]
+ ----
+ 
+-The registry has four users, [hotspot=member-name-bob file=0]`bob`, [hotspot=member-name-alice file=0]`alice`, [hotspot=member-name-carl file=0]`carl` and [hotspot=member-name-dave file=0]`dave`, and four groups, [hotspot=group-name-Employee file=0]`Employee`, [hotspot=group-name-TeamLead file=0]`TeamLead`, [hotspot=group-name-Manager file=0]`Manager` and [hotspot=group-name-PartTime file=0]`PartTime`. Each user belongs to one or more groups.
+-
+-It is not recommended to store passwords in plain text. The passwords in the [hotspot file=0]`userRegistry.xml` file are encoded using the Liberty `securityUtility` command with XOR encoding.
++The registry has four users, [hotspot=user-bob file=0]`bob`, [hotspot=user-alice file=0]`alice`, 
++[hotspot=user-carl file=0]`carl`, and [hotspot=user-dave file=0]`dave`. It also has four groups: 
++[hotspot=group-name-Manager file=0]`Manager`, [hotspot=group-name-TeamLead file=0]`TeamLead`, 
++[hotspot=group-name-Employee file=0]`Employee`, and [hotspot=group-name-PartTime file=0]`PartTime`. 
++Each user belongs to one or more groups.
+ 
+-The [hotspot=application-bnd file=1]`server.xml` file contains the security configuration of the server.
++It is not recommended to store passwords in plain text. The passwords in the [hotspot file=0]`userRegistry.xml` file
++are encoded by using the Liberty `securityUtility` command with XOR encoding.
+ 
+ server.xml
+ [source, xml, linenums, role='code_column']
+@@ -170,20 +214,36 @@ server.xml
+ include::finish/src/main/liberty/config/server.xml[]
+ ----
+ 
+-Use the [hotspot=location file=1]`<include/>` element to add the basic user registry configuration to your server configuration. Open Liberty will include configuration information from the specified XML file in its server configuration.
++Use the [hotspot=location file=1]`<include/>` element to add the basic user registry configuration to your server configuration. 
++Open Liberty includes configuration information from the specified XML file in its server configuration.
+ 
+-Map the groups in the user registry to the appropriate user roles supported by the application for proper user authorization. The [hotspot=group-name-Manager file=1]`Manager` and [hotspot=group-name-TeamLead file=1]`TeamLead` groups are mapped to the [hotspot=security-role-admin file=1]`admin` role while the [hotspot=group-name-Employee file=1]`Employee` group is mapped to the [hotspot=security-role-user file=1]`user` role using the [hotspot=Security file=1]`<security-role/>` and [hotspot=Group file=1]`<group/>` elements under the [hotspot=application-bnd file=1]`<application-bnd/>` configuration.
++The [hotspot file=1]`server.xml` file contains the security configuration of the server 
++under the [hotspot=application-bnd file=1]`<application-bnd/>` element.
++Use the [hotspot=Security file=1]`<security-role/>` and [hotspot=Group hotspot=group-name-Employee file=1]`<group/>` elements to 
++map the groups in the [hotspot file=0]`userRegistry.xml` file to the appropriate user roles supported by the application for proper user authorization.
++The [hotspot=group-name-Manager file=1]`Manager` and [hotspot=group-name-TeamLead file=1]`TeamLead` groups are mapped to the 
++[hotspot=security-role-admin file=1]`admin` role while the [hotspot=group-name-Employee file=1]`Employee` group is mapped to the 
++[hotspot=security-role-user file=1]`user` role.
+ 
+ 
+ // =================================================================================================
+-// Building and running the application
++// Running the application
+ // =================================================================================================
+ [role="command"]
+-include::{common-includes}/mvnbuild.adoc[]
++include::{common-includes}/devmode-build.adoc[]
+ 
+-Point your browser to http://localhost:9080[http://localhost:9080^]. As you can see, the browser gets redirected from an HTTP connection to an HTTPS connection automatically, which is due to the transport guarantee defined in the `HomeServlet` class.
++HomeServlet.java
++[source, java, linenums, role='code_column hide_tags=copyright,javaDoc1,javaDoc2']
++----
++include::finish/src/main/java/io/openliberty/guides/ui/HomeServlet.java[]
++----
++
++Point your browser to the http://localhost:9080[http://localhost:9080^] URL. 
++As you can see, the browser gets automatically redirected from an HTTP connection to an HTTPS connection
++because the transport guarantee is defined in the [hotspot file=0]`HomeServlet` class.
+ 
+-You will see a login form since form authentication is implemented and configured. Sign into the application using one of the credentials from the following table, which is defined in the configured user registry.
++You will see a login form since form authentication is implemented and configured. 
++Sign in to the application by using one of the credentials from the following table. The credentials are defined in the configured user registry.
+ 
+ |===
+ |Username|Password|Role|Group
+@@ -211,13 +271,9 @@ You will see a login form since form authentication is implemented and configure
+ 
+ Notice that when you sign in as Bob or Carl, the browser redirects to the `admin` page and you can view their names and roles.
+ When you sign in as Alice, you can only view Alice's name.
+-When you sign in as Dave, you'll be blocked and will see a `Error 403: Authorization failed` message because Dave doesn't have a role supported by the application.
++When you sign in as Dave, you are blocked and see an `Error 403: Authorization failed` message 
++because Dave doesn't have a role that is supported by the application.
+ 
+-Once you're done checking out the application, log out and stop the Open Liberty server:
+-[role='command']
+-```
+-mvn liberty:stop-server
+-```
+ 
+ // =================================================================================================
+ // Testing the application
+@@ -225,34 +281,39 @@ mvn liberty:stop-server
+ 
+ == Testing the application
+ 
+-Write `SecurityTest` class to test the authentication and authorization of the application.
++Write the [hotspot file=0]`SecurityIT` class to test the authentication and authorization of the application.
+ 
+ [role="code_command hotspot", subs="quotes"]
+ ----
+-#Create the `SecurityTest` class.#
+-`src/test/java/it/io/openliberty/guides/security/SecurityTest.java`
++#Create the `SecurityIT` class.#
++`src/test/java/it/io/openliberty/guides/security/SecurityIT.java`
+ ----
+ 
+-SecurityTest.java
++SecurityIT.java
+ [source, java, linenums, role='code_column hide_tags=copyright']
+ ----
+-include::finish/src/test/java/it/io/openliberty/guides/security/SecurityTest.java[]
++include::finish/src/test/java/it/io/openliberty/guides/security/SecurityIT.java[]
+ ----
+ 
+-The [hotspot=testAuthenticationFail]`testAuthenticationFail()` method tests an invalid user authentication while the [hotspot=testAuthorizationFail]`testAuthorizationFail()` method tests unauthorized access to the application.
++The [hotspot=testAuthenticationFail]`testAuthenticationFail()` method tests an invalid user authentication 
++while the [hotspot=testAuthorizationFail]`testAuthorizationFail()` method tests unauthorized access to the application.
+ 
+-The [hotspot=testAuthorizationForAdmin]`testAuthorizationForAdmin()` and [hotspot=testAuthorizationForUser]`testAuthorizationForUser()` methods, respectively, verify that a user with `admin` role and a user with `user` role are properly authenticated and can access authorized resource.
++The [hotspot=testAuthorizationForAdmin]`testAuthorizationForAdmin()` and 
++[hotspot=testAuthorizationForUser]`testAuthorizationForUser()` methods verify that users with `admin` or `user` roles 
++are properly authenticated and can access authorized resource.
+ 
+-[role="command"]
+-include::{common-includes}/mvnverify.adoc[]
++[role='command']
++include::{common-includes}/devmode-test.adoc[]
++
++You see the following output:
+ 
+ [source, role="no_copy"]
+ ----
+ -------------------------------------------------------
+  T E S T S
+ -------------------------------------------------------
+-Running it.io.openliberty.guides.security.SecurityTest
+-Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.78 sec - in it.io.openliberty.guides.security.SecurityTest
++Running it.io.openliberty.guides.security.SecurityIT
++Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.78 sec - in it.io.openliberty.guides.security.SecurityIT
+ 
+ Results :
+ 
+@@ -260,6 +321,8 @@ Tests run: 4, Failures: 0, Errors: 0, Skipped: 0
+ 
+ ----
+ 
++[role='command']
++include::{common-includes}/devmode-quit.adoc[]
+ 
+ // =================================================================================================
+ // Great work! You're done!
+@@ -267,7 +330,7 @@ Tests run: 4, Failures: 0, Errors: 0, Skipped: 0
+ 
+ == Great work! You're done!
+ 
+-You learned how to use Java EE Security in Open Liberty to authenticate and authorize users to secure your web application.
++You learned how to use Jakarta EE Security in Open Liberty to authenticate and authorize users to secure your web application.
+ 
+ Next, you can try the related https://openliberty.io/guides/microprofile-jwt.html[MicroProfile JWT^] guide. It demonstrates technologies to secure backend services.
+ 
+diff --git a/finish/pom.xml b/finish/pom.xml
+index c554928..b42930d 100755
+--- a/finish/pom.xml
++++ b/finish/pom.xml
+@@ -4,15 +4,9 @@
+ 
+     <modelVersion>4.0.0</modelVersion>
+ 
+-    <parent>
+-        <groupId>net.wasdev.wlp.maven.parent</groupId>
+-        <artifactId>liberty-maven-app-parent</artifactId>
+-        <version>RELEASE</version>
+-    </parent>
+-
+     <groupId>io.openliberty.guides</groupId>
+     <artifactId>guide-security-intro</artifactId>
+-    <version>0.0.1-SNAPSHOT</version>
++    <version>1.0-SNAPSHOT</version>
+     <packaging>war</packaging>
+ 
+     <properties>
+@@ -20,50 +14,30 @@
+         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+         <maven.compiler.source>1.8</maven.compiler.source>
+         <maven.compiler.target>1.8</maven.compiler.target>
+-        <app.name>${project.artifactId}</app.name>
+-        <testServerHttpPort>9080</testServerHttpPort>
+-        <testServerHttpsPort>9443</testServerHttpsPort>
+-        <package.file>${project.build.directory}/${app.name}.zip</package.file>
+-        <packaging.type>usr</packaging.type>
++        <failOnMissingWebXml>false</failOnMissingWebXml>
++        <!-- Plugin versions -->
++        <version.liberty-maven-plugin>3.1</version.liberty-maven-plugin>
++        <version.maven-failsafe-plugin>2.22.2</version.maven-failsafe-plugin>
++        <version.maven-surefire-plugin>2.22.2</version.maven-surefire-plugin>
++        <!-- Liberty configuration -->
++        <liberty.var.default.http.port>9080</liberty.var.default.http.port>
++        <liberty.var.default.https.port>9443</liberty.var.default.https.port>
++        <liberty.var.application.name>${project.artifactId}.war</liberty.var.application.name>
+     </properties>
+ 
+-    <dependencyManagement>
+-        <dependencies>
+-            <dependency>
+-                <groupId>io.openliberty.features</groupId>
+-                <artifactId>features-bom</artifactId>
+-                <version>RELEASE</version>
+-                <type>pom</type>
+-                <scope>import</scope>
+-            </dependency>
+-        </dependencies>
+-    </dependencyManagement>
+-
+     <dependencies>
+-        <!--Open Liberty features -->
++        <!-- Provided dependencies -->
+         <dependency>
+-            <groupId>io.openliberty.features</groupId>
+-            <artifactId>appSecurity-3.0</artifactId>
+-            <type>esa</type>
+-            <scope>provided</scope>
+-        </dependency>
+-        <dependency>
+-            <groupId>io.openliberty.features</groupId>
+-            <artifactId>servlet-4.0</artifactId>
+-            <type>esa</type>
+-            <scope>provided</scope>
+-        </dependency>
+-        <dependency>
+-            <groupId>io.openliberty.features</groupId>
+-            <artifactId>jsf-2.3</artifactId>
+-            <type>esa</type>
++            <groupId>jakarta.platform</groupId>
++            <artifactId>jakarta.jakartaee-web-api</artifactId>
++            <version>8.0.0</version>
+             <scope>provided</scope>
+         </dependency>
+         <!-- For tests -->
+         <dependency>
+-            <groupId>junit</groupId>
+-            <artifactId>junit</artifactId>
+-            <version>4.12</version>
++            <groupId>org.junit.jupiter</groupId>
++            <artifactId>junit-jupiter-engine</artifactId>
++            <version>5.5.2</version>
+             <scope>test</scope>
+         </dependency>
+         <dependency>
+@@ -72,120 +46,35 @@
+           <version>4.5.3</version>
+           <scope>test</scope>
+         </dependency>
+-        <!-- Support for JDK 9 and above -->   
+-        <dependency>
+-            <groupId>javax.xml.bind</groupId>
+-            <artifactId>jaxb-api</artifactId>
+-            <version>2.3.1</version>
+-            <scope>test</scope>
+-        </dependency>
+-        <dependency>
+-            <groupId>com.sun.xml.bind</groupId>
+-            <artifactId>jaxb-core</artifactId>
+-            <version>2.3.0.1</version>
+-            <scope>test</scope>
+-        </dependency>
+-        <dependency>
+-            <groupId>com.sun.xml.bind</groupId>
+-            <artifactId>jaxb-impl</artifactId>
+-            <version>2.3.2</version>
+-            <scope>test</scope>
+-        </dependency>
+-        <dependency>
+-            <groupId>javax.activation</groupId>
+-            <artifactId>activation</artifactId>
+-            <version>1.1.1</version>
+-            <scope>test</scope>
+-        </dependency>
+     </dependencies>
+ 
+     <build>
++        <finalName>${project.artifactId}</finalName>
+         <plugins>
+-            <!-- Liberty setup. -->
++            <!-- Enable liberty-maven plugin -->
+             <plugin>
+-                <groupId>net.wasdev.wlp.maven.plugins</groupId>
++                <groupId>io.openliberty.tools</groupId>
+                 <artifactId>liberty-maven-plugin</artifactId>
+-                <configuration>
+-                  <assemblyArtifact>
+-                    <groupId>io.openliberty</groupId>
+-                    <artifactId>openliberty-runtime</artifactId>
+-                    <version>RELEASE</version>
+-                    <type>zip</type>
+-                  </assemblyArtifact>
+-                  <configDirectory>src/main/liberty/config</configDirectory>
+-                  <bootstrapProperties>
+-                    <server.http.port>${testServerHttpPort}</server.http.port>
+-                    <server.https.port>${testServerHttpsPort}</server.https.port>
+-                    <application.name>${app.name}.war</application.name>
+-                  </bootstrapProperties>
+-                </configuration>
+-                <executions>
+-                    <execution>
+-                        <id>install-apps</id>
+-                        <configuration>
+-                            <appsDirectory>apps</appsDirectory>
+-                            <stripVersion>true</stripVersion>
+-                            <installAppPackages>project</installAppPackages>
+-                            <looseApplication>true</looseApplication>
+-                        </configuration>
+-                    </execution>
+-                </executions>
++                <version>${version.liberty-maven-plugin}</version>
+             </plugin>
+-
+-            <!-- Integration test execution setup. -->
++            <!-- Plugin to run functional tests -->
+             <plugin>
+                 <groupId>org.apache.maven.plugins</groupId>
+                 <artifactId>maven-failsafe-plugin</artifactId>
+-                <version>3.0.0-M1</version>
+-                <executions>
+-                    <execution>
+-                        <phase>integration-test</phase>
+-                        <id>integration-test</id>
+-                        <goals>
+-                            <goal>integration-test</goal>
+-                        </goals>
+-                        <configuration>
+-                            <includes>
+-                                <include>**/it/**/*.java</include>
+-                            </includes>
+-                            <systemPropertyVariables>
+-                                <liberty.test.port>${testServerHttpPort}</liberty.test.port>
+-                                <liberty.test.ssl.port>${testServerHttpsPort}</liberty.test.ssl.port>
+-                            </systemPropertyVariables>
+-                        </configuration>
+-                    </execution>
+-                    <execution>
+-                        <id>verify-results</id>
+-                        <goals>
+-                            <goal>verify</goal>
+-                        </goals>
+-                    </execution>
+-                </executions>
++                <version>${version.maven-failsafe-plugin}</version>
+                 <configuration>
+-                    <summaryFile>${project.build.directory}/test-reports/guide-security-intro/failsafe-summary.xml</summaryFile>
+-                    <reportsDirectory>${project.build.directory}/test-reports/guide-security-intro</reportsDirectory>
++                    <systemPropertyVariables>
++                        <http.port>${liberty.var.default.http.port}</http.port>
++                        <https.port>${liberty.var.default.https.port}</https.port>
++                    </systemPropertyVariables>
+                 </configuration>
+             </plugin>
+-
+-            <!-- Dep to run integration tests. -->
++            <!-- Plugin to run unit tests -->
+             <plugin>
+                 <groupId>org.apache.maven.plugins</groupId>
+                 <artifactId>maven-surefire-plugin</artifactId>
+-                <version>3.0.0-M1</version>
+-                <executions>
+-                    <execution>
+-                        <phase>test</phase>
+-                        <id>default-test</id>
+-                        <configuration>
+-                            <excludes>
+-                                <exclude>**/it/**</exclude>
+-                            </excludes>
+-                            <reportsDirectory>${project.build.directory}/test-reports/unit</reportsDirectory>
+-                        </configuration>
+-                    </execution>
+-                </executions>
++                <version>${version.maven-surefire-plugin}</version>
+             </plugin>
+-
+         </plugins>
+     </build>
+-</project>
++</project>
+\ No newline at end of file
+diff --git a/finish/src/main/java/io/openliberty/guides/ui/HomeServlet.java b/finish/src/main/java/io/openliberty/guides/ui/HomeServlet.java
+index e8c2f91..a8dcbdb 100644
+--- a/finish/src/main/java/io/openliberty/guides/ui/HomeServlet.java
++++ b/finish/src/main/java/io/openliberty/guides/ui/HomeServlet.java
+@@ -53,10 +53,12 @@
+     @Inject
+     private SecurityContext securityContext;
+ 
++    // tag::javaDoc1[]
+     /**
+      * @see HttpServlet#doGet(HttpServletRequest request, HttpServletResponse
+      *      response)
+      */
++    // end::javaDoc1[]
+     // tag::doGet[]
+     protected void doGet(HttpServletRequest request, HttpServletResponse response)
+         throws ServletException, IOException {
+@@ -70,10 +72,12 @@ protected void doGet(HttpServletRequest request, HttpServletResponse response)
+     }
+     // end::doGet[]
+ 
++    // tag::javaDoc2[]
+     /**
+      * @see HttpServlet#doPost(HttpServletRequest request, HttpServletResponse
+      *      response)
+      */
++    // end::javaDoc2[]
+     protected void doPost(HttpServletRequest request, HttpServletResponse response)
+         throws ServletException, IOException {
+         doGet(request, response);
+diff --git a/finish/src/main/java/io/openliberty/guides/ui/NoCacheFilter.java b/finish/src/main/java/io/openliberty/guides/ui/NoCacheFilter.java
+index c61c567..210d439 100644
+--- a/finish/src/main/java/io/openliberty/guides/ui/NoCacheFilter.java
++++ b/finish/src/main/java/io/openliberty/guides/ui/NoCacheFilter.java
+@@ -1,4 +1,4 @@
+-package io.openliberty.guides.ui.filters;
++package io.openliberty.guides.ui;
+ 
+ import java.io.IOException;
+ 
+diff --git a/finish/src/main/liberty/config/server.xml b/finish/src/main/liberty/config/server.xml
+index 20bed6e..1567d28 100755
+--- a/finish/src/main/liberty/config/server.xml
++++ b/finish/src/main/liberty/config/server.xml
+@@ -7,16 +7,19 @@
+     <feature>servlet-4.0</feature>
+   </featureManager>
+ 
++  <variable name="default.http.port" defaultValue="9080"/>
++  <variable name="default.https.port" defaultValue="9443"/>
++  <variable name="application.name" defaultValue="guide-security-intro.war"/>
++
+   <httpEndpoint id="defaultHttpEndpoint"
+-    httpPort="${server.http.port}" 
+-    httpsPort="${server.https.port}" />
++    httpPort="${default.http.port}"
++    httpsPort="${default.https.port}" />
+ 
+   <!-- tag::location[] -->
+   <include location="userRegistry.xml"/>
+   <!-- end::location[]-->
+ 
+-  <application location="${application.name}" 
+-               type="war"
++  <application location="${application.name}" type="war"
+                id="${application.name}"
+                name="${application.name}" context-root="/">
+     <!-- tag::application-bnd[] -->
+@@ -46,4 +49,4 @@
+      <!-- end::application-bnd[] -->
+   </application>
+ </server>
+-<!-- end::serverxml[] -->
++<!-- end::serverxml[] -->
+\ No newline at end of file
+diff --git a/finish/src/main/liberty/config/userRegistry.xml b/finish/src/main/liberty/config/userRegistry.xml
+index 3e7e3e9..f652c2c 100755
+--- a/finish/src/main/liberty/config/userRegistry.xml
++++ b/finish/src/main/liberty/config/userRegistry.xml
+@@ -1,19 +1,25 @@
+ <server description="Sample Liberty server">
+   <basicRegistry id="basic" realm="WebRealm">
++    <!-- tag::user-bob[] -->
+     <user name="bob"
+       password="{xor}PTA9Lyg7" /> <!-- bobpwd -->
++    <!-- end::user-bob[] -->
++    <!-- tag::user-alice[] -->
+     <user name="alice"
+       password="{xor}PjM2PDovKDs=" />  <!-- alicepwd -->
++    <!-- end::user-alice[] -->
++    <!-- tag::user-carl[] -->
+     <user name="carl"
+       password="{xor}PD4tMy8oOw==" />  <!-- carlpwd -->
++    <!-- end::user-carl[] -->
++    <!-- tag::user-dave[] -->
+     <user name="dave"
+       password="{xor}Oz4pOi8oOw==" />  <!-- davepwd -->
++    <!-- end::user-dave[] -->
+ 
+     <!-- tag::group-name-Manager[] -->
+     <group name="Manager">
+-      <!-- tag::member-name-bob[] -->
+       <member name="bob" />
+-      <!-- end::member-name-bob[] -->
+     </group>
+     <!-- end::group-name-Manager[] -->
+ 
+@@ -25,21 +31,15 @@
+     
+     <!-- tag::group-name-Employee[] -->
+     <group name="Employee">
+-      <!-- tag::member-name-alice[] -->
+       <member name="alice" />
+-      <!-- end::member-name-alice[] -->
+       <member name="bob" />
+-      <!-- tag::member-name-carl[] -->
+       <member name="carl" />
+-      <!-- end::member-name-carl[] -->
+     </group>
+     <!-- end::group-name-Employee[] -->
+ 
+     <!-- tag::group-name-PartTime[] -->
+     <group name="PartTime">
+-      <!-- tag::member-name-dave[] -->
+       <member name="dave" />
+-      <!-- end::member-name-dave[] -->
+     </group>
+     <!-- end::group-name-PartTime[] -->
+   </basicRegistry>
+diff --git a/finish/src/test/java/it/io/openliberty/guides/security/TestUtils.java b/finish/src/test/java/it/io/openliberty/guides/security/ITUtils.java
+similarity index 98%
+rename from finish/src/test/java/it/io/openliberty/guides/security/TestUtils.java
+rename to finish/src/test/java/it/io/openliberty/guides/security/ITUtils.java
+index 9b73e8f..b13ea00 100644
+--- a/finish/src/test/java/it/io/openliberty/guides/security/TestUtils.java
++++ b/finish/src/test/java/it/io/openliberty/guides/security/ITUtils.java
+@@ -21,7 +21,7 @@
+ import javax.net.ssl.TrustManager;
+ import javax.net.ssl.X509TrustManager;
+ 
+-public class TestUtils {
++public class ITUtils {
+ 
+     public static void trustAll() throws Exception {
+         SSLContext sslContext = SSLContext.getInstance("SSL");
+diff --git a/finish/src/test/java/it/io/openliberty/guides/security/SecurityTest.java b/finish/src/test/java/it/io/openliberty/guides/security/SecurityIT.java
+similarity index 80%
+rename from finish/src/test/java/it/io/openliberty/guides/security/SecurityTest.java
+rename to finish/src/test/java/it/io/openliberty/guides/security/SecurityIT.java
+index 03c13f2..6ef463b 100644
+--- a/finish/src/test/java/it/io/openliberty/guides/security/SecurityTest.java
++++ b/finish/src/test/java/it/io/openliberty/guides/security/SecurityIT.java
+@@ -12,8 +12,8 @@
+ // end::copyright[]
+ package it.io.openliberty.guides.security;
+ 
+-import static org.junit.Assert.assertEquals;
+-import static org.junit.Assert.assertTrue;
++import static org.junit.jupiter.api.Assertions.assertEquals;
++import static org.junit.jupiter.api.Assertions.assertTrue;
+ 
+ import java.net.URI;
+ import java.util.ArrayList;
+@@ -33,19 +33,19 @@
+ import org.apache.http.impl.client.HttpClientBuilder;
+ import org.apache.http.message.BasicNameValuePair;
+ import org.apache.http.util.EntityUtils;
+-import org.junit.Before;
+-import org.junit.Test;
++import org.junit.jupiter.api.BeforeEach;
++import org.junit.jupiter.api.Test;
+ 
+-public class SecurityTest {
++public class SecurityIT {
+ 
+     private static String urlHttp;
+     private static String urlHttps;
+ 
+-    @Before
++    @BeforeEach
+     public void setup() throws Exception {
+-        urlHttp = "http://localhost:" + System.getProperty("liberty.test.port");
+-        urlHttps = "https://localhost:" + System.getProperty("liberty.test.ssl.port");
+-        TestUtils.trustAll();
++        urlHttp = "http://localhost:" + System.getProperty("http.port");
++        urlHttps = "https://localhost:" + System.getProperty("https.port");
++        ITUtils.trustAll();
+     }
+ 
+     @Test
+@@ -97,9 +97,8 @@ private void executeURL(
+ 
+         // Response should be login.html
+         String loginBody = EntityUtils.toString(response.getEntity(), "UTF-8");
+-        assertTrue(
+-            "Not redirected to home.html",
+-            loginBody.contains("window.location.assign"));
++        assertTrue(loginBody.contains("window.location.assign"),
++            "Not redirected to home.html");
+         String[] redirect = loginBody.split("'");
+ 
+         // Use j_security_check to login
+@@ -109,16 +108,15 @@ private void executeURL(
+         nvps.add(new BasicNameValuePair("j_password", password));
+         postMethod.setEntity(new UrlEncodedFormEntity(nvps, "UTF-8"));
+         response = client.execute(postMethod);
+-        assertEquals(
+-            "Expected " + HttpServletResponse.SC_FOUND + " status code for login",
+-        HttpServletResponse.SC_FOUND, response.getStatusLine().getStatusCode());
++        assertEquals(HttpServletResponse.SC_FOUND, 
++            response.getStatusLine().getStatusCode(),
++            "Expected " + HttpServletResponse.SC_FOUND + " status code for login");
+ 
+         // Return if login fails
+         if (expectLoginFail) {
+             String location = response.getFirstHeader("Location").getValue();
+-            assertTrue(
+-                "Error.html was not returned",
+-                location.contains("error.html"));
++            assertTrue(location.contains("error.html"),
++                "Error.html was not returned");
+             return;
+         }
+ 
+@@ -126,9 +124,8 @@ private void executeURL(
+         url = new URI(urlHttps + redirect[1]);
+         getMethod = new HttpGet(url);
+         response = client.execute(getMethod);
+-        assertEquals(
+-            "Expected " + expectedCode + " status code for login",
+-            expectedCode, response.getStatusLine().getStatusCode());
++        assertEquals(expectedCode, response.getStatusLine().getStatusCode(),
++            "Expected " + expectedCode + " status code for login");
+ 
+         // Return if not SC_OK
+         if (expectedCode != HttpServletResponse.SC_OK) {
+@@ -137,15 +134,12 @@ private void executeURL(
+ 
+         // Check the content of the response returned
+         String actual = EntityUtils.toString(response.getEntity(), "UTF-8");
+-        assertTrue(
++        assertTrue(actual.contains(userid),
+             "The actual content did not contain the userid \"" + userid +
+-            "\". It was:\n" + actual,
+-        actual.contains(userid));
+-        assertTrue(
+-            "The url " + testUrl +
+-            " did not return the expected content \"" + expectedContent + "\"" +
+-            "The actual content was:\n" + actual,
+-        actual.contains(expectedContent));
++            "\". It was:\n" + actual);
++        assertTrue(actual.contains(expectedContent),
++            "The url " + testUrl + " did not return the expected content \"" 
++            + expectedContent + "\"" + "The actual content was:\n" + actual);
+     }
+ 
+ }
+diff --git a/scripts/travisTest.sh b/scripts/travisTest.sh
+new file mode 100644
+index 0000000..81b26f0
+--- /dev/null
++++ b/scripts/travisTest.sh
+@@ -0,0 +1,29 @@
++#!/bin/bash
++set -euxo pipefail
++
++##############################################################################
++##
++##  Travis CI test script
++##
++##############################################################################
++
++# LMP 3.0+ goals are listed here: https://github.com/OpenLiberty/ci.maven#goals
++
++## Rebuild the application
++#       package                   - Take the compiled code and package it in its distributable format.
++#       liberty:create            - Create a Liberty server.
++#       liberty:install-feature   - Install a feature packaged as a Subsystem Archive (esa) to the Liberty runtime.
++#       liberty:deploy            - Copy applications to the Liberty server's dropins or apps directory. 
++mvn -q clean package liberty:create liberty:install-feature liberty:deploy
++
++
++## Run the tests
++# These commands are separated because if one of the commands fail, the test script will fail and exit. 
++# e.g if liberty:start fails, then there is no need to run the failsafe commands. 
++#       liberty:start             - Start a Liberty server in the background.
++#       failsafe:integration-test - Runs the integration tests of an application.
++#       liberty:stop              - Stop a Liberty server.
++#       failsafe:verify           - Verifies that the integration tests of an application passed.
++mvn liberty:start
++mvn failsafe:integration-test liberty:stop
++mvn failsafe:verify
+\ No newline at end of file
+diff --git a/start/pom.xml b/start/pom.xml
+index c554928..b42930d 100755
+--- a/start/pom.xml
++++ b/start/pom.xml
+@@ -4,15 +4,9 @@
+ 
+     <modelVersion>4.0.0</modelVersion>
+ 
+-    <parent>
+-        <groupId>net.wasdev.wlp.maven.parent</groupId>
+-        <artifactId>liberty-maven-app-parent</artifactId>
+-        <version>RELEASE</version>
+-    </parent>
+-
+     <groupId>io.openliberty.guides</groupId>
+     <artifactId>guide-security-intro</artifactId>
+-    <version>0.0.1-SNAPSHOT</version>
++    <version>1.0-SNAPSHOT</version>
+     <packaging>war</packaging>
+ 
+     <properties>
+@@ -20,50 +14,30 @@
+         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+         <maven.compiler.source>1.8</maven.compiler.source>
+         <maven.compiler.target>1.8</maven.compiler.target>
+-        <app.name>${project.artifactId}</app.name>
+-        <testServerHttpPort>9080</testServerHttpPort>
+-        <testServerHttpsPort>9443</testServerHttpsPort>
+-        <package.file>${project.build.directory}/${app.name}.zip</package.file>
+-        <packaging.type>usr</packaging.type>
++        <failOnMissingWebXml>false</failOnMissingWebXml>
++        <!-- Plugin versions -->
++        <version.liberty-maven-plugin>3.1</version.liberty-maven-plugin>
++        <version.maven-failsafe-plugin>2.22.2</version.maven-failsafe-plugin>
++        <version.maven-surefire-plugin>2.22.2</version.maven-surefire-plugin>
++        <!-- Liberty configuration -->
++        <liberty.var.default.http.port>9080</liberty.var.default.http.port>
++        <liberty.var.default.https.port>9443</liberty.var.default.https.port>
++        <liberty.var.application.name>${project.artifactId}.war</liberty.var.application.name>
+     </properties>
+ 
+-    <dependencyManagement>
+-        <dependencies>
+-            <dependency>
+-                <groupId>io.openliberty.features</groupId>
+-                <artifactId>features-bom</artifactId>
+-                <version>RELEASE</version>
+-                <type>pom</type>
+-                <scope>import</scope>
+-            </dependency>
+-        </dependencies>
+-    </dependencyManagement>
+-
+     <dependencies>
+-        <!--Open Liberty features -->
++        <!-- Provided dependencies -->
+         <dependency>
+-            <groupId>io.openliberty.features</groupId>
+-            <artifactId>appSecurity-3.0</artifactId>
+-            <type>esa</type>
+-            <scope>provided</scope>
+-        </dependency>
+-        <dependency>
+-            <groupId>io.openliberty.features</groupId>
+-            <artifactId>servlet-4.0</artifactId>
+-            <type>esa</type>
+-            <scope>provided</scope>
+-        </dependency>
+-        <dependency>
+-            <groupId>io.openliberty.features</groupId>
+-            <artifactId>jsf-2.3</artifactId>
+-            <type>esa</type>
++            <groupId>jakarta.platform</groupId>
++            <artifactId>jakarta.jakartaee-web-api</artifactId>
++            <version>8.0.0</version>
+             <scope>provided</scope>
+         </dependency>
+         <!-- For tests -->
+         <dependency>
+-            <groupId>junit</groupId>
+-            <artifactId>junit</artifactId>
+-            <version>4.12</version>
++            <groupId>org.junit.jupiter</groupId>
++            <artifactId>junit-jupiter-engine</artifactId>
++            <version>5.5.2</version>
+             <scope>test</scope>
+         </dependency>
+         <dependency>
+@@ -72,120 +46,35 @@
+           <version>4.5.3</version>
+           <scope>test</scope>
+         </dependency>
+-        <!-- Support for JDK 9 and above -->   
+-        <dependency>
+-            <groupId>javax.xml.bind</groupId>
+-            <artifactId>jaxb-api</artifactId>
+-            <version>2.3.1</version>
+-            <scope>test</scope>
+-        </dependency>
+-        <dependency>
+-            <groupId>com.sun.xml.bind</groupId>
+-            <artifactId>jaxb-core</artifactId>
+-            <version>2.3.0.1</version>
+-            <scope>test</scope>
+-        </dependency>
+-        <dependency>
+-            <groupId>com.sun.xml.bind</groupId>
+-            <artifactId>jaxb-impl</artifactId>
+-            <version>2.3.2</version>
+-            <scope>test</scope>
+-        </dependency>
+-        <dependency>
+-            <groupId>javax.activation</groupId>
+-            <artifactId>activation</artifactId>
+-            <version>1.1.1</version>
+-            <scope>test</scope>
+-        </dependency>
+     </dependencies>
+ 
+     <build>
++        <finalName>${project.artifactId}</finalName>
+         <plugins>
+-            <!-- Liberty setup. -->
++            <!-- Enable liberty-maven plugin -->
+             <plugin>
+-                <groupId>net.wasdev.wlp.maven.plugins</groupId>
++                <groupId>io.openliberty.tools</groupId>
+                 <artifactId>liberty-maven-plugin</artifactId>
+-                <configuration>
+-                  <assemblyArtifact>
+-                    <groupId>io.openliberty</groupId>
+-                    <artifactId>openliberty-runtime</artifactId>
+-                    <version>RELEASE</version>
+-                    <type>zip</type>
+-                  </assemblyArtifact>
+-                  <configDirectory>src/main/liberty/config</configDirectory>
+-                  <bootstrapProperties>
+-                    <server.http.port>${testServerHttpPort}</server.http.port>
+-                    <server.https.port>${testServerHttpsPort}</server.https.port>
+-                    <application.name>${app.name}.war</application.name>
+-                  </bootstrapProperties>
+-                </configuration>
+-                <executions>
+-                    <execution>
+-                        <id>install-apps</id>
+-                        <configuration>
+-                            <appsDirectory>apps</appsDirectory>
+-                            <stripVersion>true</stripVersion>
+-                            <installAppPackages>project</installAppPackages>
+-                            <looseApplication>true</looseApplication>
+-                        </configuration>
+-                    </execution>
+-                </executions>
++                <version>${version.liberty-maven-plugin}</version>
+             </plugin>
+-
+-            <!-- Integration test execution setup. -->
++            <!-- Plugin to run functional tests -->
+             <plugin>
+                 <groupId>org.apache.maven.plugins</groupId>
+                 <artifactId>maven-failsafe-plugin</artifactId>
+-                <version>3.0.0-M1</version>
+-                <executions>
+-                    <execution>
+-                        <phase>integration-test</phase>
+-                        <id>integration-test</id>
+-                        <goals>
+-                            <goal>integration-test</goal>
+-                        </goals>
+-                        <configuration>
+-                            <includes>
+-                                <include>**/it/**/*.java</include>
+-                            </includes>
+-                            <systemPropertyVariables>
+-                                <liberty.test.port>${testServerHttpPort}</liberty.test.port>
+-                                <liberty.test.ssl.port>${testServerHttpsPort}</liberty.test.ssl.port>
+-                            </systemPropertyVariables>
+-                        </configuration>
+-                    </execution>
+-                    <execution>
+-                        <id>verify-results</id>
+-                        <goals>
+-                            <goal>verify</goal>
+-                        </goals>
+-                    </execution>
+-                </executions>
++                <version>${version.maven-failsafe-plugin}</version>
+                 <configuration>
+-                    <summaryFile>${project.build.directory}/test-reports/guide-security-intro/failsafe-summary.xml</summaryFile>
+-                    <reportsDirectory>${project.build.directory}/test-reports/guide-security-intro</reportsDirectory>
++                    <systemPropertyVariables>
++                        <http.port>${liberty.var.default.http.port}</http.port>
++                        <https.port>${liberty.var.default.https.port}</https.port>
++                    </systemPropertyVariables>
+                 </configuration>
+             </plugin>
+-
+-            <!-- Dep to run integration tests. -->
++            <!-- Plugin to run unit tests -->
+             <plugin>
+                 <groupId>org.apache.maven.plugins</groupId>
+                 <artifactId>maven-surefire-plugin</artifactId>
+-                <version>3.0.0-M1</version>
+-                <executions>
+-                    <execution>
+-                        <phase>test</phase>
+-                        <id>default-test</id>
+-                        <configuration>
+-                            <excludes>
+-                                <exclude>**/it/**</exclude>
+-                            </excludes>
+-                            <reportsDirectory>${project.build.directory}/test-reports/unit</reportsDirectory>
+-                        </configuration>
+-                    </execution>
+-                </executions>
++                <version>${version.maven-surefire-plugin}</version>
+             </plugin>
+-
+         </plugins>
+     </build>
+-</project>
++</project>
+\ No newline at end of file
+diff --git a/start/src/main/java/io/openliberty/guides/ui/NoCacheFilter.java b/start/src/main/java/io/openliberty/guides/ui/NoCacheFilter.java
+index c61c567..210d439 100644
+--- a/start/src/main/java/io/openliberty/guides/ui/NoCacheFilter.java
++++ b/start/src/main/java/io/openliberty/guides/ui/NoCacheFilter.java
+@@ -1,4 +1,4 @@
+-package io.openliberty.guides.ui.filters;
++package io.openliberty.guides.ui;
+ 
+ import java.io.IOException;
+ 
+diff --git a/start/src/main/liberty/config/server.xml b/start/src/main/liberty/config/server.xml
+index 3a3cf1b..82171fc 100755
+--- a/start/src/main/liberty/config/server.xml
++++ b/start/src/main/liberty/config/server.xml
+@@ -1,4 +1,3 @@
+-<!-- tag::serverxml[] -->
+ <server description="Sample Liberty server">
+ 
+   <featureManager>
+@@ -7,11 +6,14 @@
+     <feature>servlet-4.0</feature>
+   </featureManager>
+ 
++  <variable name="default.http.port" defaultValue="9080"/>
++  <variable name="default.https.port" defaultValue="9443"/>
++  <variable name="application.name" defaultValue="guide-security-intro.war"/>
++
+   <httpEndpoint id="defaultHttpEndpoint"
+-    httpPort="${server.http.port}"
+-    httpsPort="${server.https.port}" />
++    httpPort="${default.http.port}"
++    httpsPort="${default.https.port}" />
+ 
+-  <!-- tag::serverxmlsecurity[] -->
+   <include location="userRegistry.xml"/>
+ 
+   <application location="${application.name}" type="war"
+@@ -27,7 +29,5 @@
+       </security-role>
+     </application-bnd>
+   </application>
+-  <!-- end::serverxmlsecurity[] -->
+ 
+-</server>
+-<!-- end::serverxml[] -->
++</server>
+\ No newline at end of file
+diff --git a/start/src/test/java/it/io/openliberty/guides/security/TestUtils.java b/start/src/test/java/it/io/openliberty/guides/security/ITUtils.java
+similarity index 98%
+rename from start/src/test/java/it/io/openliberty/guides/security/TestUtils.java
+rename to start/src/test/java/it/io/openliberty/guides/security/ITUtils.java
+index 9b73e8f..b13ea00 100644
+--- a/start/src/test/java/it/io/openliberty/guides/security/TestUtils.java
++++ b/start/src/test/java/it/io/openliberty/guides/security/ITUtils.java
+@@ -21,7 +21,7 @@
+ import javax.net.ssl.TrustManager;
+ import javax.net.ssl.X509TrustManager;
+ 
+-public class TestUtils {
++public class ITUtils {
+ 
+     public static void trustAll() throws Exception {
+         SSLContext sslContext = SSLContext.getInstance("SSL");

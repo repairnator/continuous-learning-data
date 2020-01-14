@@ -1,0 +1,8 @@
+@@ -162,6 +162,6 @@ public void testEncode() {
+         byte[] expectedEncoding = new byte[56];
+         expectedEncoding[0] = (byte) 0xb7;
+         System.arraycopy(encodeMe, 0, expectedEncoding, 1, encodeMe.length);
+-        assertEquals(RlpEncoder.encode(RlpString.create(encodeMe)), (expectedEncoding));
++        assertArrayEquals(RlpEncoder.encode(RlpString.create(encodeMe)), (expectedEncoding));
+     }
+ }

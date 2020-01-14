@@ -1,0 +1,9 @@
+@@ -99,7 +99,7 @@ public ProfilerReporter createReporter() {
+         AggregatingReporter[] reporter = new AggregatingReporter[1];
+         reporter[0] = new AggregatingReporter(
+                 this,
+-                numberOfActiveCallsToTrackAndKeepBetweenReports,
++                numberOfLongestActiveCallsToTrack,
+                 percentileSettings,
+                 () -> this.unregisterReporter(reporter[0]),
+                 new NoopLabelSticker());

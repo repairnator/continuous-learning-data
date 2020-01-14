@@ -1,0 +1,39 @@
+diff --git a/sunbird-platform-core/common-util/src/main/java/org/sunbird/common/models/util/KeyCloakConnectionProvider.java b/sunbird-platform-core/common-util/src/main/java/org/sunbird/common/models/util/KeyCloakConnectionProvider.java
+index 80d085243..d3736efb7 100644
+--- a/sunbird-platform-core/common-util/src/main/java/org/sunbird/common/models/util/KeyCloakConnectionProvider.java
++++ b/sunbird-platform-core/common-util/src/main/java/org/sunbird/common/models/util/KeyCloakConnectionProvider.java
+@@ -73,7 +73,7 @@ private static Keycloak initialiseEnvConnection() throws Exception {
+     String username = System.getenv(JsonKey.SUNBIRD_SSO_USERNAME);
+     String password = System.getenv(JsonKey.SUNBIRD_SSO_PASSWORD);
+     String cleintId = System.getenv(JsonKey.SUNBIRD_SSO_CLIENT_ID);
+-    String cleintSecret = System.getenv(JsonKey.SUNBIRD_SSO_CLIENT_SECRET);
++    String clientSecret = System.getenv(JsonKey.SUNBIRD_SSO_CLIENT_SECRET);
+     String relam = System.getenv(JsonKey.SUNBIRD_SSO_RELAM);
+     if (StringUtils.isBlank(url)
+         || StringUtils.isBlank(username)
+@@ -100,8 +100,11 @@ private static Keycloak initialiseEnvConnection() throws Exception {
+                     .connectionPoolSize(Integer.parseInt(cache.getProperty(JsonKey.SSO_POOL_SIZE)))
+                     .build());
+ 
+-    if (!StringUtils.isBlank(cleintSecret)) {
+-      keycloakBuilder.clientSecret(cache.getProperty(JsonKey.SSO_CLIENT_SECRET));
++    if (StringUtils.isNotBlank(clientSecret)) {
++      keycloakBuilder.clientSecret(clientSecret);
++      ProjectLogger.log(
++          "KeyCloakConnectionProvider:initialiseEnvConnection client sceret is provided.",
++          LoggerEnum.INFO.name());
+     }
+     keycloak = keycloakBuilder.build();
+     ProjectLogger.log(
+diff --git a/sunbird-platform-core/common-util/src/main/java/org/sunbird/common/util/KeycloakRequiredActionLinkUtil.java b/sunbird-platform-core/common-util/src/main/java/org/sunbird/common/util/KeycloakRequiredActionLinkUtil.java
+index 640140b6a..ca8684e31 100644
+--- a/sunbird-platform-core/common-util/src/main/java/org/sunbird/common/util/KeycloakRequiredActionLinkUtil.java
++++ b/sunbird-platform-core/common-util/src/main/java/org/sunbird/common/util/KeycloakRequiredActionLinkUtil.java
+@@ -123,6 +123,7 @@ private static String getAdminAccessToken() throws Exception {
+                     + "/protocol/openid-connect/token")
+             .headers(headers)
+             .field("client_id", ProjectUtil.getConfigValue(JsonKey.SUNBIRD_SSO_CLIENT_ID))
++            .field("client_secret", ProjectUtil.getConfigValue(JsonKey.SUNBIRD_SSO_CLIENT_SECRET))
+             .field(USER_NAME, ProjectUtil.getConfigValue(JsonKey.SUNBIRD_SSO_USERNAME))
+             .field(PASSWORD, ProjectUtil.getConfigValue(JsonKey.SUNBIRD_SSO_PASSWORD))
+             .field(GRANT_TYPE, PASSWORD);

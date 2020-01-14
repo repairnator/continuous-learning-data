@@ -1,0 +1,9 @@
+@@ -39,7 +39,7 @@ public AlbumCapabilityPrincipal(Capability capability, User user, String origina
+         kheopsLogBuilder = new KheopsLogBuilder()
+                 .provenance(this)
+                 .user(user.getKeycloakId())
+-                .scope(capability.getScopeType())
++                .albumScope(capability.getAlbum().getId())
+                 .tokenType(getTokenType());
+     }
+ 

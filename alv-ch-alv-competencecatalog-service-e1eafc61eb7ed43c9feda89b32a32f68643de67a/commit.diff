@@ -1,0 +1,1205 @@
+diff --git a/application/src/main/java/ch/admin/seco/alv/service/competencecatalog/application/chfiche/CreateChFicheDto.java b/application/src/main/java/ch/admin/seco/alv/service/competencecatalog/application/chfiche/CreateChFicheDto.java
+index cb4b942..911c58e 100644
+--- a/application/src/main/java/ch/admin/seco/alv/service/competencecatalog/application/chfiche/CreateChFicheDto.java
++++ b/application/src/main/java/ch/admin/seco/alv/service/competencecatalog/application/chfiche/CreateChFicheDto.java
+@@ -71,7 +71,7 @@ public CreateChFicheDto setCompetences(Set<Competence> competences) {
+         return requirementIds;
+     }
+ 
+-    public CreateChFicheDto setRequirementIds(final Set<RequirementId> requirementIds) {
++    public CreateChFicheDto setRequirementIds(Set<RequirementId> requirementIds) {
+         this.requirementIds = requirementIds;
+         return this;
+     }
+diff --git a/application/src/main/java/ch/admin/seco/alv/service/competencecatalog/application/chfiche/UpdateChFicheDto.java b/application/src/main/java/ch/admin/seco/alv/service/competencecatalog/application/chfiche/UpdateChFicheDto.java
+index 8cc322d..c2eb0f0 100644
+--- a/application/src/main/java/ch/admin/seco/alv/service/competencecatalog/application/chfiche/UpdateChFicheDto.java
++++ b/application/src/main/java/ch/admin/seco/alv/service/competencecatalog/application/chfiche/UpdateChFicheDto.java
+@@ -93,7 +93,7 @@ public UpdateChFicheDto setCompetences(Set<Competence> competences) {
+         return requirementIds;
+     }
+ 
+-    public UpdateChFicheDto setRequirementIds(final Set<RequirementId> requirementIds) {
++    public UpdateChFicheDto setRequirementIds(Set<RequirementId> requirementIds) {
+         this.requirementIds = requirementIds;
+         return this;
+     }
+diff --git a/application/src/main/java/ch/admin/seco/alv/service/competencecatalog/application/requirement/CreateRequirementDto.java b/application/src/main/java/ch/admin/seco/alv/service/competencecatalog/application/requirement/CreateRequirementDto.java
+index 058b632..14afe95 100644
+--- a/application/src/main/java/ch/admin/seco/alv/service/competencecatalog/application/requirement/CreateRequirementDto.java
++++ b/application/src/main/java/ch/admin/seco/alv/service/competencecatalog/application/requirement/CreateRequirementDto.java
+@@ -18,7 +18,7 @@ public TranslatedString getDescription() {
+         return description;
+     }
+ 
+-    public CreateRequirementDto setDescription(final TranslatedString description) {
++    public CreateRequirementDto setDescription(TranslatedString description) {
+         this.description = description;
+         return this;
+     }
+diff --git a/application/src/main/java/ch/admin/seco/alv/service/competencecatalog/application/requirement/RequirementApplicationService.java b/application/src/main/java/ch/admin/seco/alv/service/competencecatalog/application/requirement/RequirementApplicationService.java
+index 3cab28b..3272c25 100644
+--- a/application/src/main/java/ch/admin/seco/alv/service/competencecatalog/application/requirement/RequirementApplicationService.java
++++ b/application/src/main/java/ch/admin/seco/alv/service/competencecatalog/application/requirement/RequirementApplicationService.java
+@@ -37,19 +37,19 @@
+ 
+     private final SequenceService sequenceService;
+ 
+-    public RequirementApplicationService(final RequirementRepository requirementRepository, final SequenceService sequenceService) {
++    public RequirementApplicationService(RequirementRepository requirementRepository, SequenceService sequenceService) {
+         this.requirementRepository = requirementRepository;
+         this.sequenceService = sequenceService;
+     }
+ 
+-    public Page<RequirementDto> findAll(final int pageNumber) {
+-        final PageRequest pageRequest = PageRequest.of(pageNumber, DEFAULT_PAGE_SIZE, Sort.by(Sort.Direction.DESC, "createdAt"));
+-        final Page<Requirement> requirementPage = requirementRepository.findAll(pageRequest);
++    public Page<RequirementDto> findAll(int pageNumber) {
++        PageRequest pageRequest = PageRequest.of(pageNumber, DEFAULT_PAGE_SIZE, Sort.by(Sort.Direction.DESC, "createdAt"));
++        Page<Requirement> requirementPage = requirementRepository.findAll(pageRequest);
+         return new PageImpl<>(toRequirementDtoList(requirementPage.getContent()), pageRequest, requirementPage.getTotalElements());
+     }
+ 
+-    public RequirementDto create(final CreateRequirementDto createRequirementDto) {
+-        final Requirement requirement = requirementRepository.save(
++    public RequirementDto create(CreateRequirementDto createRequirementDto) {
++        Requirement requirement = requirementRepository.save(
+                 new RequirementBuilder()
+                         .setId(new RequirementId(sequenceService.getNextIdFor(SequenceType.REQUIREMENT)))
+                         .setDescription(createRequirementDto.getDescription())
+@@ -60,16 +60,16 @@ public RequirementDto create(final CreateRequirementDto createRequirementDto) {
+         return toRequirementDto(requirement);
+     }
+ 
+-    public RequirementDto getById(final RequirementId id) {
++    public RequirementDto getById(RequirementId id) {
+         return requirementRepository.findById(id)
+                 .map(RequirementAssembler::toRequirementDto)
+                 .orElseThrow(() -> new RequirementNotFoundException(id));
+     }
+ 
+-    public RequirementDto update(final RequirementId id, final UpdateRequirementDto updateRequirementDto) {
+-        final Requirement requirement = requirementRepository.findById(id)
++    public RequirementDto update(RequirementId id, UpdateRequirementDto updateRequirementDto) {
++        Requirement requirement = requirementRepository.findById(id)
+                 .orElseThrow(() -> new RequirementNotFoundException(id));
+-        final RequirementUpdater updater = new RequirementUpdater()
++        RequirementUpdater updater = new RequirementUpdater()
+                 .setDescription(updateRequirementDto.getDescription())
+                 .setDraft(updateRequirementDto.isDraft())
+                 .setPublished(updateRequirementDto.isPublished());
+@@ -78,8 +78,8 @@ public RequirementDto update(final RequirementId id, final UpdateRequirementDto
+         return toRequirementDto(requirement);
+     }
+ 
+-    public void delete(final RequirementId id) {
+-        final Requirement requirement = requirementRepository.findById(id)
++    public void delete(RequirementId id) {
++        Requirement requirement = requirementRepository.findById(id)
+                 .orElseThrow(() -> new RequirementNotFoundException(id));
+         if (requirement.isPublished()) {
+             throw new BusinessException(CANNOT_DELETE_IN_STATUS_PUBLISHED, "Can't delete Requirement " + id.getValue() + " when it is published!");
+@@ -89,7 +89,7 @@ public void delete(final RequirementId id) {
+         LOGGER.debug("Requirement deleted: " + id.getValue());
+     }
+ 
+-    public List<RequirementDto> findByIds(final Set<RequirementId> ids) {
++    public List<RequirementDto> findByIds(Set<RequirementId> ids) {
+         return requirementRepository.findAllById(ids)
+                 .stream()
+                 .map(RequirementAssembler::toRequirementDto)
+@@ -97,17 +97,17 @@ public void delete(final RequirementId id) {
+     }
+ 
+     // FIXME Only for technical user
+-    public void technicalCreateOrUpdate(final RequirementDto requirementDto) {
+-        final Optional<Requirement> existingRequirement = requirementRepository.findById(requirementDto.getId());
++    public void technicalCreateOrUpdate(RequirementDto requirementDto) {
++        Optional<Requirement> existingRequirement = requirementRepository.findById(requirementDto.getId());
+         if (existingRequirement.isPresent()) {
+-            final Requirement requirement = existingRequirement.get();
++            Requirement requirement = existingRequirement.get();
+             requirement.update(new RequirementUpdater()
+                     .setDraft(requirementDto.isDraft())
+                     .setPublished(requirementDto.isPublished())
+                     .setDescription(requirementDto.getDescription()));
+             LOGGER.debug("Requirement updated: " + requirementDto.getId().getValue());
+         } else {
+-            final Requirement requirement = requirementRepository.save(
++            Requirement requirement = requirementRepository.save(
+                     new RequirementBuilder()
+                             .setId(requirementDto.getId())
+                             .setDraft(requirementDto.isDraft())
+@@ -121,7 +121,7 @@ public void technicalCreateOrUpdate(final RequirementDto requirementDto) {
+     }
+ 
+     // FIXME Only for technical user
+-    public void technicalDelete(final RequirementDto requirementDto) {
++    public void technicalDelete(RequirementDto requirementDto) {
+         requirementRepository.findById(requirementDto.getId())
+                 .ifPresent(requirement -> {
+                     requirementRepository.delete(requirement);
+diff --git a/application/src/main/java/ch/admin/seco/alv/service/competencecatalog/application/requirement/RequirementAssembler.java b/application/src/main/java/ch/admin/seco/alv/service/competencecatalog/application/requirement/RequirementAssembler.java
+index 79baf9e..7a2292e 100644
+--- a/application/src/main/java/ch/admin/seco/alv/service/competencecatalog/application/requirement/RequirementAssembler.java
++++ b/application/src/main/java/ch/admin/seco/alv/service/competencecatalog/application/requirement/RequirementAssembler.java
+@@ -10,13 +10,13 @@
+     private RequirementAssembler() {
+     }
+ 
+-    public static List<RequirementDto> toRequirementDtoList(final List<Requirement> requirementList) {
++    public static List<RequirementDto> toRequirementDtoList(List<Requirement> requirementList) {
+         return requirementList.stream()
+                 .map(RequirementAssembler::toRequirementDto)
+                 .collect(Collectors.toList());
+     }
+ 
+-    public static RequirementDto toRequirementDto(final Requirement requirement) {
++    public static RequirementDto toRequirementDto(Requirement requirement) {
+         return new RequirementDto()
+                 .setId(requirement.getId())
+                 .setDraft(requirement.isDraft())
+diff --git a/application/src/main/java/ch/admin/seco/alv/service/competencecatalog/application/requirement/RequirementDto.java b/application/src/main/java/ch/admin/seco/alv/service/competencecatalog/application/requirement/RequirementDto.java
+index a2f0d2f..9945ec3 100644
+--- a/application/src/main/java/ch/admin/seco/alv/service/competencecatalog/application/requirement/RequirementDto.java
++++ b/application/src/main/java/ch/admin/seco/alv/service/competencecatalog/application/requirement/RequirementDto.java
+@@ -20,7 +20,7 @@ public RequirementId getId() {
+         return id;
+     }
+ 
+-    public RequirementDto setId(final RequirementId id) {
++    public RequirementDto setId(RequirementId id) {
+         this.id = id;
+         return this;
+     }
+@@ -29,7 +29,7 @@ public boolean isPublished() {
+         return published;
+     }
+ 
+-    public RequirementDto setPublished(final boolean published) {
++    public RequirementDto setPublished(boolean published) {
+         this.published = published;
+         return this;
+     }
+@@ -38,7 +38,7 @@ public boolean isDraft() {
+         return draft;
+     }
+ 
+-    public RequirementDto setDraft(final boolean draft) {
++    public RequirementDto setDraft(boolean draft) {
+         this.draft = draft;
+         return this;
+     }
+@@ -47,7 +47,7 @@ public TranslatedString getDescription() {
+         return description;
+     }
+ 
+-    public RequirementDto setDescription(final TranslatedString description) {
++    public RequirementDto setDescription(TranslatedString description) {
+         this.description = description;
+         return this;
+     }
+diff --git a/application/src/main/java/ch/admin/seco/alv/service/competencecatalog/application/requirement/RequirementNotFoundException.java b/application/src/main/java/ch/admin/seco/alv/service/competencecatalog/application/requirement/RequirementNotFoundException.java
+index bf4826a..c8c9222 100644
+--- a/application/src/main/java/ch/admin/seco/alv/service/competencecatalog/application/requirement/RequirementNotFoundException.java
++++ b/application/src/main/java/ch/admin/seco/alv/service/competencecatalog/application/requirement/RequirementNotFoundException.java
+@@ -5,7 +5,7 @@
+ 
+ public class RequirementNotFoundException extends AggregateNotFoundException {
+ 
+-    public RequirementNotFoundException(final RequirementId id) {
++    public RequirementNotFoundException(RequirementId id) {
+         super(RequirementNotFoundException.class, id);
+     }
+ }
+diff --git a/application/src/main/java/ch/admin/seco/alv/service/competencecatalog/application/requirement/RequirementSearchRequest.java b/application/src/main/java/ch/admin/seco/alv/service/competencecatalog/application/requirement/RequirementSearchRequest.java
+index 553dc59..f64555b 100644
+--- a/application/src/main/java/ch/admin/seco/alv/service/competencecatalog/application/requirement/RequirementSearchRequest.java
++++ b/application/src/main/java/ch/admin/seco/alv/service/competencecatalog/application/requirement/RequirementSearchRequest.java
+@@ -15,7 +15,7 @@ public String getQuery() {
+         return query;
+     }
+ 
+-    public RequirementSearchRequest setQuery(final String query) {
++    public RequirementSearchRequest setQuery(String query) {
+         this.query = query;
+         return this;
+     }
+@@ -24,7 +24,7 @@ public Boolean getDraft() {
+         return draft;
+     }
+ 
+-    public RequirementSearchRequest setDraft(final Boolean draft) {
++    public RequirementSearchRequest setDraft(Boolean draft) {
+         this.draft = draft;
+         return this;
+     }
+@@ -34,7 +34,7 @@ public Boolean getPublished() {
+ 
+     }
+ 
+-    public RequirementSearchRequest setPublished(final Boolean published) {
++    public RequirementSearchRequest setPublished(Boolean published) {
+         this.published = published;
+         return this;
+     }
+diff --git a/application/src/main/java/ch/admin/seco/alv/service/competencecatalog/application/requirement/RequirementSearchService.java b/application/src/main/java/ch/admin/seco/alv/service/competencecatalog/application/requirement/RequirementSearchService.java
+index 9835656..b94f044 100644
+--- a/application/src/main/java/ch/admin/seco/alv/service/competencecatalog/application/requirement/RequirementSearchService.java
++++ b/application/src/main/java/ch/admin/seco/alv/service/competencecatalog/application/requirement/RequirementSearchService.java
+@@ -5,5 +5,5 @@
+ 
+ public interface RequirementSearchService {
+ 
+-    Page<RequirementDto> search(final RequirementSearchRequest searchRequest, final int page, final int size, final SearchSort sort);
++    Page<RequirementDto> search(RequirementSearchRequest searchRequest, int page, int size, SearchSort sort);
+ }
+diff --git a/application/src/main/java/ch/admin/seco/alv/service/competencecatalog/application/requirement/UpdateRequirementDto.java b/application/src/main/java/ch/admin/seco/alv/service/competencecatalog/application/requirement/UpdateRequirementDto.java
+index e853838..7a8d867 100644
+--- a/application/src/main/java/ch/admin/seco/alv/service/competencecatalog/application/requirement/UpdateRequirementDto.java
++++ b/application/src/main/java/ch/admin/seco/alv/service/competencecatalog/application/requirement/UpdateRequirementDto.java
+@@ -22,7 +22,7 @@ public boolean isDraft() {
+         return draft;
+     }
+ 
+-    public UpdateRequirementDto setDraft(final boolean draft) {
++    public UpdateRequirementDto setDraft(boolean draft) {
+         this.draft = draft;
+         return this;
+     }
+@@ -31,7 +31,7 @@ public boolean isPublished() {
+         return published;
+     }
+ 
+-    public UpdateRequirementDto setPublished(final boolean published) {
++    public UpdateRequirementDto setPublished(boolean published) {
+         this.published = published;
+         return this;
+     }
+@@ -40,7 +40,7 @@ public TranslatedString getDescription() {
+         return description;
+     }
+ 
+-    public UpdateRequirementDto setDescription(final TranslatedString description) {
++    public UpdateRequirementDto setDescription(TranslatedString description) {
+         this.description = description;
+         return this;
+     }
+diff --git a/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/chfiche/ChFiche.java b/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/chfiche/ChFiche.java
+index b7be096..5e6b148 100644
+--- a/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/chfiche/ChFiche.java
++++ b/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/chfiche/ChFiche.java
+@@ -182,7 +182,7 @@ public void update(ChFicheUpdater updater) {
+             updater.setDraft(true);
+         }
+         if (updater.changedSections.contains(ChFicheUpdater.Section.STATUS)) {
+-            changeLog.merge(updateStatus(updater.draft, updater.published));
++            changeLog.merge(updateStatus(updater));
+         }
+ 
+         if (changeLog.hasChanges()) {
+@@ -192,7 +192,9 @@ public void update(ChFicheUpdater updater) {
+     }
+ 
+     // Steps related to picture Status-Varianten.png DF-1401
+-    private ChangeLog updateStatus(boolean newDraft, boolean newPublished) {
++    private ChangeLog updateStatus(ChFicheUpdater updater) {
++        boolean newDraft = (updater.draft != null) ? updater.draft : this.draft;
++        boolean newPublished = (updater.published != null) ? updater.published : this.published;
+         boolean oldDraft = this.draft;
+         boolean oldPublished = this.published;
+ 
+diff --git a/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/chfiche/ChFicheUpdater.java b/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/chfiche/ChFicheUpdater.java
+index 59fca20..4133973 100644
+--- a/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/chfiche/ChFicheUpdater.java
++++ b/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/chfiche/ChFicheUpdater.java
+@@ -17,9 +17,9 @@
+         REQUIREMENTS
+     }
+ 
+-    boolean draft;
++    Boolean draft;
+ 
+-    boolean published;
++    Boolean published;
+ 
+     TranslatedString title;
+ 
+diff --git a/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/competenceelement/CompetenceElement.java b/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/competenceelement/CompetenceElement.java
+index 895bf8c..6c213a2 100644
+--- a/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/competenceelement/CompetenceElement.java
++++ b/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/competenceelement/CompetenceElement.java
+@@ -106,7 +106,7 @@ public void update(CompetenceElementUpdater updater) {
+             updater.setDraft(true);
+         }
+         if (updater.changedSections.contains(CompetenceElementUpdater.Section.STATUS)) {
+-            changeLog.merge(updateStatus(updater.draft, updater.published));
++            changeLog.merge(updateStatus(updater));
+         }
+ 
+         if (changeLog.hasChanges()) {
+@@ -116,7 +116,9 @@ public void update(CompetenceElementUpdater updater) {
+     }
+ 
+     // Steps related to picture Status-Varianten.png DF-1401
+-    private ChangeLog updateStatus(boolean newDraft, boolean newPublished) {
++    private ChangeLog updateStatus(CompetenceElementUpdater updater) {
++        boolean newDraft = (updater.draft != null) ? updater.draft : this.draft;
++        boolean newPublished = (updater.published != null) ? updater.published : this.published;
+         boolean oldDraft = this.draft;
+         boolean oldPublished = this.published;
+ 
+diff --git a/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/competenceelement/CompetenceElementUpdater.java b/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/competenceelement/CompetenceElementUpdater.java
+index 2b9f763..b1cd0ed 100644
+--- a/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/competenceelement/CompetenceElementUpdater.java
++++ b/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/competenceelement/CompetenceElementUpdater.java
+@@ -12,9 +12,9 @@
+         DESCRIPTION,
+     }
+ 
+-    boolean draft;
++    Boolean draft;
+ 
+-    boolean published;
++    Boolean published;
+ 
+     TranslatedString description;
+ 
+diff --git a/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/competenceset/CompetenceSet.java b/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/competenceset/CompetenceSet.java
+index 4d62a89..b963c1c 100644
+--- a/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/competenceset/CompetenceSet.java
++++ b/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/competenceset/CompetenceSet.java
+@@ -123,7 +123,7 @@ public void update(CompetenceSetUpdater updater) {
+             updater.setDraft(true);
+         }
+         if (updater.changedSections.contains(CompetenceSetUpdater.Section.STATUS)) {
+-            changeLog.merge(updateStatus(updater.draft, updater.published));
++            changeLog.merge(updateStatus(updater));
+         }
+ 
+         if (changeLog.hasChanges()) {
+@@ -133,7 +133,9 @@ public void update(CompetenceSetUpdater updater) {
+     }
+ 
+     // Steps related to picture Status-Varianten.png DF-1401
+-    private ChangeLog updateStatus(boolean newDraft, boolean newPublished) {
++    private ChangeLog updateStatus(CompetenceSetUpdater updater) {
++        boolean newDraft = (updater.draft != null) ? updater.draft : this.draft;
++        boolean newPublished = (updater.published != null) ? updater.published : this.published;
+         boolean oldDraft = this.draft;
+         boolean oldPublished = this.published;
+ 
+diff --git a/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/competenceset/CompetenceSetUpdater.java b/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/competenceset/CompetenceSetUpdater.java
+index 09e1412..de66401 100644
+--- a/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/competenceset/CompetenceSetUpdater.java
++++ b/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/competenceset/CompetenceSetUpdater.java
+@@ -14,9 +14,9 @@
+         COMPETENCE_ELEMENT_IDS
+     }
+ 
+-    boolean draft = true;
++    Boolean draft = true;
+ 
+-    boolean published = false;
++    Boolean published = false;
+ 
+     CompetenceElementId knowHowId;
+ 
+diff --git a/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/requirement/Requirement.java b/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/requirement/Requirement.java
+index 59b4d16..c539b71 100644
+--- a/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/requirement/Requirement.java
++++ b/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/requirement/Requirement.java
+@@ -53,7 +53,7 @@ protected Requirement() {
+         // For reflexion libs
+     }
+ 
+-    public Requirement(final RequirementBuilder builder) {
++    public Requirement(RequirementBuilder builder) {
+         this.id = Condition.notNull(builder.id);
+         this.draft = builder.draft;
+         this.published = builder.published;
+@@ -86,7 +86,7 @@ public TranslatedString getDescription() {
+         return description;
+     }
+ 
+-    public void update(final RequirementUpdater updater) {
++    public void update(RequirementUpdater updater) {
+         Condition.notNull(updater, "Given updater can't be null!");
+         final ChangeLog changeLog = new ChangeLog();
+         if (updater.changedSections.contains(RequirementUpdater.Section.DESCRIPTION)) {
+@@ -97,7 +97,7 @@ public void update(final RequirementUpdater updater) {
+             updater.setDraft(true);
+         }
+         if (updater.changedSections.contains(RequirementUpdater.Section.STATUS)) {
+-            changeLog.merge(updateStatus(updater.draft, updater.published));
++            changeLog.merge(updateStatus(updater));
+         }
+ 
+         if (changeLog.hasChanges()) {
+@@ -107,7 +107,9 @@ public void update(final RequirementUpdater updater) {
+     }
+ 
+     // Steps related to picture Status-Varianten.png DF-1401
+-    private ChangeLog updateStatus(final boolean newDraft, final boolean newPublished) {
++    private ChangeLog updateStatus(RequirementUpdater updater) {
++        boolean newDraft = (updater.draft != null) ? updater.draft : this.draft;
++        boolean newPublished = (updater.published != null) ? updater.published : this.published;
+         boolean oldDraft = this.draft;
+         boolean oldPublished = this.published;
+ 
+@@ -142,7 +144,7 @@ private ChangeLog updateStatus(final boolean newDraft, final boolean newPublishe
+     }
+ 
+     @Override
+-    public boolean equals(final Object o) {
++    public boolean equals(Object o) {
+         if (this == o) return true;
+         if (o == null || getClass() != o.getClass()) return false;
+         final Requirement that = (Requirement) o;
+diff --git a/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/requirement/RequirementBuilder.java b/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/requirement/RequirementBuilder.java
+index 1a3c271..89102bc 100644
+--- a/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/requirement/RequirementBuilder.java
++++ b/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/requirement/RequirementBuilder.java
+@@ -15,22 +15,22 @@
+     public RequirementBuilder() {
+     }
+ 
+-    public RequirementBuilder setId(final RequirementId id) {
++    public RequirementBuilder setId(RequirementId id) {
+         this.id = id;
+         return this;
+     }
+ 
+-    public RequirementBuilder setDraft(final boolean draft) {
++    public RequirementBuilder setDraft(boolean draft) {
+         this.draft = draft;
+         return this;
+     }
+ 
+-    public RequirementBuilder setPublished(final boolean published) {
++    public RequirementBuilder setPublished(boolean published) {
+         this.published = published;
+         return this;
+     }
+ 
+-    public RequirementBuilder setDescription(final TranslatedString description) {
++    public RequirementBuilder setDescription(TranslatedString description) {
+         this.description = description;
+         return this;
+     }
+diff --git a/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/requirement/RequirementId.java b/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/requirement/RequirementId.java
+index 928dcd8..b3a7018 100644
+--- a/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/requirement/RequirementId.java
++++ b/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/requirement/RequirementId.java
+@@ -21,7 +21,7 @@ protected RequirementId() {
+         this(IdGenerator.timeBasedUUID().toString());
+     }
+ 
+-    public RequirementId(final String value) {
++    public RequirementId(String value) {
+         this.value = Condition.notBlank(value);
+     }
+ 
+@@ -30,10 +30,10 @@ public String getValue() {
+     }
+ 
+     @Override
+-    public boolean equals(final Object o) {
++    public boolean equals(Object o) {
+         if (this == o) return true;
+         if (o == null || getClass() != o.getClass()) return false;
+-        final RequirementId that = (RequirementId) o;
++        RequirementId that = (RequirementId) o;
+         return Objects.equals(value, that.value);
+     }
+ 
+diff --git a/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/requirement/RequirementUpdater.java b/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/requirement/RequirementUpdater.java
+index 1341d63..007c8e6 100644
+--- a/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/requirement/RequirementUpdater.java
++++ b/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/requirement/RequirementUpdater.java
+@@ -12,9 +12,9 @@
+         DESCRIPTION
+     }
+ 
+-    boolean draft;
++    Boolean draft;
+ 
+-    boolean published;
++    Boolean published;
+ 
+     TranslatedString description;
+ 
+@@ -23,19 +23,19 @@
+     public RequirementUpdater() {
+     }
+ 
+-    public RequirementUpdater setDraft(final boolean draft) {
++    public RequirementUpdater setDraft(boolean draft) {
+         changedSections.add(Section.STATUS);
+         this.draft = draft;
+         return this;
+     }
+ 
+-    public RequirementUpdater setPublished(final boolean published) {
++    public RequirementUpdater setPublished(boolean published) {
+         changedSections.add(Section.STATUS);
+         this.published = published;
+         return this;
+     }
+ 
+-    public RequirementUpdater setDescription(final TranslatedString description) {
++    public RequirementUpdater setDescription(TranslatedString description) {
+         changedSections.add(Section.DESCRIPTION);
+         this.description = description;
+         return this;
+diff --git a/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/requirement/events/RequirementCreatedEvent.java b/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/requirement/events/RequirementCreatedEvent.java
+index 6343aef..0f127db 100644
+--- a/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/requirement/events/RequirementCreatedEvent.java
++++ b/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/requirement/events/RequirementCreatedEvent.java
+@@ -5,7 +5,7 @@
+ 
+ public class RequirementCreatedEvent extends RequirementEvent {
+ 
+-    public RequirementCreatedEvent(final Requirement requirement) {
++    public RequirementCreatedEvent(Requirement requirement) {
+         super(new DomainEventType("RequiremendCreatedEvent"), requirement);
+     }
+ }
+diff --git a/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/requirement/events/RequirementDeletedEvent.java b/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/requirement/events/RequirementDeletedEvent.java
+index fb12a3f..afd8310 100644
+--- a/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/requirement/events/RequirementDeletedEvent.java
++++ b/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/requirement/events/RequirementDeletedEvent.java
+@@ -5,7 +5,7 @@
+ 
+ public class RequirementDeletedEvent extends RequirementEvent {
+ 
+-    public RequirementDeletedEvent(final Requirement requirement) {
++    public RequirementDeletedEvent(Requirement requirement) {
+         super(new DomainEventType("RequirementDeletedEvent"), requirement);
+     }
+ }
+diff --git a/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/requirement/events/RequirementEvent.java b/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/requirement/events/RequirementEvent.java
+index 1aa125e..229a831 100644
+--- a/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/requirement/events/RequirementEvent.java
++++ b/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/requirement/events/RequirementEvent.java
+@@ -11,7 +11,7 @@
+ 
+     private RequirementId requirementId;
+ 
+-    RequirementEvent(final DomainEventType domainEventType, final Requirement requirement) {
++    RequirementEvent(DomainEventType domainEventType, Requirement requirement) {
+         super(domainEventType, AGGREGATE_TYPE);
+         requirementId = requirement.getId();
+     }
+diff --git a/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/requirement/events/RequirementPublishedEvent.java b/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/requirement/events/RequirementPublishedEvent.java
+index aa0b788..8add62b 100644
+--- a/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/requirement/events/RequirementPublishedEvent.java
++++ b/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/requirement/events/RequirementPublishedEvent.java
+@@ -7,7 +7,7 @@
+ 
+     private final Requirement requirement;
+ 
+-    public RequirementPublishedEvent(final Requirement requirement) {
++    public RequirementPublishedEvent(Requirement requirement) {
+         super(new DomainEventType("RequirementPublishedEvent"), requirement);
+         this.requirement = requirement;
+     }
+diff --git a/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/requirement/events/RequirementUnpublishedEvent.java b/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/requirement/events/RequirementUnpublishedEvent.java
+index 4b54d14..985e8da 100644
+--- a/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/requirement/events/RequirementUnpublishedEvent.java
++++ b/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/requirement/events/RequirementUnpublishedEvent.java
+@@ -7,7 +7,7 @@
+ 
+     private final Requirement requirement;
+ 
+-    public RequirementUnpublishedEvent(final Requirement requirement) {
++    public RequirementUnpublishedEvent(Requirement requirement) {
+         super(new DomainEventType("RequirementUnpublishedEvent"), requirement);
+         this.requirement = requirement;
+     }
+diff --git a/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/requirement/events/RequirementUpdatedEvent.java b/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/requirement/events/RequirementUpdatedEvent.java
+index 4d2137d..2dbe54f 100644
+--- a/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/requirement/events/RequirementUpdatedEvent.java
++++ b/domain/src/main/java/ch/admin/seco/alv/service/competencecatalog/domain/requirement/events/RequirementUpdatedEvent.java
+@@ -8,7 +8,7 @@
+ 
+     private final ChangeLog changeLog;
+ 
+-    public RequirementUpdatedEvent(final Requirement requirement, final ChangeLog changeLog) {
++    public RequirementUpdatedEvent(Requirement requirement, ChangeLog changeLog) {
+         super(new DomainEventType("RequirementUpdatedEvent"), requirement);
+         this.changeLog = changeLog;
+     }
+diff --git a/domain/src/test/java/ch/admin/seco/alv/service/competencecatalog/domain/requirement/RequirementFixture.java b/domain/src/test/java/ch/admin/seco/alv/service/competencecatalog/domain/requirement/RequirementFixture.java
+index b416279..918a894 100644
+--- a/domain/src/test/java/ch/admin/seco/alv/service/competencecatalog/domain/requirement/RequirementFixture.java
++++ b/domain/src/test/java/ch/admin/seco/alv/service/competencecatalog/domain/requirement/RequirementFixture.java
+@@ -13,23 +13,23 @@
+     private RequirementFixture() {
+     }
+ 
+-    public static Requirement requirement(final RequirementId id) {
++    public static Requirement requirement(RequirementId id) {
+         return requirement(id, "Lorem ipsum dolor sit amet.");
+     }
+ 
+-    public static Requirement requirement(final RequirementId id, final String description) {
++    public static Requirement requirement(RequirementId id, String description) {
+         return requirement(id, generateTranslatedString(description));
+     }
+ 
+-    public static Requirement requirement(final RequirementId id, final TranslatedString description) {
++    public static Requirement requirement(RequirementId id, TranslatedString description) {
+         return requirement(id, description, true, false);
+     }
+ 
+-    public static Requirement requirement(final RequirementId id, final String description, final boolean draft, final boolean published) {
++    public static Requirement requirement(RequirementId id, String description, boolean draft, boolean published) {
+         return requirement(id, generateTranslatedString(description), draft, published);
+     }
+ 
+-    public static Requirement requirement(final RequirementId id, final TranslatedString description, final boolean draft, final boolean published) {
++    public static Requirement requirement(RequirementId id, TranslatedString description, boolean draft, boolean published) {
+         return new RequirementBuilder()
+                 .setId(id)
+                 .setDraft(draft)
+@@ -38,7 +38,7 @@ public static Requirement requirement(final RequirementId id, final TranslatedSt
+                 .build();
+     }
+ 
+-    public static Set<Requirement> setOf(final Requirement... requirements) {
++    public static Set<Requirement> setOf(Requirement... requirements) {
+         return new HashSet<>(Arrays.asList(requirements));
+     }
+ }
+diff --git a/domain/src/test/java/ch/admin/seco/alv/service/competencecatalog/domain/requirement/RequirementIdFixture.java b/domain/src/test/java/ch/admin/seco/alv/service/competencecatalog/domain/requirement/RequirementIdFixture.java
+index ec96c94..ca0494f 100644
+--- a/domain/src/test/java/ch/admin/seco/alv/service/competencecatalog/domain/requirement/RequirementIdFixture.java
++++ b/domain/src/test/java/ch/admin/seco/alv/service/competencecatalog/domain/requirement/RequirementIdFixture.java
+@@ -17,7 +17,7 @@
+     private RequirementIdFixture() {
+     }
+ 
+-    public static Set<RequirementId> setOf(final RequirementId... ids) {
++    public static Set<RequirementId> setOf(RequirementId... ids) {
+         return new HashSet<>(Arrays.asList(ids));
+     }
+ }
+diff --git a/domain/src/test/java/ch/admin/seco/alv/service/competencecatalog/domain/requirement/RequirementTest.java b/domain/src/test/java/ch/admin/seco/alv/service/competencecatalog/domain/requirement/RequirementTest.java
+index c52d550..60d3cfe 100644
+--- a/domain/src/test/java/ch/admin/seco/alv/service/competencecatalog/domain/requirement/RequirementTest.java
++++ b/domain/src/test/java/ch/admin/seco/alv/service/competencecatalog/domain/requirement/RequirementTest.java
+@@ -31,8 +31,8 @@ public void tearDown() {
+     @Test
+     public void testUpdater() {
+         // given
+-        final Requirement requirement = initializeWithStatus(true, false);
+-        final RequirementUpdater updater = new RequirementUpdater()
++        Requirement requirement = initializeWithStatus(true, false);
++        RequirementUpdater updater = new RequirementUpdater()
+                 .setDescription(TranslatedStringFixture.TS_2)
+                 .setDraft(true)
+                 .setPublished(false);
+@@ -44,7 +44,7 @@ public void testUpdater() {
+         assertThat(requirement.getDescription()).isEqualTo(TranslatedStringFixture.TS_2);
+         assertThat(requirement.isDraft()).isTrue();
+         assertThat(requirement.isPublished()).isFalse();
+-        final RequirementUpdatedEvent event = domainEventMockUtils.assertSingleDomainEventPublished(RequirementUpdatedEvent.class);
++        RequirementUpdatedEvent event = domainEventMockUtils.assertSingleDomainEventPublished(RequirementUpdatedEvent.class);
+         assertThat(event.getChangeLog().hasChanges()).isTrue();
+         assertThat(event.getChangeLog().getEntries()).hasSize(1);
+     }
+@@ -52,8 +52,8 @@ public void testUpdater() {
+     @Test
+     public void testUpdaterNoChanges() {
+         // given
+-        final Requirement requirement = initializeWithStatus(false, true);
+-        final RequirementUpdater updater = generateStatusUpdates(false, true);
++        Requirement requirement = initializeWithStatus(false, true);
++        RequirementUpdater updater = generateStatusUpdates(false, true);
+ 
+         // when
+         requirement.update(updater);
+@@ -69,8 +69,8 @@ public void testUpdaterNoChanges() {
+     @Test
+     public void testStatusApproveUnpublished() {
+         // given
+-        final Requirement requirement = initializeWithStatus(true, false);
+-        final RequirementUpdater updater = generateStatusUpdates(false, false);
++        Requirement requirement = initializeWithStatus(true, false);
++        RequirementUpdater updater = generateStatusUpdates(false, false);
+ 
+         // when
+         requirement.update(updater);
+@@ -83,8 +83,8 @@ public void testStatusApproveUnpublished() {
+     @Test
+     public void testStatusApproveAndUnpublished() {
+         // given
+-        final Requirement requirement = initializeWithStatus(true, true);
+-        final RequirementUpdater updater = generateStatusUpdates(false, false);
++        Requirement requirement = initializeWithStatus(true, true);
++        RequirementUpdater updater = generateStatusUpdates(false, false);
+ 
+         // then
+         requirement.update(updater);
+@@ -97,8 +97,8 @@ public void testStatusApproveAndUnpublished() {
+     @Test
+     public void testStatusApproveAndPublish() {
+         // given
+-        final Requirement requirement = initializeWithStatus(true, false);
+-        final RequirementUpdater updater = generateStatusUpdates(false, true);
++        Requirement requirement = initializeWithStatus(true, false);
++        RequirementUpdater updater = generateStatusUpdates(false, true);
+ 
+         // when
+         requirement.update(updater);
+@@ -111,8 +111,8 @@ public void testStatusApproveAndPublish() {
+     @Test
+     public void testStatusApprovePublished() {
+         // given
+-        final Requirement requirement = initializeWithStatus(true, true);
+-        final RequirementUpdater updater = generateStatusUpdates(false, true);
++        Requirement requirement = initializeWithStatus(true, true);
++        RequirementUpdater updater = generateStatusUpdates(false, true);
+ 
+         // when
+         requirement.update(updater);
+@@ -125,8 +125,8 @@ public void testStatusApprovePublished() {
+     @Test
+     public void testStatusEditUnpublished() {
+         // given
+-        final Requirement requirement = initializeWithStatus(false, false);
+-        final RequirementUpdater updater = generateStatusUpdates(true, false);
++        Requirement requirement = initializeWithStatus(false, false);
++        RequirementUpdater updater = generateStatusUpdates(true, false);
+ 
+         // when
+         requirement.update(updater);
+@@ -139,8 +139,8 @@ public void testStatusEditUnpublished() {
+     @Test
+     public void testStatusEditAndUnpublish() {
+         // given
+-        final Requirement requirement = initializeWithStatus(false, true);
+-        final RequirementUpdater updater = generateStatusUpdates(true, false);
++        Requirement requirement = initializeWithStatus(false, true);
++        RequirementUpdater updater = generateStatusUpdates(true, false);
+ 
+         // when
+         requirement.update(updater);
+@@ -153,11 +153,11 @@ public void testStatusEditAndUnpublish() {
+     @Test
+     public void testStatusEditAndPublish() {
+         // given
+-        final Requirement requirement = initializeWithStatus(false, false);
+-        final RequirementUpdater updater = generateStatusUpdates(true, true);
++        Requirement requirement = initializeWithStatus(false, false);
++        RequirementUpdater updater = generateStatusUpdates(true, true);
+ 
+         // when
+-        final Throwable throwable = catchThrowable(() -> requirement.update(updater));
++        Throwable throwable = catchThrowable(() -> requirement.update(updater));
+ 
+         // then
+         assertThat(throwable)
+@@ -170,8 +170,8 @@ public void testStatusEditAndPublish() {
+     @Test
+     public void testStatusEditPublished() {
+         // given
+-        final Requirement requirement = initializeWithStatus(false, true);
+-        final RequirementUpdater updater = generateStatusUpdates(true, true);
++        Requirement requirement = initializeWithStatus(false, true);
++        RequirementUpdater updater = generateStatusUpdates(true, true);
+ 
+         // when
+         requirement.update(updater);
+@@ -184,11 +184,11 @@ public void testStatusEditPublished() {
+     @Test
+     public void testStatusPublishEdited() {
+         // given
+-        final Requirement requirement = initializeWithStatus(true, false);
+-        final RequirementUpdater updater = generateStatusUpdates(true, true);
++        Requirement requirement = initializeWithStatus(true, false);
++        RequirementUpdater updater = generateStatusUpdates(true, true);
+ 
+         // when
+-        final Throwable throwable = catchThrowable(() -> requirement.update(updater));
++        Throwable throwable = catchThrowable(() -> requirement.update(updater));
+ 
+         // then
+         assertThat(throwable)
+@@ -201,8 +201,8 @@ public void testStatusPublishEdited() {
+     @Test
+     public void testStatusPublishApproved() {
+         // given
+-        final Requirement requirement = initializeWithStatus(false, false);
+-        final RequirementUpdater updater = generateStatusUpdates(false, true);
++        Requirement requirement = initializeWithStatus(false, false);
++        RequirementUpdater updater = generateStatusUpdates(false, true);
+ 
+         // when
+         requirement.update(updater);
+@@ -215,8 +215,8 @@ public void testStatusPublishApproved() {
+     @Test
+     public void testStatusUnpublishEdited() {
+         // given
+-        final Requirement requirement = initializeWithStatus(true, true);
+-        final RequirementUpdater updater = generateStatusUpdates(true, false);
++        Requirement requirement = initializeWithStatus(true, true);
++        RequirementUpdater updater = generateStatusUpdates(true, false);
+ 
+         // when
+         requirement.update(updater);
+@@ -229,8 +229,8 @@ public void testStatusUnpublishEdited() {
+     @Test
+     public void testStatusUnpublishApproved() {
+         // given
+-        final Requirement requirement = initializeWithStatus(false, true);
+-        final RequirementUpdater updater = generateStatusUpdates(false, false);
++        Requirement requirement = initializeWithStatus(false, true);
++        RequirementUpdater updater = generateStatusUpdates(false, false);
+ 
+         // when
+         requirement.update(updater);
+@@ -239,7 +239,7 @@ public void testStatusUnpublishApproved() {
+         domainEventMockUtils.assertMultipleDomainEventPublished(RequirementUpdatedEvent.class, RequirementUnpublishedEvent.class);
+     }
+ 
+-    private Requirement initializeWithStatus(final boolean draft, final boolean published) {
++    private Requirement initializeWithStatus(boolean draft, boolean published) {
+         return RequirementFixture.requirement(
+                 RequirementIdFixture.VRS_1,
+                 TranslatedStringFixture.TS_1,
+@@ -248,7 +248,7 @@ private Requirement initializeWithStatus(final boolean draft, final boolean publ
+         );
+     }
+ 
+-    private RequirementUpdater generateStatusUpdates(final boolean draft, final boolean published) {
++    private RequirementUpdater generateStatusUpdates(boolean draft, boolean published) {
+         return new RequirementUpdater()
+                 .setDescription(TranslatedStringFixture.TS_1)
+                 .setDraft(draft)
+diff --git a/infrastructure/src/main/java/ch/admin/seco/alv/service/competencecatalog/infrastructure/elasticsearch/requirement/ElasticsearchBasedRequirementSearchService.java b/infrastructure/src/main/java/ch/admin/seco/alv/service/competencecatalog/infrastructure/elasticsearch/requirement/ElasticsearchBasedRequirementSearchService.java
+index 6193253..1529a4b 100644
+--- a/infrastructure/src/main/java/ch/admin/seco/alv/service/competencecatalog/infrastructure/elasticsearch/requirement/ElasticsearchBasedRequirementSearchService.java
++++ b/infrastructure/src/main/java/ch/admin/seco/alv/service/competencecatalog/infrastructure/elasticsearch/requirement/ElasticsearchBasedRequirementSearchService.java
+@@ -50,10 +50,10 @@
+     private final ResultsMapper resultsMapper;
+ 
+     public ElasticsearchBasedRequirementSearchService(
+-            final ElasticsearchTemplate elasticsearchTemplate,
+-            final LanguageProvider languageProvider,
+-            final DocumentIndexConfigProperties documentIndexConfigProperties,
+-            final EntityMapper entityMapper) {
++            ElasticsearchTemplate elasticsearchTemplate,
++            LanguageProvider languageProvider,
++            DocumentIndexConfigProperties documentIndexConfigProperties,
++            EntityMapper entityMapper) {
+         super(languageProvider);
+         this.elasticsearchTemplate = elasticsearchTemplate;
+         documentIndexName = documentIndexConfigProperties.getDocumentIndexPrefix() + "-requirements";
+@@ -61,10 +61,10 @@ public ElasticsearchBasedRequirementSearchService(
+     }
+ 
+     @Override
+-    public Page<RequirementDto> search(final RequirementSearchRequest searchRequest, final int page, final int size, final SearchSort sort) {
+-        final Pageable pageable = PageRequest.of(page, size, createSort(sort));
++    public Page<RequirementDto> search(RequirementSearchRequest searchRequest, int page, int size, SearchSort sort) {
++        Pageable pageable = PageRequest.of(page, size, createSort(sort));
+ 
+-        final SearchQuery searchQuery = new NativeSearchQueryBuilder()
++        SearchQuery searchQuery = new NativeSearchQueryBuilder()
+                 .withQuery(createQueryBuilder(searchRequest))
+                 .withFilter(createFilterBuilder(searchRequest))
+                 .withPageable(pageable)
+@@ -80,7 +80,7 @@ public ElasticsearchBasedRequirementSearchService(
+         return elasticsearchTemplate.query(searchQuery, response -> extractSearchResult(pageable, response));
+     }
+ 
+-    private BoolQueryBuilder createQueryBuilder(final RequirementSearchRequest searchRequest) {
++    private BoolQueryBuilder createQueryBuilder(RequirementSearchRequest searchRequest) {
+         if (!hasText(searchRequest.getQuery())) {
+             return boolQuery().must(matchAllQuery());
+         }
+@@ -89,14 +89,14 @@ private BoolQueryBuilder createQueryBuilder(final RequirementSearchRequest searc
+                 .should(matchPhrasePrefixQuery(determineLanguageSpecificPath(PATH_DESCRIPTION), searchRequest.getQuery()));
+     }
+ 
+-    private BoolQueryBuilder createFilterBuilder(final RequirementSearchRequest searchRequest) {
++    private BoolQueryBuilder createFilterBuilder(RequirementSearchRequest searchRequest) {
+         return mustAll(
+                 statusFilter(searchRequest)
+         );
+     }
+ 
+-    private BoolQueryBuilder statusFilter(final RequirementSearchRequest searchRequest) {
+-        final BoolQueryBuilder query = boolQuery();
++    private BoolQueryBuilder statusFilter(RequirementSearchRequest searchRequest) {
++        BoolQueryBuilder query = boolQuery();
+ 
+         if (searchRequest.getDraft() != null) {
+             query.must(termsQuery(PATH_STATUS_DRAFT, searchRequest.getDraft()));
+@@ -109,7 +109,7 @@ private BoolQueryBuilder statusFilter(final RequirementSearchRequest searchReque
+         return query;
+     }
+ 
+-    private Sort createSort(final SearchSort sort) {
++    private Sort createSort(SearchSort sort) {
+         switch (sort) {
+             case date_asc:
+                 return Sort.by(asc(PATH_CREATED_AT));
+@@ -122,17 +122,17 @@ private Sort createSort(final SearchSort sort) {
+         }
+     }
+ 
+-    private Page<RequirementDto> extractSearchResult(final Pageable pageable, final SearchResponse response) {
+-        final AggregatedPage<RequirementDocument> searchResults = resultsMapper.mapResults(response, RequirementDocument.class, pageable);
++    private Page<RequirementDto> extractSearchResult(Pageable pageable, SearchResponse response) {
++        AggregatedPage<RequirementDocument> searchResults = resultsMapper.mapResults(response, RequirementDocument.class, pageable);
+ 
+-        final List<RequirementDto> requirementDtos = searchResults.getContent().stream()
++        List<RequirementDto> requirementDtos = searchResults.getContent().stream()
+                 .map(this::toRequirementDto)
+                 .collect(Collectors.toList());
+ 
+         return new PageImpl<>(requirementDtos, pageable, requirementDtos.size());
+     }
+ 
+-    private RequirementDto toRequirementDto(final RequirementDocument document) {
++    private RequirementDto toRequirementDto(RequirementDocument document) {
+         return new RequirementDto()
+                 .setId(new RequirementId(document.getId()))
+                 .setDraft(document.isDraft())
+diff --git a/infrastructure/src/main/java/ch/admin/seco/alv/service/competencecatalog/infrastructure/elasticsearch/requirement/RequirementDocument.java b/infrastructure/src/main/java/ch/admin/seco/alv/service/competencecatalog/infrastructure/elasticsearch/requirement/RequirementDocument.java
+index 1fe4155..f2a7a7f 100644
+--- a/infrastructure/src/main/java/ch/admin/seco/alv/service/competencecatalog/infrastructure/elasticsearch/requirement/RequirementDocument.java
++++ b/infrastructure/src/main/java/ch/admin/seco/alv/service/competencecatalog/infrastructure/elasticsearch/requirement/RequirementDocument.java
+@@ -29,7 +29,7 @@ private RequirementDocument() {
+         // For reflexion libs
+     }
+ 
+-    public RequirementDocument(final Requirement requirement) {
++    public RequirementDocument(Requirement requirement) {
+         this.id = requirement.getId().getValue();
+         this.draft = requirement.isDraft();
+         this.published = requirement.isPublished();
+diff --git a/infrastructure/src/main/java/ch/admin/seco/alv/service/competencecatalog/infrastructure/elasticsearch/requirement/RequirementIndexer.java b/infrastructure/src/main/java/ch/admin/seco/alv/service/competencecatalog/infrastructure/elasticsearch/requirement/RequirementIndexer.java
+index 72c0714..18fd4b0 100644
+--- a/infrastructure/src/main/java/ch/admin/seco/alv/service/competencecatalog/infrastructure/elasticsearch/requirement/RequirementIndexer.java
++++ b/infrastructure/src/main/java/ch/admin/seco/alv/service/competencecatalog/infrastructure/elasticsearch/requirement/RequirementIndexer.java
+@@ -23,16 +23,16 @@
+     private final BulkIndexerTemplate bulkIndexerTemplate;
+ 
+     public RequirementIndexer(
+-            final RequirementElasticsearchRepository requirementElasticsearchRepository,
+-            final RequirementRepository requirementRepository,
+-            final BulkIndexerTemplate bulkIndexerTemplate) {
++            RequirementElasticsearchRepository requirementElasticsearchRepository,
++            RequirementRepository requirementRepository,
++            BulkIndexerTemplate bulkIndexerTemplate) {
+         this.requirementElasticsearchRepository = requirementElasticsearchRepository;
+         this.requirementRepository = requirementRepository;
+         this.bulkIndexerTemplate = bulkIndexerTemplate;
+     }
+ 
+     @TransactionalEventListener
+-    public void handleRequirementEvent(final RequirementEvent event) {
++    public void handleRequirementEvent(RequirementEvent event) {
+         if (event instanceof RequirementDeletedEvent) {
+             removeDocument(event.getAggregateId());
+         } else {
+@@ -55,22 +55,22 @@ public void indexAll() {
+         );
+     }
+ 
+-    private void upsertDocument(final RequirementId id) {
+-        final RequirementDocument document = requirementRepository.findById(id)
++    private void upsertDocument(RequirementId id) {
++        RequirementDocument document = requirementRepository.findById(id)
+                 .map(RequirementDocument::new)
+                 .orElseThrow(() -> new RequirementNotFoundException(id));
+         indexDocument(document);
+     }
+ 
+-    private void indexDocument(final RequirementDocument document) {
++    private void indexDocument(RequirementDocument document) {
+         requirementElasticsearchRepository.save(document);
+     }
+ 
+-    private void indexDocuments(final Collection<RequirementDocument> documents) {
++    private void indexDocuments(Collection<RequirementDocument> documents) {
+         requirementElasticsearchRepository.saveAll(documents);
+     }
+ 
+-    private void removeDocument(final RequirementId id) {
++    private void removeDocument(RequirementId id) {
+         requirementElasticsearchRepository.deleteById(id.getValue());
+     }
+ }
+diff --git a/infrastructure/src/main/java/ch/admin/seco/alv/service/competencecatalog/infrastructure/messagebroker/RequirementPublishedEventDto.java b/infrastructure/src/main/java/ch/admin/seco/alv/service/competencecatalog/infrastructure/messagebroker/RequirementPublishedEventDto.java
+index b72e8c7..3b841d3 100644
+--- a/infrastructure/src/main/java/ch/admin/seco/alv/service/competencecatalog/infrastructure/messagebroker/RequirementPublishedEventDto.java
++++ b/infrastructure/src/main/java/ch/admin/seco/alv/service/competencecatalog/infrastructure/messagebroker/RequirementPublishedEventDto.java
+@@ -26,7 +26,7 @@ public String getEventType() {
+         return eventType;
+     }
+ 
+-    public RequirementPublishedEventDto setEventType(final String eventType) {
++    public RequirementPublishedEventDto setEventType(String eventType) {
+         this.eventType = eventType;
+         return this;
+     }
+@@ -36,7 +36,7 @@ public String getId() {
+         return id;
+     }
+ 
+-    public RequirementPublishedEventDto setId(final String id) {
++    public RequirementPublishedEventDto setId(String id) {
+         this.id = id;
+         return this;
+     }
+@@ -45,7 +45,7 @@ public RequirementDto getRequirement() {
+         return requirement;
+     }
+ 
+-    public RequirementPublishedEventDto setRequirement(final RequirementDto requirement) {
++    public RequirementPublishedEventDto setRequirement(RequirementDto requirement) {
+         this.requirement = requirement;
+         return this;
+     }
+diff --git a/infrastructure/src/main/java/ch/admin/seco/alv/service/competencecatalog/infrastructure/messagebroker/RequirementUnpublishedEventDto.java b/infrastructure/src/main/java/ch/admin/seco/alv/service/competencecatalog/infrastructure/messagebroker/RequirementUnpublishedEventDto.java
+index f1d7ceb..c658bb0 100644
+--- a/infrastructure/src/main/java/ch/admin/seco/alv/service/competencecatalog/infrastructure/messagebroker/RequirementUnpublishedEventDto.java
++++ b/infrastructure/src/main/java/ch/admin/seco/alv/service/competencecatalog/infrastructure/messagebroker/RequirementUnpublishedEventDto.java
+@@ -26,7 +26,7 @@ public String getEventType() {
+         return eventType;
+     }
+ 
+-    public RequirementUnpublishedEventDto setEventType(final String eventType) {
++    public RequirementUnpublishedEventDto setEventType(String eventType) {
+         this.eventType = eventType;
+         return this;
+     }
+@@ -36,7 +36,7 @@ public String getId() {
+         return id;
+     }
+ 
+-    public RequirementUnpublishedEventDto setId(final String id) {
++    public RequirementUnpublishedEventDto setId(String id) {
+         this.id = id;
+         return this;
+     }
+@@ -45,7 +45,7 @@ public RequirementDto getRequirement() {
+         return requirement;
+     }
+ 
+-    public RequirementUnpublishedEventDto setRequirement(final RequirementDto requirement) {
++    public RequirementUnpublishedEventDto setRequirement(RequirementDto requirement) {
+         this.requirement = requirement;
+         return this;
+     }
+diff --git a/infrastructure/src/test/java/ch/admin/seco/alv/service/competencecatalog/infrastructure/elasticsearch/requirement/ElasticsearchBasedRequirementSearchServiceTest.java b/infrastructure/src/test/java/ch/admin/seco/alv/service/competencecatalog/infrastructure/elasticsearch/requirement/ElasticsearchBasedRequirementSearchServiceTest.java
+index 7a5c2c9..827528b 100644
+--- a/infrastructure/src/test/java/ch/admin/seco/alv/service/competencecatalog/infrastructure/elasticsearch/requirement/ElasticsearchBasedRequirementSearchServiceTest.java
++++ b/infrastructure/src/test/java/ch/admin/seco/alv/service/competencecatalog/infrastructure/elasticsearch/requirement/ElasticsearchBasedRequirementSearchServiceTest.java
+@@ -42,7 +42,7 @@
+ 
+     static class Initializer implements ApplicationContextInitializer<ConfigurableApplicationContext> {
+         @Override
+-        public void initialize(final ConfigurableApplicationContext configurableApplicationContext) {
++        public void initialize(ConfigurableApplicationContext configurableApplicationContext) {
+             ESContainerConfigHelper.applyESContainerConfig(elasticsearchContainer, configurableApplicationContext.getEnvironment());
+         }
+     }
+@@ -69,16 +69,16 @@ public void searchByIdWithHyphen() {
+         requirementElasticsearchRepository.save(new RequirementDocument(requirement(VRS_2, "Test HLW 1")));
+         requirementElasticsearchRepository.save(new RequirementDocument(requirement(VRS_3, "Test HLW 1")));
+ 
+-        final RequirementSearchRequest requirementSearchRequest = new RequirementSearchRequest()
++        RequirementSearchRequest requirementSearchRequest = new RequirementSearchRequest()
+                 .setQuery(VRS_1.getValue().toLowerCase());
+ 
+         // when
+-        final Page<RequirementDto> resultPage = sut.search(requirementSearchRequest, 0, 20, SearchSort.date_desc);
++        Page<RequirementDto> resultPage = sut.search(requirementSearchRequest, 0, 20, SearchSort.date_desc);
+ 
+         // then
+         assertThat(resultPage).isNotNull();
+ 
+-        final List<RequirementDto> content = resultPage.getContent();
++        List<RequirementDto> content = resultPage.getContent();
+         assertThat(content).hasSize(1);
+         assertThat(content.get(0).getId()).isEqualTo(VRS_1);
+     }
+@@ -90,16 +90,16 @@ public void searchByIdWithPartialValue() {
+         requirementElasticsearchRepository.save(new RequirementDocument(requirement(VRS_2, "Test HLW 1")));
+         requirementElasticsearchRepository.save(new RequirementDocument(requirement(VRS_11, "Test HLW 1")));
+ 
+-        final RequirementSearchRequest requirementSearchRequest = new RequirementSearchRequest()
++        RequirementSearchRequest requirementSearchRequest = new RequirementSearchRequest()
+                 .setQuery(VRS_1.getValue().toLowerCase());
+ 
+         // when
+-        final Page<RequirementDto> resultPage = sut.search(requirementSearchRequest, 0, 20, SearchSort.date_desc);
++        Page<RequirementDto> resultPage = sut.search(requirementSearchRequest, 0, 20, SearchSort.date_desc);
+ 
+         // then
+         assertThat(resultPage).isNotNull();
+ 
+-        final List<RequirementDto> content = resultPage.getContent();
++        List<RequirementDto> content = resultPage.getContent();
+         assertThat(content).hasSize(2);
+         assertThat(content.get(0).getId()).isEqualTo(VRS_11);
+         assertThat(content.get(1).getId()).isEqualTo(VRS_1);
+@@ -114,15 +114,15 @@ public void searchSortingAlphabeticallyDesc() {
+         requirementElasticsearchRepository.save(new RequirementDocument(requirement(VRS_4, new TranslatedString(null, "d test text", null, null))));
+         requirementElasticsearchRepository.save(new RequirementDocument(requirement(VRS_5, new TranslatedString("ö test text", null, null, null))));
+ 
+-        final RequirementSearchRequest requirementSearchRequest = new RequirementSearchRequest();
++        RequirementSearchRequest requirementSearchRequest = new RequirementSearchRequest();
+ 
+         // when
+-        final Page<RequirementDto> resultPage = sut.search(requirementSearchRequest, 0, 20, SearchSort.alphabetically_desc);
++        Page<RequirementDto> resultPage = sut.search(requirementSearchRequest, 0, 20, SearchSort.alphabetically_desc);
+ 
+         // then
+         assertThat(resultPage).isNotNull();
+ 
+-        final List<RequirementDto> content = resultPage.getContent();
++        List<RequirementDto> content = resultPage.getContent();
+         assertThat(content).hasSize(5);
+         assertThat(content.get(0).getId()).isEqualTo(VRS_5);
+         assertThat(content.get(1).getId()).isEqualTo(VRS_3);
+@@ -140,17 +140,17 @@ public void languageBasedSearch() {
+         requirementElasticsearchRepository.save(new RequirementDocument(requirement(VRS_4, TS_4)));
+         requirementElasticsearchRepository.save(new RequirementDocument(requirement(VRS_5, TS_5)));
+ 
+-        final RequirementSearchRequest requirementSearchRequest = new RequirementSearchRequest()
++        RequirementSearchRequest requirementSearchRequest = new RequirementSearchRequest()
+                 .setQuery("ver");
+ 
+         // when
+         // Language is se to DE
+-        final Page<RequirementDto> resultPage = sut.search(requirementSearchRequest, 0, 20, SearchSort.date_asc);
++        Page<RequirementDto> resultPage = sut.search(requirementSearchRequest, 0, 20, SearchSort.date_asc);
+ 
+         // then
+         assertThat(resultPage).isNotNull();
+ 
+-        final List<RequirementDto> content = resultPage.getContent();
++        List<RequirementDto> content = resultPage.getContent();
+         assertThat(content).hasSize(1);
+         assertThat(content.get(0).getId()).isEqualTo(VRS_2);
+     }
+diff --git a/infrastructure/src/test/java/ch/admin/seco/alv/service/competencecatalog/infrastructure/elasticsearch/requirement/RequirementIndexerTest.java b/infrastructure/src/test/java/ch/admin/seco/alv/service/competencecatalog/infrastructure/elasticsearch/requirement/RequirementIndexerTest.java
+index 0cf9405..a8a172c 100644
+--- a/infrastructure/src/test/java/ch/admin/seco/alv/service/competencecatalog/infrastructure/elasticsearch/requirement/RequirementIndexerTest.java
++++ b/infrastructure/src/test/java/ch/admin/seco/alv/service/competencecatalog/infrastructure/elasticsearch/requirement/RequirementIndexerTest.java
+@@ -32,7 +32,7 @@
+ 
+     static class Initializer implements ApplicationContextInitializer<ConfigurableApplicationContext> {
+         @Override
+-        public void initialize(final ConfigurableApplicationContext configurableApplicationContext) {
++        public void initialize(ConfigurableApplicationContext configurableApplicationContext) {
+             ESContainerConfigHelper.applyESContainerConfig(elasticsearchContainer, configurableApplicationContext.getEnvironment());
+         }
+     }

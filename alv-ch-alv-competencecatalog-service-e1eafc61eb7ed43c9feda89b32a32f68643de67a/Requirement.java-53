@@ -1,0 +1,9 @@
+@@ -53,7 +53,7 @@ protected Requirement() {
+         // For reflexion libs
+     }
+ 
+-    public Requirement(final RequirementBuilder builder) {
++    public Requirement(RequirementBuilder builder) {
+         this.id = Condition.notNull(builder.id);
+         this.draft = builder.draft;
+         this.published = builder.published;

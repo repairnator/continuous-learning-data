@@ -1,0 +1,2359 @@
+diff --git a/.travis.yml b/.travis.yml
+index 3c56f3f45..4e6422056 100644
+--- a/.travis.yml
++++ b/.travis.yml
+@@ -61,8 +61,6 @@ x-template:
+ 
+ jobs:
+   include:
+-    - <<: *STANDARD_TEST_JOB
+-      env: MODULE='hadoop'
+     - <<: *STANDARD_TEST_JOB
+       env: MODULE='lucene'
+     - <<: *STANDARD_TEST_JOB
+@@ -106,17 +104,23 @@ jobs:
+       env: MODULE='cassandra' ARGS='-Dtest=**/diskstorage/cassandra/embedded/*'
+     - <<: *STANDARD_TEST_JOB
+       env: MODULE='cassandra' ARGS='-Dtest=***/cassandra/*,*/graphdb/embedded/*'
++    - <<: *STANDARD_TEST_JOB
++      env: MODULE='cassandra' ARGS='-Pcassandra2-murmur -Dtest=**/hadoop/*'
+ 
+     - <<: *STANDARD_TEST_JOB
+       env: MODULE='hbase-parent/janusgraph-hbase-10' ARGS='-Dtest=**/diskstorage/hbase/*'
+     - <<: *STANDARD_TEST_JOB
+       env: MODULE='hbase-parent/janusgraph-hbase-10' ARGS='-Dtest=**/graphdb/hbase/*'
++    - <<: *STANDARD_TEST_JOB
++      env: MODULE='hbase-parent/janusgraph-hbase-10' ARGS='-Dtest=**/hadoop/*'
+     - <<: *STANDARD_TEST_JOB
+       env: MODULE='hbase-parent/janusgraph-hbase-10' INSTALL_ARGS='-Dhbase.profile -Phbase2' ARGS='-Dtest=**/diskstorage/hbase/* -Dhbase.profile -Phbase2'
+     - <<: *STANDARD_TEST_JOB
+       env: MODULE='hbase-parent/janusgraph-hbase-10' INSTALL_ARGS='-Dhbase.profile -Phbase2' ARGS='-Dtest=**/graphdb/hbase/* -Dhbase.profile -Phbase2'
+     - <<: *STANDARD_TEST_JOB
+-      env: MODULE='hadoop' INSTALL_ARGS='-Dhbase.profile -Phbase2' ARGS='-Dhbase.profile -Phbase2 -DskipCassandra'
++      env: MODULE='hbase-parent/janusgraph-hbase-10' INSTALL_ARGS='-Dhbase.profile -Phbase2' ARGS='-Dtest=**/hadoop/* -Dhbase.profile -Phbase2'
++    - <<: *STANDARD_TEST_JOB
++      env: MODULE='hadoop' INSTALL_ARGS='-Dhbase.profile -Phbase2' ARGS='-Dhbase.profile -Phbase2'
+     - <<: *STANDARD_TEST_JOB
+       env: MODULE='cql' ARGS='-Pcassandra2-byteordered -Dtest=**/diskstorage/cql/*'
+     - <<: *STANDARD_TEST_JOB
+@@ -127,15 +131,11 @@ jobs:
+       env: MODULE='cql' ARGS='-Pcassandra2-byteordered -Dtest=**/graphdb/cql/*'
+     - <<: *STANDARD_TEST_JOB
+       env: MODULE='cql' ARGS='-Pcassandra2-murmur -Dtest=**/graphdb/cql/*'
++    - <<: *STANDARD_TEST_JOB
++      env: MODULE='cql' ARGS='-Pcassandra2-murmur -Dtest=**/hadoop/*'
+ 
+     - <<: *FULL_BUILD_JOB
+-      env: MODULE='hadoop' ARGS='-DskipHBase -DskipCassandra -DskipCassandra3=false -Dcassandra.docker.version=3.11.4'
+-    - <<: *FULL_BUILD_JOB
+-      env: MODULE='cassandra' ARGS='-Pcassandra3-byteordered -Dtest=**/diskstorage/cassandra/thrift/* -Dcassandra.docker.version=3.11.4'
+-    - <<: *FULL_BUILD_JOB
+-      env: MODULE='cassandra' ARGS='-Pcassandra3-murmur -Dtest=**/diskstorage/cassandra/thrift/* -Dcassandra.docker.version=3.11.4'
+-    - <<: *FULL_BUILD_JOB
+-      env: MODULE='cassandra' ARGS='-Pcassandra3-murmur-ssl -Dtest=**/diskstorage/cassandra/thrift/ThriftStoreTest.java -Dcassandra.docker.version=3.11.4'
++      env: MODULE='cql' ARGS='-Dtest=**/graphdb/cql/* -Dtest.skip.byteorderedpartitioner=true -Dtest.skip.murmur-serial=true -Dtest.skip.murmur-ssl=true'
+     - <<: *FULL_BUILD_JOB
+       env: MODULE='cassandra' ARGS='-Pcassandra3-byteordered -Dtest=**/graphdb/thrift/* -Dcassandra.docker.version=3.11.4'
+     - <<: *FULL_BUILD_JOB
+@@ -150,6 +150,8 @@ jobs:
+       env: MODULE='cassandra' ARGS='-Pcassandra3-byteordered -Dtest=**/graphdb/astyanax/* -Dcassandra.docker.version=3.11.4'
+     - <<: *FULL_BUILD_JOB
+       env: MODULE='cassandra' ARGS='-Pcassandra3-murmur -Dtest=**/graphdb/astyanax/* -Dcassandra.docker.version=3.11.4'
++    - <<: *FULL_BUILD_JOB
++      env: MODULE='cassandra' ARGS='-Pcassandra3-murmur -Dtest=**/hadoop/* -Dcassandra.docker.version=3.11.4'
+     - <<: *FULL_BUILD_JOB
+       env: MODULE='cql' ARGS=' -Pcassandra3-byteordered -Dcassandra.docker.version=3.11.4'
+     - <<: *FULL_BUILD_JOB
+@@ -157,14 +159,6 @@ jobs:
+     - <<: *FULL_BUILD_JOB
+       env: MODULE='cql' ARGS=' -Pcassandra3-murmur-ssl -Dcassandra.docker.version=3.11.4 -Dtest=**/diskstorage/cql/CQLStoreTest.java'
+     
+-    - <<: *FULL_BUILD_JOB
+-      env: MODULE='hadoop' ARGS='-DskipHBase -DskipCassandra -DskipCassandra3=false -Dcassandra.docker.version=3.0.18'
+-    - <<: *FULL_BUILD_JOB
+-      env: MODULE='cassandra' ARGS='-Pcassandra3-byteordered -Dtest=**/diskstorage/cassandra/thrift/* -Dcassandra.docker.version=3.0.18'
+-    - <<: *FULL_BUILD_JOB
+-      env: MODULE='cassandra' ARGS='-Pcassandra3-murmur -Dtest=**/diskstorage/cassandra/thrift/* -Dcassandra.docker.version=3.0.18'
+-    - <<: *FULL_BUILD_JOB
+-      env: MODULE='cassandra' ARGS='-Pcassandra3-murmur-ssl -Dtest=**/diskstorage/cassandra/thrift/ThriftStoreTest.java -Dcassandra.docker.version=3.0.18'
+     - <<: *FULL_BUILD_JOB
+       env: MODULE='cassandra' ARGS='-Pcassandra3-byteordered -Dtest=**/graphdb/thrift/* -Dcassandra.docker.version=3.0.18'
+     - <<: *FULL_BUILD_JOB
+@@ -179,6 +173,8 @@ jobs:
+       env: MODULE='cassandra' ARGS='-Pcassandra3-byteordered -Dtest=**/graphdb/astyanax/* -Dcassandra.docker.version=3.0.18'
+     - <<: *FULL_BUILD_JOB
+       env: MODULE='cassandra' ARGS='-Pcassandra3-murmur -Dtest=**/graphdb/astyanax/* -Dcassandra.docker.version=3.0.18'
++    - <<: *FULL_BUILD_JOB
++      env: MODULE='cassandra' ARGS='-Pcassandra3-murmur -Dtest=**/hadoop/* -Dcassandra.docker.version=3.0.18'
+     - <<: *FULL_BUILD_JOB
+       env: MODULE='cql' ARGS=' -Pcassandra3-byteordered -Dcassandra.docker.version=3.0.18'
+     - <<: *FULL_BUILD_JOB
+@@ -237,14 +233,6 @@ jobs:
+           all_branches: true
+           condition: $TRAVIS_BRANCH =~ ^master$|^v[0-9.]+$
+ 
+-  # https://docs.travis-ci.com/user/customizing-the-build#Rows-that-are-Allowed-to-Fail
+-  allow_failures:
+-    - env: MODULE='hadoop' ARGS='-DskipHBase -DskipCassandra -DskipCassandra3=false -Dcassandra.docker.version=3.0.18'
+-    - env: MODULE='hadoop' ARGS='-DskipHBase -DskipCassandra -DskipCassandra3=false -Dcassandra.docker.version=3.11.4'
+-
+-  fast_finish: true
+-  # https://docs.travis-ci.com/user/customizing-the-build#Rows-that-are-Allowed-to-Fail
+-
+ # Syntax and more info: https://docs.travis-ci.com/user/notifications
+ notifications:
+   email:
+diff --git a/docs/advanced-topics/hadoop.md b/docs/advanced-topics/hadoop.md
+index 7d3d21695..48dc09624 100644
+--- a/docs/advanced-topics/hadoop.md
++++ b/docs/advanced-topics/hadoop.md
+@@ -80,7 +80,7 @@ data from the storage backend.
+ 
+ JanusGraph currently supports following graphReader classes:
+ 
+-* `Cassandra3InputFormat` for use with Cassandra 3
++* `CqlInputFormat` for use with Cassandra 3
+ * `CassandraInputFormat` for use with Cassandra 2
+ * `HBaseInputFormat` and `HBaseSnapshotInputFormat` for use with HBase
+ 
+@@ -94,7 +94,7 @@ OLAP queries.
+ # Hadoop Graph Configuration
+ #
+ gremlin.graph=org.apache.tinkerpop.gremlin.hadoop.structure.HadoopGraph
+-gremlin.hadoop.graphReader=org.janusgraph.hadoop.formats.cassandra.Cassandra3InputFormat
++gremlin.hadoop.graphReader=org.janusgraph.hadoop.formats.cql.CqlInputFormat
+ gremlin.hadoop.graphWriter=org.apache.tinkerpop.gremlin.hadoop.structure.io.gryo.GryoOutputFormat
+ 
+ gremlin.hadoop.jarsInDistributedCache=true
+@@ -106,12 +106,12 @@ gremlin.spark.persistContext=true
+ # JanusGraph Cassandra InputFormat configuration
+ #
+ # These properties defines the connection properties which were used while write data to JanusGraph.
+-janusgraphmr.ioformat.conf.storage.backend=cassandra
++janusgraphmr.ioformat.conf.storage.backend=cql
+ # This specifies the hostname & port for Cassandra data store.
+ janusgraphmr.ioformat.conf.storage.hostname=127.0.0.1
+-janusgraphmr.ioformat.conf.storage.port=9160
++janusgraphmr.ioformat.conf.storage.port=9042
+ # This specifies the keyspace where data is stored.
+-janusgraphmr.ioformat.conf.storage.cassandra.keyspace=janusgraph
++janusgraphmr.ioformat.conf.storage.cql.keyspace=janusgraph
+ # This defines the indexing backend configuration used while writing data to JanusGraph.
+ janusgraphmr.ioformat.conf.index.search.backend=elasticsearch
+ janusgraphmr.ioformat.conf.index.search.hostname=127.0.0.1
+@@ -146,10 +146,10 @@ gremlin> :plugin use tinkerpop.spark
+ ==>tinkerpop.spark activated
+ gremlin> // 1. Open a the graph for OLAP processing reading in from Cassandra 3
+ gremlin> graph = GraphFactory.open('conf/hadoop-graph/read-cassandra-3.properties')
+-==>hadoopgraph[cassandra3inputformat->gryooutputformat]
++==>hadoopgraph[cqlinputformat->gryooutputformat]
+ gremlin> // 2. Configure the traversal to run with Spark
+ gremlin> g = graph.traversal().withComputer(SparkGraphComputer)
+-==>graphtraversalsource[hadoopgraph[cassandra3inputformat->gryooutputformat], sparkgraphcomputer]
++==>graphtraversalsource[hadoopgraph[cqlinputformat->gryooutputformat], sparkgraphcomputer]
+ gremlin> // 3. Run some OLAP traversals
+ gremlin> g.V().count()
+ ......
+@@ -185,7 +185,7 @@ The final properties file used for OLAP traversal is as follows:
+ # Hadoop Graph Configuration
+ #
+ gremlin.graph=org.apache.tinkerpop.gremlin.hadoop.structure.HadoopGraph
+-gremlin.hadoop.graphReader=org.janusgraph.hadoop.formats.cassandra.Cassandra3InputFormat
++gremlin.hadoop.graphReader=org.janusgraph.hadoop.formats.cql.CqlInputFormat
+ gremlin.hadoop.graphWriter=org.apache.tinkerpop.gremlin.hadoop.structure.io.gryo.GryoOutputFormat
+ 
+ gremlin.hadoop.jarsInDistributedCache=true
+@@ -197,12 +197,12 @@ gremlin.spark.persistContext=true
+ # JanusGraph Cassandra InputFormat configuration
+ #
+ # These properties defines the connection properties which were used while write data to JanusGraph.
+-janusgraphmr.ioformat.conf.storage.backend=cassandra
++janusgraphmr.ioformat.conf.storage.backend=cql
+ # This specifies the hostname & port for Cassandra data store.
+ janusgraphmr.ioformat.conf.storage.hostname=127.0.0.1
+-janusgraphmr.ioformat.conf.storage.port=9160
++janusgraphmr.ioformat.conf.storage.port=9042
+ # This specifies the keyspace where data is stored.
+-janusgraphmr.ioformat.conf.storage.cassandra.keyspace=janusgraph
++janusgraphmr.ioformat.conf.storage.cql.keyspace=janusgraph
+ # This defines the indexing backend configuration used while writing data to JanusGraph.
+ janusgraphmr.ioformat.conf.index.search.backend=elasticsearch
+ janusgraphmr.ioformat.conf.index.search.hostname=127.0.0.1
+@@ -237,10 +237,10 @@ gremlin> :plugin use tinkerpop.spark
+ ==>tinkerpop.spark activated
+ gremlin> // 1. Open a the graph for OLAP processing reading in from Cassandra 3
+ gremlin> graph = GraphFactory.open('conf/hadoop-graph/read-cassandra-3.properties')
+-==>hadoopgraph[cassandra3inputformat->gryooutputformat]
++==>hadoopgraph[cqlinputformat->gryooutputformat]
+ gremlin> // 2. Configure the traversal to run with Spark
+ gremlin> g = graph.traversal().withComputer(SparkGraphComputer)
+-==>graphtraversalsource[hadoopgraph[cassandra3inputformat->gryooutputformat], sparkgraphcomputer]
++==>graphtraversalsource[hadoopgraph[cqlinputformat->gryooutputformat], sparkgraphcomputer]
+ gremlin> // 3. Run some OLAP traversals
+ gremlin> g.V().count()
+ ......
+diff --git a/janusgraph-all/pom.xml b/janusgraph-all/pom.xml
+index 2b416bd0c..76ff58367 100644
+--- a/janusgraph-all/pom.xml
++++ b/janusgraph-all/pom.xml
+@@ -70,7 +70,7 @@
+             <version>${project.version}</version>
+         </dependency>
+         <dependency>
+-            <groupId>${project.groupId}</groupId>
++            <groupId>org.janusgraph</groupId>
+             <artifactId>janusgraph-hadoop</artifactId>
+             <version>${project.version}</version>
+         </dependency>
+diff --git a/janusgraph-cassandra/pom.xml b/janusgraph-cassandra/pom.xml
+index 6307bb465..6a6706a7a 100644
+--- a/janusgraph-cassandra/pom.xml
++++ b/janusgraph-cassandra/pom.xml
+@@ -32,6 +32,36 @@
+             <artifactId>janusgraph-core</artifactId>
+             <version>${project.version}</version>
+         </dependency>
++        <dependency>
++            <groupId>org.janusgraph</groupId>
++            <artifactId>janusgraph-hadoop</artifactId>
++            <version>${project.version}</version>
++            <optional>true</optional>
++        </dependency>
++        <dependency>
++            <groupId>com.fasterxml.jackson.module</groupId>
++            <artifactId>jackson-module-scala_2.11</artifactId>
++            <optional>true</optional>
++            <exclusions>
++                <exclusion>
++                    <groupId>org.scala-lang</groupId>
++                    <artifactId>scala-library</artifactId>
++                </exclusion>
++            </exclusions>
++        </dependency>
++        <dependency>
++            <groupId>com.datastax.cassandra</groupId>
++            <artifactId>cassandra-driver-core</artifactId>
++            <version>${cassandra-driver.version}</version>
++            <optional>true</optional>
++        </dependency>
++        <dependency>
++            <groupId>org.janusgraph</groupId>
++            <artifactId>janusgraph-hadoop</artifactId>
++            <version>${project.version}</version>
++            <classifier>tests</classifier>
++            <scope>test</scope>
++        </dependency>
+         <dependency>
+             <groupId>org.janusgraph</groupId>
+             <artifactId>janusgraph-backend-testutils</artifactId>
+@@ -130,6 +160,10 @@
+                     <groupId>junit</groupId>
+                     <artifactId>junit</artifactId>
+                 </exclusion>
++                <exclusion>
++                    <groupId>com.ning</groupId>
++                    <artifactId>compress-lzf</artifactId>
++                </exclusion>
+             </exclusions>
+         </dependency>
+         <dependency>
+diff --git a/janusgraph-cassandra/src/main/java/org/janusgraph/diskstorage/cassandra/AbstractCassandraStoreManager.java b/janusgraph-cassandra/src/main/java/org/janusgraph/diskstorage/cassandra/AbstractCassandraStoreManager.java
+index 8cc116cc1..bf8b8b24b 100644
+--- a/janusgraph-cassandra/src/main/java/org/janusgraph/diskstorage/cassandra/AbstractCassandraStoreManager.java
++++ b/janusgraph-cassandra/src/main/java/org/janusgraph/diskstorage/cassandra/AbstractCassandraStoreManager.java
+@@ -35,6 +35,7 @@
+ import static org.janusgraph.graphdb.configuration.GraphDatabaseConfiguration.*;
+ 
+ import org.apache.cassandra.dht.IPartitioner;
++import org.janusgraph.hadoop.CassandraHadoopStoreManager;
+ 
+ /**
+  * @author Matthias Broecheler (me@matthiasb.com)
+@@ -331,4 +332,9 @@ protected String determineKeyspaceName(Configuration config) {
+ 
+         return ImmutableMap.copyOf(converted);
+     }
++
++    @Override
++    public Object getHadoopManager() throws BackendException {
++        return new CassandraHadoopStoreManager(this.getCassandraPartitioner());
++    }
+ }
+\ No newline at end of file
+diff --git a/janusgraph-cassandra/src/main/java/org/janusgraph/hadoop/CassandraHadoopStoreManager.java b/janusgraph-cassandra/src/main/java/org/janusgraph/hadoop/CassandraHadoopStoreManager.java
+new file mode 100644
+index 000000000..3cdd1de2c
+--- /dev/null
++++ b/janusgraph-cassandra/src/main/java/org/janusgraph/hadoop/CassandraHadoopStoreManager.java
+@@ -0,0 +1,35 @@
++// Copyright 2020 JanusGraph Authors
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//      http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++
++package org.janusgraph.hadoop;
++
++import org.apache.cassandra.dht.IPartitioner;
++import org.apache.hadoop.conf.Configuration;
++import org.apache.hadoop.mapreduce.InputFormat;
++import org.janusgraph.hadoop.formats.cassandra.CassandraBinaryInputFormat;
++
++public class CassandraHadoopStoreManager implements HadoopStoreManager {
++
++    private IPartitioner partitioner;
++
++    public CassandraHadoopStoreManager(IPartitioner partitioner) {
++        this.partitioner = partitioner;
++    }
++
++    @Override
++    public Class<? extends InputFormat> getInputFormat(Configuration hadoopConf) {
++        hadoopConf.set("cassandra.input.partitioner.class", partitioner.getClass().getName());
++        return CassandraBinaryInputFormat.class;
++    }
++}
+diff --git a/janusgraph-cassandra/src/main/java/org/janusgraph/hadoop/CassandraMapReduceIndexJobs.java b/janusgraph-cassandra/src/main/java/org/janusgraph/hadoop/CassandraMapReduceIndexJobs.java
+new file mode 100644
+index 000000000..b06c0aecb
+--- /dev/null
++++ b/janusgraph-cassandra/src/main/java/org/janusgraph/hadoop/CassandraMapReduceIndexJobs.java
+@@ -0,0 +1,103 @@
++// Copyright 2020 JanusGraph Authors
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//      http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++
++package org.janusgraph.hadoop;
++
++import org.apache.hadoop.conf.Configuration;
++import org.janusgraph.diskstorage.configuration.ModifiableConfiguration;
++import org.janusgraph.diskstorage.keycolumnvalue.scan.ScanMetrics;
++import org.janusgraph.graphdb.configuration.GraphDatabaseConfiguration;
++import org.janusgraph.graphdb.olap.job.IndexRemoveJob;
++import org.janusgraph.graphdb.olap.job.IndexRepairJob;
++import org.janusgraph.hadoop.scan.CassandraHadoopScanRunner;
++import org.janusgraph.util.system.IOUtils;
++import org.slf4j.Logger;
++import org.slf4j.LoggerFactory;
++
++import java.io.FileInputStream;
++import java.io.IOException;
++import java.util.Properties;
++
++public class CassandraMapReduceIndexJobs {
++
++    private static final Logger log =
++        LoggerFactory.getLogger(CassandraMapReduceIndexJobs.class);
++
++    public static ScanMetrics repair(String janusgraphPropertiesPath, String indexName, String relationType, String partitionerName)
++        throws InterruptedException, IOException, ClassNotFoundException {
++        Properties p = new Properties();
++        FileInputStream fis = null;
++        try {
++            fis = new FileInputStream(janusgraphPropertiesPath);
++            p.load(fis);
++            return repair(p, indexName, relationType, partitionerName);
++        } finally {
++            IOUtils.closeQuietly(fis);
++        }
++    }
++
++    public static ScanMetrics repair(Properties janusgraphProperties, String indexName, String relationType,
++                                     String partitionerName)
++        throws InterruptedException, IOException, ClassNotFoundException {
++        return repair(janusgraphProperties, indexName, relationType, partitionerName, new Configuration());
++    }
++
++    public static ScanMetrics repair(Properties janusgraphProperties, String indexName, String relationType,
++                                     String partitionerName, Configuration hadoopBaseConf)
++        throws InterruptedException, IOException, ClassNotFoundException {
++        IndexRepairJob job = new IndexRepairJob();
++        CassandraHadoopScanRunner cr = new CassandraHadoopScanRunner(job);
++        ModifiableConfiguration mc = MapReduceIndexJobs.getIndexJobConf(indexName, relationType);
++        MapReduceIndexJobs.copyPropertiesToInputAndOutputConf(hadoopBaseConf, janusgraphProperties);
++        cr.partitionerOverride(partitionerName);
++        cr.scanJobConf(mc);
++        cr.scanJobConfRoot(GraphDatabaseConfiguration.class.getName() + "#JOB_NS");
++        cr.baseHadoopConf(hadoopBaseConf);
++        return cr.run();
++    }
++
++
++    public static ScanMetrics remove(String janusgraphPropertiesPath, String indexName, String relationType, String partitionerName)
++        throws InterruptedException, IOException, ClassNotFoundException {
++        Properties p = new Properties();
++        FileInputStream fis = null;
++        try {
++            fis = new FileInputStream(janusgraphPropertiesPath);
++            p.load(fis);
++            return remove(p, indexName, relationType, partitionerName);
++        } finally {
++            IOUtils.closeQuietly(fis);
++        }
++    }
++
++    public static ScanMetrics remove(Properties janusgraphProperties, String indexName, String relationType,
++                                     String partitionerName)
++        throws InterruptedException, IOException, ClassNotFoundException {
++        return remove(janusgraphProperties, indexName, relationType, partitionerName, new Configuration());
++    }
++
++    public static ScanMetrics remove(Properties janusgraphProperties, String indexName, String relationType,
++                                     String partitionerName, Configuration hadoopBaseConf)
++        throws InterruptedException, IOException, ClassNotFoundException {
++        IndexRemoveJob job = new IndexRemoveJob();
++        CassandraHadoopScanRunner cr = new CassandraHadoopScanRunner(job);
++        ModifiableConfiguration mc = MapReduceIndexJobs.getIndexJobConf(indexName, relationType);
++        MapReduceIndexJobs.copyPropertiesToInputAndOutputConf(hadoopBaseConf, janusgraphProperties);
++        cr.partitionerOverride(partitionerName);
++        cr.scanJobConf(mc);
++        cr.scanJobConfRoot(GraphDatabaseConfiguration.class.getName() + "#JOB_NS");
++        cr.baseHadoopConf(hadoopBaseConf);
++        return cr.run();
++    }
++}
+diff --git a/janusgraph-hadoop/src/main/java/org/janusgraph/hadoop/formats/cassandra/CassandraBinaryInputFormat.java b/janusgraph-cassandra/src/main/java/org/janusgraph/hadoop/formats/cassandra/CassandraBinaryInputFormat.java
+similarity index 100%
+rename from janusgraph-hadoop/src/main/java/org/janusgraph/hadoop/formats/cassandra/CassandraBinaryInputFormat.java
+rename to janusgraph-cassandra/src/main/java/org/janusgraph/hadoop/formats/cassandra/CassandraBinaryInputFormat.java
+diff --git a/janusgraph-hadoop/src/main/java/org/janusgraph/hadoop/formats/cassandra/CassandraBinaryRecordReader.java b/janusgraph-cassandra/src/main/java/org/janusgraph/hadoop/formats/cassandra/CassandraBinaryRecordReader.java
+similarity index 100%
+rename from janusgraph-hadoop/src/main/java/org/janusgraph/hadoop/formats/cassandra/CassandraBinaryRecordReader.java
+rename to janusgraph-cassandra/src/main/java/org/janusgraph/hadoop/formats/cassandra/CassandraBinaryRecordReader.java
+diff --git a/janusgraph-hadoop/src/main/java/org/janusgraph/hadoop/formats/cassandra/CassandraInputFormat.java b/janusgraph-cassandra/src/main/java/org/janusgraph/hadoop/formats/cassandra/CassandraInputFormat.java
+similarity index 100%
+rename from janusgraph-hadoop/src/main/java/org/janusgraph/hadoop/formats/cassandra/CassandraInputFormat.java
+rename to janusgraph-cassandra/src/main/java/org/janusgraph/hadoop/formats/cassandra/CassandraInputFormat.java
+diff --git a/janusgraph-hadoop/src/main/java/org/janusgraph/hadoop/scan/CassandraHadoopScanRunner.java b/janusgraph-cassandra/src/main/java/org/janusgraph/hadoop/scan/CassandraHadoopScanRunner.java
+similarity index 100%
+rename from janusgraph-hadoop/src/main/java/org/janusgraph/hadoop/scan/CassandraHadoopScanRunner.java
+rename to janusgraph-cassandra/src/main/java/org/janusgraph/hadoop/scan/CassandraHadoopScanRunner.java
+diff --git a/janusgraph-hadoop/src/test/java/org/janusgraph/hadoop/CassandraIndexManagementIT.java b/janusgraph-cassandra/src/test/java/org/janusgraph/hadoop/CassandraIndexManagementIT.java
+similarity index 100%
+rename from janusgraph-hadoop/src/test/java/org/janusgraph/hadoop/CassandraIndexManagementIT.java
+rename to janusgraph-cassandra/src/test/java/org/janusgraph/hadoop/CassandraIndexManagementIT.java
+diff --git a/janusgraph-hadoop/src/test/java/org/janusgraph/hadoop/CassandraInputFormatIT.java b/janusgraph-cassandra/src/test/java/org/janusgraph/hadoop/CassandraInputFormatIT.java
+similarity index 100%
+rename from janusgraph-hadoop/src/test/java/org/janusgraph/hadoop/CassandraInputFormatIT.java
+rename to janusgraph-cassandra/src/test/java/org/janusgraph/hadoop/CassandraInputFormatIT.java
+diff --git a/janusgraph-hadoop/src/test/java/org/janusgraph/hadoop/CassandraScanJobIT.java b/janusgraph-cassandra/src/test/java/org/janusgraph/hadoop/CassandraScanJobIT.java
+similarity index 100%
+rename from janusgraph-hadoop/src/test/java/org/janusgraph/hadoop/CassandraScanJobIT.java
+rename to janusgraph-cassandra/src/test/java/org/janusgraph/hadoop/CassandraScanJobIT.java
+diff --git a/janusgraph-hadoop/src/test/resources/cassandra-read.properties b/janusgraph-cassandra/src/test/resources/cassandra-read.properties
+similarity index 100%
+rename from janusgraph-hadoop/src/test/resources/cassandra-read.properties
+rename to janusgraph-cassandra/src/test/resources/cassandra-read.properties
+diff --git a/janusgraph-core/src/main/java/org/janusgraph/diskstorage/keycolumnvalue/StoreManager.java b/janusgraph-core/src/main/java/org/janusgraph/diskstorage/keycolumnvalue/StoreManager.java
+index b295cc70d..e4f793a9a 100644
+--- a/janusgraph-core/src/main/java/org/janusgraph/diskstorage/keycolumnvalue/StoreManager.java
++++ b/janusgraph-core/src/main/java/org/janusgraph/diskstorage/keycolumnvalue/StoreManager.java
+@@ -91,4 +91,12 @@
+      */
+     List<KeyRange> getLocalKeyPartition() throws BackendException;
+ 
++    /**
++     * Returns {@code org.janusgraph.hadoop.HadoopStoreManager}
++     *
++     * @return A {@code HadoopStoreManager} if supported.
++     */
++    default Object getHadoopManager() throws BackendException {
++        throw new UnsupportedOperationException("This Manager doesn't support hadoop");
++    }
+ }
+diff --git a/janusgraph-cql/pom.xml b/janusgraph-cql/pom.xml
+index be408349f..61129de8e 100644
+--- a/janusgraph-cql/pom.xml
++++ b/janusgraph-cql/pom.xml
+@@ -31,19 +31,81 @@
+             <artifactId>janusgraph-core</artifactId>
+             <version>${project.version}</version>
+         </dependency>
+-
+         <dependency>
+-            <groupId>com.datastax.cassandra</groupId>
+-            <artifactId>cassandra-driver-core</artifactId>
+-            <version>${cassandra-driver.version}</version>
++            <groupId>org.janusgraph</groupId>
++            <artifactId>janusgraph-hadoop</artifactId>
++            <version>${project.version}</version>
++            <optional>true</optional>
++            <exclusions>
++                <exclusion>
++                    <groupId>org.apache.commons</groupId>
++                    <artifactId>commons-compress</artifactId>
++                </exclusion>
++                <exclusion>
++                    <groupId>javax.annotation</groupId>
++                    <artifactId>javax.annotation-api</artifactId>
++                </exclusion>
++            </exclusions>
+         </dependency>
++
+         <dependency>
+-            <groupId>io.netty</groupId>
+-            <artifactId>netty-handler</artifactId>
++            <groupId>org.apache.cassandra</groupId>
++            <artifactId>cassandra-all</artifactId>
++            <optional>true</optional>
++            <exclusions>
++                <!-- Use more recent version of jbcrypt from gremlin-groovy -->
++                <exclusion>
++                    <groupId>org.mindrot</groupId>
++                    <artifactId>jbcrypt</artifactId>
++                </exclusion>                
++                <exclusion>
++                    <groupId>net.java.dev.jna</groupId>
++                    <artifactId>jna</artifactId>
++                </exclusion>
++                <exclusion>
++                    <groupId>org.slf4j</groupId>
++                    <artifactId>jcl-over-slf4j</artifactId>
++                </exclusion>
++                <exclusion>
++                    <groupId>io.dropwizard.metrics</groupId>
++                    <artifactId>metrics-core</artifactId>
++                </exclusion>
++                <exclusion>
++                    <groupId>io.dropwizard.metrics</groupId>
++                    <artifactId>metrics-jvm</artifactId>
++                </exclusion>
++                <!-- We already use slf4j-log4j12, having both on the class path leads to cyclic dependency:  https://www.slf4j.org/codes.html#log4jDelegationLoop -->
++                <exclusion>
++                    <groupId>org.slf4j</groupId>
++                    <artifactId>log4j-over-slf4j</artifactId>
++                </exclusion>
++                <exclusion>
++                    <groupId>junit</groupId>
++                    <artifactId>junit</artifactId>
++                </exclusion>
++                <exclusion>
++                    <groupId>com.github.ben-manes.caffeine</groupId>
++                    <artifactId>caffeine</artifactId>
++                </exclusion>
++                <exclusion>
++                    <groupId>org.ow2.asm</groupId>
++                    <artifactId>asm</artifactId>
++                </exclusion>
++                <exclusion>
++                    <groupId>com.thinkaurelius.thrift</groupId>
++                    <artifactId>thrift-server</artifactId>
++                </exclusion>
++                <exclusion>
++                    <groupId>com.ning</groupId>
++                    <artifactId>compress-lzf</artifactId>
++                </exclusion>
++            </exclusions>
+         </dependency>
++
+         <dependency>
+-            <groupId>com.google.guava</groupId>
+-            <artifactId>guava</artifactId>
++            <groupId>com.datastax.cassandra</groupId>
++            <artifactId>cassandra-driver-core</artifactId>
++            <version>${cassandra-driver.version}</version>
+         </dependency>
+         <dependency>
+             <groupId>io.vavr</groupId>
+@@ -64,18 +126,25 @@
+             <scope>test</scope>
+         </dependency>
+         <dependency>
+-            <groupId>com.github.jbellis</groupId>
+-            <artifactId>jamm</artifactId>
+-            <version>${jamm.version}</version>
++            <groupId>org.janusgraph</groupId>
++            <artifactId>janusgraph-hadoop</artifactId>
++            <version>${project.version}</version>
++            <classifier>tests</classifier>
+             <scope>test</scope>
+         </dependency>
+-        <!-- JNA is needed by Cassandra, but janusgraph-cassandra only defines it as an optional dependency. -->
++        <!-- JNA is needed by Cassandra. -->
+         <dependency>
+             <groupId>net.java.dev.jna</groupId>
+             <artifactId>jna</artifactId>
+             <version>${jna.version}</version>
+             <scope>test</scope>
+         </dependency>
++        <dependency>
++            <groupId>com.github.jbellis</groupId>
++            <artifactId>jamm</artifactId>
++            <version>${jamm.version}</version>
++            <scope>test</scope>
++        </dependency>
+         <dependency>
+             <groupId>org.testcontainers</groupId>
+             <artifactId>testcontainers</artifactId>
+diff --git a/janusgraph-cql/src/main/java/org/janusgraph/diskstorage/cql/CQLStoreManager.java b/janusgraph-cql/src/main/java/org/janusgraph/diskstorage/cql/CQLStoreManager.java
+index 4fc0dd93a..6bde42a78 100644
+--- a/janusgraph-cql/src/main/java/org/janusgraph/diskstorage/cql/CQLStoreManager.java
++++ b/janusgraph-cql/src/main/java/org/janusgraph/diskstorage/cql/CQLStoreManager.java
+@@ -76,6 +76,7 @@
+ import javax.net.ssl.TrustManager;
+ import javax.net.ssl.TrustManagerFactory;
+ 
++import org.apache.hadoop.mapreduce.InputFormat;
+ import org.janusgraph.diskstorage.BackendException;
+ import org.janusgraph.diskstorage.BaseTransactionConfig;
+ import org.janusgraph.diskstorage.PermanentBackendException;
+@@ -90,6 +91,9 @@
+ import org.janusgraph.diskstorage.keycolumnvalue.StandardStoreFeatures;
+ import org.janusgraph.diskstorage.keycolumnvalue.StoreFeatures;
+ import org.janusgraph.diskstorage.keycolumnvalue.StoreTransaction;
++import org.janusgraph.hadoop.CQLHadoopStoreManager;
++import org.janusgraph.hadoop.HadoopStoreManager;
++import org.janusgraph.hadoop.formats.cql.CqlBinaryInputFormat;
+ import org.janusgraph.util.system.NetworkUtil;
+ 
+ import com.datastax.driver.core.BatchStatement;
+@@ -368,9 +372,6 @@ TableMetadata getTableMetadata(final String name) throws BackendException {
+                 .getOrElseThrow(() -> new PermanentBackendException(String.format("Unknown table '%s'", name)));
+     }
+ 
+-    public String getPartitioner(){
+-        return this.cluster.getMetadata().getPartitioner();
+-    }
+ 
+     @Override
+     public void close() throws BackendException {
+@@ -518,4 +519,9 @@ private String determineKeyspaceName(Configuration config) {
+         if ((!config.has(KEYSPACE) && (config.has(GRAPH_NAME)))) return config.get(GRAPH_NAME);
+         return config.get(KEYSPACE);
+     }
++
++    @Override
++    public Object getHadoopManager() {
++        return new CQLHadoopStoreManager(this.cluster);
++    }
+ }
+diff --git a/janusgraph-cql/src/main/java/org/janusgraph/hadoop/CQLHadoopStoreManager.java b/janusgraph-cql/src/main/java/org/janusgraph/hadoop/CQLHadoopStoreManager.java
+new file mode 100644
+index 000000000..a0149b960
+--- /dev/null
++++ b/janusgraph-cql/src/main/java/org/janusgraph/hadoop/CQLHadoopStoreManager.java
+@@ -0,0 +1,39 @@
++// Copyright 2020 JanusGraph Authors
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//      http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++
++package org.janusgraph.hadoop;
++
++import com.datastax.driver.core.Cluster;
++import org.apache.hadoop.conf.Configuration;
++import org.apache.hadoop.mapreduce.InputFormat;
++import org.janusgraph.hadoop.formats.cql.CqlBinaryInputFormat;
++
++public class CQLHadoopStoreManager implements HadoopStoreManager {
++
++    private Cluster cluster;
++
++    public CQLHadoopStoreManager(Cluster cluster){
++        this.cluster = cluster;
++    }
++
++    public String getPartitioner(){
++        return this.cluster.getMetadata().getPartitioner();
++    }
++
++    @Override
++    public Class<? extends InputFormat> getInputFormat(Configuration hadoopConf) {
++        hadoopConf.set("cassandra.input.partitioner.class", getPartitioner());
++        return CqlBinaryInputFormat.class;
++    }
++}
+diff --git a/janusgraph-cql/src/main/java/org/janusgraph/hadoop/CQLMapReduceIndexJobs.java b/janusgraph-cql/src/main/java/org/janusgraph/hadoop/CQLMapReduceIndexJobs.java
+new file mode 100644
+index 000000000..51facb168
+--- /dev/null
++++ b/janusgraph-cql/src/main/java/org/janusgraph/hadoop/CQLMapReduceIndexJobs.java
+@@ -0,0 +1,105 @@
++// Copyright 2020 JanusGraph Authors
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//      http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++
++package org.janusgraph.hadoop;
++
++import org.apache.hadoop.conf.Configuration;
++import org.janusgraph.diskstorage.configuration.ModifiableConfiguration;
++import org.janusgraph.diskstorage.keycolumnvalue.scan.ScanMetrics;
++import org.janusgraph.graphdb.configuration.GraphDatabaseConfiguration;
++import org.janusgraph.graphdb.olap.job.IndexRemoveJob;
++import org.janusgraph.graphdb.olap.job.IndexRepairJob;
++import org.janusgraph.hadoop.scan.CQLHadoopScanRunner;
++import org.janusgraph.util.system.IOUtils;
++import org.slf4j.Logger;
++import org.slf4j.LoggerFactory;
++
++import java.io.FileInputStream;
++import java.io.IOException;
++import java.util.Properties;
++
++public class CQLMapReduceIndexJobs {
++
++    private static final Logger log =
++        LoggerFactory.getLogger(CQLMapReduceIndexJobs.class);
++
++
++    public static ScanMetrics repair(String janusgraphPropertiesPath, String indexName, String relationType, String partitionerName)
++        throws InterruptedException, IOException, ClassNotFoundException {
++        Properties p = new Properties();
++        FileInputStream fis = null;
++        try {
++            fis = new FileInputStream(janusgraphPropertiesPath);
++            p.load(fis);
++            return repair(p, indexName, relationType, partitionerName);
++        } finally {
++            IOUtils.closeQuietly(fis);
++        }
++    }
++
++    public static ScanMetrics repair(Properties janusgraphProperties, String indexName, String relationType,
++                                     String partitionerName)
++        throws InterruptedException, IOException, ClassNotFoundException {
++        return repair(janusgraphProperties, indexName, relationType, partitionerName, new Configuration());
++    }
++
++    public static ScanMetrics repair(Properties janusgraphProperties, String indexName, String relationType,
++                                     String partitionerName, Configuration hadoopBaseConf)
++        throws InterruptedException, IOException, ClassNotFoundException {
++        IndexRepairJob job = new IndexRepairJob();
++        CQLHadoopScanRunner cr = new CQLHadoopScanRunner(job);
++        ModifiableConfiguration mc = MapReduceIndexJobs.getIndexJobConf(indexName, relationType);
++        MapReduceIndexJobs.copyPropertiesToInputAndOutputConf(hadoopBaseConf, janusgraphProperties);
++        cr.partitionerOverride(partitionerName);
++        cr.scanJobConf(mc);
++        cr.scanJobConfRoot(GraphDatabaseConfiguration.class.getName() + "#JOB_NS");
++        cr.baseHadoopConf(hadoopBaseConf);
++        return cr.run();
++    }
++
++
++    public static ScanMetrics remove(String janusgraphPropertiesPath, String indexName, String relationType, String partitionerName)
++        throws InterruptedException, IOException, ClassNotFoundException {
++        Properties p = new Properties();
++        FileInputStream fis = null;
++        try {
++            fis = new FileInputStream(janusgraphPropertiesPath);
++            p.load(fis);
++            return remove(p, indexName, relationType, partitionerName);
++        } finally {
++            IOUtils.closeQuietly(fis);
++        }
++    }
++
++    public static ScanMetrics remove(Properties janusgraphProperties, String indexName, String relationType,
++                                     String partitionerName)
++        throws InterruptedException, IOException, ClassNotFoundException {
++        return remove(janusgraphProperties, indexName, relationType, partitionerName, new Configuration());
++    }
++
++    public static ScanMetrics remove(Properties janusgraphProperties, String indexName, String relationType,
++                                     String partitionerName, Configuration hadoopBaseConf)
++        throws InterruptedException, IOException, ClassNotFoundException {
++        IndexRemoveJob job = new IndexRemoveJob();
++        CQLHadoopScanRunner cr = new CQLHadoopScanRunner(job);
++        ModifiableConfiguration mc = MapReduceIndexJobs.getIndexJobConf(indexName, relationType);
++        MapReduceIndexJobs.copyPropertiesToInputAndOutputConf(hadoopBaseConf, janusgraphProperties);
++        cr.partitionerOverride(partitionerName);
++        cr.scanJobConf(mc);
++        cr.scanJobConfRoot(GraphDatabaseConfiguration.class.getName() + "#JOB_NS");
++        cr.baseHadoopConf(hadoopBaseConf);
++        return cr.run();
++    }
++
++}
+diff --git a/janusgraph-hadoop/src/main/java/org/janusgraph/hadoop/formats/cql/CqlBinaryInputFormat.java b/janusgraph-cql/src/main/java/org/janusgraph/hadoop/formats/cql/CqlBinaryInputFormat.java
+similarity index 100%
+rename from janusgraph-hadoop/src/main/java/org/janusgraph/hadoop/formats/cql/CqlBinaryInputFormat.java
+rename to janusgraph-cql/src/main/java/org/janusgraph/hadoop/formats/cql/CqlBinaryInputFormat.java
+diff --git a/janusgraph-hadoop/src/main/java/org/janusgraph/hadoop/formats/cql/CqlBinaryRecordReader.java b/janusgraph-cql/src/main/java/org/janusgraph/hadoop/formats/cql/CqlBinaryRecordReader.java
+similarity index 100%
+rename from janusgraph-hadoop/src/main/java/org/janusgraph/hadoop/formats/cql/CqlBinaryRecordReader.java
+rename to janusgraph-cql/src/main/java/org/janusgraph/hadoop/formats/cql/CqlBinaryRecordReader.java
+diff --git a/janusgraph-hadoop/src/main/java/org/janusgraph/hadoop/formats/cql/CqlInputFormat.java b/janusgraph-cql/src/main/java/org/janusgraph/hadoop/formats/cql/CqlInputFormat.java
+similarity index 100%
+rename from janusgraph-hadoop/src/main/java/org/janusgraph/hadoop/formats/cql/CqlInputFormat.java
+rename to janusgraph-cql/src/main/java/org/janusgraph/hadoop/formats/cql/CqlInputFormat.java
+diff --git a/janusgraph-hadoop/src/main/java/org/janusgraph/hadoop/scan/CQLHadoopScanRunner.java b/janusgraph-cql/src/main/java/org/janusgraph/hadoop/scan/CQLHadoopScanRunner.java
+similarity index 100%
+rename from janusgraph-hadoop/src/main/java/org/janusgraph/hadoop/scan/CQLHadoopScanRunner.java
+rename to janusgraph-cql/src/main/java/org/janusgraph/hadoop/scan/CQLHadoopScanRunner.java
+diff --git a/janusgraph-hadoop/src/test/java/org/janusgraph/hadoop/CQLIndexManagementIT.java b/janusgraph-cql/src/test/java/org/janusgraph/hadoop/CQLIndexManagementIT.java
+similarity index 100%
+rename from janusgraph-hadoop/src/test/java/org/janusgraph/hadoop/CQLIndexManagementIT.java
+rename to janusgraph-cql/src/test/java/org/janusgraph/hadoop/CQLIndexManagementIT.java
+diff --git a/janusgraph-hadoop/src/test/java/org/janusgraph/hadoop/CQLInputFormatIT.java b/janusgraph-cql/src/test/java/org/janusgraph/hadoop/CQLInputFormatIT.java
+similarity index 100%
+rename from janusgraph-hadoop/src/test/java/org/janusgraph/hadoop/CQLInputFormatIT.java
+rename to janusgraph-cql/src/test/java/org/janusgraph/hadoop/CQLInputFormatIT.java
+diff --git a/janusgraph-hadoop/src/test/java/org/janusgraph/hadoop/CQLScanJobIT.java b/janusgraph-cql/src/test/java/org/janusgraph/hadoop/CQLScanJobIT.java
+similarity index 100%
+rename from janusgraph-hadoop/src/test/java/org/janusgraph/hadoop/CQLScanJobIT.java
+rename to janusgraph-cql/src/test/java/org/janusgraph/hadoop/CQLScanJobIT.java
+diff --git a/janusgraph-hadoop/src/test/resources/cql-read.properties b/janusgraph-cql/src/test/resources/cql-read.properties
+similarity index 100%
+rename from janusgraph-hadoop/src/test/resources/cql-read.properties
+rename to janusgraph-cql/src/test/resources/cql-read.properties
+diff --git a/janusgraph-dist/src/assembly/static/conf/hadoop-graph/read-cassandra-3.properties b/janusgraph-dist/src/assembly/static/conf/hadoop-graph/read-cassandra-3.properties
+index 5ec4f6a4e..e0f943d09 100644
+--- a/janusgraph-dist/src/assembly/static/conf/hadoop-graph/read-cassandra-3.properties
++++ b/janusgraph-dist/src/assembly/static/conf/hadoop-graph/read-cassandra-3.properties
+@@ -16,7 +16,7 @@
+ # Hadoop Graph Configuration
+ #
+ gremlin.graph=org.apache.tinkerpop.gremlin.hadoop.structure.HadoopGraph
+-gremlin.hadoop.graphReader=org.janusgraph.hadoop.formats.cassandra.Cassandra3InputFormat
++gremlin.hadoop.graphReader=org.janusgraph.hadoop.formats.cql.cql.CqlInputFormat
+ gremlin.hadoop.graphWriter=org.apache.tinkerpop.gremlin.hadoop.structure.io.gryo.GryoOutputFormat
+ 
+ gremlin.hadoop.jarsInDistributedCache=true
+@@ -26,10 +26,10 @@ gremlin.hadoop.outputLocation=output
+ #
+ # JanusGraph Cassandra InputFormat configuration
+ #
+-janusgraphmr.ioformat.conf.storage.backend=cassandra
++janusgraphmr.ioformat.conf.storage.backend=cql
+ janusgraphmr.ioformat.conf.storage.hostname=localhost
+-janusgraphmr.ioformat.conf.storage.port=9160
+-janusgraphmr.ioformat.conf.storage.cassandra.keyspace=janusgraph
++janusgraphmr.ioformat.conf.storage.port=9042
++janusgraphmr.ioformat.conf.storage.cql.keyspace=janusgraph
+ 
+ #
+ # Apache Cassandra InputFormat configuration
+diff --git a/janusgraph-driver/pom.xml b/janusgraph-driver/pom.xml
+index 6a2dd19cf..aa163017d 100644
+--- a/janusgraph-driver/pom.xml
++++ b/janusgraph-driver/pom.xml
+@@ -8,7 +8,7 @@
+     </parent>
+     <artifactId>janusgraph-driver</artifactId>
+     <name>JanusGraph-Driver: Gremlin-Driver Library for JanusGraph</name>
+-    <url>http://janusgraph.org</url>
++    <url>https://janusgraph.org</url>
+ 
+     <properties>
+         <top.level.basedir>${basedir}/..</top.level.basedir>
+diff --git a/janusgraph-hadoop/pom.xml b/janusgraph-hadoop/pom.xml
+index 9f09a1684..c1fe0982f 100644
+--- a/janusgraph-hadoop/pom.xml
++++ b/janusgraph-hadoop/pom.xml
+@@ -12,12 +12,6 @@
+ 
+     <properties>
+         <top.level.basedir>${basedir}/..</top.level.basedir>
+-        <skipCassandra>${skipTests}</skipCassandra>
+-        <!-- Cassandra-3 testing requires an external Cassandra instance. 
+-             See TESTING.md for more information. -->
+-        <skipCassandra3>true</skipCassandra3>
+-        <skipHBase>${skipTests}</skipHBase>
+-        <skipPipeline>${skipTests}</skipPipeline>
+     </properties>
+ 
+     <developers>
+@@ -74,16 +68,6 @@
+                 </exclusion>
+             </exclusions>
+         </dependency>
+-        <dependency>
+-            <groupId>com.fasterxml.jackson.module</groupId>
+-            <artifactId>jackson-module-scala_2.11</artifactId>
+-            <exclusions>
+-                <exclusion>
+-                    <groupId>org.scala-lang</groupId>
+-                    <artifactId>scala-library</artifactId>
+-                </exclusion>
+-            </exclusions>
+-        </dependency>
+         <dependency>
+             <groupId>org.apache.hadoop</groupId>
+             <artifactId>hadoop-client</artifactId>
+@@ -102,39 +86,9 @@
+             <artifactId>janusgraph-core</artifactId>
+             <version>${project.version}</version>
+         </dependency>
+-        <dependency>
+-            <groupId>${project.groupId}</groupId>
+-            <artifactId>janusgraph-cql</artifactId>
+-            <version>${project.version}</version>
+-        </dependency>
+-        <dependency>
+-            <groupId>${project.groupId}</groupId>
+-            <artifactId>janusgraph-cassandra</artifactId>
+-            <version>${project.version}</version>
+-            <exclusions>
+-                <exclusion>
+-                    <groupId>com.ning</groupId>
+-                    <artifactId>compress-lzf</artifactId>
+-                </exclusion>
+-            </exclusions>
+-        </dependency>
+         <dependency>
+             <groupId>org.janusgraph</groupId>
+-            <artifactId>janusgraph-cql</artifactId>
+-            <version>${project.version}</version>
+-            <classifier>tests</classifier>
+-            <scope>test</scope>
+-        </dependency>
+-        <dependency>
+-            <groupId>org.janusgraph</groupId>
+-            <artifactId>janusgraph-cassandra</artifactId>
+-            <version>${project.version}</version>
+-            <classifier>tests</classifier>
+-            <scope>test</scope>
+-        </dependency>
+-        <dependency>
+-            <groupId>org.janusgraph</groupId>
+-            <artifactId>janusgraph-cql</artifactId>
++            <artifactId>janusgraph-backend-testutils</artifactId>
+             <version>${project.version}</version>
+             <scope>test</scope>
+         </dependency>
+@@ -153,66 +107,11 @@
+                 </exclusion>
+             </exclusions>
+         </dependency>
+-        <dependency>
+-            <groupId>org.testcontainers</groupId>
+-            <artifactId>cassandra</artifactId>
+-            <scope>test</scope>
+-        </dependency>
+         <dependency>
+             <groupId>org.testcontainers</groupId>
+             <artifactId>junit-jupiter</artifactId>
+             <scope>test</scope>
+         </dependency>
+-        <dependency>
+-            <groupId>org.janusgraph</groupId>
+-            <artifactId>janusgraph-hbase</artifactId>
+-            <version>${project.version}</version>
+-        </dependency>
+-        <dependency>
+-            <groupId>org.janusgraph</groupId>
+-            <artifactId>janusgraph-hbase-core</artifactId>
+-            <version>${project.version}</version>
+-        </dependency>
+-        <dependency>
+-            <groupId>org.janusgraph</groupId>
+-            <artifactId>janusgraph-hbase-core</artifactId>
+-            <version>${project.version}</version>
+-            <classifier>tests</classifier>
+-            <scope>test</scope>
+-        </dependency>
+-        <dependency>
+-            <groupId>org.janusgraph</groupId>
+-            <artifactId>janusgraph-es</artifactId>
+-            <version>${project.version}</version>
+-        </dependency>
+-        <dependency>
+-            <groupId>org.janusgraph</groupId>
+-            <artifactId>janusgraph-backend-testutils</artifactId>
+-            <version>${project.version}</version>
+-            <scope>test</scope>
+-        </dependency>
+-
+-        <dependency>
+-            <groupId>org.janusgraph</groupId>
+-            <artifactId>janusgraph-hbase-server</artifactId>
+-            <version>${project.version}</version>
+-            <scope>test</scope>
+-        </dependency>
+-
+-        <!-- JNA is needed by Cassandra, but janusgraph-cassandra only defines it as an optional dependency. -->
+-        <dependency>
+-            <groupId>net.java.dev.jna</groupId>
+-            <artifactId>jna</artifactId>
+-            <version>${jna.version}</version>
+-            <scope>test</scope>
+-        </dependency>
+-
+-        <!-- Required for Cassandra-3 connectivity, see issue 172 -->
+-        <dependency>
+-            <groupId>com.datastax.cassandra</groupId>
+-            <artifactId>cassandra-driver-core</artifactId>
+-            <version>${cassandra-driver.version}</version>
+-        </dependency>
+         <!-- Logging backends.
+              Enforce a classpath ordering constraint to ensure slf4j-log4j12
+              binding appears on the classpath before logback-classic.
+@@ -228,234 +127,47 @@
+         </dependency>
+         <!-- End logging backends. -->
+     </dependencies>
+-
+     <build>
++        <directory>${basedir}/target</directory>
++        <resources>
++            <resource>
++                <directory>${basedir}/src/main/resources</directory>
++                <filtering>true</filtering>
++            </resource>
++        </resources>
+         <plugins>
+-                <plugin>
+-                    <artifactId>maven-resources-plugin</artifactId>
+-                    <executions>
+-                        <execution>
+-                            <id>filter-shared-resources</id>
+-                            <phase>process-test-resources</phase>
+-                            <goals>
+-                                <goal>copy-resources</goal>
+-                            </goals>
+-                            <configuration>
+-                                <outputDirectory>${project.build.directory}/test-classes</outputDirectory>
+-                                <resources>
+-                                    <resource>
+-                                        <directory>${project.build.directory}/shared-resources</directory>
+-                                        <filtering>true</filtering>
+-                                    </resource>
+-                                </resources>
+-                            </configuration>
+-                        </execution>
+-                    </executions>
+-                </plugin>
+-
+-                <plugin>
+-                    <artifactId>maven-assembly-plugin</artifactId>
+-                    <executions>
+-                        <execution>
+-                            <id>build-job-jar</id>
+-                            <phase>package</phase>
+-                            <goals>
+-                                <goal>single</goal>
+-                            </goals>
+-                            <configuration>
+-                                <attach>false</attach>
+-                                <descriptors>
+-                                    <descriptor>src/assembly/shared-resources/hadoop-job.xml</descriptor>
+-                                </descriptors>
+-                                <finalName>${project.artifactId}-${project.version}</finalName>
+-                            </configuration>
+-                        </execution>
+-                    </executions>
+-                </plugin>
+-
+-                <plugin>
+-                    <artifactId>maven-surefire-plugin</artifactId>
+-                <configuration>
+-                    <systemPropertyVariables>
+-                        <log4j.configuration>file:${project.build.testOutputDirectory}/log4j.properties</log4j.configuration>
+-                    </systemPropertyVariables>
+-                </configuration>
+-                    <executions>
+-                        <execution>
+-                            <id>default-test</id>
+-                            <configuration>
+-                                <excludes>
+-                                    <exclude>**/*PipelineTest.java</exclude>
+-                                    <exclude>**/JanusGraphCassandraOutputFormatTest.java</exclude>
+-                                    <exclude>**/*ReindexTest.java</exclude>
+-                                    <exclude>**/*ScanJobTest.java</exclude>
+-                                    <exclude>**/JanusGraphHBaseOutputFormatTest.java</exclude>
+-                                </excludes>
+-                            </configuration>
+-                        </execution>
+-                    </executions>
+-                </plugin>
+-
+-                <plugin>
+-                    <groupId>org.apache.maven.plugins</groupId>
+-                    <artifactId>maven-failsafe-plugin</artifactId>
+-                    <executions>
+-                        <execution>
+-                            <id>janusgraph-cassandra-test</id>
+-                            <goals>
+-                                <goal>integration-test</goal>
+-                            </goals>
+-                            <configuration>
+-                                <includes>
+-                                    <include>**/*Cassandra*IT.java</include>
+-                                    <include>**/*CQL*IT.java</include>
+-                                </includes>
+-                                <excludes>
+-                                    <exclude>**/*Cassandra3*IT.java</exclude>
+-                                </excludes>
+-                                <skipTests>${skipCassandra}</skipTests>
+-                                <reuseForks>false</reuseForks>
+-                                <systemPropertyVariables>
+-                                    <cassandra.docker.version>2.2.14</cassandra.docker.version>
+-                                    <cassandra.docker.partitioner>murmur</cassandra.docker.partitioner>
+-                                </systemPropertyVariables>
+-                                <summaryFile>target/failsafe-reports/failsafe-janusgraph-cassandra.xml</summaryFile>
+-                                <argLine>${default.test.jvm.opts}</argLine>
+-                            </configuration>
+-                        </execution>
+-                        <!-- Cassandra-3 testing requires an external Cassandra instance. 
+-                        See TESTING.md for more information. -->
+-                        <execution>
+-                            <id>janusgraph-cassandra3-test</id>
+-                            <goals>
+-                                <goal>integration-test</goal>
+-                            </goals>
+-                            <configuration>
+-                                <includes>
+-                                    <include>**/*Cassandra3*IT.java</include>
+-                                    <include>**/*CQL*IT.java</include>
+-                                </includes>
+-                                <skipTests>${skipCassandra3}</skipTests>
+-                                <reuseForks>false</reuseForks>
+-                                <systemPropertyVariables>
+-                                    <cassandra.docker.version>3.11.4</cassandra.docker.version>
+-                                    <cassandra.docker.partitioner>murmur</cassandra.docker.partitioner>
+-                                </systemPropertyVariables>
+-                                <summaryFile>target/failsafe-reports/failsafe-janusgraph-cassandra3.xml</summaryFile>
+-                            </configuration>
+-                        </execution>
+-                        <execution>
+-                            <id>janusgraph-hbase-test</id>
+-                            <goals>
+-                                <goal>integration-test</goal>
+-                            </goals>
+-                            <configuration>
+-                                <argLine>${default.test.jvm.opts} -Dtest.hbase.parentdir=${top.level.basedir}/janusgraph-hbase-parent/</argLine>
+-                                <includes>
+-                                    <include>**/*HBase*IT.java</include>
+-                                </includes>
+-                                <skipTests>${skipHBase}</skipTests>
+-                                <summaryFile>target/failsafe-reports/failsafe-janusgraph-hbase.xml</summaryFile>
+-                            </configuration>
+-                        </execution>
+-                        <!-- ************ -->
+-                        <!-- VERIFICATION -->
+-                        <!-- ************ -->
+-                        <execution>
+-                            <id>verify-janusgraph-cassandra-test</id>
+-                            <goals>
+-                                <goal>verify</goal>
+-                            </goals>
+-                            <configuration>
+-                                <skipTests>${skipCassandra}</skipTests>
+-                                <summaryFiles>
+-                                    <summaryFile>target/failsafe-reports/failsafe-janusgraph-cassandra.xml</summaryFile>
+-                                </summaryFiles>
+-                            </configuration>
+-                        </execution>
+-                        <execution>
+-                            <id>verify-hbase-test</id>
+-                            <goals>
+-                                <goal>verify</goal>
+-                            </goals>
+-                            <configuration>
+-                                <skipTests>${skipHBase}</skipTests>
+-                                <summaryFiles>
+-                                    <summaryFile>target/failsafe-reports/failsafe-janusgraph-hbase.xml</summaryFile>
+-                                </summaryFiles>
+-                            </configuration>
+-                        </execution>
+-                    </executions>
+-                </plugin>
+-
+-                <!--
+-                <plugin>
+-                    <artifactId>maven-remote-resources-plugin</artifactId>
+-                    <executions>
+-                        <execution>
+-                            <id>unpack-common-test-classes</id>
+-                            <phase>process-test-classes</phase>
+-                            <goals>
+-                                <goal>process</goal>
+-                            </goals>
+-                            <configuration>
+-                                <resourceBundles>
+-                                    <resourceBundle>${project.groupId}:shared-resources:${project.version}</resourceBundle>
+-                                </resourceBundles>
+-                            </configuration>
+-                        </execution>
+-                    </executions>
+-                </plugin>
+-                -->
+-            </plugins>
++            <plugin>
++                <artifactId>maven-jar-plugin</artifactId>
++                <executions>
++                    <execution>
++                        <id>pack-test-jar</id>
++                        <!-- prepare-package instead of package forces it to get signed -->
++                        <phase>prepare-package</phase>
++                        <goals>
++                            <goal>test-jar</goal>
++                        </goals>
++                    </execution>
++                </executions>
++            </plugin>
++        </plugins>
+     </build>
+     <profiles>
+         <profile>
+-            <id>hbase1</id>
+-            <dependencies>
+-                <dependency>
+-                    <groupId>org.apache.hbase</groupId>
+-                    <artifactId>hbase-shaded-client</artifactId>
+-                    <version>${hbase1.version}</version>
+-                    <optional>true</optional>
+-                    <scope>provided</scope>
+-                </dependency>
+-                <!-- Need this for compile-time imports on
+-                     org.apache.hadoop.hbase.mapreduce -->
+-                <dependency>
+-                    <groupId>org.apache.hbase</groupId>
+-                    <artifactId>hbase-shaded-server</artifactId>
+-                    <version>${hbase1.version}</version>
+-                    <optional>true</optional>
+-                    <scope>provided</scope>
+-                </dependency>
+-            </dependencies>
+-        </profile>
+-        <profile>
+-            <id>hbase2</id>
+-            <activation>
+-                <property>
+-                    <name>!hbase.profile</name>
+-                </property>
+-            </activation>
+-            <dependencies>
+-                <dependency>
+-                    <groupId>org.apache.hbase</groupId>
+-                    <artifactId>hbase-shaded-client</artifactId>
+-                    <version>${hbase2.version}</version>
+-                    <optional>true</optional>
+-                    <scope>provided</scope>
+-                </dependency>
+-                <!-- Need this for compile-time imports on
+-                     org.apache.hadoop.hbase.mapreduce -->
+-                <dependency>
+-                    <groupId>org.apache.hbase</groupId>
+-                    <artifactId>hbase-shaded-mapreduce</artifactId>
+-                    <version>${hbase2.version}</version>
+-                    <optional>true</optional>
+-                    <scope>provided</scope>
+-                </dependency>
+-            </dependencies>
++            <id>janusgraph-release</id>
++            <build>
++                <plugins>
++                    <!-- Redeclare gpg-plugin after jar-plugin to force the test jar to be signed.
++                         gpg-plugin runs in the package phase, same as jar-plugin, so the only
++                         constraint that guarantees the jar will exist when gpg-plugin is
++                         invoked is declaration order in the pom. -->
++                    <plugin>
++                        <artifactId>maven-jar-plugin</artifactId>
++                    </plugin>
++                    <plugin>
++                        <artifactId>maven-gpg-plugin</artifactId>
++                    </plugin>
++                </plugins>
++            </build>
+         </profile>
+     </profiles>
+ </project>
+diff --git a/janusgraph-hadoop/src/main/java/org/janusgraph/hadoop/formats/cassandra/Cassandra3InputFormat.java b/janusgraph-hadoop/src/main/java/org/janusgraph/hadoop/HadoopStoreManager.java
+similarity index 64%
+rename from janusgraph-hadoop/src/main/java/org/janusgraph/hadoop/formats/cassandra/Cassandra3InputFormat.java
+rename to janusgraph-hadoop/src/main/java/org/janusgraph/hadoop/HadoopStoreManager.java
+index 4964c8cbf..3605097c7 100644
+--- a/janusgraph-hadoop/src/main/java/org/janusgraph/hadoop/formats/cassandra/Cassandra3InputFormat.java
++++ b/janusgraph-hadoop/src/main/java/org/janusgraph/hadoop/HadoopStoreManager.java
+@@ -1,4 +1,4 @@
+-// Copyright 2017 JanusGraph Authors
++// Copyright 2020 JanusGraph Authors
+ //
+ // Licensed under the Apache License, Version 2.0 (the "License");
+ // you may not use this file except in compliance with the License.
+@@ -12,13 +12,11 @@
+ // See the License for the specific language governing permissions and
+ // limitations under the License.
+ 
+-package org.janusgraph.hadoop.formats.cassandra;
++package org.janusgraph.hadoop;
+ 
+-import org.janusgraph.hadoop.formats.util.HadoopInputFormat;
++import org.apache.hadoop.conf.Configuration;
++import org.apache.hadoop.mapreduce.InputFormat;
+ 
+-public class Cassandra3InputFormat extends HadoopInputFormat {
+-
+-    public Cassandra3InputFormat() {
+-        super(new Cassandra3BinaryInputFormat());
+-    }
++public interface HadoopStoreManager {
++    Class<? extends InputFormat> getInputFormat(Configuration hadoopConf);
+ }
+diff --git a/janusgraph-hadoop/src/main/java/org/janusgraph/hadoop/MapReduceIndexJobs.java b/janusgraph-hadoop/src/main/java/org/janusgraph/hadoop/MapReduceIndexJobs.java
+index 0869fcff2..b01db1d4e 100644
+--- a/janusgraph-hadoop/src/main/java/org/janusgraph/hadoop/MapReduceIndexJobs.java
++++ b/janusgraph-hadoop/src/main/java/org/janusgraph/hadoop/MapReduceIndexJobs.java
+@@ -14,26 +14,17 @@
+ 
+ package org.janusgraph.hadoop;
+ 
++import org.apache.commons.configuration.BaseConfiguration;
++import org.apache.hadoop.conf.Configuration;
+ import org.janusgraph.diskstorage.configuration.BasicConfiguration;
+ import org.janusgraph.diskstorage.configuration.ConfigElement;
+ import org.janusgraph.diskstorage.configuration.ModifiableConfiguration;
+ import org.janusgraph.diskstorage.configuration.backend.CommonsConfiguration;
+-import org.janusgraph.diskstorage.keycolumnvalue.scan.ScanMetrics;
+ import org.janusgraph.graphdb.configuration.GraphDatabaseConfiguration;
+-import org.janusgraph.graphdb.olap.job.IndexRemoveJob;
+-import org.janusgraph.graphdb.olap.job.IndexRepairJob;
+ import org.janusgraph.hadoop.config.JanusGraphHadoopConfiguration;
+-import org.janusgraph.hadoop.scan.CQLHadoopScanRunner;
+-import org.janusgraph.hadoop.scan.CassandraHadoopScanRunner;
+-import org.janusgraph.hadoop.scan.HBaseHadoopScanRunner;
+-import org.apache.commons.configuration.BaseConfiguration;
+-import org.apache.hadoop.conf.Configuration;
+-import org.janusgraph.util.system.IOUtils;
+ import org.slf4j.Logger;
+ import org.slf4j.LoggerFactory;
+ 
+-import java.io.FileInputStream;
+-import java.io.IOException;
+ import java.util.Map;
+ import java.util.Properties;
+ 
+@@ -42,203 +33,7 @@
+     private static final Logger log =
+             LoggerFactory.getLogger(MapReduceIndexJobs.class);
+ 
+-    public static ScanMetrics cassandraRepair(String janusgraphPropertiesPath, String indexName, String relationType, String partitionerName)
+-        throws InterruptedException, IOException, ClassNotFoundException {
+-        Properties p = new Properties();
+-        FileInputStream fis = null;
+-        try {
+-            fis = new FileInputStream(janusgraphPropertiesPath);
+-            p.load(fis);
+-            return cassandraRepair(p, indexName, relationType, partitionerName);
+-        } finally {
+-            IOUtils.closeQuietly(fis);
+-        }
+-    }
+-
+-    public static ScanMetrics cassandraRepair(Properties janusgraphProperties, String indexName, String relationType,
+-                                              String partitionerName)
+-        throws InterruptedException, IOException, ClassNotFoundException {
+-        return cassandraRepair(janusgraphProperties, indexName, relationType, partitionerName, new Configuration());
+-    }
+-
+-    public static ScanMetrics cassandraRepair(Properties janusgraphProperties, String indexName, String relationType,
+-                                              String partitionerName, Configuration hadoopBaseConf)
+-        throws InterruptedException, IOException, ClassNotFoundException {
+-        IndexRepairJob job = new IndexRepairJob();
+-        CassandraHadoopScanRunner cr = new CassandraHadoopScanRunner(job);
+-        ModifiableConfiguration mc = getIndexJobConf(indexName, relationType);
+-        copyPropertiesToInputAndOutputConf(hadoopBaseConf, janusgraphProperties);
+-        cr.partitionerOverride(partitionerName);
+-        cr.scanJobConf(mc);
+-        cr.scanJobConfRoot(GraphDatabaseConfiguration.class.getName() + "#JOB_NS");
+-        cr.baseHadoopConf(hadoopBaseConf);
+-        return cr.run();
+-    }
+-
+-
+-    public static ScanMetrics cassandraRemove(String janusgraphPropertiesPath, String indexName, String relationType, String partitionerName)
+-        throws InterruptedException, IOException, ClassNotFoundException {
+-        Properties p = new Properties();
+-        FileInputStream fis = null;
+-        try {
+-            fis = new FileInputStream(janusgraphPropertiesPath);
+-            p.load(fis);
+-            return cassandraRemove(p, indexName, relationType, partitionerName);
+-        } finally {
+-            IOUtils.closeQuietly(fis);
+-        }
+-    }
+-
+-    public static ScanMetrics cassandraRemove(Properties janusgraphProperties, String indexName, String relationType,
+-                                              String partitionerName)
+-        throws InterruptedException, IOException, ClassNotFoundException {
+-        return cassandraRemove(janusgraphProperties, indexName, relationType, partitionerName, new Configuration());
+-    }
+-
+-    public static ScanMetrics cassandraRemove(Properties janusgraphProperties, String indexName, String relationType,
+-                                              String partitionerName, Configuration hadoopBaseConf)
+-        throws InterruptedException, IOException, ClassNotFoundException {
+-        IndexRemoveJob job = new IndexRemoveJob();
+-        CassandraHadoopScanRunner cr = new CassandraHadoopScanRunner(job);
+-        ModifiableConfiguration mc = getIndexJobConf(indexName, relationType);
+-        copyPropertiesToInputAndOutputConf(hadoopBaseConf, janusgraphProperties);
+-        cr.partitionerOverride(partitionerName);
+-        cr.scanJobConf(mc);
+-        cr.scanJobConfRoot(GraphDatabaseConfiguration.class.getName() + "#JOB_NS");
+-        cr.baseHadoopConf(hadoopBaseConf);
+-        return cr.run();
+-    }
+-
+-    public static ScanMetrics cqlRepair(String janusgraphPropertiesPath, String indexName, String relationType, String partitionerName)
+-        throws InterruptedException, IOException, ClassNotFoundException {
+-        Properties p = new Properties();
+-        FileInputStream fis = null;
+-        try {
+-            fis = new FileInputStream(janusgraphPropertiesPath);
+-            p.load(fis);
+-            return cqlRepair(p, indexName, relationType, partitionerName);
+-        } finally {
+-            IOUtils.closeQuietly(fis);
+-        }
+-    }
+-
+-    public static ScanMetrics cqlRepair(Properties janusgraphProperties, String indexName, String relationType,
+-                                              String partitionerName)
+-        throws InterruptedException, IOException, ClassNotFoundException {
+-        return cqlRepair(janusgraphProperties, indexName, relationType, partitionerName, new Configuration());
+-    }
+-
+-    public static ScanMetrics cqlRepair(Properties janusgraphProperties, String indexName, String relationType,
+-                                              String partitionerName, Configuration hadoopBaseConf)
+-        throws InterruptedException, IOException, ClassNotFoundException {
+-        IndexRepairJob job = new IndexRepairJob();
+-        CQLHadoopScanRunner cr = new CQLHadoopScanRunner(job);
+-        ModifiableConfiguration mc = getIndexJobConf(indexName, relationType);
+-        copyPropertiesToInputAndOutputConf(hadoopBaseConf, janusgraphProperties);
+-        cr.partitionerOverride(partitionerName);
+-        cr.scanJobConf(mc);
+-        cr.scanJobConfRoot(GraphDatabaseConfiguration.class.getName() + "#JOB_NS");
+-        cr.baseHadoopConf(hadoopBaseConf);
+-        return cr.run();
+-    }
+-
+-
+-    public static ScanMetrics cqlRemove(String janusgraphPropertiesPath, String indexName, String relationType, String partitionerName)
+-        throws InterruptedException, IOException, ClassNotFoundException {
+-        Properties p = new Properties();
+-        FileInputStream fis = null;
+-        try {
+-            fis = new FileInputStream(janusgraphPropertiesPath);
+-            p.load(fis);
+-            return cqlRemove(p, indexName, relationType, partitionerName);
+-        } finally {
+-            IOUtils.closeQuietly(fis);
+-        }
+-    }
+-
+-    public static ScanMetrics cqlRemove(Properties janusgraphProperties, String indexName, String relationType,
+-                                              String partitionerName)
+-        throws InterruptedException, IOException, ClassNotFoundException {
+-        return cqlRemove(janusgraphProperties, indexName, relationType, partitionerName, new Configuration());
+-    }
+-
+-    public static ScanMetrics cqlRemove(Properties janusgraphProperties, String indexName, String relationType,
+-                                              String partitionerName, Configuration hadoopBaseConf)
+-        throws InterruptedException, IOException, ClassNotFoundException {
+-        IndexRemoveJob job = new IndexRemoveJob();
+-        CQLHadoopScanRunner cr = new CQLHadoopScanRunner(job);
+-        ModifiableConfiguration mc = getIndexJobConf(indexName, relationType);
+-        copyPropertiesToInputAndOutputConf(hadoopBaseConf, janusgraphProperties);
+-        cr.partitionerOverride(partitionerName);
+-        cr.scanJobConf(mc);
+-        cr.scanJobConfRoot(GraphDatabaseConfiguration.class.getName() + "#JOB_NS");
+-        cr.baseHadoopConf(hadoopBaseConf);
+-        return cr.run();
+-    }
+-
+-    public static ScanMetrics hbaseRepair(String janusgraphPropertiesPath, String indexName, String relationType)
+-            throws InterruptedException, IOException, ClassNotFoundException {
+-        Properties p = new Properties();
+-        FileInputStream fis = null;
+-        try {
+-            fis = new FileInputStream(janusgraphPropertiesPath);
+-            p.load(fis);
+-            return hbaseRepair(p, indexName, relationType);
+-        } finally {
+-            IOUtils.closeQuietly(fis);
+-        }
+-    }
+-
+-    public static ScanMetrics hbaseRepair(Properties janusgraphProperties, String indexName, String relationType)
+-            throws InterruptedException, IOException, ClassNotFoundException {
+-        return hbaseRepair(janusgraphProperties, indexName, relationType, new Configuration());
+-    }
+-
+-    public static ScanMetrics hbaseRepair(Properties janusgraphProperties, String indexName, String relationType,
+-                                          Configuration hadoopBaseConf)
+-            throws InterruptedException, IOException, ClassNotFoundException {
+-        IndexRepairJob job = new IndexRepairJob();
+-        HBaseHadoopScanRunner cr = new HBaseHadoopScanRunner(job);
+-        ModifiableConfiguration mc = getIndexJobConf(indexName, relationType);
+-        copyPropertiesToInputAndOutputConf(hadoopBaseConf, janusgraphProperties);
+-        cr.scanJobConf(mc);
+-        cr.scanJobConfRoot(GraphDatabaseConfiguration.class.getName() + "#JOB_NS");
+-        cr.baseHadoopConf(hadoopBaseConf);
+-        return cr.run();
+-    }
+-
+-    public static ScanMetrics hbaseRemove(String janusgraphPropertiesPath, String indexName, String relationType)
+-            throws InterruptedException, IOException, ClassNotFoundException {
+-        Properties p = new Properties();
+-        FileInputStream fis = null;
+-        try {
+-            fis = new FileInputStream(janusgraphPropertiesPath);
+-            p.load(fis);
+-            return hbaseRemove(p, indexName, relationType);
+-        } finally {
+-            IOUtils.closeQuietly(fis);
+-        }
+-    }
+-
+-    public static ScanMetrics hbaseRemove(Properties janusgraphProperties, String indexName, String relationType)
+-            throws InterruptedException, IOException, ClassNotFoundException {
+-        return hbaseRemove(janusgraphProperties, indexName, relationType, new Configuration());
+-    }
+-
+-    public static ScanMetrics hbaseRemove(Properties janusgraphProperties, String indexName, String relationType,
+-                                          Configuration hadoopBaseConf)
+-            throws InterruptedException, IOException, ClassNotFoundException {
+-        IndexRemoveJob job = new IndexRemoveJob();
+-        HBaseHadoopScanRunner cr = new HBaseHadoopScanRunner(job);
+-        ModifiableConfiguration mc = getIndexJobConf(indexName, relationType);
+-        copyPropertiesToInputAndOutputConf(hadoopBaseConf, janusgraphProperties);
+-        cr.scanJobConf(mc);
+-        cr.scanJobConfRoot(GraphDatabaseConfiguration.class.getName() + "#JOB_NS");
+-        cr.baseHadoopConf(hadoopBaseConf);
+-        return cr.run();
+-    }
+-
+-    private static ModifiableConfiguration getIndexJobConf(String indexName, String relationType) {
++    public static ModifiableConfiguration getIndexJobConf(String indexName, String relationType) {
+         ModifiableConfiguration mc = new ModifiableConfiguration(GraphDatabaseConfiguration.JOB_NS,
+                 new CommonsConfiguration(new BaseConfiguration()), BasicConfiguration.Restriction.NONE);
+         mc.set(org.janusgraph.graphdb.olap.job.IndexUpdateJob.INDEX_NAME, indexName);
+@@ -247,7 +42,7 @@ private static ModifiableConfiguration getIndexJobConf(String indexName, String
+         return mc;
+     }
+ 
+-    private static void copyPropertiesToInputAndOutputConf(Configuration sink, Properties source) {
++    public static void copyPropertiesToInputAndOutputConf(Configuration sink, Properties source) {
+         final String prefix = ConfigElement.getPath(JanusGraphHadoopConfiguration.GRAPH_CONFIG_KEYS, true) + ".";
+         for (Map.Entry<Object, Object> e : source.entrySet()) {
+             String k;
+diff --git a/janusgraph-hadoop/src/main/java/org/janusgraph/hadoop/MapReduceIndexManagement.java b/janusgraph-hadoop/src/main/java/org/janusgraph/hadoop/MapReduceIndexManagement.java
+index d6adf204b..2808b3def 100644
+--- a/janusgraph-hadoop/src/main/java/org/janusgraph/hadoop/MapReduceIndexManagement.java
++++ b/janusgraph-hadoop/src/main/java/org/janusgraph/hadoop/MapReduceIndexManagement.java
+@@ -16,7 +16,6 @@
+ 
+ import com.google.common.base.Joiner;
+ import com.google.common.base.Preconditions;
+-import com.google.common.collect.ImmutableSet;
+ import org.apache.commons.lang3.StringUtils;
+ import org.janusgraph.core.JanusGraph;
+ import org.janusgraph.core.RelationType;
+@@ -27,14 +26,8 @@
+ import org.janusgraph.core.schema.JanusGraphManagement;
+ import org.janusgraph.diskstorage.Backend;
+ import org.janusgraph.diskstorage.BackendException;
+-import org.janusgraph.diskstorage.cassandra.AbstractCassandraStoreManager;
+-import org.janusgraph.diskstorage.cassandra.astyanax.AstyanaxStoreManager;
+-import org.janusgraph.diskstorage.cassandra.embedded.CassandraEmbeddedStoreManager;
+-import org.janusgraph.diskstorage.cassandra.thrift.CassandraThriftStoreManager;
+ import org.janusgraph.diskstorage.configuration.ConfigElement;
+-import org.janusgraph.diskstorage.cql.CQLStoreManager;
+-import org.janusgraph.diskstorage.hbase.HBaseStoreManager;
+-import org.janusgraph.diskstorage.keycolumnvalue.KeyColumnValueStoreManager;
++import org.janusgraph.diskstorage.keycolumnvalue.StoreManager;
+ import org.janusgraph.diskstorage.keycolumnvalue.scan.ScanMetrics;
+ import org.janusgraph.graphdb.configuration.GraphDatabaseConfiguration;
+ import org.janusgraph.graphdb.database.StandardJanusGraph;
+@@ -43,13 +36,9 @@
+ import org.janusgraph.graphdb.olap.job.IndexUpdateJob;
+ import org.janusgraph.hadoop.config.ModifiableHadoopConfiguration;
+ import org.janusgraph.hadoop.config.JanusGraphHadoopConfiguration;
+-import org.janusgraph.hadoop.formats.cassandra.CassandraBinaryInputFormat;
+-import org.janusgraph.hadoop.formats.cql.CqlBinaryInputFormat;
+-import org.janusgraph.hadoop.formats.hbase.HBaseBinaryInputFormat;
+ import org.janusgraph.hadoop.scan.HadoopScanMapper;
+ import org.janusgraph.hadoop.scan.HadoopScanRunner;
+ import org.janusgraph.hadoop.scan.HadoopVertexScanMapper;
+-import org.apache.cassandra.dht.IPartitioner;
+ import org.apache.hadoop.mapreduce.InputFormat;
+ import org.apache.hadoop.mapreduce.Mapper;
+ import org.apache.tinkerpop.gremlin.structure.Graph;
+@@ -59,13 +48,10 @@
+ import java.util.Collection;
+ import java.util.EnumSet;
+ import java.util.Iterator;
+-import java.util.Set;
+ import java.util.concurrent.ExecutionException;
+ import java.util.concurrent.TimeUnit;
+ import java.util.concurrent.TimeoutException;
+ 
+-import static org.janusgraph.graphdb.configuration.GraphDatabaseConfiguration.ROOT_NS;
+-
+ public class MapReduceIndexManagement {
+ 
+     private static final Logger log = LoggerFactory.getLogger(MapReduceIndexManagement.class);
+@@ -78,13 +64,6 @@
+     private static final String SUPPORTED_ACTIONS_STRING =
+             Joiner.on(", ").join(SUPPORTED_ACTIONS);
+ 
+-    private static final Set<Class<? extends KeyColumnValueStoreManager>> CASSANDRA_STORE_MANAGER_CLASSES =
+-            ImmutableSet.of(CassandraEmbeddedStoreManager.class,
+-                    AstyanaxStoreManager.class, CassandraThriftStoreManager.class);
+-
+-    private static final Set<Class<? extends KeyColumnValueStoreManager>> HBASE_STORE_MANAGER_CLASSES =
+-            ImmutableSet.of(HBaseStoreManager.class);
+-
+     public MapReduceIndexManagement(JanusGraph g) {
+         this.graph = (StandardJanusGraph)g;
+     }
+@@ -151,25 +130,14 @@ public MapReduceIndexManagement(JanusGraph g) {
+         janusGraphMapReduceConfiguration.set(JanusGraphHadoopConfiguration.COLUMN_FAMILY_NAME, readCF);
+ 
+         // The MapReduce InputFormat class based on the open graph's store manager
+-        final Class<? extends InputFormat> inputFormat;
+-        final Class<? extends KeyColumnValueStoreManager> storeManagerClass =
+-                graph.getBackend().getStoreManagerClass();
+-        if (CASSANDRA_STORE_MANAGER_CLASSES.contains(storeManagerClass)) {
+-            inputFormat = CassandraBinaryInputFormat.class;
+-            // Set the partitioner
+-            IPartitioner part =
+-                    ((AbstractCassandraStoreManager)graph.getBackend().getStoreManager()).getCassandraPartitioner();
+-            hadoopConf.set("cassandra.input.partitioner.class", part.getClass().getName());
+-        } else if (HBASE_STORE_MANAGER_CLASSES.contains(storeManagerClass)) {
+-            inputFormat = HBaseBinaryInputFormat.class;
+-        } else if (graph.getBackend().getStoreManager() instanceof CQLStoreManager) {
+-            inputFormat = CqlBinaryInputFormat.class;
+-            String part = ((CQLStoreManager)graph.getBackend().getStoreManager()).getPartitioner();
+-            hadoopConf.set("cassandra.input.partitioner.class", part);
+-        } else {
+-            throw new IllegalArgumentException("Store manager class " + storeManagerClass + "is not supported");
++
++        HadoopStoreManager storeManager = (HadoopStoreManager) graph.getBackend().getStoreManager().getHadoopManager();
++        if (storeManager == null) {
++            throw new IllegalArgumentException("Store manager class " + graph.getBackend().getStoreManagerClass() + "is not supported");
+         }
+ 
++        final Class<? extends InputFormat> inputFormat = storeManager.getInputFormat(hadoopConf);
++
+         // The index name and relation type name (if the latter is applicable)
+         final String indexName = index.name();
+         final RelationType relationType =
+diff --git a/janusgraph-hadoop/src/main/java/org/janusgraph/hadoop/formats/cassandra/Cassandra3BinaryInputFormat.java b/janusgraph-hadoop/src/main/java/org/janusgraph/hadoop/formats/cassandra/Cassandra3BinaryInputFormat.java
+deleted file mode 100644
+index 99c240bc2..000000000
+--- a/janusgraph-hadoop/src/main/java/org/janusgraph/hadoop/formats/cassandra/Cassandra3BinaryInputFormat.java
++++ /dev/null
+@@ -1,38 +0,0 @@
+-// Copyright 2017 JanusGraph Authors
+-//
+-// Licensed under the Apache License, Version 2.0 (the "License");
+-// you may not use this file except in compliance with the License.
+-// You may obtain a copy of the License at
+-//
+-//      http://www.apache.org/licenses/LICENSE-2.0
+-//
+-// Unless required by applicable law or agreed to in writing, software
+-// distributed under the License is distributed on an "AS IS" BASIS,
+-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-// See the License for the specific language governing permissions and
+-// limitations under the License.
+-
+-package org.janusgraph.hadoop.formats.cassandra;
+-
+-import org.apache.hadoop.mapreduce.InputSplit;
+-import org.apache.hadoop.mapreduce.RecordReader;
+-import org.apache.hadoop.mapreduce.TaskAttemptContext;
+-import org.janusgraph.diskstorage.Entry;
+-import org.janusgraph.diskstorage.StaticBuffer;
+-
+-import java.io.IOException;
+-
+-/**
+- * Wraps a ColumnFamilyInputFormat and converts CFIF's binary types to JanusGraph's binary types.
+- */
+-public class Cassandra3BinaryInputFormat extends CassandraBinaryInputFormat {
+-
+-    @Override
+-    public RecordReader<StaticBuffer, Iterable<Entry>> createRecordReader(final InputSplit inputSplit, final TaskAttemptContext taskAttemptContext)
+-            throws IOException, InterruptedException {
+-        janusgraphRecordReader = new CqlBridgeRecordReader(); // See issue 172
+-        return janusgraphRecordReader;
+-    }
+-
+-}
+-
+diff --git a/janusgraph-hadoop/src/main/java/org/janusgraph/hadoop/formats/cassandra/CqlBridgeRecordReader.java b/janusgraph-hadoop/src/main/java/org/janusgraph/hadoop/formats/cassandra/CqlBridgeRecordReader.java
+deleted file mode 100644
+index 94b6c9c8a..000000000
+--- a/janusgraph-hadoop/src/main/java/org/janusgraph/hadoop/formats/cassandra/CqlBridgeRecordReader.java
++++ /dev/null
+@@ -1,371 +0,0 @@
+-/*
+- * Licensed to the Apache Software Foundation (ASF) under one
+- * or more contributor license agreements.  See the NOTICE file
+- * distributed with this work for additional information
+- * regarding copyright ownership.  The ASF licenses this file
+- * to you under the Apache License, Version 2.0 (the
+- * "License"); you may not use this file except in compliance
+- * with the License.  You may obtain a copy of the License at
+- *
+- *     http://www.apache.org/licenses/LICENSE-2.0
+- *
+- * Unless required by applicable law or agreed to in writing, software
+- * distributed under the License is distributed on an "AS IS" BASIS,
+- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+- * See the License for the specific language governing permissions and
+- * limitations under the License.
+- */
+-
+-package org.janusgraph.hadoop.formats.cassandra;
+-
+-import com.google.common.base.Preconditions;
+-import com.google.common.base.Splitter;
+-import com.google.common.collect.Iterables;
+-import com.google.common.collect.Maps;
+-
+-import com.datastax.driver.core.Cluster;
+-import com.datastax.driver.core.ColumnMetadata;
+-import com.datastax.driver.core.Metadata;
+-import com.datastax.driver.core.Row;
+-import com.datastax.driver.core.Session;
+-import com.datastax.driver.core.SimpleStatement;
+-import com.datastax.driver.core.TableMetadata;
+-
+-import org.apache.cassandra.db.marshal.AbstractType;
+-import org.apache.cassandra.dht.IPartitioner;
+-import org.apache.cassandra.hadoop.ColumnFamilySplit;
+-import org.apache.cassandra.hadoop.ConfigHelper;
+-import org.apache.cassandra.hadoop.HadoopCompat;
+-import org.apache.cassandra.hadoop.cql3.CqlConfigHelper;
+-import org.apache.commons.lang3.StringUtils;
+-import org.apache.hadoop.classification.InterfaceStability.Unstable;
+-import org.apache.hadoop.conf.Configuration;
+-import org.apache.hadoop.mapreduce.InputSplit;
+-import org.apache.hadoop.mapreduce.RecordReader;
+-import org.apache.hadoop.mapreduce.TaskAttemptContext;
+-import org.janusgraph.diskstorage.Entry;
+-import org.janusgraph.diskstorage.StaticBuffer;
+-import org.janusgraph.diskstorage.util.StaticArrayBuffer;
+-import org.janusgraph.diskstorage.util.StaticArrayEntry;
+-import org.slf4j.Logger;
+-import org.slf4j.LoggerFactory;
+-
+-import java.io.IOException;
+-import java.util.ArrayList;
+-import java.util.Collection;
+-import java.util.HashMap;
+-import java.util.Iterator;
+-import java.util.LinkedHashMap;
+-import java.util.List;
+-import java.util.Map;
+-import java.util.stream.Collectors;
+-
+-import static java.util.stream.Collectors.toList;
+-
+-/**
+- * <p> Background: The {@link org.apache.cassandra.hadoop.cql3.CqlRecordReader} class has changed
+- * significantly in Cassandra-3 from Cassandra-2. This class acts as a bridge between
+- * CqlRecordReader in Cassandra-2 to Cassandra-3. In essence, this class recreates CqlRecordReader
+- * from Cassandra-3 without referring to it (because otherwise we'd get functionality from
+- * CqlRecordReader on Cassandra-2 and we don't want it). </p>
+- *
+- * @see <a href="https://github.com/JanusGraph/janusgraph/issues/172">Issue 172.</a>
+- */
+-@Unstable // Because it should go away with JanusGraph upgrading to Cassandra-3 for OLAP
+-@Deprecated // Because this class should already be on its path to deprecation
+-public class CqlBridgeRecordReader extends RecordReader<StaticBuffer, Iterable<Entry>> {
+-
+-    /* Implementation note: This is inspired by Cassandra-3's org/apache/cassandra/hadoop/cql3/CqlRecordReader.java */
+-    private static final Logger log = LoggerFactory.getLogger(CqlBridgeRecordReader.class);
+-
+-    private ColumnFamilySplit split;
+-    private DistinctKeyIterator distinctKeyIterator;
+-    private int totalRowCount; // total number of rows to fetch
+-    private String keyspace;
+-    private String cfName;
+-    private String cqlQuery;
+-    private Cluster cluster;
+-    private Session session;
+-    private IPartitioner partitioner;
+-    private String inputColumns;
+-    private String userDefinedWhereClauses;
+-
+-    private final List<String> partitionKeys = new ArrayList<>();
+-
+-    // partition keys -- key aliases
+-    private final LinkedHashMap<String, Boolean> partitionBoundColumns = Maps.newLinkedHashMap();
+-    private int nativeProtocolVersion = 1;
+-
+-    // binary type mapping code from CassandraBinaryRecordReader
+-    private KV currentKV;
+-
+-    CqlBridgeRecordReader() { //package private
+-        super();
+-    }
+-
+-    @Override
+-    public void initialize(InputSplit split, TaskAttemptContext context) throws IOException {
+-        this.split = (ColumnFamilySplit) split;
+-        Configuration conf = HadoopCompat.getConfiguration(context);
+-        totalRowCount = (this.split.getLength() < Long.MAX_VALUE)
+-            ? (int) this.split.getLength()
+-            : ConfigHelper.getInputSplitSize(conf);
+-        cfName = ConfigHelper.getInputColumnFamily(conf);
+-        keyspace = ConfigHelper.getInputKeyspace(conf);
+-        partitioner = ConfigHelper.getInputPartitioner(conf);
+-        inputColumns = CqlConfigHelper.getInputcolumns(conf);
+-        userDefinedWhereClauses = CqlConfigHelper.getInputWhereClauses(conf);
+-
+-        try {
+-            if (cluster != null) {
+-                return;
+-            }
+-            // create a Cluster instance
+-            String[] locations = split.getLocations();
+-//            cluster = CqlConfigHelper.getInputCluster(locations, conf);
+-            // disregard the conf as it brings some unforeseen issues.
+-            cluster = Cluster.builder()
+-                .addContactPoints(locations)
+-                .build();
+-        } catch (Exception e) {
+-            throw new RuntimeException("Unable to create cluster for table: " + cfName + ", in keyspace: " + keyspace, e);
+-        }
+-        // cluster should be represent to a valid cluster now
+-        session = cluster.connect(quote(keyspace));
+-        Preconditions.checkNotNull(session, "Can't create connection session");
+-        //get negotiated serialization protocol
+-        nativeProtocolVersion = cluster.getConfiguration().getProtocolOptions().getProtocolVersion().toInt();
+-
+-        // If the user provides a CQL query then we will use it without validation
+-        // otherwise we will fall back to building a query using the:
+-        //   inputColumns
+-        //   whereClauses
+-        cqlQuery = CqlConfigHelper.getInputCql(conf);
+-        // validate that the user hasn't tried to give us a custom query along with input columns
+-        // and where clauses
+-        if (StringUtils.isNotEmpty(cqlQuery) && (StringUtils.isNotEmpty(inputColumns) ||
+-            StringUtils.isNotEmpty(userDefinedWhereClauses))) {
+-            throw new AssertionError("Cannot define a custom query with input columns and / or where clauses");
+-        }
+-
+-        if (StringUtils.isEmpty(cqlQuery)) {
+-            cqlQuery = buildQuery();
+-        }
+-        log.trace("cqlQuery {}", cqlQuery);
+-        distinctKeyIterator = new DistinctKeyIterator();
+-        log.trace("created {}", distinctKeyIterator);
+-    }
+-
+-    public void close() {
+-        if (session != null) {
+-            session.close();
+-        }
+-        if (cluster != null) {
+-            cluster.close();
+-        }
+-    }
+-
+-    private static class KV {
+-        private final StaticArrayBuffer key;
+-        private ArrayList<Entry> entries;
+-
+-        KV(StaticArrayBuffer key) {
+-            this.key = key;
+-        }
+-
+-        void addEntries(Collection<Entry> toAdd) {
+-            if (entries == null) {
+-                entries = new ArrayList<>(toAdd.size());
+-            }
+-            entries.addAll(toAdd);
+-        }
+-    }
+-
+-    @Override
+-    public StaticBuffer getCurrentKey() {
+-        return currentKV.key;
+-    }
+-
+-    @Override
+-    public Iterable<Entry> getCurrentValue() throws IOException {
+-        return currentKV.entries;
+-    }
+-
+-    public float getProgress() {
+-        if (!distinctKeyIterator.hasNext()) {
+-            return 1.0F;
+-        }
+-
+-        // the progress is likely to be reported slightly off the actual but close enough
+-        float progress = ((float) distinctKeyIterator.totalRead / totalRowCount);
+-        return progress > 1.0F ? 1.0F : progress;
+-    }
+-
+-    public boolean nextKeyValue() throws IOException {
+-        final Map<StaticArrayBuffer, Map<StaticBuffer, StaticBuffer>> kv = distinctKeyIterator.next();
+-        if (kv == null) {
+-            return false;
+-        }
+-        final Map.Entry<StaticArrayBuffer, Map<StaticBuffer, StaticBuffer>> onlyEntry = Iterables.getOnlyElement(kv.entrySet());
+-        final KV newKV = new KV(onlyEntry.getKey());
+-        final Map<StaticBuffer, StaticBuffer> v = onlyEntry.getValue();
+-        final List<Entry> entries = v.keySet()
+-                .stream()
+-                .map(column -> StaticArrayEntry.of(column, v.get(column)))
+-                .collect(toList());
+-        newKV.addEntries(entries);
+-        currentKV = newKV;
+-        return true;
+-    }
+-
+-    /**
+-     * Return native version protocol of the cluster connection
+-     *
+-     * @return serialization protocol version.
+-     */
+-    public int getNativeProtocolVersion() {
+-        return nativeProtocolVersion;
+-    }
+-
+-    /**
+-     * A non-static nested class that represents an iterator for distinct keys based on the
+-     * row iterator from DataStax driver. In the usual case, more than one row will be associated
+-     * with a single key in JanusGraph's use of Cassandra.
+-     */
+-    private class DistinctKeyIterator implements Iterator<Map<StaticArrayBuffer, Map<StaticBuffer, StaticBuffer>>> {
+-        public static final String KEY = "key";
+-        public static final String COLUMN_NAME = "column1";
+-        public static final String VALUE = "value";
+-        private final Iterator<Row> rowIterator;
+-        long totalRead;
+-        Row previousRow = null;
+-        DistinctKeyIterator() {
+-            AbstractType type = partitioner.getTokenValidator();
+-            Object startToken = type.compose(type.fromString(split.getStartToken()));
+-            Object endToken = type.compose(type.fromString(split.getEndToken()));
+-            SimpleStatement statement = new SimpleStatement(cqlQuery, startToken, endToken);
+-            rowIterator = session.execute(statement).iterator();
+-            for (ColumnMetadata meta : cluster.getMetadata().getKeyspace(quote(keyspace)).getTable(quote(cfName)).getPartitionKey()) {
+-                partitionBoundColumns.put(meta.getName(), Boolean.TRUE);
+-            }
+-        }
+-
+-        @Override
+-        public boolean hasNext() {
+-            return rowIterator.hasNext();
+-        }
+-
+-        /**
+-         * <p>
+-         *     Implements the <i>business logic</i> of the outer class. Refer to {@linkplain CqlBridgeRecordReader}.
+-         * Relies on the {@linkplain Iterator} of {@linkplain Row} to get a map of rows that correspond
+-         * to the same key.
+-         * </p>
+-         * <p>
+-         *     Note: This is not a general purpose iterator. There is no provision of {@linkplain java.util.ConcurrentModificationException}
+-         *     while iterating using this iterator.
+-         * </p>
+-         * @return the next element in the iteration of distinct keys, returns <code>null</code> to indicate
+-         * end of iteration
+-         */
+-        @Override
+-        public Map<StaticArrayBuffer, Map<StaticBuffer, StaticBuffer>> next() {
+-            if (! rowIterator.hasNext()) {
+-                return null; // null means no more data
+-            }
+-            Map<StaticArrayBuffer, Map<StaticBuffer, StaticBuffer>> keyColumnValues = new HashMap<>(); // key -> (column1 -> value)
+-            Row row;
+-            if (previousRow == null) {
+-                row = rowIterator.next(); // just the first time, should succeed
+-            } else {
+-                row = previousRow;
+-            }
+-            StaticArrayBuffer key = StaticArrayBuffer.of(row.getBytesUnsafe(KEY));
+-            StaticBuffer column1 = StaticArrayBuffer.of(row.getBytesUnsafe(COLUMN_NAME));
+-            StaticBuffer value = StaticArrayBuffer.of(row.getBytesUnsafe(VALUE));
+-            Map<StaticBuffer, StaticBuffer> cvs = new HashMap<>();
+-            cvs.put(column1, value);
+-            keyColumnValues.put(key, cvs);
+-            while (rowIterator.hasNext()) {
+-                Row nextRow = rowIterator.next();
+-                StaticArrayBuffer nextKey = StaticArrayBuffer.of(nextRow.getBytesUnsafe(KEY));
+-                if (! key.equals(nextKey)) {
+-                    previousRow = nextRow;
+-                    break;
+-                }
+-                StaticBuffer nextColumn = StaticArrayBuffer.of(nextRow.getBytesUnsafe(COLUMN_NAME));
+-                StaticBuffer nextValue = StaticArrayBuffer.of(nextRow.getBytesUnsafe(VALUE));
+-                cvs.put(nextColumn, nextValue);
+-                totalRead++;
+-            }
+-            return keyColumnValues;
+-        }
+-    }
+-    /**
+-     * Build a query for the reader of the form:
+-     *
+-     * SELECT * FROM ks>cf token(pk1,...pkn)>? AND token(pk1,...pkn)<=? [AND user where clauses]
+-     * [ALLOW FILTERING]
+-     */
+-    private String buildQuery() {
+-        fetchKeys();
+-
+-        List<String> columns = getSelectColumns();
+-        String selectColumnList = columns.size() == 0 ? "*" : makeColumnList(columns);
+-        String partitionKeyList = makeColumnList(partitionKeys);
+-
+-        return String.format("SELECT %s FROM %s.%s WHERE token(%s)>? AND token(%s)<=?" + getAdditionalWhereClauses(),
+-            selectColumnList, quote(keyspace), quote(cfName), partitionKeyList, partitionKeyList);
+-    }
+-
+-    private String getAdditionalWhereClauses() {
+-        String whereClause = "";
+-        if (StringUtils.isNotEmpty(userDefinedWhereClauses)) {
+-            whereClause += " AND " + userDefinedWhereClauses;
+-        }
+-        if (StringUtils.isNotEmpty(userDefinedWhereClauses)) {
+-            whereClause += " ALLOW FILTERING";
+-        }
+-        return whereClause;
+-    }
+-
+-    private List<String> getSelectColumns() {
+-        List<String> selectColumns = new ArrayList<>();
+-
+-        if (StringUtils.isNotEmpty(inputColumns)) {
+-            // We must select all the partition keys plus any other columns the user wants
+-            selectColumns.addAll(partitionKeys);
+-            for (String column : Splitter.on(',').split(inputColumns)) {
+-                if (!partitionKeys.contains(column)) {
+-                    selectColumns.add(column);
+-                }
+-            }
+-        }
+-        return selectColumns;
+-    }
+-
+-    private String makeColumnList(Collection<String> columns) {
+-        return columns.stream().map(this::quote).collect(Collectors.joining(","));
+-    }
+-
+-    private void fetchKeys() {
+-        // get CF meta data
+-        TableMetadata tableMetadata = session.getCluster()
+-            .getMetadata()
+-            .getKeyspace(Metadata.quote(keyspace))
+-            .getTable(Metadata.quote(cfName));
+-        if (tableMetadata == null) {
+-            throw new RuntimeException("No table metadata found for " + keyspace + "." + cfName);
+-        }
+-        //Here we assume that tableMetadata.getPartitionKey() always
+-        //returns the list of columns in order of component_index
+-        for (ColumnMetadata partitionKey : tableMetadata.getPartitionKey()) {
+-            partitionKeys.add(partitionKey.getName());
+-        }
+-    }
+-
+-    private String quote(String identifier) {
+-        return "\"" + identifier.replaceAll("\"", "\"\"") + "\"";
+-    }
+-
+-}
+diff --git a/janusgraph-hadoop/src/test/java/org/janusgraph/hadoop/Cassandra3InputFormatIT.java b/janusgraph-hadoop/src/test/java/org/janusgraph/hadoop/Cassandra3InputFormatIT.java
+deleted file mode 100644
+index d591ee801..000000000
+--- a/janusgraph-hadoop/src/test/java/org/janusgraph/hadoop/Cassandra3InputFormatIT.java
++++ /dev/null
+@@ -1,37 +0,0 @@
+-// Copyright 2017 JanusGraph Authors
+-//
+-// Licensed under the Apache License, Version 2.0 (the "License");
+-// you may not use this file except in compliance with the License.
+-// You may obtain a copy of the License at
+-//
+-//      http://www.apache.org/licenses/LICENSE-2.0
+-//
+-// Unless required by applicable law or agreed to in writing, software
+-// distributed under the License is distributed on an "AS IS" BASIS,
+-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-// See the License for the specific language governing permissions and
+-// limitations under the License.
+-
+-package org.janusgraph.hadoop;
+-
+-import org.apache.commons.configuration.ConfigurationException;
+-import org.apache.commons.configuration.PropertiesConfiguration;
+-import org.janusgraph.diskstorage.configuration.WriteConfiguration;
+-
+-import java.io.IOException;
+-
+-public class Cassandra3InputFormatIT extends CassandraInputFormatIT {
+-
+-    @Override
+-    protected PropertiesConfiguration getGraphConfiguration() throws ConfigurationException, IOException {
+-        final PropertiesConfiguration config = super.getGraphConfiguration();
+-        config.setProperty("gremlin.hadoop.graphInputFormat", "org.janusgraph.hadoop.formats.cassandra.Cassandra3InputFormat");
+-        return config;
+-    }
+-
+-    @Override
+-    public WriteConfiguration getConfiguration() {
+-        String className = CassandraInputFormatIT.class.getSimpleName();
+-        return thriftContainer.getThriftConfiguration(className).getConfiguration();
+-    }
+-}
+diff --git a/janusgraph-hbase-parent/janusgraph-hbase-core/pom.xml b/janusgraph-hbase-parent/janusgraph-hbase-core/pom.xml
+index 56f96cc8a..bf39db180 100644
+--- a/janusgraph-hbase-parent/janusgraph-hbase-core/pom.xml
++++ b/janusgraph-hbase-parent/janusgraph-hbase-core/pom.xml
+@@ -27,6 +27,19 @@
+             <version>${project.version}</version>
+             <scope>test</scope>
+         </dependency>
++        <dependency>
++            <groupId>org.janusgraph</groupId>
++            <artifactId>janusgraph-hadoop</artifactId>
++            <version>${project.version}</version>
++            <optional>true</optional>
++        </dependency>
++        <dependency>
++            <groupId>org.janusgraph</groupId>
++            <artifactId>janusgraph-hadoop</artifactId>
++            <version>${project.version}</version>
++            <classifier>tests</classifier>
++            <scope>test</scope>
++        </dependency>
+     </dependencies>
+     
+     <build>
+diff --git a/janusgraph-hbase-parent/janusgraph-hbase-core/src/main/java/org/janusgraph/diskstorage/hbase/HBaseStoreManager.java b/janusgraph-hbase-parent/janusgraph-hbase-core/src/main/java/org/janusgraph/diskstorage/hbase/HBaseStoreManager.java
+index 7db7804aa..5a62830a8 100644
+--- a/janusgraph-hbase-parent/janusgraph-hbase-core/src/main/java/org/janusgraph/diskstorage/hbase/HBaseStoreManager.java
++++ b/janusgraph-hbase-parent/janusgraph-hbase-core/src/main/java/org/janusgraph/diskstorage/hbase/HBaseStoreManager.java
+@@ -88,6 +88,7 @@
+ import org.janusgraph.diskstorage.util.time.TimestampProviders;
+ import org.janusgraph.graphdb.configuration.GraphDatabaseConfiguration;
+ import org.janusgraph.graphdb.configuration.PreInitializeConfigOptions;
++import org.janusgraph.hadoop.HBaseHadoopStoreManager;
+ import org.janusgraph.util.system.IOUtils;
+ import org.janusgraph.util.system.NetworkUtil;
+ import org.slf4j.Logger;
+@@ -992,4 +993,9 @@ private String determineTableName(org.janusgraph.diskstorage.configuration.Confi
+     protected org.apache.hadoop.conf.Configuration getHBaseConf() {
+         return hconf;
+     }
++
++    @Override
++    public Object getHadoopManager() throws BackendException {
++        return new HBaseHadoopStoreManager();
++    }
+ }
+diff --git a/janusgraph-hbase-parent/janusgraph-hbase-core/src/main/java/org/janusgraph/hadoop/HBaseHadoopStoreManager.java b/janusgraph-hbase-parent/janusgraph-hbase-core/src/main/java/org/janusgraph/hadoop/HBaseHadoopStoreManager.java
+new file mode 100644
+index 000000000..7c2bf6e99
+--- /dev/null
++++ b/janusgraph-hbase-parent/janusgraph-hbase-core/src/main/java/org/janusgraph/hadoop/HBaseHadoopStoreManager.java
+@@ -0,0 +1,26 @@
++// Copyright 2020 JanusGraph Authors
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//      http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++
++package org.janusgraph.hadoop;
++
++import org.apache.hadoop.conf.Configuration;
++import org.apache.hadoop.mapreduce.InputFormat;
++import org.janusgraph.hadoop.formats.hbase.HBaseBinaryInputFormat;
++
++public class HBaseHadoopStoreManager implements HadoopStoreManager {
++    @Override
++    public Class<? extends InputFormat> getInputFormat(Configuration hadoopConf) {
++        return HBaseBinaryInputFormat.class;
++    }
++}
+diff --git a/janusgraph-hbase-parent/janusgraph-hbase-core/src/main/java/org/janusgraph/hadoop/HBaseMapReduceIndexJobs.java b/janusgraph-hbase-parent/janusgraph-hbase-core/src/main/java/org/janusgraph/hadoop/HBaseMapReduceIndexJobs.java
+new file mode 100644
+index 000000000..04fa8ccff
+--- /dev/null
++++ b/janusgraph-hbase-parent/janusgraph-hbase-core/src/main/java/org/janusgraph/hadoop/HBaseMapReduceIndexJobs.java
+@@ -0,0 +1,98 @@
++// Copyright 2020 JanusGraph Authors
++//
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at
++//
++//      http://www.apache.org/licenses/LICENSE-2.0
++//
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++
++package org.janusgraph.hadoop;
++
++import org.apache.hadoop.conf.Configuration;
++import org.janusgraph.diskstorage.configuration.ModifiableConfiguration;
++import org.janusgraph.diskstorage.keycolumnvalue.scan.ScanMetrics;
++import org.janusgraph.graphdb.configuration.GraphDatabaseConfiguration;
++import org.janusgraph.graphdb.olap.job.IndexRemoveJob;
++import org.janusgraph.graphdb.olap.job.IndexRepairJob;
++import org.janusgraph.hadoop.scan.HBaseHadoopScanRunner;
++import org.janusgraph.util.system.IOUtils;
++import org.slf4j.Logger;
++import org.slf4j.LoggerFactory;
++
++import java.io.FileInputStream;
++import java.io.IOException;
++import java.util.Properties;
++
++public class HBaseMapReduceIndexJobs {
++
++    private static final Logger log =
++        LoggerFactory.getLogger(HBaseMapReduceIndexJobs.class);
++
++    public static ScanMetrics repair(String janusgraphPropertiesPath, String indexName, String relationType)
++        throws InterruptedException, IOException, ClassNotFoundException {
++        Properties p = new Properties();
++        FileInputStream fis = null;
++        try {
++            fis = new FileInputStream(janusgraphPropertiesPath);
++            p.load(fis);
++            return repair(p, indexName, relationType);
++        } finally {
++            IOUtils.closeQuietly(fis);
++        }
++    }
++
++    public static ScanMetrics repair(Properties janusgraphProperties, String indexName, String relationType)
++        throws InterruptedException, IOException, ClassNotFoundException {
++        return repair(janusgraphProperties, indexName, relationType, new Configuration());
++    }
++
++    public static ScanMetrics repair(Properties janusgraphProperties, String indexName, String relationType,
++                                     Configuration hadoopBaseConf)
++        throws InterruptedException, IOException, ClassNotFoundException {
++        IndexRepairJob job = new IndexRepairJob();
++        HBaseHadoopScanRunner cr = new HBaseHadoopScanRunner(job);
++        ModifiableConfiguration mc = MapReduceIndexJobs.getIndexJobConf(indexName, relationType);
++        MapReduceIndexJobs.copyPropertiesToInputAndOutputConf(hadoopBaseConf, janusgraphProperties);
++        cr.scanJobConf(mc);
++        cr.scanJobConfRoot(GraphDatabaseConfiguration.class.getName() + "#JOB_NS");
++        cr.baseHadoopConf(hadoopBaseConf);
++        return cr.run();
++    }
++
++    public static ScanMetrics remove(String janusgraphPropertiesPath, String indexName, String relationType)
++        throws InterruptedException, IOException, ClassNotFoundException {
++        Properties p = new Properties();
++        FileInputStream fis = null;
++        try {
++            fis = new FileInputStream(janusgraphPropertiesPath);
++            p.load(fis);
++            return remove(p, indexName, relationType);
++        } finally {
++            IOUtils.closeQuietly(fis);
++        }
++    }
++
++    public static ScanMetrics remove(Properties janusgraphProperties, String indexName, String relationType)
++        throws InterruptedException, IOException, ClassNotFoundException {
++        return remove(janusgraphProperties, indexName, relationType, new Configuration());
++    }
++
++    public static ScanMetrics remove(Properties janusgraphProperties, String indexName, String relationType,
++                                     Configuration hadoopBaseConf)
++        throws InterruptedException, IOException, ClassNotFoundException {
++        IndexRemoveJob job = new IndexRemoveJob();
++        HBaseHadoopScanRunner cr = new HBaseHadoopScanRunner(job);
++        ModifiableConfiguration mc = MapReduceIndexJobs.getIndexJobConf(indexName, relationType);
++        MapReduceIndexJobs.copyPropertiesToInputAndOutputConf(hadoopBaseConf, janusgraphProperties);
++        cr.scanJobConf(mc);
++        cr.scanJobConfRoot(GraphDatabaseConfiguration.class.getName() + "#JOB_NS");
++        cr.baseHadoopConf(hadoopBaseConf);
++        return cr.run();
++    }
++}
+diff --git a/janusgraph-hadoop/src/main/java/org/janusgraph/hadoop/formats/hbase/HBaseBinaryInputFormat.java b/janusgraph-hbase-parent/janusgraph-hbase-core/src/main/java/org/janusgraph/hadoop/formats/hbase/HBaseBinaryInputFormat.java
+similarity index 100%
+rename from janusgraph-hadoop/src/main/java/org/janusgraph/hadoop/formats/hbase/HBaseBinaryInputFormat.java
+rename to janusgraph-hbase-parent/janusgraph-hbase-core/src/main/java/org/janusgraph/hadoop/formats/hbase/HBaseBinaryInputFormat.java
+diff --git a/janusgraph-hadoop/src/main/java/org/janusgraph/hadoop/formats/hbase/HBaseBinaryRecordReader.java b/janusgraph-hbase-parent/janusgraph-hbase-core/src/main/java/org/janusgraph/hadoop/formats/hbase/HBaseBinaryRecordReader.java
+similarity index 100%
+rename from janusgraph-hadoop/src/main/java/org/janusgraph/hadoop/formats/hbase/HBaseBinaryRecordReader.java
+rename to janusgraph-hbase-parent/janusgraph-hbase-core/src/main/java/org/janusgraph/hadoop/formats/hbase/HBaseBinaryRecordReader.java
+diff --git a/janusgraph-hadoop/src/main/java/org/janusgraph/hadoop/formats/hbase/HBaseInputFormat.java b/janusgraph-hbase-parent/janusgraph-hbase-core/src/main/java/org/janusgraph/hadoop/formats/hbase/HBaseInputFormat.java
+similarity index 100%
+rename from janusgraph-hadoop/src/main/java/org/janusgraph/hadoop/formats/hbase/HBaseInputFormat.java
+rename to janusgraph-hbase-parent/janusgraph-hbase-core/src/main/java/org/janusgraph/hadoop/formats/hbase/HBaseInputFormat.java
+diff --git a/janusgraph-hadoop/src/main/java/org/janusgraph/hadoop/formats/hbase/HBaseSnapshotBinaryInputFormat.java b/janusgraph-hbase-parent/janusgraph-hbase-core/src/main/java/org/janusgraph/hadoop/formats/hbase/HBaseSnapshotBinaryInputFormat.java
+similarity index 100%
+rename from janusgraph-hadoop/src/main/java/org/janusgraph/hadoop/formats/hbase/HBaseSnapshotBinaryInputFormat.java
+rename to janusgraph-hbase-parent/janusgraph-hbase-core/src/main/java/org/janusgraph/hadoop/formats/hbase/HBaseSnapshotBinaryInputFormat.java
+diff --git a/janusgraph-hadoop/src/main/java/org/janusgraph/hadoop/formats/hbase/HBaseSnapshotInputFormat.java b/janusgraph-hbase-parent/janusgraph-hbase-core/src/main/java/org/janusgraph/hadoop/formats/hbase/HBaseSnapshotInputFormat.java
+similarity index 100%
+rename from janusgraph-hadoop/src/main/java/org/janusgraph/hadoop/formats/hbase/HBaseSnapshotInputFormat.java
+rename to janusgraph-hbase-parent/janusgraph-hbase-core/src/main/java/org/janusgraph/hadoop/formats/hbase/HBaseSnapshotInputFormat.java
+diff --git a/janusgraph-hadoop/src/main/java/org/janusgraph/hadoop/scan/HBaseHadoopScanRunner.java b/janusgraph-hbase-parent/janusgraph-hbase-core/src/main/java/org/janusgraph/hadoop/scan/HBaseHadoopScanRunner.java
+similarity index 100%
+rename from janusgraph-hadoop/src/main/java/org/janusgraph/hadoop/scan/HBaseHadoopScanRunner.java
+rename to janusgraph-hbase-parent/janusgraph-hbase-core/src/main/java/org/janusgraph/hadoop/scan/HBaseHadoopScanRunner.java
+diff --git a/janusgraph-hadoop/src/test/java/org/janusgraph/hadoop/HBaseIndexManagementIT.java b/janusgraph-hbase-parent/janusgraph-hbase-core/src/test/java/org/janusgraph/hadoop/HBaseIndexManagementIT.java
+similarity index 100%
+rename from janusgraph-hadoop/src/test/java/org/janusgraph/hadoop/HBaseIndexManagementIT.java
+rename to janusgraph-hbase-parent/janusgraph-hbase-core/src/test/java/org/janusgraph/hadoop/HBaseIndexManagementIT.java
+diff --git a/janusgraph-hadoop/src/test/java/org/janusgraph/hadoop/HBaseInputFormatIT.java b/janusgraph-hbase-parent/janusgraph-hbase-core/src/test/java/org/janusgraph/hadoop/HBaseInputFormatIT.java
+similarity index 100%
+rename from janusgraph-hadoop/src/test/java/org/janusgraph/hadoop/HBaseInputFormatIT.java
+rename to janusgraph-hbase-parent/janusgraph-hbase-core/src/test/java/org/janusgraph/hadoop/HBaseInputFormatIT.java
+diff --git a/janusgraph-hadoop/src/test/java/org/janusgraph/hadoop/HBaseSnapshotInputFormatIT.java b/janusgraph-hbase-parent/janusgraph-hbase-core/src/test/java/org/janusgraph/hadoop/HBaseSnapshotInputFormatIT.java
+similarity index 100%
+rename from janusgraph-hadoop/src/test/java/org/janusgraph/hadoop/HBaseSnapshotInputFormatIT.java
+rename to janusgraph-hbase-parent/janusgraph-hbase-core/src/test/java/org/janusgraph/hadoop/HBaseSnapshotInputFormatIT.java
+diff --git a/janusgraph-hadoop/src/test/resources/hbase-read-snapshot.properties b/janusgraph-hbase-parent/janusgraph-hbase-core/src/test/resources/hbase-read-snapshot.properties
+similarity index 100%
+rename from janusgraph-hadoop/src/test/resources/hbase-read-snapshot.properties
+rename to janusgraph-hbase-parent/janusgraph-hbase-core/src/test/resources/hbase-read-snapshot.properties
+diff --git a/janusgraph-hadoop/src/test/resources/hbase-read.properties b/janusgraph-hbase-parent/janusgraph-hbase-core/src/test/resources/hbase-read.properties
+similarity index 100%
+rename from janusgraph-hadoop/src/test/resources/hbase-read.properties
+rename to janusgraph-hbase-parent/janusgraph-hbase-core/src/test/resources/hbase-read.properties

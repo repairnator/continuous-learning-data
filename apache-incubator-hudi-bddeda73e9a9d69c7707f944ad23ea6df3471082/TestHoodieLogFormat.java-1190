@@ -1,0 +1,9 @@
+@@ -1190,7 +1190,7 @@ public void testAppendAndReadOnCorruptedLogInReverse() throws IOException, URISy
+             .withFileId("test-fileid1").overBaseCommit("100").withFs(fs).build();
+     Schema schema = getSimpleSchema();
+     List<IndexedRecord> records = SchemaTestUtil.generateTestRecords(0, 100);
+-    Map<HoodieLogBlock.HeaderMetadataType, String> header = Maps.newHashMap();
++    Map<HoodieLogBlock.HeaderMetadataType, String> header = new HashMap<>();
+     header.put(HoodieLogBlock.HeaderMetadataType.INSTANT_TIME, "100");
+     header.put(HoodieLogBlock.HeaderMetadataType.SCHEMA, schema.toString());
+     HoodieAvroDataBlock dataBlock = new HoodieAvroDataBlock(records, header);

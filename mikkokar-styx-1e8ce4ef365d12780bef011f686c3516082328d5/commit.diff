@@ -1,0 +1,1391 @@
+diff --git a/components/api/src/main/java/com/hotels/styx/api/ResponseCookie.java b/components/api/src/main/java/com/hotels/styx/api/ResponseCookie.java
+index 6579a6651..a2601a0c4 100644
+--- a/components/api/src/main/java/com/hotels/styx/api/ResponseCookie.java
++++ b/components/api/src/main/java/com/hotels/styx/api/ResponseCookie.java
+@@ -1,5 +1,5 @@
+ /*
+-  Copyright (C) 2013-2019 Expedia Inc.
++  Copyright (C) 2013-2020 Expedia Inc.
+ 
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+diff --git a/components/proxy/src/main/java/com/hotels/styx/StyxServer.java b/components/proxy/src/main/java/com/hotels/styx/StyxServer.java
+index 45a9bc531..072662265 100644
+--- a/components/proxy/src/main/java/com/hotels/styx/StyxServer.java
++++ b/components/proxy/src/main/java/com/hotels/styx/StyxServer.java
+@@ -26,12 +26,10 @@
+ import com.hotels.styx.api.extension.service.BackendService;
+ import com.hotels.styx.api.extension.service.spi.AbstractStyxService;
+ import com.hotels.styx.api.extension.service.spi.Registry;
+-import com.hotels.styx.api.extension.service.spi.StyxService;
+ import com.hotels.styx.config.schema.SchemaValidationException;
+ import com.hotels.styx.infrastructure.MemoryBackedRegistry;
+ import com.hotels.styx.proxy.plugin.NamedPlugin;
+ import com.hotels.styx.server.ConnectorConfig;
+-import com.hotels.styx.server.HttpServer;
+ import com.hotels.styx.server.netty.NettyServerBuilder;
+ import com.hotels.styx.server.netty.ServerConnector;
+ import com.hotels.styx.startup.StyxServerComponents;
+@@ -49,6 +47,7 @@
+ import java.util.Optional;
+ import java.util.concurrent.CompletableFuture;
+ 
++import static com.hotels.styx.StyxServers.toGuavaService;
+ import static com.hotels.styx.infrastructure.logging.LOGBackConfigurer.initLogging;
+ import static com.hotels.styx.infrastructure.logging.LOGBackConfigurer.shutdownLogging;
+ import static com.hotels.styx.proxy.encoders.ConfigurableUnwiseCharsEncoder.ENCODE_UNWISECHARS;
+@@ -77,13 +76,14 @@
+         LOG.debug("Real resource leak detection level = {}", ResourceLeakDetector.getLevel());
+     }
+ 
+-    private final HttpServer httpServer;
+-    private final HttpServer httpsServer;
+-    private final HttpServer adminServer;
++    private final InetServer httpServer;
++    private final InetServer httpsServer;
++    private final InetServer adminServer;
+ 
+     private final ServiceManager phase1Services;
+     private final ServiceManager phase2Services;
+     private final Stopwatch stopwatch;
++    private final StyxServerComponents components;
+ 
+     public static void main(String[] args) {
+         try {
+@@ -166,6 +166,7 @@ public StyxServer(StyxServerComponents config) {
+ 
+     public StyxServer(StyxServerComponents components, Stopwatch stopwatch) {
+         this.stopwatch = stopwatch;
++        this.components = components;
+ 
+         registerCoreMetrics(components.environment().buildInfo(), components.environment().metricRegistry());
+ 
+@@ -180,12 +181,11 @@ public StyxServer(StyxServerComponents components, Stopwatch stopwatch) {
+                 .create();
+ 
+         // Startup phase 1: start plugins, control plane providers, and other services:
+-        ArrayList<Service> services = new ArrayList<>();
+-
++       ArrayList<Service> services = new ArrayList<>();
+         adminServer = createAdminServer(components);
+-        services.add(adminServer);
+-        services.add(toGuavaService(new PluginsManager("Styx-Plugins-Manager", components)));
+-        services.add(toGuavaService(new ServiceProviderMonitor("Styx-Service-Monitor", components.servicesDatabase())));
++        services.add(toGuavaService(adminServer));
++        services.add(toGuavaService(new PluginsManager("Sty§x-Plugins-Manager", components)));
++        services.add(toGuavaService(new ServiceProviderMonitor<>("Styx-Service-Monitor", components.servicesDatabase())));
+         components.services().values().forEach(it -> services.add(toGuavaService(it)));
+         this.phase1Services = new ServiceManager(services);
+ 
+@@ -203,21 +203,30 @@ public StyxServer(StyxServerComponents components, Stopwatch stopwatch) {
+ 
+         ArrayList<Service> services2 = new ArrayList<>();
+ 
+-        Optional.ofNullable(httpServer).ifPresent(services2::add);
+-        Optional.ofNullable(httpsServer).ifPresent(services2::add);
++        Optional.ofNullable(httpServer).map(StyxServers::toGuavaService).ifPresent(services2::add);
++        Optional.ofNullable(httpsServer).map(StyxServers::toGuavaService).ifPresent(services2::add);
++
++        services2.add(toGuavaService(new ServiceProviderMonitor<>("Styx-Server-Monitor", components.serversDatabase())));
+ 
+         this.phase2Services = new ServiceManager(services2);
+     }
+ 
++    public InetSocketAddress serverAddress(String name) {
++        return components.serversDatabase()
++                .get(name)
++                .map(it -> it.component4().inetAddress())
++                .orElse(null);
++    }
++
+     public InetSocketAddress proxyHttpAddress() {
+         return Optional.ofNullable(httpServer)
+-                .map(HttpServer::inetAddress)
++                .map(InetServer::inetAddress)
+                 .orElse(null);
+     }
+ 
+     public InetSocketAddress proxyHttpsAddress() {
+         return Optional.ofNullable(httpsServer)
+-                .map(HttpServer::inetAddress)
++                .map(InetServer::inetAddress)
+                 .orElse(null);
+     }
+ 
+@@ -225,7 +234,7 @@ public InetSocketAddress adminHttpAddress() {
+         return adminServer.inetAddress();
+     }
+ 
+-    private static HttpServer httpServer(Environment environment, ConnectorConfig connectorConfig, HttpHandler styxDataPlane) {
++    private static InetServer httpServer(Environment environment, ConnectorConfig connectorConfig, HttpHandler styxDataPlane) {
+         CharSequence styxInfoHeaderName = environment.configuration().styxHeaderConfig().styxInfoHeaderName();
+         ResponseInfoFormat responseInfoFormat = new ResponseInfoFormat(environment);
+ 
+@@ -308,31 +317,7 @@ private void printBanner() {
+         }
+     }
+ 
+-    private static Service toGuavaService(StyxService styxService) {
+-        return new AbstractService() {
+-            @Override
+-            protected void doStart() {
+-                styxService.start()
+-                        .thenAccept(x -> notifyStarted())
+-                        .exceptionally(e -> {
+-                            notifyFailed(e);
+-                            return null;
+-                        });
+-            }
+-
+-            @Override
+-            protected void doStop() {
+-                styxService.stop()
+-                        .thenAccept(x -> notifyStopped())
+-                        .exceptionally(e -> {
+-                            notifyFailed(e);
+-                            return null;
+-                        });
+-            }
+-        };
+-    }
+-
+-    private static HttpServer createAdminServer(StyxServerComponents components) {
++    private static InetServer createAdminServer(StyxServerComponents components) {
+         Registry<BackendService> registry = (Registry<BackendService>) components.services().get("backendServiceRegistry");
+ 
+         return new AdminServerBuilder(components)
+diff --git a/components/proxy/src/main/java/com/hotels/styx/StyxServers.java b/components/proxy/src/main/java/com/hotels/styx/StyxServers.java
+new file mode 100644
+index 000000000..79d0aaeea
+--- /dev/null
++++ b/components/proxy/src/main/java/com/hotels/styx/StyxServers.java
+@@ -0,0 +1,58 @@
++/*
++  Copyright (C) 2013-2020 Expedia Inc.
++
++  Licensed under the Apache License, Version 2.0 (the "License");
++  you may not use this file except in compliance with the License.
++  You may obtain a copy of the License at
++
++  http://www.apache.org/licenses/LICENSE-2.0
++
++  Unless required by applicable law or agreed to in writing, software
++  distributed under the License is distributed on an "AS IS" BASIS,
++  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++  See the License for the specific language governing permissions and
++  limitations under the License.
++ */
++package com.hotels.styx;
++
++import com.google.common.util.concurrent.AbstractService;
++import com.google.common.util.concurrent.Service;
++import com.hotels.styx.api.extension.service.spi.StyxService;
++
++/**
++ * A helper class to manipulate StyxServer objects.
++ */
++public final class StyxServers {
++    private StyxServers() {
++    }
++
++    /**
++     * Convert a StyxService to a Guava Service.
++     *
++     * @param styxService
++     * @return
++     */
++    public static Service toGuavaService(StyxService styxService) {
++        return new AbstractService() {
++            @Override
++            protected void doStart() {
++                styxService.start()
++                        .thenAccept(x -> notifyStarted())
++                        .exceptionally(e -> {
++                            notifyFailed(e);
++                            return null;
++                        });
++            }
++
++            @Override
++            protected void doStop() {
++                styxService.stop()
++                        .thenAccept(x -> notifyStopped())
++                        .exceptionally(e -> {
++                            notifyFailed(e);
++                            return null;
++                        });
++            }
++        };
++    }
++}
+diff --git a/components/proxy/src/main/java/com/hotels/styx/admin/AdminServerBuilder.java b/components/proxy/src/main/java/com/hotels/styx/admin/AdminServerBuilder.java
+index fc414e46e..3ee94b2fb 100644
+--- a/components/proxy/src/main/java/com/hotels/styx/admin/AdminServerBuilder.java
++++ b/components/proxy/src/main/java/com/hotels/styx/admin/AdminServerBuilder.java
+@@ -19,6 +19,7 @@
+ import com.google.common.collect.ImmutableList;
+ import com.hotels.styx.Environment;
+ import com.hotels.styx.NettyExecutor;
++import com.hotels.styx.InetServer;
+ import com.hotels.styx.StartupConfig;
+ import com.hotels.styx.StyxConfig;
+ import com.hotels.styx.admin.dashboard.DashboardData;
+@@ -56,9 +57,8 @@
+ import com.hotels.styx.routing.RoutingObjectRecord;
+ import com.hotels.styx.routing.config.RoutingObjectFactory;
+ import com.hotels.styx.routing.db.StyxObjectStore;
+-import com.hotels.styx.routing.handlers.StyxObjectRecord;
++import com.hotels.styx.StyxObjectRecord;
+ import com.hotels.styx.server.AdminHttpRouter;
+-import com.hotels.styx.server.HttpServer;
+ import com.hotels.styx.server.handlers.ClassPathResourceHandler;
+ import com.hotels.styx.server.netty.NettyServerBuilder;
+ import com.hotels.styx.server.netty.WebServerConnectorFactory;
+@@ -115,7 +115,7 @@ public AdminServerBuilder backendServicesRegistry(Registry<BackendService> backe
+         return this;
+     }
+ 
+-    public HttpServer build() {
++    public InetServer build() {
+         LOG.info("event bus that will be used is {}", environment.eventBus());
+         StyxConfig styxConfig = environment.configuration();
+         AdminServerConfig adminServerConfig = styxConfig.adminServerConfig();
+diff --git a/components/proxy/src/main/java/com/hotels/styx/admin/handlers/ProviderListHandler.java b/components/proxy/src/main/java/com/hotels/styx/admin/handlers/ProviderListHandler.java
+index 8d08fe13b..51012dc15 100644
+--- a/components/proxy/src/main/java/com/hotels/styx/admin/handlers/ProviderListHandler.java
++++ b/components/proxy/src/main/java/com/hotels/styx/admin/handlers/ProviderListHandler.java
+@@ -16,14 +16,14 @@
+ package com.hotels.styx.admin.handlers;
+ 
+ 
++import com.hotels.styx.StyxObjectRecord;
+ import com.hotels.styx.api.Eventual;
+ import com.hotels.styx.api.HttpInterceptor;
+ import com.hotels.styx.api.HttpRequest;
+ import com.hotels.styx.api.HttpResponse;
+ import com.hotels.styx.api.WebServiceHandler;
+-import com.hotels.styx.api.extension.service.spi.StyxService;
+ import com.hotels.styx.api.configuration.ObjectStore;
+-import com.hotels.styx.routing.handlers.StyxObjectRecord;
++import com.hotels.styx.api.extension.service.spi.StyxService;
+ 
+ import java.util.stream.Collectors;
+ 
+diff --git a/components/proxy/src/main/java/com/hotels/styx/admin/handlers/ProviderRoutingHandler.java b/components/proxy/src/main/java/com/hotels/styx/admin/handlers/ProviderRoutingHandler.java
+index db5de464a..03b730e30 100644
+--- a/components/proxy/src/main/java/com/hotels/styx/admin/handlers/ProviderRoutingHandler.java
++++ b/components/proxy/src/main/java/com/hotels/styx/admin/handlers/ProviderRoutingHandler.java
+@@ -15,6 +15,7 @@
+  */
+ package com.hotels.styx.admin.handlers;
+ 
++import com.hotels.styx.StyxObjectRecord;
+ import com.hotels.styx.api.Eventual;
+ import com.hotels.styx.api.HttpInterceptor;
+ import com.hotels.styx.api.HttpRequest;
+@@ -24,7 +25,6 @@
+ import com.hotels.styx.api.extension.service.spi.StyxService;
+ import com.hotels.styx.common.http.handler.HttpStreamer;
+ import com.hotels.styx.routing.db.StyxObjectStore;
+-import com.hotels.styx.routing.handlers.StyxObjectRecord;
+ import org.slf4j.Logger;
+ import org.slf4j.LoggerFactory;
+ import reactor.core.publisher.Flux;
+diff --git a/components/proxy/src/main/java/com/hotels/styx/admin/handlers/ServiceProviderHandler.java b/components/proxy/src/main/java/com/hotels/styx/admin/handlers/ServiceProviderHandler.java
+index c20421855..8824bf799 100644
+--- a/components/proxy/src/main/java/com/hotels/styx/admin/handlers/ServiceProviderHandler.java
++++ b/components/proxy/src/main/java/com/hotels/styx/admin/handlers/ServiceProviderHandler.java
+@@ -30,7 +30,7 @@
+ import com.hotels.styx.api.extension.service.spi.StyxService;
+ import com.hotels.styx.routing.config.StyxObjectDefinition;
+ import com.hotels.styx.routing.db.StyxObjectStore;
+-import com.hotels.styx.routing.handlers.StyxObjectRecord;
++import com.hotels.styx.StyxObjectRecord;
+ import org.slf4j.Logger;
+ 
+ import java.util.List;
+diff --git a/components/proxy/src/main/java/com/hotels/styx/routing/config/Builtins.java b/components/proxy/src/main/java/com/hotels/styx/routing/config/Builtins.java
+index 8b4a20831..a55acc277 100644
+--- a/components/proxy/src/main/java/com/hotels/styx/routing/config/Builtins.java
++++ b/components/proxy/src/main/java/com/hotels/styx/routing/config/Builtins.java
+@@ -16,6 +16,7 @@
+ package com.hotels.styx.routing.config;
+ 
+ import com.google.common.collect.ImmutableMap;
++import com.hotels.styx.InetServer;
+ import com.hotels.styx.api.Eventual;
+ import com.hotels.styx.api.HttpInterceptor;
+ import com.hotels.styx.api.extension.service.spi.StyxService;
+@@ -30,9 +31,10 @@
+ import com.hotels.styx.routing.handlers.ProxyToBackend;
+ import com.hotels.styx.routing.handlers.RouteRefLookup;
+ import com.hotels.styx.routing.handlers.StaticResponseHandler;
+-import com.hotels.styx.routing.handlers.StyxObjectRecord;
++import com.hotels.styx.StyxObjectRecord;
+ import com.hotels.styx.routing.interceptors.RewriteInterceptor;
+ import com.hotels.styx.serviceproviders.ServiceProviderFactory;
++import com.hotels.styx.serviceproviders.StyxServerFactory;
+ import com.hotels.styx.services.HealthCheckMonitoringService;
+ import com.hotels.styx.services.HealthCheckMonitoringServiceFactory;
+ import com.hotels.styx.services.YamlFileConfigurationService;
+@@ -82,6 +84,9 @@
+             ImmutableMap.of(HEALTH_CHECK_MONITOR, HealthCheckMonitoringService.SCHEMA,
+                     YAML_FILE_CONFIGURATION_SERVICE, YamlFileConfigurationService.SCHEMA);
+ 
++    public static final ImmutableMap<String, StyxServerFactory> BUILTIN_SERVER_FACTORIES = ImmutableMap.of();
++    public static final ImmutableMap<String, Schema.FieldType> BUILTIN_SERVER_SCHEMAS = ImmutableMap.of();
++
+     public static final RouteRefLookup DEFAULT_REFERENCE_LOOKUP = reference -> (request, ctx) ->
+             Eventual.of(response(NOT_FOUND)
+                     .body(format("Handler not found for '%s'.", reference), UTF_8)
+@@ -184,4 +189,28 @@ public static StyxService build(
+ 
+         return constructor.create(name, context, providerDef.config(), serviceDb);
+     }
++
++    /**
++     * Builds a Styx server.
++     *
++     * Styx server is a service that can accept incoming traffic from the client hosts.
++     *
++     * @param name Styx service name
++     * @param serverDef Styx service object configuration
++     * @param factories Service provider factories by name
++     * @param context Routing object factory context
++     *
++     * @return a Styx service
++     */
++    public static InetServer buildServer(
++            String name,
++            StyxObjectDefinition serverDef,
++            StyxObjectStore<StyxObjectRecord<InetServer>> serverDb,
++            Map<String, StyxServerFactory> factories,
++            RoutingObjectFactory.Context context) {
++        StyxServerFactory constructor = factories.get(serverDef.type());
++        checkArgument(constructor != null, format("Unknown server type '%s' for '%s' provider", serverDef.type(), serverDef.name()));
++
++        return constructor.create(name, context, serverDef.config(), serverDb);
++    }
+ }
+diff --git a/components/proxy/src/main/java/com/hotels/styx/routing/handlers/HostProxy.java b/components/proxy/src/main/java/com/hotels/styx/routing/handlers/HostProxy.java
+index 711e3a95d..be7aa0faa 100644
+--- a/components/proxy/src/main/java/com/hotels/styx/routing/handlers/HostProxy.java
++++ b/components/proxy/src/main/java/com/hotels/styx/routing/handlers/HostProxy.java
+@@ -1,5 +1,5 @@
+ /*
+-  Copyright (C) 2013-2019 Expedia Inc.
++  Copyright (C) 2013-2020 Expedia Inc.
+ 
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+diff --git a/components/proxy/src/main/java/com/hotels/styx/serviceproviders/ServiceProviderFactory.java b/components/proxy/src/main/java/com/hotels/styx/serviceproviders/ServiceProviderFactory.java
+index ed0d9378f..1a19327ec 100644
+--- a/components/proxy/src/main/java/com/hotels/styx/serviceproviders/ServiceProviderFactory.java
++++ b/components/proxy/src/main/java/com/hotels/styx/serviceproviders/ServiceProviderFactory.java
+@@ -19,7 +19,7 @@
+ import com.hotels.styx.api.extension.service.spi.StyxService;
+ import com.hotels.styx.routing.config.RoutingObjectFactory;
+ import com.hotels.styx.routing.db.StyxObjectStore;
+-import com.hotels.styx.routing.handlers.StyxObjectRecord;
++import com.hotels.styx.StyxObjectRecord;
+ 
+ /**
+  * A generic factory that can be implemented to create objects whose type is not known
+diff --git a/components/proxy/src/main/java/com/hotels/styx/serviceproviders/StyxServerFactory.java b/components/proxy/src/main/java/com/hotels/styx/serviceproviders/StyxServerFactory.java
+new file mode 100644
+index 000000000..4f2f3a7da
+--- /dev/null
++++ b/components/proxy/src/main/java/com/hotels/styx/serviceproviders/StyxServerFactory.java
+@@ -0,0 +1,41 @@
++/*
++  Copyright (C) 2013-2020 Expedia Inc.
++
++  Licensed under the Apache License, Version 2.0 (the "License");
++  you may not use this file except in compliance with the License.
++  You may obtain a copy of the License at
++
++  http://www.apache.org/licenses/LICENSE-2.0
++
++  Unless required by applicable law or agreed to in writing, software
++  distributed under the License is distributed on an "AS IS" BASIS,
++  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++  See the License for the specific language governing permissions and
++  limitations under the License.
++ */
++package com.hotels.styx.serviceproviders;
++
++import com.fasterxml.jackson.databind.JsonNode;
++import com.hotels.styx.InetServer;
++import com.hotels.styx.routing.config.RoutingObjectFactory;
++import com.hotels.styx.routing.db.StyxObjectStore;
++import com.hotels.styx.StyxObjectRecord;
++
++/**
++ * A generic factory that can be implemented to create objects whose type is not known
++ * until read from configuration.
++ *
++ */
++public interface StyxServerFactory {
++    /**
++     * Create a service provider instance.
++     *
++     * @param name                 Service provider name
++     * @param context              Routing object factory context
++     * @param serviceConfiguration Styx service configuration
++     * @param serviceDb            Styx service database
++     *
++     * @return Styx service instance
++     */
++    InetServer create(String name, RoutingObjectFactory.Context context, JsonNode serviceConfiguration, StyxObjectStore<StyxObjectRecord<InetServer>> serviceDb);
++}
+diff --git a/components/proxy/src/main/java/com/hotels/styx/startup/StyxServerComponents.java b/components/proxy/src/main/java/com/hotels/styx/startup/StyxServerComponents.java
+index 5fb72f45a..964c22ee8 100644
+--- a/components/proxy/src/main/java/com/hotels/styx/startup/StyxServerComponents.java
++++ b/components/proxy/src/main/java/com/hotels/styx/startup/StyxServerComponents.java
+@@ -23,6 +23,7 @@
+ import com.google.common.eventbus.AsyncEventBus;
+ import com.hotels.styx.Environment;
+ import com.hotels.styx.NettyExecutor;
++import com.hotels.styx.InetServer;
+ import com.hotels.styx.StartupConfig;
+ import com.hotels.styx.StyxConfig;
+ import com.hotels.styx.Version;
+@@ -41,7 +42,7 @@
+ import com.hotels.styx.routing.config.StyxObjectDefinition;
+ import com.hotels.styx.routing.db.StyxObjectStore;
+ import com.hotels.styx.routing.handlers.RouteRefLookup.RouteDbRefLookup;
+-import com.hotels.styx.routing.handlers.StyxObjectRecord;
++import com.hotels.styx.StyxObjectRecord;
+ import com.hotels.styx.startup.extensions.ConfiguredPluginFactory;
+ import org.slf4j.Logger;
+ 
+@@ -53,6 +54,7 @@
+ import static com.hotels.styx.Version.readVersionFrom;
+ import static com.hotels.styx.infrastructure.logging.LOGBackConfigurer.initLogging;
+ import static com.hotels.styx.routing.config.Builtins.BUILTIN_HANDLER_FACTORIES;
++import static com.hotels.styx.routing.config.Builtins.BUILTIN_SERVER_FACTORIES;
+ import static com.hotels.styx.routing.config.Builtins.BUILTIN_SERVICE_PROVIDER_FACTORIES;
+ import static com.hotels.styx.routing.config.Builtins.INTERCEPTOR_FACTORIES;
+ import static com.hotels.styx.startup.ServicesLoader.SERVICES_FROM_CONFIG;
+@@ -73,9 +75,9 @@
+     private final List<NamedPlugin> plugins;
+     private final StyxObjectStore<RoutingObjectRecord> routeObjectStore = new StyxObjectStore<>();
+     private final StyxObjectStore<StyxObjectRecord<StyxService>> providerObjectStore = new StyxObjectStore<>();
++    private final StyxObjectStore<StyxObjectRecord<InetServer>> serverObjectStore = new StyxObjectStore<>();
+     private final RoutingObjectFactory.Context routingObjectContext;
+     private final StartupConfig startupConfig;
+-    private final Map<String, RoutingObjectFactory> routingObjectFactories;
+ 
+     private static final Logger LOGGER = getLogger(StyxServerComponents.class);
+     private final NettyExecutor executor;
+@@ -84,7 +86,7 @@ private StyxServerComponents(Builder builder) {
+         StyxConfig styxConfig = requireNonNull(builder.styxConfig);
+ 
+         this.startupConfig = builder.startupConfig == null ? newStartupConfigBuilder().build() : builder.startupConfig;
+-        this.routingObjectFactories = new ImmutableMap.Builder<String, RoutingObjectFactory>()
++        Map<String, RoutingObjectFactory> routingObjectFactories = new ImmutableMap.Builder<String, RoutingObjectFactory>()
+                 .putAll(BUILTIN_HANDLER_FACTORIES)
+                 .putAll(builder.additionalRoutingObjectFactories)
+                 .build();
+@@ -104,7 +106,7 @@ private StyxServerComponents(Builder builder) {
+                 new RouteDbRefLookup(this.routeObjectStore),
+                 environment,
+                 routeObjectStore,
+-                this.routingObjectFactories,
++                routingObjectFactories,
+                 plugins,
+                 INTERCEPTOR_FACTORIES,
+                 false);
+@@ -132,17 +134,21 @@ private StyxServerComponents(Builder builder) {
+                 .map(StyxServerComponents::readComponents)
+                 .orElse(ImmutableMap.of())
+                 .forEach((name, definition) -> {
+-                    LOGGER.warn("Starting provider: " + name + ": " + definition);
+-
+-                    // Build provider object
++                    LOGGER.warn("Loading provider: " + name + ": " + definition);
+                     StyxService provider = Builtins.build(name, definition, providerObjectStore, BUILTIN_SERVICE_PROVIDER_FACTORIES, routingObjectContext);
+-
+-                    // Create a provider object record
+                     StyxObjectRecord<StyxService> record = new StyxObjectRecord<>(definition.type(), ImmutableSet.copyOf(definition.tags()), definition.config(), provider);
+-
+-                    // Insert provider object record into database
+                     providerObjectStore.insert(name, record);
+                 });
++
++        this.environment.configuration().get("servers", JsonNode.class)
++                .map(StyxServerComponents::readComponents)
++                .orElse(ImmutableMap.of())
++                .forEach((name, definition) -> {
++                    LOGGER.warn("Loading styx server: " + name + ": " + definition);
++                    InetServer provider = Builtins.buildServer(name, definition, serverObjectStore, BUILTIN_SERVER_FACTORIES, routingObjectContext);
++                    StyxObjectRecord<InetServer> record = new StyxObjectRecord<>(definition.type(), ImmutableSet.copyOf(definition.tags()), definition.config(), provider);
++                    serverObjectStore.insert(name, record);
++                });
+     }
+ 
+     private static Map<String, StyxObjectDefinition> readComponents(JsonNode root) {
+@@ -179,6 +185,10 @@ public Environment environment() {
+         return this.providerObjectStore;
+     }
+ 
++    public StyxObjectStore<StyxObjectRecord<InetServer>> serversDatabase() {
++        return this.serverObjectStore;
++    }
++
+     public RoutingObjectFactory.Context routingObjectFactoryContext() {
+         return this.routingObjectContext;
+     }
+diff --git a/components/proxy/src/main/kotlin/com/hotels/styx/ServiceProviderMonitor.kt b/components/proxy/src/main/kotlin/com/hotels/styx/ServiceProviderMonitor.kt
+index a3b148f8e..c08e26053 100644
+--- a/components/proxy/src/main/kotlin/com/hotels/styx/ServiceProviderMonitor.kt
++++ b/components/proxy/src/main/kotlin/com/hotels/styx/ServiceProviderMonitor.kt
+@@ -18,7 +18,6 @@ package com.hotels.styx;
+ import com.hotels.styx.api.extension.service.spi.AbstractStyxService
+ import com.hotels.styx.api.extension.service.spi.StyxService
+ import com.hotels.styx.routing.db.StyxObjectStore
+-import com.hotels.styx.routing.handlers.StyxObjectRecord
+ import org.slf4j.LoggerFactory.getLogger
+ import java.util.concurrent.CompletableFuture
+ import java.util.concurrent.atomic.AtomicReference
+diff --git a/components/proxy/src/main/kotlin/com/hotels/styx/routing/handlers/ProviderObjectRecord.kt b/components/proxy/src/main/kotlin/com/hotels/styx/StyxObjectRecord.kt
+similarity index 87%
+rename from components/proxy/src/main/kotlin/com/hotels/styx/routing/handlers/ProviderObjectRecord.kt
+rename to components/proxy/src/main/kotlin/com/hotels/styx/StyxObjectRecord.kt
+index e8741f930..c1971a673 100644
+--- a/components/proxy/src/main/kotlin/com/hotels/styx/routing/handlers/ProviderObjectRecord.kt
++++ b/components/proxy/src/main/kotlin/com/hotels/styx/StyxObjectRecord.kt
+@@ -13,7 +13,7 @@
+   See the License for the specific language governing permissions and
+   limitations under the License.
+  */
+-package com.hotels.styx.routing.handlers
++package com.hotels.styx
+ 
+ import com.fasterxml.jackson.databind.JsonNode
+ import com.hotels.styx.api.extension.service.spi.StyxService
+@@ -21,10 +21,12 @@ import com.hotels.styx.api.extension.service.spi.StyxService
+ /**
+  * A routing object and its associated configuration metadata.
+  */
+-internal data class StyxObjectRecord<T : StyxService>(
++data class StyxObjectRecord<T: StyxService>(
+         val type: String,
+         val tags: Set<String>,
+         val config: JsonNode,
+         val styxService: T)
+ 
+ internal typealias ProviderObjectRecord = StyxObjectRecord<StyxService>
++
++internal typealias ServerObjectRecord = StyxObjectRecord<InetServer>
+diff --git a/components/proxy/src/main/kotlin/com/hotels/styx/services/HealthCheckMonitoringService.kt b/components/proxy/src/main/kotlin/com/hotels/styx/services/HealthCheckMonitoringService.kt
+index 5eb451ae6..7294c11b3 100644
+--- a/components/proxy/src/main/kotlin/com/hotels/styx/services/HealthCheckMonitoringService.kt
++++ b/components/proxy/src/main/kotlin/com/hotels/styx/services/HealthCheckMonitoringService.kt
+@@ -1,5 +1,5 @@
+ /*
+-  Copyright (C) 2013-2019 Expedia Inc.
++  Copyright (C) 2013-2020 Expedia Inc.
+ 
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+@@ -31,7 +31,7 @@ import com.hotels.styx.routing.RoutingObject
+ import com.hotels.styx.routing.RoutingObjectRecord
+ import com.hotels.styx.routing.config.RoutingObjectFactory
+ import com.hotels.styx.routing.db.StyxObjectStore
+-import com.hotels.styx.routing.handlers.ProviderObjectRecord
++import com.hotels.styx.ProviderObjectRecord
+ import com.hotels.styx.serviceproviders.ServiceProviderFactory
+ import com.hotels.styx.services.HealthCheckMonitoringService.Companion.EXECUTOR
+ import org.slf4j.LoggerFactory
+diff --git a/components/proxy/src/main/kotlin/com/hotels/styx/services/OriginsAdminHandler.kt b/components/proxy/src/main/kotlin/com/hotels/styx/services/OriginsAdminHandler.kt
+index 6da9ea359..0181e9604 100644
+--- a/components/proxy/src/main/kotlin/com/hotels/styx/services/OriginsAdminHandler.kt
++++ b/components/proxy/src/main/kotlin/com/hotels/styx/services/OriginsAdminHandler.kt
+@@ -1,5 +1,5 @@
+ /*
+-  Copyright (C) 2013-2019 Expedia Inc.
++  Copyright (C) 2013-2020 Expedia Inc.
+ 
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+@@ -30,7 +30,7 @@ import com.hotels.styx.infrastructure.configuration.json.mixins.ErrorResponseMix
+ import com.hotels.styx.routing.RoutingObjectRecord
+ import com.hotels.styx.routing.config.Builtins.HEALTH_CHECK_MONITOR
+ import com.hotels.styx.routing.db.StyxObjectStore
+-import com.hotels.styx.routing.handlers.ProviderObjectRecord
++import com.hotels.styx.ProviderObjectRecord
+ import java.nio.charset.StandardCharsets.UTF_8
+ 
+ /**
+diff --git a/components/proxy/src/main/kotlin/com/hotels/styx/services/OriginsConfigConverter.kt b/components/proxy/src/main/kotlin/com/hotels/styx/services/OriginsConfigConverter.kt
+index 5bfea609a..75cb7fe90 100644
+--- a/components/proxy/src/main/kotlin/com/hotels/styx/services/OriginsConfigConverter.kt
++++ b/components/proxy/src/main/kotlin/com/hotels/styx/services/OriginsConfigConverter.kt
+@@ -1,5 +1,5 @@
+ /*
+-  Copyright (C) 2013-2019 Expedia Inc.
++  Copyright (C) 2013-2020 Expedia Inc.
+ 
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+@@ -46,7 +46,7 @@ import com.hotels.styx.routing.config.StyxObjectDefinition
+ import com.hotels.styx.routing.db.StyxObjectStore
+ import com.hotels.styx.routing.handlers.HostProxy.HostProxyConfiguration
+ import com.hotels.styx.routing.handlers.LoadBalancingGroup
+-import com.hotels.styx.routing.handlers.ProviderObjectRecord
++import com.hotels.styx.ProviderObjectRecord
+ import org.slf4j.LoggerFactory
+ 
+ internal class OriginsConfigConverter(
+diff --git a/components/proxy/src/main/kotlin/com/hotels/styx/services/YamlFileConfigurationService.kt b/components/proxy/src/main/kotlin/com/hotels/styx/services/YamlFileConfigurationService.kt
+index 1f03bb0a2..19f7fc54c 100644
+--- a/components/proxy/src/main/kotlin/com/hotels/styx/services/YamlFileConfigurationService.kt
++++ b/components/proxy/src/main/kotlin/com/hotels/styx/services/YamlFileConfigurationService.kt
+@@ -1,5 +1,5 @@
+ /*
+-  Copyright (C) 2013-2019 Expedia Inc.
++  Copyright (C) 2013-2020 Expedia Inc.
+ 
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+@@ -31,7 +31,7 @@ import com.hotels.styx.routing.RoutingObjectRecord
+ import com.hotels.styx.routing.config.RoutingObjectFactory
+ import com.hotels.styx.routing.config.StyxObjectDefinition
+ import com.hotels.styx.routing.db.StyxObjectStore
+-import com.hotels.styx.routing.handlers.ProviderObjectRecord
++import com.hotels.styx.ProviderObjectRecord
+ import com.hotels.styx.server.handlers.ClassPathResourceHandler
+ import com.hotels.styx.serviceproviders.ServiceProviderFactory
+ import com.hotels.styx.services.OriginsConfigConverter.Companion.deserialiseOrigins
+diff --git a/components/proxy/src/test/java/com/hotels/styx/admin/handlers/ProviderListHandlerTest.java b/components/proxy/src/test/java/com/hotels/styx/admin/handlers/ProviderListHandlerTest.java
+index e1142d75f..dca8bfd80 100644
+--- a/components/proxy/src/test/java/com/hotels/styx/admin/handlers/ProviderListHandlerTest.java
++++ b/components/proxy/src/test/java/com/hotels/styx/admin/handlers/ProviderListHandlerTest.java
+@@ -25,7 +25,7 @@
+ import com.hotels.styx.api.extension.service.spi.StyxService;
+ import com.hotels.styx.common.http.handler.HttpContentHandler;
+ import com.hotels.styx.routing.db.StyxObjectStore;
+-import com.hotels.styx.routing.handlers.StyxObjectRecord;
++import com.hotels.styx.StyxObjectRecord;
+ import com.hotels.styx.server.HttpInterceptorContext;
+ import org.junit.jupiter.api.Test;
+ import reactor.core.publisher.Mono;
+diff --git a/components/proxy/src/test/java/com/hotels/styx/admin/handlers/ServiceProviderHandlerTest.java b/components/proxy/src/test/java/com/hotels/styx/admin/handlers/ServiceProviderHandlerTest.java
+index 54e8b7143..ed67f2d9e 100644
+--- a/components/proxy/src/test/java/com/hotels/styx/admin/handlers/ServiceProviderHandlerTest.java
++++ b/components/proxy/src/test/java/com/hotels/styx/admin/handlers/ServiceProviderHandlerTest.java
+@@ -22,7 +22,7 @@
+ import com.hotels.styx.api.extension.service.spi.StyxService;
+ import com.hotels.styx.routing.config.StyxObjectDefinition;
+ import com.hotels.styx.routing.db.StyxObjectStore;
+-import com.hotels.styx.routing.handlers.StyxObjectRecord;
++import com.hotels.styx.StyxObjectRecord;
+ import com.hotels.styx.server.HttpInterceptorContext;
+ import org.apache.commons.lang.StringUtils;
+ import org.junit.jupiter.api.Test;
+diff --git a/components/proxy/src/test/java/com/hotels/styx/proxy/StyxProxyTest.java b/components/proxy/src/test/java/com/hotels/styx/proxy/StyxProxyTest.java
+index cb5a4bd8d..cd9e66ee2 100644
+--- a/components/proxy/src/test/java/com/hotels/styx/proxy/StyxProxyTest.java
++++ b/components/proxy/src/test/java/com/hotels/styx/proxy/StyxProxyTest.java
+@@ -17,6 +17,9 @@
+ 
+ import com.google.common.collect.ImmutableList;
+ import com.hotels.styx.NettyExecutor;
++import com.google.common.util.concurrent.Service;
++import com.hotels.styx.InetServer;
++import com.hotels.styx.StyxServers;
+ import com.hotels.styx.api.Eventual;
+ import com.hotels.styx.api.HttpInterceptor;
+ import com.hotels.styx.api.HttpRequest;
+@@ -27,7 +30,6 @@
+ import com.hotels.styx.common.http.handler.HttpAggregator;
+ import com.hotels.styx.routing.handlers.HttpInterceptorPipeline;
+ import com.hotels.styx.server.HttpConnectorConfig;
+-import com.hotels.styx.server.HttpServer;
+ import com.hotels.styx.server.StandardHttpRouter;
+ import com.hotels.styx.server.netty.NettyServerBuilder;
+ import com.hotels.styx.server.netty.ServerConnector;
+@@ -41,6 +43,7 @@
+ 
+ import static com.hotels.styx.api.HttpResponseStatus.OK;
+ import static com.hotels.styx.common.StyxFutures.await;
++import static com.hotels.styx.server.netty.NettyServerBuilder.newBuilder;
+ import static java.nio.charset.StandardCharsets.UTF_8;
+ import static org.hamcrest.CoreMatchers.containsString;
+ import static org.hamcrest.MatcherAssert.assertThat;
+@@ -52,11 +55,11 @@
+ 
+     @Test
+     public void startsAndStopsAServer() {
+-        HttpServer server = new NettyServerBuilder()
++        Service server = StyxServers.toGuavaService(new NettyServerBuilder()
+                 .setProtocolConnector(connector(0))
+                 .bossExecutor(NettyExecutor.create("Test-Server-Boss", 1))
+                 .workerExecutor(NettyExecutor.create("Test-Server-Worker", 0))
+-                .build();
++                .build());
+ 
+         server.startAsync().awaitRunning();
+         assertThat("Server should be running", server.isRunning());
+@@ -70,7 +73,7 @@ public void startsServerWithHttpConnector() {
+         HttpInterceptor echoInterceptor = (request, chain) -> textResponse("Response from http connector");
+         StandardHttpRouter handler = new StandardHttpRouter();
+ 
+-        HttpServer server = NettyServerBuilder.newBuilder()
++        InetServer styxServer = newBuilder()
+                 .setProtocolConnector(connector(0))
+                 .bossExecutor(NettyExecutor.create("Test-Server-Boss", 1))
+                 .workerExecutor(NettyExecutor.create("Test-Server-Worker", 0))
+@@ -79,10 +82,13 @@ public void startsServerWithHttpConnector() {
+                         (request, context) -> new HttpAggregator(new StandardHttpRouter()).handle(request, context),
+                         false))
+                 .build();
++
++        Service server = StyxServers.toGuavaService(styxServer);
++
+         server.startAsync().awaitRunning();
+         assertThat("Server should be running", server.isRunning());
+ 
+-        HttpResponse secureResponse = get("http://localhost:" + server.inetAddress().getPort());
++        HttpResponse secureResponse = get("http://localhost:" + styxServer.inetAddress().getPort());
+         assertThat(secureResponse.bodyAs(UTF_8), containsString("Response from http connector"));
+ 
+         server.stopAsync().awaitTerminated();
+@@ -107,9 +113,9 @@ private ServerConnector connector(HttpConnectorConfig config) {
+     @Disabled
+     @Test
+     public void startsServerWithBothHttpAndHttpsConnectors() throws IOException {
+-        HttpServer server = NettyServerBuilder.newBuilder()
++        Service server = StyxServers.toGuavaService(newBuilder()
+                 .setProtocolConnector(connector(0))
+-                .build();
++                .build());
+ 
+         server.startAsync().awaitRunning();
+         assertThat("Server should be running", server.isRunning());
+diff --git a/components/proxy/src/test/java/com/hotels/styx/startup/CoreMetricsTest.java b/components/proxy/src/test/java/com/hotels/styx/startup/CoreMetricsTest.java
+index 3e082ebcc..0af871463 100644
+--- a/components/proxy/src/test/java/com/hotels/styx/startup/CoreMetricsTest.java
++++ b/components/proxy/src/test/java/com/hotels/styx/startup/CoreMetricsTest.java
+@@ -1,5 +1,5 @@
+ /*
+-  Copyright (C) 2013-2019 Expedia Inc.
++  Copyright (C) 2013-2020 Expedia Inc.
+ 
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+diff --git a/components/proxy/src/test/kotlin/com/hotels/styx/ServiceProviderMonitorTest.kt b/components/proxy/src/test/kotlin/com/hotels/styx/ServiceProviderMonitorTest.kt
+index fd553e863..60001ec05 100644
+--- a/components/proxy/src/test/kotlin/com/hotels/styx/ServiceProviderMonitorTest.kt
++++ b/components/proxy/src/test/kotlin/com/hotels/styx/ServiceProviderMonitorTest.kt
+@@ -1,5 +1,5 @@
+ /*
+-  Copyright (C) 2013-2019 Expedia Inc.
++  Copyright (C) 2013-2020 Expedia Inc.
+ 
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+@@ -17,7 +17,6 @@ package com.hotels.styx
+ 
+ import com.hotels.styx.api.extension.service.spi.StyxService
+ import com.hotels.styx.routing.db.StyxObjectStore
+-import com.hotels.styx.routing.handlers.ProviderObjectRecord
+ import com.hotels.styx.services.record
+ import io.kotlintest.specs.FeatureSpec
+ import io.mockk.mockk
+diff --git a/components/proxy/src/test/kotlin/com/hotels/styx/routing/RoutingObjectRecordTest.kt b/components/proxy/src/test/kotlin/com/hotels/styx/routing/RoutingObjectRecordTest.kt
+index 30e753b4a..2c625f2b2 100644
+--- a/components/proxy/src/test/kotlin/com/hotels/styx/routing/RoutingObjectRecordTest.kt
++++ b/components/proxy/src/test/kotlin/com/hotels/styx/routing/RoutingObjectRecordTest.kt
+@@ -1,5 +1,5 @@
+ /*
+-  Copyright (C) 2013-2019 Expedia Inc.
++  Copyright (C) 2013-2020 Expedia Inc.
+ 
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+diff --git a/components/proxy/src/test/kotlin/com/hotels/styx/routing/config/BuiltinsTest.kt b/components/proxy/src/test/kotlin/com/hotels/styx/routing/config/BuiltinsTest.kt
+index a5a06c6f1..3181672b0 100644
+--- a/components/proxy/src/test/kotlin/com/hotels/styx/routing/config/BuiltinsTest.kt
++++ b/components/proxy/src/test/kotlin/com/hotels/styx/routing/config/BuiltinsTest.kt
+@@ -1,5 +1,5 @@
+ /*
+-  Copyright (C) 2013-2019 Expedia Inc.
++  Copyright (C) 2013-2020 Expedia Inc.
+ 
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+@@ -26,7 +26,7 @@ import com.hotels.styx.routing.RoutingObject
+ import com.hotels.styx.routing.RoutingObjectFactoryContext
+ import com.hotels.styx.routing.RoutingObjectRecord
+ import com.hotels.styx.routing.db.StyxObjectStore
+-import com.hotels.styx.routing.handlers.ProviderObjectRecord
++import com.hotels.styx.ProviderObjectRecord
+ import com.hotels.styx.routing.handlers.RouteRefLookup
+ import com.hotels.styx.server.HttpInterceptorContext
+ import com.hotels.styx.serviceproviders.ServiceProviderFactory
+diff --git a/components/proxy/src/test/kotlin/com/hotels/styx/services/HealthChecksTest.kt b/components/proxy/src/test/kotlin/com/hotels/styx/services/HealthChecksTest.kt
+index 28d7703b1..bb13e9e14 100644
+--- a/components/proxy/src/test/kotlin/com/hotels/styx/services/HealthChecksTest.kt
++++ b/components/proxy/src/test/kotlin/com/hotels/styx/services/HealthChecksTest.kt
+@@ -1,5 +1,5 @@
+ /*
+-  Copyright (C) 2013-2019 Expedia Inc.
++  Copyright (C) 2013-2020 Expedia Inc.
+ 
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+@@ -26,7 +26,7 @@ import com.hotels.styx.api.extension.service.spi.StyxService
+ import com.hotels.styx.routing.RoutingObject
+ import com.hotels.styx.routing.RoutingObjectRecord
+ import com.hotels.styx.routing.db.StyxObjectStore
+-import com.hotels.styx.routing.handlers.ProviderObjectRecord
++import com.hotels.styx.ProviderObjectRecord
+ import com.hotels.styx.routing.handlers.StaticResponseHandler
+ import io.kotlintest.matchers.boolean.shouldBeFalse
+ import io.kotlintest.matchers.boolean.shouldBeTrue
+diff --git a/components/proxy/src/test/kotlin/com/hotels/styx/services/OriginsAdminHandlerTest.kt b/components/proxy/src/test/kotlin/com/hotels/styx/services/OriginsAdminHandlerTest.kt
+index 0b9b4bc7a..6c8d04f24 100644
+--- a/components/proxy/src/test/kotlin/com/hotels/styx/services/OriginsAdminHandlerTest.kt
++++ b/components/proxy/src/test/kotlin/com/hotels/styx/services/OriginsAdminHandlerTest.kt
+@@ -35,8 +35,8 @@ import com.hotels.styx.routing.RoutingMetadataDecorator
+ import com.hotels.styx.routing.RoutingObjectRecord
+ import com.hotels.styx.routing.config.Builtins.HEALTH_CHECK_MONITOR
+ import com.hotels.styx.routing.db.StyxObjectStore
+-import com.hotels.styx.routing.handlers.ProviderObjectRecord
+-import com.hotels.styx.routing.handlers.StyxObjectRecord
++import com.hotels.styx.ProviderObjectRecord
++import com.hotels.styx.StyxObjectRecord
+ import com.hotels.styx.routing.mockObject
+ import com.hotels.styx.server.HttpInterceptorContext
+ import com.hotels.styx.sourceTag
+diff --git a/components/proxy/src/test/kotlin/com/hotels/styx/services/OriginsConfigConverterTest.kt b/components/proxy/src/test/kotlin/com/hotels/styx/services/OriginsConfigConverterTest.kt
+index e188453ef..90a76c7f1 100644
+--- a/components/proxy/src/test/kotlin/com/hotels/styx/services/OriginsConfigConverterTest.kt
++++ b/components/proxy/src/test/kotlin/com/hotels/styx/services/OriginsConfigConverterTest.kt
+@@ -1,5 +1,5 @@
+ /*
+-  Copyright (C) 2013-2019 Expedia Inc.
++  Copyright (C) 2013-2020 Expedia Inc.
+ 
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+@@ -21,7 +21,7 @@ import com.hotels.styx.lbGroupTag
+ import com.hotels.styx.routing.RoutingObjectFactoryContext
+ import com.hotels.styx.routing.config.Builtins.INTERCEPTOR_PIPELINE
+ import com.hotels.styx.routing.db.StyxObjectStore
+-import com.hotels.styx.routing.handlers.ProviderObjectRecord
++import com.hotels.styx.ProviderObjectRecord
+ import com.hotels.styx.services.OriginsConfigConverter.Companion.deserialiseOrigins
+ import com.hotels.styx.services.OriginsConfigConverter.Companion.loadBalancingGroup
+ import com.hotels.styx.stateTag
+diff --git a/components/proxy/src/test/kotlin/com/hotels/styx/services/YamlFileConfigurationServiceDuplicateIdentifiersTest.kt b/components/proxy/src/test/kotlin/com/hotels/styx/services/YamlFileConfigurationServiceDuplicateIdentifiersTest.kt
+index 21be21e3e..7729b764f 100644
+--- a/components/proxy/src/test/kotlin/com/hotels/styx/services/YamlFileConfigurationServiceDuplicateIdentifiersTest.kt
++++ b/components/proxy/src/test/kotlin/com/hotels/styx/services/YamlFileConfigurationServiceDuplicateIdentifiersTest.kt
+@@ -1,5 +1,5 @@
+ /*
+-  Copyright (C) 2013-2019 Expedia Inc.
++  Copyright (C) 2013-2020 Expedia Inc.
+ 
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+@@ -17,7 +17,7 @@ package com.hotels.styx.services
+ 
+ import com.hotels.styx.routing.RoutingObjectRecord
+ import com.hotels.styx.routing.db.StyxObjectStore
+-import com.hotels.styx.routing.handlers.ProviderObjectRecord
++import com.hotels.styx.ProviderObjectRecord
+ import com.hotels.styx.services.YamlFileConfigurationServiceTest.OriginsServiceConfiguration
+ import com.hotels.styx.support.matchers.LoggingTestSupport
+ import io.kotlintest.Spec
+diff --git a/components/proxy/src/test/kotlin/com/hotels/styx/services/YamlFileConfigurationServiceTest.kt b/components/proxy/src/test/kotlin/com/hotels/styx/services/YamlFileConfigurationServiceTest.kt
+index 03f4922d6..0796c3bc8 100644
+--- a/components/proxy/src/test/kotlin/com/hotels/styx/services/YamlFileConfigurationServiceTest.kt
++++ b/components/proxy/src/test/kotlin/com/hotels/styx/services/YamlFileConfigurationServiceTest.kt
+@@ -1,5 +1,5 @@
+ /*
+-  Copyright (C) 2013-2019 Expedia Inc.
++  Copyright (C) 2013-2020 Expedia Inc.
+ 
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+@@ -28,7 +28,7 @@ import com.hotels.styx.routing.RoutingObjectFactoryContext
+ import com.hotels.styx.routing.RoutingObjectRecord
+ import com.hotels.styx.routing.db.StyxObjectStore
+ import com.hotels.styx.routing.handlers.PathPrefixRouter
+-import com.hotels.styx.routing.handlers.ProviderObjectRecord
++import com.hotels.styx.ProviderObjectRecord
+ import io.kotlintest.Matcher
+ import io.kotlintest.MatcherResult
+ import io.kotlintest.Spec
+diff --git a/components/server/src/main/java/com/hotels/styx/InetServer.java b/components/server/src/main/java/com/hotels/styx/InetServer.java
+new file mode 100644
+index 000000000..fcc28705e
+--- /dev/null
++++ b/components/server/src/main/java/com/hotels/styx/InetServer.java
+@@ -0,0 +1,33 @@
++/*
++  Copyright (C) 2013-2020 Expedia Inc.
++
++  Licensed under the Apache License, Version 2.0 (the "License");
++  you may not use this file except in compliance with the License.
++  You may obtain a copy of the License at
++
++  http://www.apache.org/licenses/LICENSE-2.0
++
++  Unless required by applicable law or agreed to in writing, software
++  distributed under the License is distributed on an "AS IS" BASIS,
++  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++  See the License for the specific language governing permissions and
++  limitations under the License.
++ */
++package com.hotels.styx;
++
++import com.hotels.styx.api.extension.service.spi.StyxService;
++
++import java.net.InetSocketAddress;
++
++/**
++ * A Styx Server is a StyxService with a server socket.
++ */
++public interface InetServer extends StyxService {
++
++    /**
++     * Return an associated server address.
++     *
++     * @return a server Inet address and port.
++     */
++    InetSocketAddress inetAddress();
++}
+diff --git a/components/server/src/main/java/com/hotels/styx/server/HttpServers.java b/components/server/src/main/java/com/hotels/styx/server/HttpServers.java
+index d733204d3..940044ad9 100644
+--- a/components/server/src/main/java/com/hotels/styx/server/HttpServers.java
++++ b/components/server/src/main/java/com/hotels/styx/server/HttpServers.java
+@@ -16,6 +16,7 @@
+ package com.hotels.styx.server;
+ 
+ import com.hotels.styx.NettyExecutor;
++import com.hotels.styx.InetServer;
+ import com.hotels.styx.api.HttpHandler;
+ import com.hotels.styx.server.netty.NettyServerBuilder;
+ import com.hotels.styx.server.netty.WebServerConnectorFactory;
+@@ -30,7 +31,7 @@
+      * @param port
+      * @return {@link com.hotels.styx.server.HttpServer} object
+      */
+-    public static HttpServer createHttpServer(int port, HttpHandler handler) {
++    public static InetServer createHttpServer(int port, HttpHandler handler) {
+         return NettyServerBuilder.newBuilder()
+                 .setProtocolConnector(new WebServerConnectorFactory().create(new HttpConnectorConfig(port)))
+                 .handler(handler)
+@@ -47,7 +48,7 @@ public static HttpServer createHttpServer(int port, HttpHandler handler) {
+      *
+      * @return {@link com.hotels.styx.server.HttpServer} object
+      */
+-    public static HttpServer createHttpServer(String name, HttpConnectorConfig httpConnectorConfig, HttpHandler handler) {
++    public static InetServer createHttpServer(String name, HttpConnectorConfig httpConnectorConfig, HttpHandler handler) {
+         return NettyServerBuilder.newBuilder()
+                 .setProtocolConnector(new WebServerConnectorFactory().create(httpConnectorConfig))
+                 .handler(handler)
+@@ -64,7 +65,7 @@ public static HttpServer createHttpServer(String name, HttpConnectorConfig httpC
+      *
+      * @return {@link com.hotels.styx.server.HttpServer} object
+      */
+-    public static HttpServer createHttpsServer(String name, HttpsConnectorConfig httpsConnectorConfig, HttpHandler handler) {
++    public static InetServer createHttpsServer(String name, HttpsConnectorConfig httpsConnectorConfig, HttpHandler handler) {
+         return NettyServerBuilder.newBuilder()
+                 .setProtocolConnector(new WebServerConnectorFactory().create(httpsConnectorConfig))
+                 .handler(handler)
+diff --git a/components/server/src/main/java/com/hotels/styx/server/netty/NettyServer.java b/components/server/src/main/java/com/hotels/styx/server/netty/NettyServer.java
+index b6e38fb6b..f6f7c592b 100644
+--- a/components/server/src/main/java/com/hotels/styx/server/netty/NettyServer.java
++++ b/components/server/src/main/java/com/hotels/styx/server/netty/NettyServer.java
+@@ -15,10 +15,10 @@
+  */
+ package com.hotels.styx.server.netty;
+ 
+-import com.google.common.util.concurrent.AbstractService;
+ import com.hotels.styx.NettyExecutor;
++import com.hotels.styx.InetServer;
+ import com.hotels.styx.api.HttpHandler;
+-import com.hotels.styx.server.HttpServer;
++import com.hotels.styx.api.extension.service.spi.AbstractStyxService;
+ import io.netty.bootstrap.ServerBootstrap;
+ import io.netty.buffer.PooledByteBufAllocator;
+ import io.netty.channel.Channel;
+@@ -32,6 +32,7 @@
+ import java.net.InetSocketAddress;
+ import java.util.Optional;
+ import java.util.concurrent.Callable;
++import java.util.concurrent.CompletableFuture;
+ 
+ import static com.google.common.base.Throwables.propagate;
+ import static io.netty.channel.ChannelOption.ALLOCATOR;
+@@ -47,7 +48,7 @@
+ /**
+  * NettyServer.
+  */
+-final class NettyServer extends AbstractService implements HttpServer {
++final class NettyServer extends AbstractStyxService implements InetServer {
+     private static final Logger LOGGER = getLogger(NettyServer.class);
+ 
+     private final ChannelGroup channelGroup;
+@@ -62,6 +63,7 @@
+     private volatile InetSocketAddress address;
+ 
+     NettyServer(NettyServerBuilder nettyServerBuilder) {
++        super("");
+         this.host = nettyServerBuilder.host();
+         this.channelGroup = requireNonNull(nettyServerBuilder.channelGroup());
+         this.handler = requireNonNull(nettyServerBuilder.handler());
+@@ -84,9 +86,11 @@ public InetSocketAddress inetAddress() {
+     }
+ 
+     @Override
+-    protected void doStart() {
++    protected CompletableFuture<Void> startService() {
+         LOGGER.info("starting services");
+ 
++        CompletableFuture<Void> serviceFuture = new CompletableFuture<>();
++
+         ServerBootstrap b = new ServerBootstrap();
+ 
+         b.group(bossExecutor.eventLoopGroup(), workerExecutor.eventLoopGroup())
+@@ -115,24 +119,28 @@ protected void initChannel(Channel ch) throws Exception {
+                         address = (InetSocketAddress) channel.localAddress();
+                         LOGGER.info("server connector {} bound successfully on port {} socket port {}", new Object[]{serverConnector.getClass(), port, address});
+                         stopper = new Stopper(bossExecutor, workerExecutor);
+-                        notifyStarted();
++                        serviceFuture.complete(null);
+                     } else {
+                         LOGGER.warn("Failed to start service={} cause={}", this, future.cause());
+-                        notifyFailed(mapToBetterException(future.cause(), port));
++                        serviceFuture.completeExceptionally(mapToBetterException(future.cause(), port));
+                     }
+                 });
++
++        return serviceFuture;
+     }
+ 
+     @Override
+-    protected void doStop() {
+-        try {
+-            if (stopper != null) {
+-                stopper.call();
+-                address = null;
++    protected CompletableFuture<Void> stopService() {
++        return CompletableFuture.runAsync(() -> {
++            try {
++                if (stopper != null) {
++                    stopper.call();
++                    address = null;
++                }
++            } catch (Exception e) {
++                throw propagate(e);
+             }
+-        } catch (Exception e) {
+-            throw propagate(e);
+-        }
++        });
+     }
+ 
+     private Throwable mapToBetterException(Throwable cause, int port) {
+@@ -154,9 +162,10 @@ public Stopper(NettyExecutor bossGroup, NettyExecutor workerGroup) {
+         @Override
+         public Void call() {
+             channelGroup.close().awaitUninterruptibly();
++            // Note: The return values from the shutdown methods is ignored.
++            //       Not sure why.
+             shutdownEventExecutorGroup(bossGroup);
+             shutdownEventExecutorGroup(workerGroup);
+-            notifyStopped();
+             return null;
+         }
+ 
+diff --git a/components/server/src/main/java/com/hotels/styx/server/netty/NettyServerBuilder.java b/components/server/src/main/java/com/hotels/styx/server/netty/NettyServerBuilder.java
+index 516eee3fc..823802ff4 100644
+--- a/components/server/src/main/java/com/hotels/styx/server/netty/NettyServerBuilder.java
++++ b/components/server/src/main/java/com/hotels/styx/server/netty/NettyServerBuilder.java
+@@ -16,10 +16,10 @@
+ package com.hotels.styx.server.netty;
+ 
+ import com.hotels.styx.NettyExecutor;
++import com.hotels.styx.InetServer;
+ import com.hotels.styx.api.Eventual;
+ import com.hotels.styx.api.HttpHandler;
+ import com.hotels.styx.api.MetricRegistry;
+-import com.hotels.styx.server.HttpServer;
+ import io.netty.channel.group.ChannelGroup;
+ import io.netty.channel.group.DefaultChannelGroup;
+ import io.netty.util.concurrent.ImmediateEventExecutor;
+@@ -105,7 +105,7 @@ ServerConnector protocolConnector() {
+         return httpConnector;
+     }
+ 
+-    public HttpServer build() {
++    public InetServer build() {
+         checkArgument(httpConnector != null, "Must configure a protocol connector");
+         checkArgument(workerExecutor != null, "Must configure a worker executor");
+ 
+diff --git a/components/server/src/main/java/com/hotels/styx/server/netty/connectors/HttpResponseWriter.java b/components/server/src/main/java/com/hotels/styx/server/netty/connectors/HttpResponseWriter.java
+index c5e2189e7..1987ce04a 100644
+--- a/components/server/src/main/java/com/hotels/styx/server/netty/connectors/HttpResponseWriter.java
++++ b/components/server/src/main/java/com/hotels/styx/server/netty/connectors/HttpResponseWriter.java
+@@ -1,5 +1,5 @@
+ /*
+-  Copyright (C) 2013-2019 Expedia Inc.
++  Copyright (C) 2013-2020 Expedia Inc.
+ 
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+diff --git a/system-tests/e2e-suite/src/test/java/com/hotels/styx/http/StaticFileOnRealServerIT.java b/system-tests/e2e-suite/src/test/java/com/hotels/styx/http/StaticFileOnRealServerIT.java
+index 2e617f371..d3651a1d8 100644
+--- a/system-tests/e2e-suite/src/test/java/com/hotels/styx/http/StaticFileOnRealServerIT.java
++++ b/system-tests/e2e-suite/src/test/java/com/hotels/styx/http/StaticFileOnRealServerIT.java
+@@ -16,11 +16,13 @@
+ package com.hotels.styx.http;
+ 
+ import com.google.common.io.Files;
++import com.google.common.util.concurrent.Service;
++import com.hotels.styx.InetServer;
++import com.hotels.styx.StyxServers;
+ import com.hotels.styx.api.HttpRequest;
+ import com.hotels.styx.api.HttpResponse;
+ import com.hotels.styx.client.HttpClient;
+ import com.hotels.styx.client.StyxHttpClient;
+-import com.hotels.styx.server.HttpServer;
+ import com.hotels.styx.server.handlers.StaticFileHandler;
+ import org.junit.jupiter.api.AfterAll;
+ import org.junit.jupiter.api.BeforeAll;
+@@ -44,7 +46,8 @@
+ public class StaticFileOnRealServerIT {
+     private final HttpClient client = new StyxHttpClient.Builder().build();
+ 
+-    private HttpServer webServer;
++    private InetServer webServer;
++    private Service guavaService;
+     private File dir;
+     private String serverEndpoint;
+ 
+@@ -56,7 +59,8 @@ private static String toHostAndPort(InetSocketAddress address) {
+     public void startServer() {
+         dir = Files.createTempDir();
+         webServer = createHttpServer(0, new StaticFileHandler(dir));
+-        webServer.startAsync().awaitRunning();
++        guavaService = StyxServers.toGuavaService(webServer);
++        guavaService.startAsync().awaitRunning();
+         serverEndpoint = toHostAndPort(webServer.inetAddress());
+     }
+ 
+@@ -64,7 +68,7 @@ public void startServer() {
+     @AfterAll
+     public void stopServer() {
+         dir.delete();
+-        webServer.stopAsync().awaitTerminated();
++        guavaService.stopAsync().awaitTerminated();
+     }
+ 
+     @Test
+diff --git a/system-tests/e2e-suite/src/test/scala/com/hotels/styx/MockServer.scala b/system-tests/e2e-suite/src/test/scala/com/hotels/styx/MockServer.scala
+index 1a837119a..28caac675 100644
+--- a/system-tests/e2e-suite/src/test/scala/com/hotels/styx/MockServer.scala
++++ b/system-tests/e2e-suite/src/test/scala/com/hotels/styx/MockServer.scala
+@@ -60,6 +60,7 @@ class MockServer(id: String, val port: Int) extends AbstractIdleService with Htt
+       .workerExecutor(NettyExecutor.create("MockServer", 1))
+       .handler(router)
+     .build()
++  val guavaService = StyxServers.toGuavaService(server)
+ 
+   def takeRequest(): LiveHttpRequest = {
+     requestQueue.poll
+@@ -79,13 +80,13 @@ class MockServer(id: String, val port: Int) extends AbstractIdleService with Htt
+   }
+ 
+   override def startUp(): Unit = {
+-    server.startAsync().awaitRunning()
++    guavaService.startAsync().awaitRunning()
+     logger.info("mock server started on port " + server.inetAddress().getPort)
+   }
+ 
+   override def shutDown(): Unit = {
+     logger.info(s"mock server running on port ${server.inetAddress().getPort} stopping")
+-    server.stopAsync().awaitTerminated()
++    guavaService.stopAsync().awaitTerminated()
+   }
+ 
+   override def inetAddress(): InetSocketAddress = {
+diff --git a/system-tests/e2e-suite/src/test/scala/com/hotels/styx/proxy/ChunkedUploadSpec.scala b/system-tests/e2e-suite/src/test/scala/com/hotels/styx/proxy/ChunkedUploadSpec.scala
+index 70435a4fc..ff1ba7bf7 100644
+--- a/system-tests/e2e-suite/src/test/scala/com/hotels/styx/proxy/ChunkedUploadSpec.scala
++++ b/system-tests/e2e-suite/src/test/scala/com/hotels/styx/proxy/ChunkedUploadSpec.scala
+@@ -1,5 +1,5 @@
+ /*
+-  Copyright (C) 2013-2019 Expedia Inc.
++  Copyright (C) 2013-2020 Expedia Inc.
+ 
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+@@ -322,12 +322,4 @@ class ChunkedUploadSpec extends FunSpec
+       })
+   }
+ 
+-  def originAndWebServer(appId: String, originId: String) = {
+-    val serverPort = freePort()
+-    val origin = newOriginBuilder("localhost", serverPort).applicationId("app").id("app1").build()
+-    val server = createHttpServer(serverPort, new HttpAggregator(new ContentDigestHandler(origin)))
+-    server.startAsync().awaitRunning()
+-
+-    origin -> server
+-  }
+ }
+diff --git a/system-tests/e2e-suite/src/test/scala/com/hotels/styx/proxy/https/TlsErrorSpec.scala b/system-tests/e2e-suite/src/test/scala/com/hotels/styx/proxy/https/TlsErrorSpec.scala
+index 1854ccc39..355e7a973 100644
+--- a/system-tests/e2e-suite/src/test/scala/com/hotels/styx/proxy/https/TlsErrorSpec.scala
++++ b/system-tests/e2e-suite/src/test/scala/com/hotels/styx/proxy/https/TlsErrorSpec.scala
+@@ -1,5 +1,5 @@
+ /*
+-  Copyright (C) 2013-2019 Expedia Inc.
++  Copyright (C) 2013-2020 Expedia Inc.
+ 
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+diff --git a/system-tests/e2e-suite/src/test/scala/com/hotels/styx/support/NettyOrigins.scala b/system-tests/e2e-suite/src/test/scala/com/hotels/styx/support/NettyOrigins.scala
+index 7fcb63cfb..16f5ea396 100644
+--- a/system-tests/e2e-suite/src/test/scala/com/hotels/styx/support/NettyOrigins.scala
++++ b/system-tests/e2e-suite/src/test/scala/com/hotels/styx/support/NettyOrigins.scala
+@@ -15,9 +15,13 @@
+  */
+ package com.hotels.styx.support
+ 
++import java.net.InetSocketAddress
++import java.util.concurrent.{Executor, TimeUnit}
+ import java.util.concurrent.atomic.AtomicReference
+ 
+ import com.hotels.styx.NettyExecutor
++import com.google.common.util.concurrent.Service
++import com.hotels.styx.{InetServer, StyxServers}
+ import com.hotels.styx.api.HttpHandler
+ import com.hotels.styx.api.HttpHeaderNames.CONTENT_LENGTH
+ import com.hotels.styx.api.Id._
+@@ -52,11 +56,40 @@ trait NettyOrigins {
+   val customResponseHandler = new CustomResponseHandler()
+ 
+   def customResponseWebServer(port: Int, responseHandler: CustomResponseHandler): HttpServer = {
+-    val server: HttpServer = new NettyServerBuilder()
++    val server: InetServer = new NettyServerBuilder()
+       .setProtocolConnector(new NettyHttpServerConnector(port, responseHandler))
+       .workerExecutor(NettyExecutor.create("Netty Test Origin", 1))
+       .build()
+-    server
++
++    new HttpServer {
++      /**
++       * Return http endpoint
++       */
++
++      val guavaService = StyxServers.toGuavaService(server)
++
++      override def inetAddress(): InetSocketAddress = server.inetAddress()
++
++      override def startAsync(): Service = guavaService.startAsync()
++
++      override def isRunning: Boolean = guavaService.isRunning
++
++      override def state(): Service.State = guavaService.state()
++
++      override def stopAsync(): Service = guavaService.stopAsync()
++
++      override def awaitRunning(): Unit = guavaService.awaitRunning()
++
++      override def awaitRunning(timeout: Long, unit: TimeUnit): Unit = guavaService.awaitRunning(timeout, unit)
++
++      override def awaitTerminated(): Unit = guavaService.awaitTerminated()
++
++      override def awaitTerminated(timeout: Long, unit: TimeUnit): Unit = guavaService.awaitTerminated(timeout, unit)
++
++      override def failureCause(): Throwable = guavaService.failureCause()
++
++      override def addListener(listener: Service.Listener, executor: Executor): Unit = guavaService.addListener(listener, executor)
++    }
+ 
+   }
+ 
+diff --git a/system-tests/e2e-testsupport/src/main/java/com/hotels/styx/servers/MockOriginServer.java b/system-tests/e2e-testsupport/src/main/java/com/hotels/styx/servers/MockOriginServer.java
+index bf2625714..654870320 100644
+--- a/system-tests/e2e-testsupport/src/main/java/com/hotels/styx/servers/MockOriginServer.java
++++ b/system-tests/e2e-testsupport/src/main/java/com/hotels/styx/servers/MockOriginServer.java
+@@ -32,10 +32,11 @@
+ import com.github.tomakehurst.wiremock.http.StubResponseRenderer;
+ import com.google.common.collect.ImmutableList;
+ import com.google.common.util.concurrent.ServiceManager;
++import com.hotels.styx.InetServer;
++import com.hotels.styx.StyxServers;
+ import com.hotels.styx.api.Eventual;
+ import com.hotels.styx.api.HttpHandler;
+ import com.hotels.styx.server.HttpConnectorConfig;
+-import com.hotels.styx.server.HttpServer;
+ import com.hotels.styx.server.HttpServers;
+ import com.hotels.styx.server.HttpsConnectorConfig;
+ import io.netty.buffer.ByteBuf;
+@@ -60,8 +61,8 @@
+     private final int adminPort;
+ 
+     private int serverPort;
+-    private final HttpServer adminServer;
+-    private final HttpServer mockServer;
++    private final InetServer adminServer;
++    private final InetServer mockServer;
+ 
+     static {
+         System.setProperty("org.mortbay.log.class", "com.github.tomakehurst.wiremock.jetty.LoggerAdapter");
+@@ -69,7 +70,7 @@
+ 
+     private ServiceManager services;
+ 
+-    private MockOriginServer(String appId, String originId, int adminPort, int serverPort, HttpServer adminServer, HttpServer mockServer) {
++    private MockOriginServer(String appId, String originId, int adminPort, int serverPort, InetServer adminServer, InetServer mockServer) {
+         this.appId = appId;
+         this.originId = originId;
+         this.adminPort = adminPort;
+@@ -80,8 +81,8 @@ private MockOriginServer(String appId, String originId, int adminPort, int serve
+ 
+     public static MockOriginServer create(String appId, String originId, int adminPort, HttpConnectorConfig httpConfig) {
+         WireMockApp wireMockApp = wireMockApp();
+-        HttpServer adminServer = createAdminServer(originId, adminPort, wireMockApp);
+-        HttpServer mockServer = HttpServers.createHttpServer(
++        InetServer adminServer = createAdminServer(originId, adminPort, wireMockApp);
++        InetServer mockServer = HttpServers.createHttpServer(
+                 "mock-stub-" + originId,
+                 httpConfig,
+                 mockHandler(originId, wireMockApp, new WireMockConfiguration()));
+@@ -92,8 +93,8 @@ public static MockOriginServer create(String appId, String originId, int adminPo
+ 
+     public static MockOriginServer create(String appId, String originId, int adminPort, HttpsConnectorConfig httpsConfig) {
+         WireMockApp wireMockApp = wireMockApp();
+-        HttpServer adminServer = createAdminServer(originId, adminPort, wireMockApp);
+-        HttpServer mockServer = HttpServers.createHttpsServer(
++        InetServer adminServer = createAdminServer(originId, adminPort, wireMockApp);
++        InetServer mockServer = HttpServers.createHttpsServer(
+                 "mock-stub-" + originId,
+                 httpsConfig,
+                 mockHandler(originId, wireMockApp, new WireMockConfiguration()));
+@@ -138,7 +139,7 @@ private static ByteBuf toByteBuf(String string) {
+     }
+ 
+     public MockOriginServer start() {
+-        services = new ServiceManager(ImmutableList.of(adminServer, mockServer));
++        services = new ServiceManager(ImmutableList.of(StyxServers.toGuavaService(adminServer), StyxServers.toGuavaService(mockServer)));
+         services.startAsync().awaitHealthy();
+         return this;
+     }
+@@ -214,7 +215,7 @@ private static WireMockApp wireMockApp() {
+         );
+     }
+ 
+-    private static HttpServer createAdminServer(String originId, int adminPort, WireMockApp wireMockApp) {
++    private static InetServer createAdminServer(String originId, int adminPort, WireMockApp wireMockApp) {
+         return HttpServers.createHttpServer(
+                 "mock-admin-" + originId,
+                 new HttpConnectorConfig(adminPort),

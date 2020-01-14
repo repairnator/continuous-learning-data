@@ -1,0 +1,9 @@
+@@ -3216,7 +3216,7 @@ private void addEffectivelyFinalAutoCloseables(final Env env) throws IOException
+             final Set<? extends TypeMirror> smartTypes = options.contains(Options.ALL_COMPLETION) ? null : getSmartTypes(env);
+             final TypeElement enclClass = scope.getEnclosingClass();
+             for (Element e : getLocalMembersAndVars(env)) {
+-                switch (e.getKind()) {
++                switch (simplifyElementKind(e.getKind())) {
+                     case EXCEPTION_PARAMETER:
+                     case LOCAL_VARIABLE:
+                     case RESOURCE_VARIABLE:

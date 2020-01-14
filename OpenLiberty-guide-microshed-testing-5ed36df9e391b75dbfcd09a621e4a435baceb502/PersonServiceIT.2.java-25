@@ -1,0 +1,9 @@
+@@ -25,7 +25,7 @@
+ // end::importAssertNotNull[]
+ 
+ // tag::importInject[]
+-import javax.inject.Inject;
++import org.microshed.testing.jaxrs.RESTClient;
+ // end::importInject[]
+ 
+ import org.junit.jupiter.api.Test;

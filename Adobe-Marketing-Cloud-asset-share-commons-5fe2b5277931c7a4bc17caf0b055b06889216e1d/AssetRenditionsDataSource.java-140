@@ -1,0 +1,9 @@
+@@ -140,7 +140,7 @@ private boolean acceptsAssetRenditionDispatcher(List<String> allowedAssetRenditi
+     }
+ 
+     @Activate
+-    protected void activate(AssetRenditionsDataSource.Cfg cfg) {
++    protected void activate(Cfg cfg) {
+         this.cfg = cfg;
+     }
+ 

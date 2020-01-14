@@ -1,0 +1,9 @@
+@@ -210,7 +210,7 @@ public static UnsignedWord getMaximumYoungGenerationSize() {
+                             .string(" ]").newline();
+             return maximumYoungGenerationSize;
+         }
+-        long hostedValue = SubstrateOptions.hostedMaxNewSize();
++        long hostedValue = SubstrateOptions.MaxNewSize.getHostedValue();
+         if (hostedValue != 0) {
+             trace.string("  returns maximumYoungGenerationSize: ").unsigned(hostedValue).string(" ]").newline();
+             return WordFactory.unsigned(hostedValue);

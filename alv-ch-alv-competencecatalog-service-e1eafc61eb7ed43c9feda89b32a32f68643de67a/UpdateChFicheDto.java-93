@@ -1,0 +1,9 @@
+@@ -93,7 +93,7 @@ public UpdateChFicheDto setCompetences(Set<Competence> competences) {
+         return requirementIds;
+     }
+ 
+-    public UpdateChFicheDto setRequirementIds(final Set<RequirementId> requirementIds) {
++    public UpdateChFicheDto setRequirementIds(Set<RequirementId> requirementIds) {
+         this.requirementIds = requirementIds;
+         return this;
+     }

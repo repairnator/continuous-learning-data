@@ -1,0 +1,9 @@
+@@ -144,7 +144,7 @@ private Writer writeRollback(File partitionDir, Schema schema, String fileId, St
+         .withFileExtension(HoodieLogFile.DELTA_EXTENSION).withFileId(fileId).overBaseCommit(baseCommit)
+         .withLogVersion(logVersion).withFs(fs).build();
+ 
+-    Map<HoodieLogBlock.HeaderMetadataType, String> header = Maps.newHashMap();
++    Map<HoodieLogBlock.HeaderMetadataType, String> header = new HashMap<>();
+     header.put(HoodieLogBlock.HeaderMetadataType.INSTANT_TIME, newCommit);
+     header.put(HoodieLogBlock.HeaderMetadataType.SCHEMA, schema.toString());
+     header.put(HoodieLogBlock.HeaderMetadataType.TARGET_INSTANT_TIME, oldCommit);

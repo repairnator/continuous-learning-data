@@ -1,0 +1,9 @@
+@@ -109,7 +109,7 @@ private BoolQueryBuilder statusFilter(final RequirementSearchRequest searchReque
+         return query;
+     }
+ 
+-    private Sort createSort(final SearchSort sort) {
++    private Sort createSort(SearchSort sort) {
+         switch (sort) {
+             case date_asc:
+                 return Sort.by(asc(PATH_CREATED_AT));

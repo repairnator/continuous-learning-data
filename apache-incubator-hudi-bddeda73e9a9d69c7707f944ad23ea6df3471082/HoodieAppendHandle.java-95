@@ -1,0 +1,9 @@
+@@ -95,7 +95,7 @@
+   // Max block size to limit to for a log block
+   private int maxBlockSize = config.getLogFileDataBlockMaxSize();
+   // Header metadata for a log block
+-  private Map<HeaderMetadataType, String> header = Maps.newHashMap();
++  private Map<HeaderMetadataType, String> header = new HashMap<>();
+   // Total number of new records inserted into the delta file
+   private long insertRecordsWritten = 0;
+ 

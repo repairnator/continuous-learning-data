@@ -1,0 +1,9 @@
+@@ -138,7 +138,7 @@ public CompactionAdminClient(JavaSparkContext jsc, String basePath, Option<Embed
+       // TODO: Add a rollback instant but for compaction
+       HoodieInstant instant = new HoodieInstant(State.REQUESTED, COMPACTION_ACTION, compactionInstant);
+       boolean deleted = metaClient.getFs().delete(new Path(metaClient.getMetaPath(), instant.getFileName()), false);
+-      Preconditions.checkArgument(deleted, "Unable to delete compaction instant.");
++      ValidationUtils.checkArgument(deleted, "Unable to delete compaction instant.");
+     }
+     return res;
+   }

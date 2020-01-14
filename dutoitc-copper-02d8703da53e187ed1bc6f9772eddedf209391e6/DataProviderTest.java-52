@@ -1,0 +1,9 @@
+@@ -52,7 +52,7 @@ public void testAfterNewStory() throws IOException, ConnectorException {
+     }
+ 
+ 
+-    private class StoriesFacadeMock implements StoriesFacade {
++    private static class StoriesFacadeMock implements StoriesFacade {
+ 
+         Map<String, Story> stories = new HashMap<>();
+ 

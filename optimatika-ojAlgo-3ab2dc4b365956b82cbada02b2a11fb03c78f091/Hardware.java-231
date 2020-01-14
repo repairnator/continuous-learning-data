@@ -1,0 +1,9 @@
+@@ -231,7 +231,7 @@
+      * <li>32kB L1 cache per core</li>
+      * </ul>
+      * </li>
+-     * <li>MacBookPro14,2
++     * <li>MacBookPro14,2 (oyster)
+      * <ul>
+      * <li>1 processors</li>
+      * <li>2 cores per processor</li>

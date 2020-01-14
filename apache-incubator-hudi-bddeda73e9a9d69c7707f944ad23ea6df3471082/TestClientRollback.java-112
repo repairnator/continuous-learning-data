@@ -1,0 +1,9 @@
+@@ -112,7 +112,7 @@ public void testSavepointAndRollback() throws Exception {
+       }).collect(Collectors.toList());
+       assertEquals("The data files for commit 002 should be present", 3, dataFiles.size());
+ 
+-      /**
++      /*
+        * Write 4 (updates)
+        */
+       newCommitTime = "004";

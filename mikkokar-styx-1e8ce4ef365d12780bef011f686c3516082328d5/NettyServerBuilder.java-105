@@ -1,0 +1,9 @@
+@@ -105,7 +105,7 @@ ServerConnector protocolConnector() {
+         return httpConnector;
+     }
+ 
+-    public HttpServer build() {
++    public InetServer build() {
+         checkArgument(httpConnector != null, "Must configure a protocol connector");
+         checkArgument(workerExecutor != null, "Must configure a worker executor");
+ 

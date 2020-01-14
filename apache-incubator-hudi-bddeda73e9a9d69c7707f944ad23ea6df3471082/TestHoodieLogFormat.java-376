@@ -1,0 +1,9 @@
+@@ -376,7 +376,7 @@ public void testBasicAppendAndRead() throws IOException, URISyntaxException, Int
+     Schema schema = getSimpleSchema();
+     List<IndexedRecord> copyOfRecords1 = records1.stream()
+         .map(record -> HoodieAvroUtils.rewriteRecord((GenericRecord) record, schema)).collect(Collectors.toList());
+-    Map<HoodieLogBlock.HeaderMetadataType, String> header = Maps.newHashMap();
++    Map<HoodieLogBlock.HeaderMetadataType, String> header = new HashMap<>();
+     header.put(HoodieLogBlock.HeaderMetadataType.INSTANT_TIME, "100");
+     header.put(HoodieLogBlock.HeaderMetadataType.SCHEMA, getSimpleSchema().toString());
+     HoodieAvroDataBlock dataBlock = new HoodieAvroDataBlock(records1, header);

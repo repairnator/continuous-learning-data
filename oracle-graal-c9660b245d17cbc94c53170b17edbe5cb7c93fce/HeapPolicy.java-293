@@ -1,0 +1,9 @@
+@@ -293,7 +293,7 @@ public static UnsignedWord getMinimumHeapSize() {
+             trace.string("  returns: ").unsigned(minimumHeapSize).string(" ]").newline();
+             return minimumHeapSize;
+         }
+-        long hostedValue = SubstrateOptions.hostedMinHeapSize();
++        long hostedValue = SubstrateOptions.MinHeapSize.getHostedValue();
+         if (hostedValue != 0) {
+             trace.string("  returns: ").unsigned(hostedValue).string(" ]").newline();
+             return WordFactory.unsigned(hostedValue);

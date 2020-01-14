@@ -1,0 +1,9 @@
+@@ -1251,7 +1251,7 @@ public void testBasicAppendAndTraverseInReverse() throws IOException, URISyntaxE
+     List<IndexedRecord> records1 = SchemaTestUtil.generateTestRecords(0, 100);
+     List<IndexedRecord> copyOfRecords1 = records1.stream()
+         .map(record -> HoodieAvroUtils.rewriteRecord((GenericRecord) record, schema)).collect(Collectors.toList());
+-    Map<HoodieLogBlock.HeaderMetadataType, String> header = Maps.newHashMap();
++    Map<HoodieLogBlock.HeaderMetadataType, String> header = new HashMap<>();
+     header.put(HoodieLogBlock.HeaderMetadataType.INSTANT_TIME, "100");
+     header.put(HoodieLogBlock.HeaderMetadataType.SCHEMA, schema.toString());
+     HoodieAvroDataBlock dataBlock = new HoodieAvroDataBlock(records1, header);

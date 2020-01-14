@@ -1,0 +1,61 @@
+diff --git a/src/main/java/com/puppycrawl/tools/checkstyle/api/AbstractCheck.java b/src/main/java/com/puppycrawl/tools/checkstyle/api/AbstractCheck.java
+index 6540edee38..ea9b701710 100644
+--- a/src/main/java/com/puppycrawl/tools/checkstyle/api/AbstractCheck.java
++++ b/src/main/java/com/puppycrawl/tools/checkstyle/api/AbstractCheck.java
+@@ -125,7 +125,7 @@ public void init() {
+      * Destroy the check. It is being retired from service.
+      */
+     public void destroy() {
+-        // No code by default, should be overridden only by demand at subclasses
++        context.remove();
+     }
+ 
+     /**
+diff --git a/src/main/java/com/puppycrawl/tools/checkstyle/api/AbstractFileSetCheck.java b/src/main/java/com/puppycrawl/tools/checkstyle/api/AbstractFileSetCheck.java
+index 9b7abc5001..e1a3f3e029 100644
+--- a/src/main/java/com/puppycrawl/tools/checkstyle/api/AbstractFileSetCheck.java
++++ b/src/main/java/com/puppycrawl/tools/checkstyle/api/AbstractFileSetCheck.java
+@@ -66,7 +66,7 @@ public void init() {
+ 
+     @Override
+     public void destroy() {
+-        // No code by default, should be overridden only by demand at subclasses
++        context.remove();
+     }
+ 
+     @Override
+diff --git a/src/main/java/com/puppycrawl/tools/checkstyle/checks/SuppressWarningsHolder.java b/src/main/java/com/puppycrawl/tools/checkstyle/checks/SuppressWarningsHolder.java
+index 879965dda1..7b85c8decd 100644
+--- a/src/main/java/com/puppycrawl/tools/checkstyle/checks/SuppressWarningsHolder.java
++++ b/src/main/java/com/puppycrawl/tools/checkstyle/checks/SuppressWarningsHolder.java
+@@ -550,6 +550,12 @@ private static String getStringExpr(DetailAST ast) {
+         return valueList;
+     }
+ 
++    @Override
++    public void destroy() {
++        super.destroy();
++        ENTRIES.remove();
++    }
++
+     /** Records a particular suppression for a region of a file. */
+     private static class Entry {
+ 
+diff --git a/src/main/java/com/puppycrawl/tools/checkstyle/checks/javadoc/AbstractJavadocCheck.java b/src/main/java/com/puppycrawl/tools/checkstyle/checks/javadoc/AbstractJavadocCheck.java
+index 7e94dd8ce5..c93246dddc 100644
+--- a/src/main/java/com/puppycrawl/tools/checkstyle/checks/javadoc/AbstractJavadocCheck.java
++++ b/src/main/java/com/puppycrawl/tools/checkstyle/checks/javadoc/AbstractJavadocCheck.java
+@@ -378,6 +378,13 @@ private boolean shouldBeProcessed(DetailNode curNode) {
+         return javadocTokens.contains(curNode.getType());
+     }
+ 
++    @Override
++    public void destroy() {
++        super.destroy();
++        context.remove();
++        TREE_CACHE.remove();
++    }
++
+     /**
+      * The file context holder.
+      */

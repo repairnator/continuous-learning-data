@@ -1,0 +1,9 @@
+@@ -1705,7 +1705,7 @@ public static IRubyObject system(ThreadContext context, IRubyObject recv, IRubyO
+ 
+         // else old JDK logic
+         if (args[0] instanceof RubyHash) {
+-            runtime.getENV().merge_bang(context, (RubyHash) args[0], Block.NULL_BLOCK);
++            runtime.getENV().merge_bang(context, new IRubyObject[]{args[0]}, Block.NULL_BLOCK);
+             // drop the first element for calling systemCommon()
+             args = ArraySupport.newCopy(args, 1, args.length - 1);
+         }

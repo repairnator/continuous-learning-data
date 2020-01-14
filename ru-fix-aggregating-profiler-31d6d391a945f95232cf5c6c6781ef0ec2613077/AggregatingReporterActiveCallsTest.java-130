@@ -1,0 +1,9 @@
+@@ -130,7 +130,7 @@ public void disableActiveCallsMaxLatency_afterCallsWereStarted_removesCallsFromA
+         profiler.start("Test");
+         profiler.start("Test");
+ 
+-        profiler.setNumberOfActiveCallsToTrackAndKeepBetweenReports(0);
++        profiler.setNumberOfLongestActiveCallsToTrack(0);
+ 
+         reporter.buildReportAndReset();
+ 

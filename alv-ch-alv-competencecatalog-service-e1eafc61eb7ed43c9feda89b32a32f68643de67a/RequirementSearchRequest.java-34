@@ -1,0 +1,9 @@
+@@ -34,7 +34,7 @@ public Boolean getPublished() {
+ 
+     }
+ 
+-    public RequirementSearchRequest setPublished(final Boolean published) {
++    public RequirementSearchRequest setPublished(Boolean published) {
+         this.published = published;
+         return this;
+     }

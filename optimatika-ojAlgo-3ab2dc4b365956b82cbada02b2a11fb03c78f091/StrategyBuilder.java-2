@@ -1,0 +1,9 @@
+@@ -2,7 +2,7 @@
+ 
+ import org.ojalgo.structure.Access1D;
+ 
+-abstract class StrategyBuilder<N extends Comparable<N>, I extends Access1D<N>, SB extends StrategyBuilder<N, I, SB>> {
++public abstract class StrategyBuilder<N extends Comparable<N>, I extends Access1D<N>, SB extends StrategyBuilder<N, I, SB>> {
+ 
+     private final DenseCapacityStrategy<N> myStrategy;
+ 

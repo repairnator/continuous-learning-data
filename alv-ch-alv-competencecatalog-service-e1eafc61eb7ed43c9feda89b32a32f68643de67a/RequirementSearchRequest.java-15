@@ -1,0 +1,9 @@
+@@ -15,7 +15,7 @@ public String getQuery() {
+         return query;
+     }
+ 
+-    public RequirementSearchRequest setQuery(final String query) {
++    public RequirementSearchRequest setQuery(String query) {
+         this.query = query;
+         return this;
+     }

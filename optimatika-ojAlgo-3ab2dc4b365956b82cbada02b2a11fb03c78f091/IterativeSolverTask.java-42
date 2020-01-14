@@ -1,0 +1,9 @@
+@@ -42,7 +42,7 @@
+ import org.ojalgo.structure.Structure2D;
+ import org.ojalgo.type.context.NumberContext;
+ 
+-abstract class IterativeSolverTask implements SolverTask<Double> {
++public abstract class IterativeSolverTask implements SolverTask<Double> {
+ 
+     public static final class Configurator {
+ 

@@ -1,0 +1,9 @@
+@@ -241,7 +241,7 @@ public void testMultipleAppend() throws IOException, URISyntaxException, Interru
+         HoodieLogFormat.newWriterBuilder().onParentPath(partitionPath).withFileExtension(HoodieLogFile.DELTA_EXTENSION)
+             .withFileId("test-fileid1").overBaseCommit("100").withFs(fs).build();
+     List<IndexedRecord> records = SchemaTestUtil.generateTestRecords(0, 100);
+-    Map<HoodieLogBlock.HeaderMetadataType, String> header = Maps.newHashMap();
++    Map<HoodieLogBlock.HeaderMetadataType, String> header = new HashMap<>();
+     header.put(HoodieLogBlock.HeaderMetadataType.INSTANT_TIME, "100");
+     header.put(HoodieLogBlock.HeaderMetadataType.SCHEMA, getSimpleSchema().toString());
+     HoodieAvroDataBlock dataBlock = new HoodieAvroDataBlock(records, header);

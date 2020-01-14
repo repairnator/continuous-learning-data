@@ -1,0 +1,121 @@
+diff --git a/src/main/java/facades/fetchFacade.java b/src/main/java/facades/fetchFacade.java
+index 2b5ba07..5cf65cb 100644
+--- a/src/main/java/facades/fetchFacade.java
++++ b/src/main/java/facades/fetchFacade.java
+@@ -25,30 +25,50 @@
+  */
+ public class fetchFacade {
+ 
+-    public String getAllDataInParalelWithQueue() throws ProtocolException, IOException, InterruptedException, ExecutionException
++//    public String getAllDataInParalelWithQueue() throws ProtocolException, IOException, InterruptedException, ExecutionException
++//    {
++//        ExecutorService workingJack = Executors.newCachedThreadPool();
++//        List<Future<String>> futureList = new ArrayList();
++//        for (int index = 1; index < 119; index++)
++//        {
++//            final int i = index;
++//            Future<String> future = workingJack.submit(() -> getMovieData(i));
++//            futureList.add(future);
++//        }
++//        StringBuilder sb = new StringBuilder("[");
++//        for (Future<String> future : futureList)
++//        {
++//            sb.append(future.get() + ",");
++//        }
++//        sb.append("]");
++//        return sb.toString();
++//
++//    }
++
++    public String getMovieTitle(String title) throws MalformedURLException, ProtocolException, IOException
+     {
+-        ExecutorService workingJack = Executors.newCachedThreadPool();
+-        List<Future<String>> futureList = new ArrayList();
+-        for (int index = 1; index < 119; index++)
+-        {
+-            final int i = index;
+-            Future<String> future = workingJack.submit(() -> getDnDData(i));
+-            futureList.add(future);
+-        }
+-        StringBuilder sb = new StringBuilder("[");
+-        for (Future<String> future : futureList)
++        // String fullUrl = "http://dnd5eapi.co/api/spells/" + index;//"/?format=json";
++        String fullUrl = "http://exam-1187.mydemos.dk/movieInfo/" + title; 
++        URL url = new URL(fullUrl);
++        HttpURLConnection con = (HttpURLConnection) url.openConnection();
++        con.setRequestMethod("GET");
++        con.setRequestProperty("Accept", "application/json;charset=UTF-8");
++        try (Scanner scan = new Scanner(con.getInputStream()))
+         {
+-            sb.append(future.get() + ",");
++            String jsonStr = "";
++            while (scan.hasNext())
++            {
++                jsonStr += scan.nextLine();
++            }
++            return jsonStr;
+         }
+-        sb.append("]");
+-        return sb.toString();
+-
+     }
+-
+-    public String getDnDData(int index) throws MalformedURLException, ProtocolException, IOException
++    
++    public String getMoviePoster(String title) throws MalformedURLException, ProtocolException, IOException
+     {
+-        String fullUrl = "http://dnd5eapi.co/api/spells/" + index;//"/?format=json";
+-        URL url = new URL(fullUrl);
++        // String fullUrl = "http://dnd5eapi.co/api/spells/" + index;//"/?format=json";
++        String fullUrl2 = "http://exam-1187.mydemos.dk/moviePoster/" + title; 
++        URL url = new URL(fullUrl2);
+         HttpURLConnection con = (HttpURLConnection) url.openConnection();
+         con.setRequestMethod("GET");
+         con.setRequestProperty("Accept", "application/json;charset=UTF-8");
+@@ -69,7 +89,7 @@ public static void main(String[] args) throws ProtocolException, IOException, In
+ //        String satan = facade.getDnDData(1);
+ //        
+ //        System.out.println(facade.getDnDData(1));
+-        String result = facade.getAllDataInParalelWithQueue();
++        String result = facade.getMovieTitle("Die%20Hard");
+         System.out.println(result);
+     }
+ }
+diff --git a/src/main/java/rest/APIResource.java b/src/main/java/rest/APIResource.java
+index aed8259..916fa9e 100644
+--- a/src/main/java/rest/APIResource.java
++++ b/src/main/java/rest/APIResource.java
+@@ -77,10 +77,17 @@ public String getFromAdmin() {
+     
+     @GET
+     @Produces(MediaType.APPLICATION_JSON)
+-    @Path("AllSpells/{index}")
++    @Path("movie-info-simple/{title}")
+     //@RolesAllowed("user")
+-    public String getAllSpells(@PathParam("index") int index) throws ProtocolException, IOException {
+-        return api.getDnDData(index);
++    public String getMovie(@PathParam("title") String title) throws ProtocolException, IOException {
++        String movieInfo = api.getMovieTitle(title);
++        movieInfo = movieInfo.substring(0, movieInfo.length() - 1);
++        String moviePoster = api.getMoviePoster(title);
++        String[] split = moviePoster.split(",");
++        String result = movieInfo + "," + split[1];
++        //Gson g = new Gson();
++        return result;
++        
+     }
+     
+ }
+diff --git a/src/main/java/rest/UserResource.java b/src/main/java/rest/UserResource.java
+index 6850cc5..390ebf7 100644
+--- a/src/main/java/rest/UserResource.java
++++ b/src/main/java/rest/UserResource.java
+@@ -17,7 +17,7 @@
+ 
+     private static final EntityManagerFactory EMF = EMF_Creator.createEntityManagerFactory(
+                 "pu",
+-                "jdbc:mysql://localhost:3307/ca3",
++                "jdbc:mysql://localhost:3307/exam",
+                 "dev",
+                 "ax2",
+                 EMF_Creator.Strategy.CREATE);

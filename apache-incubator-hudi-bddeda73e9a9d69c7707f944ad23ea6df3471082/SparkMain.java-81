@@ -1,0 +1,9 @@
+@@ -81,7 +81,7 @@ public static void main(String[] args) throws Exception {
+       case UPSERT:
+         assert (args.length >= 12);
+         String propsFilePath = null;
+-        if (!Strings.isNullOrEmpty(args[11])) {
++        if (!StringUtils.isNullOrEmpty(args[11])) {
+           propsFilePath = args[11];
+         }
+         List<String> configs = new ArrayList<>();

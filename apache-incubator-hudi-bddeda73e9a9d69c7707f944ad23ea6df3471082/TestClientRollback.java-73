@@ -1,0 +1,9 @@
+@@ -73,7 +73,7 @@ public void testSavepointAndRollback() throws Exception {
+       List<WriteStatus> statuses = client.upsert(writeRecords, newCommitTime).collect();
+       assertNoWriteErrors(statuses);
+ 
+-      /**
++      /*
+        * Write 2 (updates)
+        */
+       newCommitTime = "002";

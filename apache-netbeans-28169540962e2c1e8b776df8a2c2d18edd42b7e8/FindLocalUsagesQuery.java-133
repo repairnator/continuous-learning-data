@@ -1,0 +1,9 @@
+@@ -133,7 +133,7 @@ public Void visitVariable(VariableTree tree, Stack<Tree> d) {
+         super.visitVariable(tree, d);
+         return null;
+     }
+-    
++
+     @Override
+     public Void visitClass(ClassTree tree, Stack<Tree> d) {
+         handlePotentialVariable(getCurrentPath());

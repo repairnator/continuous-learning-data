@@ -1,0 +1,9 @@
+@@ -24,7 +24,7 @@
+ import java.util.concurrent.ConcurrentMap;
+ 
+ /**
+- * This class holds request session information and gets cached against a cache key
++ * This class holds request session information and gets cached against a cache key.
+  */
+ public class OIDCSessionDataCacheEntry extends CacheEntry {
+ 

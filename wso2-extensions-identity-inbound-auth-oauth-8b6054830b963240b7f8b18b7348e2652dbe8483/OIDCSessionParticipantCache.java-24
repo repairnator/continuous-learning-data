@@ -1,0 +1,9 @@
+@@ -24,7 +24,7 @@
+ import org.wso2.carbon.identity.application.common.cache.BaseCache;
+ 
+ /**
+- * This is the class which caches OIDC session state information
++ * This is the class which caches OIDC session state information.
+  */
+ public class OIDCSessionParticipantCache
+         extends BaseCache<OIDCSessionParticipantCacheKey, OIDCSessionParticipantCacheEntry> {

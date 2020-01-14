@@ -1,0 +1,9 @@
+@@ -106,7 +106,7 @@ public void convertRunWithNoStatusesToBilling() {
+ 
+         final Map<LocalDate, PipelineRunBillingInfo> reports =
+             billings.stream().collect(Collectors.toMap(PipelineRunBillingInfo::getDate, Function.identity()));
+-        Assert.assertEquals(96, reports.get(LocalDate.of(2019, 12, 4)).getCost().longValue());
++        Assert.assertEquals(9600, reports.get(LocalDate.of(2019, 12, 4)).getCost().longValue());
+     }
+ 
+     @Test

@@ -1,0 +1,1090 @@
+diff --git a/media-domain/src/main/java/nl/vpro/domain/media/GeoLocation.java b/media-domain/src/main/java/nl/vpro/domain/media/GeoLocation.java
+index 396af1c8b..e60059552 100644
+--- a/media-domain/src/main/java/nl/vpro/domain/media/GeoLocation.java
++++ b/media-domain/src/main/java/nl/vpro/domain/media/GeoLocation.java
+@@ -2,7 +2,6 @@
+ 
+ import lombok.EqualsAndHashCode;
+ import lombok.Getter;
+-import lombok.NonNull;
+ import lombok.Setter;
+ import lombok.Singular;
+ import lombok.ToString;
+@@ -25,6 +24,7 @@
+ import javax.xml.bind.annotation.XmlTransient;
+ import javax.xml.bind.annotation.XmlType;
+ 
++import org.checkerframework.checker.nullness.qual.NonNull;
+ import org.hibernate.annotations.Cache;
+ import org.hibernate.annotations.CacheConcurrencyStrategy;
+ import org.meeuw.i18n.regions.Region;
+diff --git a/media-domain/src/main/java/nl/vpro/domain/media/Intentions.java b/media-domain/src/main/java/nl/vpro/domain/media/Intentions.java
+index f6c4c8834..9fbbcbc80 100644
+--- a/media-domain/src/main/java/nl/vpro/domain/media/Intentions.java
++++ b/media-domain/src/main/java/nl/vpro/domain/media/Intentions.java
+@@ -48,6 +48,9 @@ private Intentions(
+         this.values.forEach(v -> v.setParent(this));
+     }
+ 
++    /**
++     * TODO: Why couldn't this have been simply a list of IntentionType?
++     */
+     @Override
+     @NonNull
+     @XmlElement(name="intention")
+diff --git a/media-domain/src/main/java/nl/vpro/domain/media/MediaBuilder.java b/media-domain/src/main/java/nl/vpro/domain/media/MediaBuilder.java
+index a9c838c30..beec48721 100644
+--- a/media-domain/src/main/java/nl/vpro/domain/media/MediaBuilder.java
++++ b/media-domain/src/main/java/nl/vpro/domain/media/MediaBuilder.java
+@@ -6,6 +6,7 @@
+ 
+ import lombok.ToString;
+ 
++import java.net.URI;
+ import java.time.*;
+ import java.util.*;
+ import java.util.function.Function;
+@@ -565,6 +566,16 @@ default B geoLocations(GeoLocation... geoLocations) {
+         return geoLocations(OwnerType.BROADCASTER, geoLocations);
+     }
+ 
++    default B geoLocations(GeoRoleType role, URI... topics) {
++        return geoLocations(OwnerType.BROADCASTER,
++            Arrays.stream(topics).map(u -> GeoLocation.builder()
++                .uri(u.toString())
++                .role(role)
++                .build()
++            ).toArray(GeoLocation[]::new)
++        );
++    }
++
+     default B geoLocations(Collection<GeoLocations> geoLocations) {
+         geoLocations.forEach(geos -> MediaObjectOwnableLists.addOrUpdateOwnableList(mediaObject(), mediaObject().getGeoLocations(), geos));
+         return (B)this;
+@@ -600,11 +611,17 @@ default B topics(OwnerType owner, Topic... topics) {
+         return topics(wrapper);
+     }
+ 
++    default B topics(Topic... topics) {
++        return topics(OwnerType.BROADCASTER, topics);
++    }
+ 
+-    default B topics(Topic... geoLocations) {
+-        return topics(OwnerType.BROADCASTER, geoLocations);
++    default B topics(URI... topics) {
++        return topics(OwnerType.BROADCASTER,
++            Arrays.stream(topics).map(u -> Topic.builder().uri(u.toString()).build()).toArray(Topic[]::new)
++        );
+     }
+ 
++
+     default B topics(Collection<Topics> topics) {
+         topics.forEach(t -> MediaObjectOwnableLists.addOrUpdateOwnableList(mediaObject(), mediaObject().getTopics(), t));
+         return (B)this;
+diff --git a/media-domain/src/main/java/nl/vpro/domain/media/TargetGroups.java b/media-domain/src/main/java/nl/vpro/domain/media/TargetGroups.java
+index b3e165af5..5124b2283 100644
+--- a/media-domain/src/main/java/nl/vpro/domain/media/TargetGroups.java
++++ b/media-domain/src/main/java/nl/vpro/domain/media/TargetGroups.java
+@@ -35,7 +35,9 @@ public static TargetGroups empty(@NonNull  OwnerType owner) {
+     }
+ 
+     @lombok.Builder(builderClassName = "Builder")
+-    private TargetGroups(@lombok.NonNull @Singular  List<TargetGroupType> values, @lombok.NonNull OwnerType owner) {
++    private TargetGroups(
++        @NonNull @Singular  List<TargetGroupType> values,
++        @NonNull OwnerType owner) {
+         this.values = values.stream().map(TargetGroup::new).collect(Collectors.toList());
+         this.owner = owner;
+         //To help Hibernate understand the relationship we
+diff --git a/media-domain/src/main/java/nl/vpro/domain/media/support/AbstractMediaObjectOwnableList.java b/media-domain/src/main/java/nl/vpro/domain/media/support/AbstractMediaObjectOwnableList.java
+index ce78cae14..e6babe88a 100644
+--- a/media-domain/src/main/java/nl/vpro/domain/media/support/AbstractMediaObjectOwnableList.java
++++ b/media-domain/src/main/java/nl/vpro/domain/media/support/AbstractMediaObjectOwnableList.java
+@@ -8,6 +8,8 @@
+ import javax.persistence.*;
+ import javax.xml.bind.annotation.*;
+ 
++import org.apache.commons.lang3.ObjectUtils;
++
+ import com.fasterxml.jackson.annotation.JsonProperty;
+ 
+ import nl.vpro.domain.DomainObject;
+@@ -56,7 +58,7 @@ public int hashCode() {
+ 
+     @Override
+     public int compareTo(THIS o) {
+-        return this.getOwner().compareTo(o.getOwner());
++        return ObjectUtils.compare(this.getOwner(), o.getOwner());
+     }
+ 
+     @SuppressWarnings("unchecked")
+diff --git a/media-domain/src/main/java/nl/vpro/domain/media/update/CreditsUpdate.java b/media-domain/src/main/java/nl/vpro/domain/media/update/CreditsUpdate.java
+new file mode 100644
+index 000000000..025a7782f
+--- /dev/null
++++ b/media-domain/src/main/java/nl/vpro/domain/media/update/CreditsUpdate.java
+@@ -0,0 +1,30 @@
++package nl.vpro.domain.media.update;
++
++import lombok.Getter;
++import lombok.ToString;
++
++import javax.persistence.EnumType;
++import javax.persistence.Enumerated;
++import javax.xml.bind.annotation.XmlAttribute;
++
++import nl.vpro.domain.media.Credits;
++import nl.vpro.domain.media.RoleType;
++
++@ToString(of = { "role" })
++public abstract class CreditsUpdate {
++
++    @XmlAttribute(required = true)
++    @Enumerated(EnumType.STRING)
++    @Getter
++    protected RoleType role;
++
++    public CreditsUpdate(RoleType role) {
++        this.role = role;
++    }
++
++    protected CreditsUpdate() {
++        // needed for jaxb
++    }
++
++    public abstract Credits toCredits();
++}
+diff --git a/media-domain/src/main/java/nl/vpro/domain/media/update/MediaUpdate.java b/media-domain/src/main/java/nl/vpro/domain/media/update/MediaUpdate.java
+index 7f48819e6..1b0a38db9 100644
+--- a/media-domain/src/main/java/nl/vpro/domain/media/update/MediaUpdate.java
++++ b/media-domain/src/main/java/nl/vpro/domain/media/update/MediaUpdate.java
+@@ -60,6 +60,7 @@
+ import nl.vpro.domain.media.AVType;
+ import nl.vpro.domain.media.AgeRating;
+ import nl.vpro.domain.media.ContentRating;
++import nl.vpro.domain.media.Credits;
+ import nl.vpro.domain.media.Genre;
+ import nl.vpro.domain.media.GeoLocation;
+ import nl.vpro.domain.media.GeoLocations;
+@@ -74,6 +75,8 @@
+ import nl.vpro.domain.media.MediaObjects;
+ import nl.vpro.domain.media.MediaType;
+ import nl.vpro.domain.media.MemberRef;
++import nl.vpro.domain.media.Name;
++import nl.vpro.domain.media.Person;
+ import nl.vpro.domain.media.Prediction;
+ import nl.vpro.domain.media.Program;
+ import nl.vpro.domain.media.Segment;
+@@ -273,14 +276,7 @@
+         @Size(min = 1, max = 255)
+         String> tags;
+ 
+-
+-    // jaxb annotations are here, because if on property, the credits wrapper will be marshalled always.
+-    // This arguably better, but for now we want to be backwards compatible.
+-    @XmlElementWrapper(name = "credits")
+-    @XmlElements({
+-        @XmlElement(name = "person", type = PersonUpdate.class)
+-    })
+-    private List<PersonUpdate> credits;
++    private List<CreditsUpdate> credits;
+ 
+     private List<PortalRestrictionUpdate> portalRestrictions;
+ 
+@@ -363,7 +359,7 @@ protected final void fillFromMedia(M mediaobject, OwnerType owner) {
+         this.portals = toList(mediaobject.getPortals(), Portal::getId);
+ 
+         this.tags = toSet(mediaobject.getTags(), Tag::getText);
+-        this.credits = toList(mediaobject.getPersons(), PersonUpdate::new, true);
++        this.credits = toCreditsUpdate(mediaobject.getCredits());
+         if (this.credits.isEmpty()) {
+             this.credits = null;
+         }
+@@ -389,8 +385,8 @@ protected final void fillFromMedia(M mediaobject, OwnerType owner) {
+         this.relations = toSet(mediaobject.getRelations(), RelationUpdate::new);
+         this.predictions = toSet(mediaobject.getPredictions(), Prediction::isPlannedAvailability, PredictionUpdate::of);
+ 
+-        this.geoLocations = toUpdateGeoLocations(mediaobject.getGeoLocations(), owner);
+-        this.topics = toUpdateTopics(mediaobject.getTopics(), owner);
++        this.geoLocations = toGeoLocationUpdates(mediaobject.getGeoLocations(), owner);
++        this.topics = toTopicUpdates(mediaobject.getTopics(), owner);
+     }
+ 
+     protected abstract void fillFrom(M mediaObject, OwnerType ownerType);
+@@ -500,7 +496,7 @@ private M fetchOwnerless() {
+ 
+         media.setPortals(toList(portals, Portal::new));
+         media.setTags(toSet(tags, Tag::new));
+-        media.setCredits(toList(credits, PersonUpdate::toPerson, true));
++        media.setCredits(toList(credits, CreditsUpdate::toCredits, true));
+         media.setPortalRestrictions(toList(portalRestrictions, PortalRestrictionUpdate::toPortalRestriction));
+         media.setGeoRestrictions(toSet(geoRestrictions, GeoRestrictionUpdate::toGeoRestriction));
+ 
+@@ -618,7 +614,7 @@ private TargetGroups toTargetGroups(@Nullable List<TargetGroupType> targetGroupV
+                 .build();
+     }
+ 
+-    private List<GeoLocationUpdate> toUpdateGeoLocations(SortedSet<GeoLocations> geoLocationsSet, OwnerType owner) {
++    private List<GeoLocationUpdate> toGeoLocationUpdates(SortedSet<GeoLocations> geoLocationsSet, OwnerType owner) {
+ 
+         if (geoLocationsSet == null) {
+             return null;
+@@ -649,7 +645,7 @@ private GeoLocations toGeoLocations(List<GeoLocationUpdate> geoLocationUpdates,
+             .build();
+     }
+ 
+-    private List<TopicUpdate> toUpdateTopics(SortedSet<Topics> topicsSet, OwnerType owner) {
++    private List<TopicUpdate> toTopicUpdates(SortedSet<Topics> topicsSet, OwnerType owner) {
+ 
+         if (topicsSet == null) {
+             return null;
+@@ -680,6 +676,25 @@ private Topics toTopics(List<TopicUpdate> topicUpdates, OwnerType owner) {
+             .build();
+     }
+ 
++    private List<CreditsUpdate> toCreditsUpdate(List<Credits> credits) {
++
++        if (credits == null) {
++            return null;
++        }
++
++        List<CreditsUpdate> creditsUpdates = new ArrayList<>();
++        for (Credits credit: credits) {
++            if (credit instanceof Person) {
++                creditsUpdates.add(new PersonUpdate((Person) credit));
++            }
++            else {
++                creditsUpdates.add(new NameUpdate((Name) credit));
++            }
++        }
++
++        return creditsUpdates;
++    }
++
+     public M fetch() {
+         return fetch(OwnerType.BROADCASTER);
+     }
+@@ -1081,21 +1096,26 @@ public void setReleaseYear(Short releaseYear) {
+         this.releaseYear = releaseYear;
+     }
+ 
++    @XmlElementWrapper(name = "credits")
++    @XmlElements({
++        @XmlElement(name = "person", type = PersonUpdate.class),
++        @XmlElement(name = "name", type = NameUpdate.class)
++    })
+     @Valid
+     @NonNull
+-    @XmlTransient
+-    public List<PersonUpdate> getPersons() {
++    public List<CreditsUpdate> getCredits() {
+         if (credits == null) {
+             credits = new ArrayList<>();
+         }
+         return credits;
+     }
+ 
+-    public void setPersons(List<PersonUpdate> persons) {
+-        this.credits = persons;
++    public void setCredits(List<CreditsUpdate> credits) {
++        this.credits = credits;
+     }
+-    public void setPersons(PersonUpdate... persons){
+-        this.credits = new ArrayList<>(Arrays.asList(persons));
++
++    public void setCredits(CreditsUpdate... credits){
++        this.credits = new ArrayList<>(Arrays.asList(credits));
+     }
+ 
+     @XmlElement
+diff --git a/media-domain/src/main/java/nl/vpro/domain/media/update/NameUpdate.java b/media-domain/src/main/java/nl/vpro/domain/media/update/NameUpdate.java
+new file mode 100644
+index 000000000..aa4676ab1
+--- /dev/null
++++ b/media-domain/src/main/java/nl/vpro/domain/media/update/NameUpdate.java
+@@ -0,0 +1,43 @@
++package nl.vpro.domain.media.update;
++
++import lombok.Getter;
++import lombok.ToString;
++
++import javax.xml.bind.annotation.XmlAccessType;
++import javax.xml.bind.annotation.XmlAccessorType;
++import javax.xml.bind.annotation.XmlAttribute;
++import javax.xml.bind.annotation.XmlRootElement;
++import javax.xml.bind.annotation.XmlType;
++
++import nl.vpro.domain.media.Credits;
++import nl.vpro.domain.media.Name;
++import nl.vpro.domain.media.RoleType;
++
++@XmlAccessorType(XmlAccessType.FIELD)
++@XmlType(name = "nameUpdateType")
++@XmlRootElement(name = "name")
++@ToString(of = { "gtaaUri"}, callSuper = true)
++public class NameUpdate extends CreditsUpdate {
++
++    @XmlAttribute(required = true)
++    @Getter
++    private String gtaaUri;
++
++    public NameUpdate(String gtaaUri, RoleType role) {
++        super(role);
++        this.gtaaUri = gtaaUri;
++    }
++
++    public NameUpdate(Name name) {
++        this(name.getGtaaUri(), name.getRole());
++    }
++
++    public NameUpdate() {
++        // needed for jaxb
++    }
++
++    @Override
++    public Credits toCredits() {
++        return Name.builder().uri(gtaaUri).role(role).build();
++    }
++}
+diff --git a/media-domain/src/main/java/nl/vpro/domain/media/update/PersonUpdate.java b/media-domain/src/main/java/nl/vpro/domain/media/update/PersonUpdate.java
+index 44fc54f6c..53e5e4bff 100644
+--- a/media-domain/src/main/java/nl/vpro/domain/media/update/PersonUpdate.java
++++ b/media-domain/src/main/java/nl/vpro/domain/media/update/PersonUpdate.java
+@@ -1,14 +1,19 @@
+ package nl.vpro.domain.media.update;
+ 
+ import lombok.Getter;
++import lombok.ToString;
+ 
+-import javax.persistence.EnumType;
+-import javax.persistence.Enumerated;
+-import javax.xml.bind.annotation.*;
++import java.net.URI;
+ 
+-import org.apache.commons.lang3.builder.ToStringBuilder;
++import javax.xml.bind.annotation.XmlAccessType;
++import javax.xml.bind.annotation.XmlAccessorType;
++import javax.xml.bind.annotation.XmlAttribute;
++import javax.xml.bind.annotation.XmlElement;
++import javax.xml.bind.annotation.XmlRootElement;
++import javax.xml.bind.annotation.XmlType;
+ 
+ import nl.vpro.domain.Xmlns;
++import nl.vpro.domain.media.Credits;
+ import nl.vpro.domain.media.Person;
+ import nl.vpro.domain.media.RoleType;
+ 
+@@ -21,7 +26,12 @@
+          propOrder = {"givenName",
+                       "familyName"})
+ @XmlRootElement(name = "person")
+-public class PersonUpdate {
++@ToString(of = { "givenName", "familyName" }, callSuper = true)
++public class PersonUpdate extends CreditsUpdate {
++
++    @XmlAttribute
++    @Getter
++    private String gtaaUri;
+ 
+     @XmlElement(namespace = Xmlns.UPDATE_NAMESPACE)
+     @Getter
+@@ -31,36 +41,42 @@
+     @Getter
+     protected String familyName;
+ 
+-    @XmlAttribute(required = true)
+-    @Enumerated(EnumType.STRING)
+-    @Getter
+-    protected RoleType role;
++    public PersonUpdate(String gtaaUri, RoleType role) {
++        super(role);
++        this.gtaaUri = gtaaUri;
++    }
+ 
+     public PersonUpdate(String givenName, String familyName, RoleType role) {
++        super(role);
+         this.givenName = givenName;
+         this.familyName = familyName;
+-        this.role = role;
+     }
+ 
+     public PersonUpdate(Person p) {
+-        this(p.getGivenName(), p.getFamilyName(), p.getRole());
++
++        if (p.getGtaaUri() != null) {
++            this.gtaaUri = p.getGtaaUri();
++        }
++        else {
++            this.givenName = p.getGivenName();
++            this.familyName = p.getFamilyName();
++        }
++
++        this.role = p.getRole();
+     }
+ 
+-    protected PersonUpdate() {
++    public PersonUpdate() {
+         // needed for jaxb
+     }
+ 
+     @Override
+-    public String toString() {
+-        return new ToStringBuilder(this)
+-            .appendSuper(super.toString())
+-            .append("givenName", givenName)
+-            .append("familyName", familyName)
+-            .append("role", role)
+-            .toString();
+-    }
++    public Credits toCredits() {
+ 
+-    public Person toPerson() {
+-        return new Person(getGivenName(), getFamilyName(), getRole());
++        if (gtaaUri != null) {
++            return Person.builder().uri(URI.create(gtaaUri)).role(role).build();
++        }
++        else {
++            return Person.builder().givenName(givenName).familyName(familyName).role(role).build();
++        }
+     }
+ }
+diff --git a/media-domain/src/main/resources/nl/vpro/domain/media/update/vproMediaUpdate.xsd b/media-domain/src/main/resources/nl/vpro/domain/media/update/vproMediaUpdate.xsd
+index 486e667d3..51d15bd50 100644
+--- a/media-domain/src/main/resources/nl/vpro/domain/media/update/vproMediaUpdate.xsd
++++ b/media-domain/src/main/resources/nl/vpro/domain/media/update/vproMediaUpdate.xsd
+@@ -97,7 +97,7 @@
+   </xs:complexType>
+ 
+   <xs:complexType name="topicUpdateType">
+-    <xs:attribute name="gtaaUri" type="xs:string"/>
++    <xs:attribute name="gtaaUri" type="xs:string" use="required"/>
+   </xs:complexType>
+ 
+   <xs:complexType name="topicsUpdateType">
+@@ -108,15 +108,24 @@
+ 
+   <xs:complexType name="personUpdateType">
+     <xs:sequence>
+-      <xs:element type="xs:string" name="givenName" form="qualified"/>
+-      <xs:element type="xs:string" name="familyName" form="qualified"/>
++      <xs:element type="xs:string" name="givenName" form="qualified" minOccurs="0"/>
++      <xs:element type="xs:string" name="familyName" form="qualified" minOccurs="0"/>
+     </xs:sequence>
++    <xs:attribute name="gtaaUri" type="xs:string"/>
++    <xs:attribute type="media:roleType" name="role" use="required"/>
++  </xs:complexType>
++
++  <xs:complexType name="nameUpdateType">
++    <xs:attribute name="gtaaUri" type="xs:string" use="required"/>
+     <xs:attribute type="media:roleType" name="role" use="required"/>
+   </xs:complexType>
+ 
+   <xs:complexType name="creditsUpdateType">
+     <xs:sequence>
+-      <xs:element type="personUpdateType" name="person" form="qualified" minOccurs="0" maxOccurs="unbounded"/>
++      <xs:choice minOccurs="0" maxOccurs="unbounded">
++        <xs:element type="personUpdateType" name="person" form="qualified"/>
++        <xs:element type="nameUpdateType" name="name" form="qualified"/>
++      </xs:choice>
+     </xs:sequence>
+   </xs:complexType>
+ 
+diff --git a/media-domain/src/test/java/nl/vpro/domain/media/update/GroupUpdateTest.java b/media-domain/src/test/java/nl/vpro/domain/media/update/GroupUpdateTest.java
+index c3d001983..383d66974 100644
+--- a/media-domain/src/test/java/nl/vpro/domain/media/update/GroupUpdateTest.java
++++ b/media-domain/src/test/java/nl/vpro/domain/media/update/GroupUpdateTest.java
+@@ -6,7 +6,7 @@
+ 
+ import java.io.Reader;
+ import java.io.StringReader;
+-import java.util.Arrays;
++import java.util.Collections;
+ import java.util.TreeSet;
+ 
+ import javax.xml.bind.JAXB;
+@@ -36,7 +36,7 @@ public void testGetSetOnConsistency() {
+     @Test
+     public void testFetchOnDefaultOwner() {
+         GroupUpdate group = GroupUpdate.create();
+-        group.setTitles(new TreeSet<>(Arrays.asList(new TitleUpdate("title", TextualType.MAIN))));
++        group.setTitles(new TreeSet<>(Collections.singletonList(new TitleUpdate("title", TextualType.MAIN))));
+ 
+         Group result = group.fetch();
+ 
+@@ -60,6 +60,7 @@ public void testGetType() {
+ 
+         String expected = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n" +
+                 "<group ordered=\"true\" type=\"SEASON\" embeddable=\"true\" xmlns=\"urn:vpro:media:update:2009\" xmlns:shared=\"urn:vpro:shared:2009\" xmlns:media=\"urn:vpro:media:2009\">\n" +
++                "    <credits/>\n" +
+                 "    <locations/>\n" +
+                 "    <images/>\n" +
+                 "</group>\n";
+@@ -75,6 +76,7 @@ public void testGetPoSeriesID() {
+ 
+         String expected = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n" +
+                 "<group ordered=\"true\" embeddable=\"true\" mid=\"VPWON_333\" xmlns=\"urn:vpro:media:update:2009\" xmlns:shared=\"urn:vpro:shared:2009\" xmlns:media=\"urn:vpro:media:2009\">\n" +
++                "    <credits/>\n" +
+                 "    <locations/>\n" +
+                 "    <images/>\n" +
+                 "    <poSeriesID>VPWON_333</poSeriesID>\n" +
+diff --git a/media-domain/src/test/java/nl/vpro/domain/media/update/MediaUpdateListTest.java b/media-domain/src/test/java/nl/vpro/domain/media/update/MediaUpdateListTest.java
+index 335f5c74f..f214b8952 100644
+--- a/media-domain/src/test/java/nl/vpro/domain/media/update/MediaUpdateListTest.java
++++ b/media-domain/src/test/java/nl/vpro/domain/media/update/MediaUpdateListTest.java
+@@ -108,6 +108,7 @@ public void mediaUpdateList() throws IOException, SAXException {
+             "        <targetGroups/>\n" +
+             "        <geoLocations/>\n" +
+             "        <topics/>\n" +
++            "        <credits/>\n" +
+             "        <locations/>\n" +
+             "        <scheduleEvents/>\n" +
+             "        <images/>\n" +
+@@ -119,6 +120,7 @@ public void mediaUpdateList() throws IOException, SAXException {
+             "                <targetGroups/>\n" +
+             "                <geoLocations/>\n" +
+             "                <topics/>\n" +
++            "                <credits/>\n" +
+             "                <locations/>\n" +
+             "                <images/>\n" +
+             "                <start>P0DT0H0M0.000S</start>\n" +
+diff --git a/media-domain/src/test/java/nl/vpro/domain/media/update/ProgramUpdateTest.java b/media-domain/src/test/java/nl/vpro/domain/media/update/ProgramUpdateTest.java
+index ceef68f2e..5fb9b44a7 100644
+--- a/media-domain/src/test/java/nl/vpro/domain/media/update/ProgramUpdateTest.java
++++ b/media-domain/src/test/java/nl/vpro/domain/media/update/ProgramUpdateTest.java
+@@ -88,7 +88,6 @@ public void testIsValidForLocations() {
+         assertThat(errors).hasSize(1);
+     }
+ 
+-
+     @Test
+     public void testIsValidForTitles() {
+         ProgramUpdate update = ProgramUpdate.create();
+@@ -148,12 +147,14 @@ public void testFetchForMultiOwnerNullLists() {
+             "    <targetGroups/>\n" +
+             "    <geoLocations/>\n" +
+             "    <topics/>\n" +
++            "    <credits/>\n" +
+             "    <locations/>\n" +
+             "    <scheduleEvents/>\n" +
+             "    <images/>\n" +
+             "    <segments>\n" +
+             "        <segment embeddable=\"true\">\n" +
+             "            <title type=\"MAIN\">title</title>\n" +
++            "            <credits/>\n" +
+             "            <locations/>\n" +
+             "            <images/>\n" +
+             "        </segment>\n" +
+@@ -228,6 +229,7 @@ public void testGetAVType() {
+                 "<program avType=\"MIXED\" embeddable=\"true\" xmlns=\"urn:vpro:media:update:2009\" xmlns:shared=\"urn:vpro:shared:2009\" xmlns:media=\"urn:vpro:media:2009\">\n" +
+                 "    <geoLocations/>\n" +
+                 "    <topics/>\n" +
++                "    <credits/>\n" +
+                 "    <locations/>\n" +
+                 "    <scheduleEvents/>\n" +
+                 "    <images/>\n" +
+@@ -246,6 +248,7 @@ public void testGetEmbeddable() {
+                 "<program embeddable=\"false\" xmlns=\"urn:vpro:media:update:2009\" xmlns:shared=\"urn:vpro:shared:2009\" xmlns:media=\"urn:vpro:media:2009\">\n" +
+                 "    <geoLocations/>\n" +
+                 "    <topics/>\n" +
++                "    <credits/>\n" +
+                 "    <locations/>\n" +
+                 "    <scheduleEvents/>\n" +
+                 "    <images/>\n" +
+@@ -264,6 +267,7 @@ public void testGetPublishStart() {
+                 "<program publishStart=\"1970-01-01T01:00:04.444+01:00\" embeddable=\"true\" xmlns=\"urn:vpro:media:update:2009\">" +
+                 "<geoLocations/>" +
+                 "<topics/>" +
++                "<credits/>" +
+                 "<locations/>" +
+                 "<scheduleEvents/><images/><segments/></program>";
+ 
+@@ -277,7 +281,7 @@ public void testGetPublishStop() {
+ 
+         String expected = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>" +
+                 "<program publishStop=\"1970-01-01T01:00:04.444+01:00\" embeddable=\"true\" xmlns=\"urn:vpro:media:update:2009\">" +
+-                "<geoLocations/><topics/><locations/><scheduleEvents/><images/><segments/></program>";
++                "<geoLocations/><topics/><credits/><locations/><scheduleEvents/><images/><segments/></program>";
+ 
+         JAXBTestUtil.roundTripAndSimilar(update, expected);
+     }
+@@ -302,6 +306,7 @@ public void testGetPublishStopFromMediaObject() {
+                 "<program embeddable=\"true\" xmlns=\"urn:vpro:media:update:2009\" xmlns:shared=\"urn:vpro:shared:2009\" xmlns:media=\"urn:vpro:media:2009\">\n" +
+                 "    <geoLocations/>\n" +
+                 "    <topics/>\n" +
++                "    <credits/>\n" +
+                 "    <locations/>\n" +
+                 "    <scheduleEvents/>\n" +
+                 "    <images>\n" +
+@@ -325,6 +330,7 @@ public void testGetCrids() {
+                 "    <crid>crid://bds.tv/23678459</crid>\n" +
+                 "    <geoLocations/>\n" +
+                 "    <topics/>\n" +
++                "    <credits/>\n" +
+                 "    <locations/>\n" +
+                 "    <scheduleEvents/>\n" +
+                 "    <images/>\n" +
+@@ -344,6 +350,7 @@ public void testGetBroadcasters() {
+                 "    <broadcaster>MAX</broadcaster>\n" +
+                 "    <geoLocations/>\n" +
+                 "    <topics/>\n" +
++                "    <credits/>\n" +
+                 "    <locations/>\n" +
+                 "    <scheduleEvents/>\n" +
+                 "    <images/>\n" +
+@@ -374,6 +381,7 @@ public void testGetPortalRestrictions() {
+             "    <exclusive start=\"1970-01-01T01:00:00+01:00\" stop=\"1970-01-01T01:16:40+01:00\">STERREN24</exclusive>\n" +
+             "    <geoLocations/>\n" +
+             "    <topics/>\n" +
++            "    <credits/>\n" +
+             "    <locations/>\n" +
+                 "    <scheduleEvents/>\n" +
+             "    <images/>\n" +
+@@ -397,6 +405,7 @@ public void testGetGeoRestrictions() {
+                 "    <region platform=\"INTERNETVOD\">BENELUX</region>\n" +
+                 "    <geoLocations/>\n" +
+                 "    <topics/>\n" +
++                "    <credits/>\n" +
+                 "    <locations/>\n" +
+                 "    <scheduleEvents/>\n" +
+                 "    <images/>\n" +
+@@ -426,6 +435,7 @@ public void testGetTitles() {
+                  "    <title type=\"MAIN\">Hoofdtitel</title>\n" +
+                  "    <geoLocations/>\n" +
+                  "    <topics/>\n" +
++                 "    <credits/>\n" +
+                  "    <locations/>\n" +
+                  "    <scheduleEvents/>\n" +
+                  "    <images/>\n" +
+@@ -454,6 +464,7 @@ public void testGetTitlesWitOwner() {
+             "    <targetGroups/>\n" +
+             "    <geoLocations/>\n" +
+             "    <topics/>\n" +
++            "    <credits/>\n" +
+             "    <locations/>\n" +
+             "    <scheduleEvents/>\n" +
+             "    <images/>\n" +
+@@ -476,6 +487,7 @@ public void testGetDescriptions() {
+                 "    <description type=\"MAIN\">Beschrijving</description>\n" +
+                 "    <geoLocations/>\n" +
+                 "    <topics/>\n" +
++                "    <credits/>\n" +
+                 "    <locations/>\n" +
+                 "    <scheduleEvents/>\n" +
+                 "    <images/>\n" +
+@@ -504,6 +516,7 @@ public void testGetAVAttributes() {
+             "            <coding>AAC</coding>\n" +
+             "        </audioAttributes>\n" +
+             "    </avAttributes>\n" +
++            "    <credits/>\n" +
+             "    <locations/>\n" +
+             "    <scheduleEvents/>\n" +
+             "    <images/>\n" +
+@@ -519,7 +532,7 @@ public void testGetDuration() {
+ 
+         String expected = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>" +
+                 "<program embeddable=\"true\" xmlns=\"urn:vpro:media:update:2009\">" +
+-                "<geoLocations/><topics/><duration>P0DT0H10M56.565S</duration><locations/><scheduleEvents/><images/><segments/></program>";
++                "<geoLocations/><topics/><duration>P0DT0H10M56.565S</duration><credits/><locations/><scheduleEvents/><images/><segments/></program>";
+ 
+         JAXBTestUtil.roundTripAndSimilar(update, expected);
+     }
+@@ -531,7 +544,7 @@ public void testGetDuration2() {
+ 
+         String expected = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>" +
+                 "<program embeddable=\"true\" xmlns=\"urn:vpro:media:update:2009\">" +
+-                "<geoLocations/><topics/><duration>P0DT3H46M0.000S</duration><locations/><scheduleEvents/><images/><segments/></program>";
++                "<geoLocations/><topics/><duration>P0DT3H46M0.000S</duration><credits/><locations/><scheduleEvents/><images/><segments/></program>";
+         JAXBTestUtil.roundTripAndSimilar(update, expected);
+     }
+ 
+@@ -543,7 +556,7 @@ public void testGetMemberOf() {
+ 
+         String expected = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>" +
+                 "<program embeddable=\"true\" xmlns=\"urn:vpro:media:update:2009\">" +
+-                "<geoLocations/><topics/><memberOf highlighted=\"false\" position=\"20\">urn:vpro:media:group:864</memberOf><locations/><scheduleEvents/><images/><segments/></program>";
++                "<geoLocations/><topics/><credits/><memberOf highlighted=\"false\" position=\"20\">urn:vpro:media:group:864</memberOf><locations/><scheduleEvents/><images/><segments/></program>";
+ 
+         ProgramUpdate rounded = JAXBTestUtil.roundTripAndSimilar(update, expected);
+         assertThat(rounded.fetch().getMemberOf()).hasSize(1);
+@@ -573,7 +586,7 @@ public void testGetEmail() {
+ 
+         String expected = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>" +
+                 "<program embeddable=\"true\" xmlns=\"urn:vpro:media:update:2009\">" +
+-                "<geoLocations/><topics/><email>info@vpro.nl</email><locations/><scheduleEvents/><images/><segments/></program>";
++                "<geoLocations/><topics/><credits/><email>info@vpro.nl</email><locations/><scheduleEvents/><images/><segments/></program>";
+ 
+         JAXBTestUtil.roundTripAndSimilar(update, expected);
+     }
+@@ -585,7 +598,7 @@ public void testGetWebsites() {
+ 
+         String expected = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>" +
+                 "<program embeddable=\"true\" xmlns=\"urn:vpro:media:update:2009\" xmlns:shared=\"urn:vpro:shared:2009\" xmlns:media=\"urn:vpro:media:2009\">" +
+-                "<geoLocations/><topics/><website>www.vpro.nl</website><locations/><scheduleEvents/><images/><segments/></program>";
++                "<geoLocations/><topics/><credits/><website>www.vpro.nl</website><locations/><scheduleEvents/><images/><segments/></program>";
+ 
+         ProgramUpdate found = JAXBTestUtil.roundTripAndSimilar(update, expected);
+         found.getWebsites().add("http://www.npo.nl");
+@@ -607,6 +620,7 @@ public void testGetLocations() {
+             "<program embeddable=\"true\" xmlns=\"urn:vpro:media:update:2009\" xmlns:shared=\"urn:vpro:shared:2009\" xmlns:media=\"urn:vpro:media:2009\">\n" + "    " +
+             "<geoLocations/>\n" +
+             "<topics/>\n" +
++            "<credits/>\n" +
+             "<locations>\n" +
+             "        <location>\n" +
+             "            <programUrl>rtsp:someurl</programUrl>\n" +
+@@ -631,7 +645,7 @@ public void testGetLocations() {
+     @Test
+     public void testGetPerson() {
+         ProgramUpdate update = programUpdate();
+-        update.setPersons(Collections.singletonList(new PersonUpdate("Pietje", "Puk", RoleType.DIRECTOR)));
++        update.setCredits(Collections.singletonList(new PersonUpdate("Pietje", "Puk", RoleType.DIRECTOR)));
+ 
+         String expected = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>" +
+                 "<program embeddable=\"true\" xmlns=\"urn:vpro:media:update:2009\">" +
+@@ -657,6 +671,7 @@ public void testGetScheduleEvent() {
+         String expected = "<program embeddable=\"true\" xmlns=\"urn:vpro:media:update:2009\" xmlns:shared=\"urn:vpro:shared:2009\" xmlns:media=\"urn:vpro:media:2009\">\n" +
+             "    <geoLocations/>\n" +
+             "    <topics/>\n" +
++            "    <credits/>\n" +
+             "    <locations/>\n" +
+             "    <scheduleEvents>\n" +
+             "        <scheduleEvent channel=\"RAD5\">\n" +
+@@ -686,6 +701,7 @@ public void testGetScheduleEventWithTexts() {
+         String expected = "<program embeddable=\"true\" xmlns=\"urn:vpro:media:update:2009\" xmlns:shared=\"urn:vpro:shared:2009\" xmlns:media=\"urn:vpro:media:2009\">\n" +
+             "    <geoLocations/>\n" +
+             "    <topics/>\n" +
++            "    <credits/>\n" +
+             "    <locations/>\n" +
+             "    <scheduleEvents>\n" +
+             "        <scheduleEvent channel=\"RAD5\">\n" +
+@@ -718,7 +734,7 @@ public void testGetRelations() {
+ 
+         String expected = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>" +
+                 "<program embeddable=\"true\" xmlns=\"urn:vpro:media:update:2009\">" +
+-                "<geoLocations/><topics/><locations/><scheduleEvents/><relation uriRef=\"http://3voor12.vpro.nl/artists/444555\" broadcaster=\"VPRO\" type=\"ARTIST\">Radiohead</relation><images/><segments/></program>";
++                "<geoLocations/><topics/><credits/><locations/><scheduleEvents/><relation uriRef=\"http://3voor12.vpro.nl/artists/444555\" broadcaster=\"VPRO\" type=\"ARTIST\">Radiohead</relation><images/><segments/></program>";
+ 
+         JAXBTestUtil.roundTripAndSimilar(update, expected);
+     }
+@@ -758,6 +774,7 @@ public void testGetImages() {
+             "<program xmlns=\"urn:vpro:media:update:2009\" embeddable=\"true\">\n" +
+             "  <geoLocations/>\n" +
+             "  <topics/>\n" +
++            "  <credits/>\n" +
+             "  <locations/>\n" +
+             "  <scheduleEvents/>\n" +
+             "  <images>\n" +
+@@ -782,7 +799,7 @@ public void testGetEpisodeOf() {
+ 
+         String expected = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>" +
+                 "<program embeddable=\"true\" xmlns=\"urn:vpro:media:update:2009\">" +
+-                "<geoLocations/><topics/><locations/><scheduleEvents/><images/><episodeOf highlighted=\"false\" position=\"20\">urn:vpro:media:group:864</episodeOf><segments/></program>";
++                "<geoLocations/><topics/><credits/><locations/><scheduleEvents/><images/><episodeOf highlighted=\"false\" position=\"20\">urn:vpro:media:group:864</episodeOf><segments/></program>";
+ 
+         JAXBTestUtil.roundTripAndSimilar(update, expected);
+     }
+@@ -809,6 +826,7 @@ public void testGetSegments() {
+             "<program embeddable=\"true\" version=\"5.12\" xmlns=\"urn:vpro:media:update:2009\" xmlns:shared=\"urn:vpro:shared:2009\" xmlns:media=\"urn:vpro:media:2009\">\n" +
+             "    <geoLocations/>\n" +
+             "    <topics/>\n" +
++            "    <credits/>\n" +
+             "    <locations/>\n" +
+             "    <scheduleEvents/>\n" +
+             "    <images/>\n" +
+@@ -819,6 +837,7 @@ public void testGetSegments() {
+             "            <geoLocations/>\n" +
+             "            <topics/>\n" +
+             "            <duration>P0DT0H0M0.100S</duration>\n" +
++            "            <credits/>\n" +
+             "            <locations/>\n" +
+             "            <images/>\n" +
+             "            <start>P0DT0H0M5.555S</start>\n" +
+@@ -841,6 +860,7 @@ public void testPortal() {
+                 "    <portal>STERREN24</portal>\n" +
+                 "    <geoLocations/>\n" +
+                 "    <topics/>\n" +
++                "    <credits/>\n" +
+                 "    <locations/>\n" +
+                 "    <scheduleEvents/>\n" +
+                 "    <images/>\n" +
+@@ -865,6 +885,7 @@ public void testAgeRating() {
+             "<program embeddable=\"true\" version=\"5.5\" xmlns=\"urn:vpro:media:update:2009\" xmlns:shared=\"urn:vpro:shared:2009\" xmlns:media=\"urn:vpro:media:2009\">\n" +
+                     "    <geoLocations/>\n" +
+                     "    <topics/>\n" +
++                    "    <credits/>\n" +
+                     "    <ageRating>6</ageRating>\n" +
+                     "    <locations/>\n" +
+                     "    <scheduleEvents/>\n" +
+@@ -885,6 +906,7 @@ public void testContentRating() {
+                 "<program embeddable=\"true\" xmlns=\"urn:vpro:media:update:2009\" xmlns:shared=\"urn:vpro:shared:2009\" xmlns:media=\"urn:vpro:media:2009\">\n" +
+                 "    <geoLocations/>\n" +
+                 "    <topics/>\n" +
++                "    <credits/>\n" +
+                 "    <contentRating>ANGST</contentRating>\n" +
+                 "    <contentRating>DRUGS_EN_ALCOHOL</contentRating>\n" +
+                 "    <locations/>\n" +
+@@ -908,6 +930,7 @@ public void testGetTags() {
+                 "    <tag>foo</tag>\n" +
+                 "    <geoLocations/>\n" +
+                 "    <topics/>\n" +
++                "    <credits/>\n" +
+                 "    <locations/>\n" +
+                 "    <scheduleEvents/>\n" +
+                 "    <images/>\n" +
+@@ -943,6 +966,7 @@ public void testWithPredictions() {
+             "<program embeddable=\"true\" xmlns=\"urn:vpro:media:update:2009\" xmlns:shared=\"urn:vpro:shared:2009\" xmlns:media=\"urn:vpro:media:2009\">\n" +
+             "    <geoLocations/>\n" +
+             "    <topics/>\n" +
++            "    <credits/>\n" +
+             "    <prediction>INTERNETVOD</prediction>\n" +
+             "    <locations/>\n" +
+             "    <scheduleEvents/>\n" +
+@@ -967,6 +991,7 @@ public void testWithPredictionsViaBuilder() {
+         ProgramUpdate rounded = JAXBTestUtil.roundTripAndSimilar(update, "<program embeddable=\"true\" xmlns=\"urn:vpro:media:update:2009\" xmlns:shared=\"urn:vpro:shared:2009\" xmlns:media=\"urn:vpro:media:2009\">\n" +
+             "    <geoLocations/>\n" +
+             "    <topics/>\n" +
++            "    <credits/>\n" +
+             "    <prediction>TVVOD</prediction>\n" +
+             "    <locations/>\n" +
+             "    <scheduleEvents/>\n" +
+@@ -1060,6 +1085,7 @@ public void testCountriesAndLanguages() {
+                 "    <language>nl</language>\n" +
+                 "    <geoLocations/>\n" +
+                 "    <topics/>\n" +
++                "    <credits/>\n" +
+                 "    <locations/>\n" +
+                 "    <scheduleEvents/>\n" +
+                 "    <images/>\n" +
+diff --git a/media-domain/src/test/java/nl/vpro/domain/media/update/SegmentUpdateTest.java b/media-domain/src/test/java/nl/vpro/domain/media/update/SegmentUpdateTest.java
+index b687ea905..078a7c951 100644
+--- a/media-domain/src/test/java/nl/vpro/domain/media/update/SegmentUpdateTest.java
++++ b/media-domain/src/test/java/nl/vpro/domain/media/update/SegmentUpdateTest.java
+@@ -28,7 +28,7 @@ public void testCreate() {
+ 
+         String expected = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>" +
+                 "<segment embeddable=\"true\" xmlns=\"urn:vpro:media:update:2009\">" +
+-                "<locations/><images/><start>P0DT0H0M0.100S</start></segment>";
++                "<credits/><locations/><images/><start>P0DT0H0M0.100S</start></segment>";
+ 
+         JAXBTestUtil.roundTripAndSimilar(update, expected);
+     }
+diff --git a/media-domain/src/test/resources/schema/urn:vpro:media:update:2009.xsd b/media-domain/src/test/resources/schema/urn:vpro:media:update:2009.xsd
+index 68a61f05a..77bbd1ed3 100644
+--- a/media-domain/src/test/resources/schema/urn:vpro:media:update:2009.xsd
++++ b/media-domain/src/test/resources/schema/urn:vpro:media:update:2009.xsd
+@@ -28,6 +28,8 @@
+ 
+   <xs:element name="move" type="moveActionType"/>
+ 
++  <xs:element name="name" type="nameUpdateType"/>
++
+   <xs:element name="person" type="personUpdateType"/>
+ 
+   <xs:element name="prediction" type="predictionUpdateType"/>
+@@ -98,7 +100,10 @@
+       <xs:element name="credits" minOccurs="0">
+         <xs:complexType>
+           <xs:sequence>
+-            <xs:element ref="person" minOccurs="0" maxOccurs="unbounded"/>
++            <xs:choice minOccurs="0" maxOccurs="unbounded">
++              <xs:element ref="person"/>
++              <xs:element ref="name"/>
++            </xs:choice>
+           </xs:sequence>
+         </xs:complexType>
+       </xs:element>
+@@ -226,13 +231,31 @@
+   </xs:complexType>
+ 
+   <xs:complexType name="personUpdateType">
+-    <xs:sequence>
+-      <xs:element name="givenName" type="xs:string" minOccurs="0"/>
+-      <xs:element name="familyName" type="xs:string" minOccurs="0"/>
+-    </xs:sequence>
++    <xs:complexContent>
++      <xs:extension base="creditsUpdate">
++        <xs:sequence>
++          <xs:element name="givenName" type="xs:string" minOccurs="0"/>
++          <xs:element name="familyName" type="xs:string" minOccurs="0"/>
++        </xs:sequence>
++        <xs:attribute name="gtaaUri" type="xs:string"/>
++      </xs:extension>
++    </xs:complexContent>
++  </xs:complexType>
++
++  <xs:complexType name="creditsUpdate" abstract="true">
++    <xs:sequence/>
+     <xs:attribute name="role" type="media:roleType" use="required"/>
+   </xs:complexType>
+ 
++  <xs:complexType name="nameUpdateType">
++    <xs:complexContent>
++      <xs:extension base="creditsUpdate">
++        <xs:sequence/>
++        <xs:attribute name="gtaaUri" type="xs:string" use="required"/>
++      </xs:extension>
++    </xs:complexContent>
++  </xs:complexType>
++
+   <xs:complexType name="memberRefUpdateType">
+     <xs:simpleContent>
+       <xs:extension base="xs:string">
+@@ -408,7 +431,10 @@
+       <xs:element name="credits" minOccurs="0">
+         <xs:complexType>
+           <xs:sequence>
+-            <xs:element ref="person" minOccurs="0" maxOccurs="unbounded"/>
++            <xs:choice minOccurs="0" maxOccurs="unbounded">
++              <xs:element ref="person"/>
++              <xs:element ref="name"/>
++            </xs:choice>
+           </xs:sequence>
+         </xs:complexType>
+       </xs:element>
+@@ -496,7 +522,10 @@
+       <xs:element name="credits" minOccurs="0">
+         <xs:complexType>
+           <xs:sequence>
+-            <xs:element ref="person" minOccurs="0" maxOccurs="unbounded"/>
++            <xs:choice minOccurs="0" maxOccurs="unbounded">
++              <xs:element ref="person"/>
++              <xs:element ref="name"/>
++            </xs:choice>
+           </xs:sequence>
+         </xs:complexType>
+       </xs:element>
+diff --git a/media-nep/src/main/java/nl/vpro/nep/service/NEPDownloadService.java b/media-nep/src/main/java/nl/vpro/nep/service/NEPDownloadService.java
+index 30a0f9672..7e27b2e33 100644
+--- a/media-nep/src/main/java/nl/vpro/nep/service/NEPDownloadService.java
++++ b/media-nep/src/main/java/nl/vpro/nep/service/NEPDownloadService.java
+@@ -15,7 +15,7 @@
+     /**
+      * Wait until the given file is available on the NEP download ftp server, then copy it to the given outputStream.
+      *
+-     * Before that, you the descriptorConsumer will be called. It if return false, the copying will not happen
++     * Before that, the descriptorConsumer will be called. If it returns false, the copying will not happen
+      *
+      * @throws IllegalStateException If the file didn't appear in time
+      * @param descriptorConsumer If the file is found, and this is not <code>null</code> it's descriptor will be fed to this function
+@@ -43,11 +43,11 @@ default void download(
+          */
+         TRUE,
+         /**
+-         * The file is not ok, it may be to old or different than expected. Wait a bit and retry this.
++         * The file is not ok, it may be too old or different than expected. Wait a bit and retry this.
+          */
+         RETRY,
+         /**
+-         * The file is not ok, it may be to old or different than expected. There is no point in waiting.
++         * The file is not ok, it may be too old or different than expected. There is no point in waiting.
+          */
+         FALSE
+     }
+diff --git a/media-test/src/test/resources/program-from-update-with-everything.xml b/media-test/src/test/resources/program-from-update-with-everything.xml
+index 4f01b4371..f0308a79f 100644
+--- a/media-test/src/test/resources/program-from-update-with-everything.xml
++++ b/media-test/src/test/resources/program-from-update-with-everything.xml
+@@ -57,10 +57,7 @@
+     <releaseYear>2004</releaseYear>
+     <duration>P0DT2H0M0.000S</duration>
+     <credits>
+-        <person role="DIRECTOR">
+-            <givenName>Bregtje</givenName>
+-            <familyName>van der Haak</familyName>
+-        </person>
++        <person gtaaUri="http://gtaa/1234" role="DIRECTOR"/>
+         <person role="PRESENTER">
+             <givenName>Hans</givenName>
+             <familyName>Goedkoop</familyName>
+@@ -73,10 +70,8 @@
+             <givenName>Claire</givenName>
+             <familyName>Holt</familyName>
+         </person>
+-        <person role="SUBJECT">
+-            <givenName>Rutte,</givenName>
+-            <familyName>Mark</familyName>
+-        </person>
++        <name gtaaUri="http://data.beeldengeluid.nl/gtaa/51771" role="COMPOSER"/>
++        <person gtaaUri="http://data.beeldengeluid.nl/gtaa/149017" role="SUBJECT"/>
+     </credits>
+     <descendantOf midRef="VPROWON_20003"/>
+     <memberOf highlighted="false" midRef="VPROWON_20003" index="1"/>
+@@ -229,10 +224,7 @@
+             <releaseYear>2004</releaseYear>
+             <duration>P0DT0H1M40.000S</duration>
+             <credits>
+-                <person role="DIRECTOR">
+-                    <givenName>Bregtje</givenName>
+-                    <familyName>van der Haak</familyName>
+-                </person>
++                <person gtaaUri="http://gtaa/1234" role="DIRECTOR"/>
+                 <person role="PRESENTER">
+                     <givenName>Hans</givenName>
+                     <familyName>Goedkoop</familyName>
+@@ -245,10 +237,8 @@
+                     <givenName>Claire</givenName>
+                     <familyName>Holt</familyName>
+                 </person>
+-                <person role="SUBJECT">
+-                    <givenName>Rutte,</givenName>
+-                    <familyName>Mark</familyName>
+-                </person>
++                <name gtaaUri="http://data.beeldengeluid.nl/gtaa/51771" role="COMPOSER"/>
++                <person gtaaUri="http://data.beeldengeluid.nl/gtaa/149017" role="SUBJECT"/>
+             </credits>
+             <descendantOf urnRef="urn:vpro:media:program:12" midRef="VPROWON_20001" type="BROADCAST"/>
+             <descendantOf midRef="VPROWON_20008"/>
+diff --git a/media-test/src/test/resources/programupdate-with-everything.xml b/media-test/src/test/resources/programupdate-with-everything.xml
+index d84515f61..9d513edac 100644
+--- a/media-test/src/test/resources/programupdate-with-everything.xml
++++ b/media-test/src/test/resources/programupdate-with-everything.xml
+@@ -51,10 +51,7 @@
+     <releaseYear>2004</releaseYear>
+     <duration>P0DT2H0M0.000S</duration>
+     <credits>
+-        <person role="DIRECTOR">
+-            <givenName>Bregtje</givenName>
+-            <familyName>van der Haak</familyName>
+-        </person>
++        <person gtaaUri="http://gtaa/1234" role="DIRECTOR"/>
+         <person role="PRESENTER">
+             <givenName>Hans</givenName>
+             <familyName>Goedkoop</familyName>
+@@ -67,10 +64,8 @@
+             <givenName>Claire</givenName>
+             <familyName>Holt</familyName>
+         </person>
+-        <person role="SUBJECT">
+-            <givenName>Rutte,</givenName>
+-            <familyName>Mark</familyName>
+-        </person>
++        <name gtaaUri="http://data.beeldengeluid.nl/gtaa/51771" role="COMPOSER"/>
++        <person gtaaUri="http://data.beeldengeluid.nl/gtaa/149017" role="SUBJECT"/>
+     </credits>
+     <memberOf position="1" highlighted="false">VPROWON_20003</memberOf>
+     <ageRating>12</ageRating>
+@@ -213,10 +208,7 @@
+             <releaseYear>2004</releaseYear>
+             <duration>P0DT0H1M40.000S</duration>
+             <credits>
+-                <person role="DIRECTOR">
+-                    <givenName>Bregtje</givenName>
+-                    <familyName>van der Haak</familyName>
+-                </person>
++                <person gtaaUri="http://gtaa/1234" role="DIRECTOR"/>
+                 <person role="PRESENTER">
+                     <givenName>Hans</givenName>
+                     <familyName>Goedkoop</familyName>
+@@ -229,10 +221,8 @@
+                     <givenName>Claire</givenName>
+                     <familyName>Holt</familyName>
+                 </person>
+-                <person role="SUBJECT">
+-                    <givenName>Rutte,</givenName>
+-                    <familyName>Mark</familyName>
+-                </person>
++                <name gtaaUri="http://data.beeldengeluid.nl/gtaa/51771" role="COMPOSER"/>
++                <person gtaaUri="http://data.beeldengeluid.nl/gtaa/149017" role="SUBJECT"/>
+             </credits>
+             <memberOf position="1" highlighted="false">VPROWON_20008</memberOf>
+             <ageRating>12</ageRating>

@@ -1,0 +1,9 @@
+@@ -71,7 +71,7 @@ public CreateChFicheDto setCompetences(Set<Competence> competences) {
+         return requirementIds;
+     }
+ 
+-    public CreateChFicheDto setRequirementIds(final Set<RequirementId> requirementIds) {
++    public CreateChFicheDto setRequirementIds(Set<RequirementId> requirementIds) {
+         this.requirementIds = requirementIds;
+         return this;
+     }

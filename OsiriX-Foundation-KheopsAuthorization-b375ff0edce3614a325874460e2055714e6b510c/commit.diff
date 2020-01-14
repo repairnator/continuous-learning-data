@@ -1,0 +1,131 @@
+diff --git a/src/main/java/online/kheops/auth_server/principal/AlbumCapabilityPrincipal.java b/src/main/java/online/kheops/auth_server/principal/AlbumCapabilityPrincipal.java
+index ed159b4d..acfbe825 100644
+--- a/src/main/java/online/kheops/auth_server/principal/AlbumCapabilityPrincipal.java
++++ b/src/main/java/online/kheops/auth_server/principal/AlbumCapabilityPrincipal.java
+@@ -39,7 +39,7 @@ public AlbumCapabilityPrincipal(Capability capability, User user, String origina
+         kheopsLogBuilder = new KheopsLogBuilder()
+                 .provenance(this)
+                 .user(user.getKeycloakId())
+-                .scope(capability.getScopeType())
++                .albumScope(capability.getAlbum().getId())
+                 .tokenType(getTokenType());
+     }
+ 
+diff --git a/src/main/java/online/kheops/auth_server/principal/UserCapabilityPrincipal.java b/src/main/java/online/kheops/auth_server/principal/UserCapabilityPrincipal.java
+index c78564de..475f6c68 100644
+--- a/src/main/java/online/kheops/auth_server/principal/UserCapabilityPrincipal.java
++++ b/src/main/java/online/kheops/auth_server/principal/UserCapabilityPrincipal.java
+@@ -41,7 +41,6 @@ public UserCapabilityPrincipal(Capability capability, User user, String original
+         kheopsLogBuilder = new KheopsLogBuilder()
+                 .provenance(this)
+                 .user(user.getKeycloakId())
+-                .scope(capability.getScopeType())
+                 .tokenType(getTokenType());
+     }
+ 
+diff --git a/src/main/java/online/kheops/auth_server/resource/EventResource.java b/src/main/java/online/kheops/auth_server/resource/EventResource.java
+index 25d598c8..222b65b7 100644
+--- a/src/main/java/online/kheops/auth_server/resource/EventResource.java
++++ b/src/main/java/online/kheops/auth_server/resource/EventResource.java
+@@ -70,16 +70,16 @@ public Response getEvents(@SuppressWarnings("RSReferenceInspection") @PathParam(
+ 
+         if (types.contains("comments") && types.contains("mutations")) {
+             pair = Events.getEventsAlbum(kheopsPrincipal.getUser(), albumId, offset, limit);
+-            kheopsLogBuilder.scope("comments_mutations");
++            kheopsLogBuilder.events("comments_mutations");
+         } else if (types.contains("comments")) {
+             pair = Events.getCommentsAlbum(kheopsPrincipal.getUser(), albumId, offset, limit);
+-            kheopsLogBuilder.scope("comments");
++            kheopsLogBuilder.events("comments");
+         } else if (types.contains("mutations")) {
+             pair = Events.getMutationsAlbum(albumId, offset, limit);
+-            kheopsLogBuilder.scope("mutations");
++            kheopsLogBuilder.events("mutations");
+         } else {
+             pair = Events.getEventsAlbum(kheopsPrincipal.getUser(), albumId, offset, limit);
+-            kheopsLogBuilder.scope("comments_mutations");
++            kheopsLogBuilder.events("comments_mutations");
+         }
+ 
+         final GenericEntity<List<EventResponse>> genericEventsResponsesList = new GenericEntity<List<EventResponse>>(pair.getAttributesList()) {};
+diff --git a/src/main/java/online/kheops/auth_server/series/Series.java b/src/main/java/online/kheops/auth_server/series/Series.java
+index 4381b1b3..28c54673 100644
+--- a/src/main/java/online/kheops/auth_server/series/Series.java
++++ b/src/main/java/online/kheops/auth_server/series/Series.java
+@@ -90,19 +90,17 @@ public static void editFavorites(User callingUser, String studyInstanceUID, Stri
+             final Events.MutationType mutation;
+             if (favorite) {
+                 mutation = Events.MutationType.ADD_FAV;
++                kheopsLogBuilder.action(ActionType.ADD_FAVORITE_SERIES);
+             } else {
+                 mutation = Events.MutationType.REMOVE_FAV;
++                kheopsLogBuilder.action(ActionType.REMOVE_FAVORITE_SERIES);
++
+             }
+             final Mutation favSeriesMutation = Events.albumPostSeriesMutation(callingUser, album, mutation, series);
+             em.persist(favSeriesMutation);
+             album.updateLastEventTime();
+             tx.commit();
+ 
+-            if(favorite) {
+-                kheopsLogBuilder.action(ActionType.ADD_FAVORITE_SERIES);
+-            } else {
+-                kheopsLogBuilder.action(ActionType.REMOVE_FAVORITE_SERIES);
+-            }
+             kheopsLogBuilder.series(seriesInstanceUID)
+                     .study(studyInstanceUID)
+                     .log();
+diff --git a/src/main/java/online/kheops/auth_server/study/Studies.java b/src/main/java/online/kheops/auth_server/study/Studies.java
+index e3216840..4eebe6b2 100644
+--- a/src/main/java/online/kheops/auth_server/study/Studies.java
++++ b/src/main/java/online/kheops/auth_server/study/Studies.java
+@@ -503,11 +503,7 @@ public static void editFavorites(User callingUser, String studyInstanceUID, Stri
+ 
+         try {
+             tx.begin();
+-            if(favorite) {
+-                kheopsLogBuilder.action(ActionType.ADD_FAVORITE_STUDY);
+-            } else {
+-                kheopsLogBuilder.action(ActionType.REMOVE_FAVORITE_STUDY);
+-            }
++
+             callingUser = em.merge(callingUser);
+             List<Series> seriesList;
+             final Album album;
+@@ -537,8 +533,10 @@ public static void editFavorites(User callingUser, String studyInstanceUID, Stri
+             final Events.MutationType mutation;
+             if (favorite) {
+                 mutation = Events.MutationType.ADD_FAV;
++                kheopsLogBuilder.action(ActionType.ADD_FAVORITE_STUDY);
+             } else {
+                 mutation = Events.MutationType.REMOVE_FAV;
++                kheopsLogBuilder.action(ActionType.REMOVE_FAVORITE_STUDY);
+             }
+             final Mutation favAlbumMutation = Events.albumPostStudyMutation(callingUser, album, mutation, study);
+             em.persist(favAlbumMutation);
+diff --git a/src/main/java/online/kheops/auth_server/util/KheopsLogBuilder.java b/src/main/java/online/kheops/auth_server/util/KheopsLogBuilder.java
+index 63363891..e5014c6b 100644
+--- a/src/main/java/online/kheops/auth_server/util/KheopsLogBuilder.java
++++ b/src/main/java/online/kheops/auth_server/util/KheopsLogBuilder.java
+@@ -40,6 +40,10 @@ public KheopsLogBuilder scope(String scope) {
+         logEntry.add(new LogEntry("scope", scope));
+         return this;
+     }
++    public KheopsLogBuilder albumScope(String albumId) {
++        logEntry.add(new LogEntry("albumScope", albumId));
++        return this;
++    }
+ 
+     public KheopsLogBuilder clientID(String clientID) {
+         logEntry.add(new LogEntry("clientID", clientID));
+@@ -88,6 +92,10 @@ public KheopsLogBuilder action(ActionType action) {
+         logEntry.add(new LogEntry("action", action.name()));
+         return this;
+     }
++    public KheopsLogBuilder events(String events) {
++        logEntry.add(new LogEntry("events", events));
++        return this;
++    }
+     public KheopsLogBuilder userPermission(UsersPermission usersPermission) {
+         usersPermission.getAddSeries().ifPresent(addSeries -> logEntry.add(new LogEntry("addSeries", addSeries.toString())));
+         usersPermission.getAddUser().ifPresent(addUser -> logEntry.add(new LogEntry("addUser", addUser.toString())));

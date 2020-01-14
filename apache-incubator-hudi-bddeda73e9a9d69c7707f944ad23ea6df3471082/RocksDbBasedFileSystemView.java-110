@@ -1,0 +1,9 @@
+@@ -110,7 +110,7 @@ protected void resetPendingCompactionOperations(Stream<Pair<String, CompactionOp
+   protected void addPendingCompactionOperations(Stream<Pair<String, CompactionOperation>> operations) {
+     rocksDB.writeBatch(batch -> {
+       operations.forEach(opInstantPair -> {
+-        Preconditions.checkArgument(!isPendingCompactionScheduledForFileId(opInstantPair.getValue().getFileGroupId()),
++        ValidationUtils.checkArgument(!isPendingCompactionScheduledForFileId(opInstantPair.getValue().getFileGroupId()),
+             "Duplicate FileGroupId found in pending compaction operations. FgId :"
+                 + opInstantPair.getValue().getFileGroupId());
+         rocksDB.putInBatch(batch, schemaHelper.getColFamilyForPendingCompaction(),

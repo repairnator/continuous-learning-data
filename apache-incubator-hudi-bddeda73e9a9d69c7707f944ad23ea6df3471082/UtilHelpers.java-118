@@ -1,0 +1,9 @@
+@@ -118,7 +118,7 @@ public static TypedProperties buildProperties(List<String> props) {
+     TypedProperties properties = new TypedProperties();
+     props.forEach(x -> {
+       String[] kv = x.split("=");
+-      Preconditions.checkArgument(kv.length == 2);
++      ValidationUtils.checkArgument(kv.length == 2);
+       properties.setProperty(kv[0], kv[1]);
+     });
+     return properties;

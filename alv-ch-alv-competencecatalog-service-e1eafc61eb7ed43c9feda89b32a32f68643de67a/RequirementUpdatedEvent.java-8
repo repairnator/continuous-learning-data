@@ -1,0 +1,9 @@
+@@ -8,7 +8,7 @@
+ 
+     private final ChangeLog changeLog;
+ 
+-    public RequirementUpdatedEvent(final Requirement requirement, final ChangeLog changeLog) {
++    public RequirementUpdatedEvent(Requirement requirement, ChangeLog changeLog) {
+         super(new DomainEventType("RequirementUpdatedEvent"), requirement);
+         this.changeLog = changeLog;
+     }

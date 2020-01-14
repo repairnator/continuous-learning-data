@@ -1,0 +1,9 @@
+@@ -117,7 +117,7 @@ public static String addSessionStateToURL(String url, String sessionState, Strin
+ 
+     /**
+      * Generates a session state using the provided client id, client callback url and browser state cookie id and
+-     * adds the generated value to the url as a query parameter
++     * adds the generated value to the url as a query parameter.
+      *
+      * @param url
+      * @param clientId

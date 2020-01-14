@@ -1,0 +1,9 @@
+@@ -24,7 +24,7 @@ public Boolean getDraft() {
+         return draft;
+     }
+ 
+-    public RequirementSearchRequest setDraft(final Boolean draft) {
++    public RequirementSearchRequest setDraft(Boolean draft) {
+         this.draft = draft;
+         return this;
+     }

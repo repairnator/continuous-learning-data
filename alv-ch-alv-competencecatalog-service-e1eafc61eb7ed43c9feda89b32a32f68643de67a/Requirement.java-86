@@ -1,0 +1,9 @@
+@@ -86,7 +86,7 @@ public TranslatedString getDescription() {
+         return description;
+     }
+ 
+-    public void update(final RequirementUpdater updater) {
++    public void update(RequirementUpdater updater) {
+         Condition.notNull(updater, "Given updater can't be null!");
+         final ChangeLog changeLog = new ChangeLog();
+         if (updater.changedSections.contains(RequirementUpdater.Section.DESCRIPTION)) {

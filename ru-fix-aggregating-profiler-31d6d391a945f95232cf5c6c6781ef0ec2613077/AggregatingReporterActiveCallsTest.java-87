@@ -1,0 +1,9 @@
+@@ -87,7 +87,7 @@ public void hasActiveAndEndedCalls_usesCorrectCallForActiveCallsMaxLatency() thr
+     @Test
+     public void hasEndedCalls_resetsActiveCallsToLimit() throws Exception {
+         Collection<ProfiledCall> longestCalls = new ArrayList<>();
+-        for (int i = 0; i < numberOfActiveCallsToTrackAndKeepBetweenReports; i++) {
++        for (int i = 0; i < numberOfLongestActiveCallsToTrack; i++) {
+             longestCalls.add(profiler.start("Test"));
+         }
+ 

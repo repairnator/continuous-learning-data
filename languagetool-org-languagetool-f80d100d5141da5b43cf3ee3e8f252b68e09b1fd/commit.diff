@@ -1,0 +1,44 @@
+diff --git a/languagetool-language-modules/de/src/main/java/org/languagetool/rules/de/SubjectVerbAgreementRule.java b/languagetool-language-modules/de/src/main/java/org/languagetool/rules/de/SubjectVerbAgreementRule.java
+index d35cd59c2f..542d5486b0 100644
+--- a/languagetool-language-modules/de/src/main/java/org/languagetool/rules/de/SubjectVerbAgreementRule.java
++++ b/languagetool-language-modules/de/src/main/java/org/languagetool/rules/de/SubjectVerbAgreementRule.java
+@@ -95,9 +95,9 @@
+       tokenRegex("ist|war")
+     ),
+     Arrays.asList(
+-      pos(JLanguageTool.SENTENCE_START_TAGNAME),
+-      posRegex("EIG:.*"),
+-      new PatternTokenBuilder().csToken("und").setSkip(2).build(),
++      posRegex(JLanguageTool.SENTENCE_START_TAGNAME+"|KON:UNT"),
++      posRegex("(EIG|SUB):.*"),
++      new PatternTokenBuilder().csToken("und").setSkip(3).build(),
+       tokenRegex("sind|waren")
+     ),
+     Arrays.asList(
+diff --git a/languagetool-language-modules/de/src/main/java/org/languagetool/rules/de/VerbAgreementRule.java b/languagetool-language-modules/de/src/main/java/org/languagetool/rules/de/VerbAgreementRule.java
+index 75fdb7c14b..c73ec410fc 100644
+--- a/languagetool-language-modules/de/src/main/java/org/languagetool/rules/de/VerbAgreementRule.java
++++ b/languagetool-language-modules/de/src/main/java/org/languagetool/rules/de/VerbAgreementRule.java
+@@ -84,7 +84,7 @@
+       token("anstelle")
+     ),
+     Arrays.asList( // "Ok bin ab morgen bei euch." (umgangssprachlich, benötigt eigene Regel)
+-      tokenRegex("ok|okay|ja|nein|vielleiecht|oh"),
++      tokenRegex("ok(ay)?|ja|nein|vielleicht|oh"),
+       tokenRegex("bin|sind")
+     ),
+     Arrays.asList(
+diff --git a/languagetool-language-modules/de/src/test/java/org/languagetool/rules/de/SubjectVerbAgreementRuleTest.java b/languagetool-language-modules/de/src/test/java/org/languagetool/rules/de/SubjectVerbAgreementRuleTest.java
+index c6ba28c651..b32a958488 100644
+--- a/languagetool-language-modules/de/src/test/java/org/languagetool/rules/de/SubjectVerbAgreementRuleTest.java
++++ b/languagetool-language-modules/de/src/test/java/org/languagetool/rules/de/SubjectVerbAgreementRuleTest.java
+@@ -413,7 +413,8 @@ public void testRuleWithCorrectPluralVerb() throws IOException {
+         "Details, Dialoge, wie auch die Typologie der Charaktere sind frei erfunden.",
+         "Die internen Ermittler und auch die Staatsanwaltschaft sind nun am Zug.",
+         "Sie sind so erfolgreich, weil sie eine Einheit sind.",
+-        "Auch Polizisten zu Fuß sind unterwegs."
++        "Auch Polizisten zu Fuß sind unterwegs.",
++        "Julia sagte, dass Vater und Mutter zu Hause sind."
+     );
+     for (String sentence : sentences) {
+       assertGood(sentence);

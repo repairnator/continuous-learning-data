@@ -1,0 +1,9 @@
+@@ -51,7 +51,7 @@
+  *
+  * @author apete
+  */
+-public final class Hardware extends AbstractMachine implements Comparable<Hardware> {
++public final class Hardware extends CommonMachine implements Comparable<Hardware> {
+ 
+     /**
+      * Cache-line size is (typically) 64 bytes

@@ -1,0 +1,9 @@
+@@ -789,7 +789,7 @@ String addProductResourceFile(APIProductIdentifier identifier, String resourcePa
+ 
+     /**
+      * Get open api definition for the product
+-     * @param APIProduct product
++     * @param  product
+      * @return openapidoc
+      * @throws APIManagementException
+      */

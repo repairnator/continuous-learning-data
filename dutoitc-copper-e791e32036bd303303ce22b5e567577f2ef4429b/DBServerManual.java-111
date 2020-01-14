@@ -1,0 +1,9 @@
+@@ -111,7 +111,7 @@ private void createDatabaseIfNeeded() throws SQLException {
+         LOG.info("Database checked");
+     }
+ 
+-    private void fixSnapshots() throws SQLException {
++    private void fixSnapshots() {
+         LOG.info("Checking Database...");
+         try (Connection con = cp.getConnection();
+              Statement stmt = con.createStatement()) {

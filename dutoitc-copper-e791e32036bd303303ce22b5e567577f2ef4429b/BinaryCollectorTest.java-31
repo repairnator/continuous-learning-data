@@ -1,0 +1,9 @@
+@@ -31,7 +31,7 @@ public void testCheckByPathOnInexistant() throws ConnectorException {
+     }
+ 
+     @Test
+-    public void testCheckByPathOnExistant() throws ConnectorException, IOException {
++    public void testCheckByPathOnExistant() throws IOException {
+         File f = File.createTempFile("dummy","tmp");
+         f.deleteOnExit();
+         BinaryCollectorWrapper collector = BinaryCollectorWrapper.buildCollector(storyGrammar,

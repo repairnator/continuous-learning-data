@@ -1,0 +1,9 @@
+@@ -7,7 +7,7 @@
+ 
+     private final Requirement requirement;
+ 
+-    public RequirementPublishedEvent(final Requirement requirement) {
++    public RequirementPublishedEvent(Requirement requirement) {
+         super(new DomainEventType("RequirementPublishedEvent"), requirement);
+         this.requirement = requirement;
+     }

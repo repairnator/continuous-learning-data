@@ -1,0 +1,9 @@
+@@ -158,7 +158,7 @@ void createUom() {
+         // given
+ 
+         // when
+-        when(uomRepository.save(any())).thenReturn(uom);
++        when(uomRepository.saveAndFlush(any())).thenReturn(uom);
+         UOMResponse response = uomService.createUom(uomRequest);
+ 
+         // then

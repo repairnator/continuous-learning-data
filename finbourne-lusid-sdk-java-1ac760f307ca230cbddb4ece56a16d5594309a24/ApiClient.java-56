@@ -1,0 +1,9 @@
+@@ -56,7 +56,7 @@
+ 
+ public class ApiClient {
+ 
+-    private String basePath = "http://localhost/api";
++    private String basePath = "http://localhost";
+     private boolean debugging = false;
+     private Map<String, String> defaultHeaderMap = new HashMap<String, String>();
+     private String tempFolderPath = null;

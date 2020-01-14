@@ -1,0 +1,9 @@
+@@ -20,7 +20,7 @@
+ 
+ @Provider
+ public class UnknownUrlExceptionMapper implements ResponseExceptionMapper<UnknownUrlException> {
+-  
++
+   Logger LOG = Logger.getLogger(UnknownUrlExceptionMapper.class.getName());
+ 
+   @Override

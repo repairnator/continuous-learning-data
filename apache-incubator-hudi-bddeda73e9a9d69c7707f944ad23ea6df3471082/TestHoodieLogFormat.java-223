@@ -1,0 +1,9 @@
+@@ -223,7 +223,7 @@ private void testConcurrentAppend(boolean logFileExists, boolean newLogFileForma
+     HoodieLogFile logFile1 = writer.getLogFile();
+     HoodieLogFile logFile2 = writer2.getLogFile();
+     List<IndexedRecord> records = SchemaTestUtil.generateTestRecords(0, 100);
+-    Map<HoodieLogBlock.HeaderMetadataType, String> header = Maps.newHashMap();
++    Map<HoodieLogBlock.HeaderMetadataType, String> header = new HashMap<>();
+     header.put(HoodieLogBlock.HeaderMetadataType.INSTANT_TIME, "100");
+     header.put(HoodieLogBlock.HeaderMetadataType.SCHEMA, getSimpleSchema().toString());
+     HoodieAvroDataBlock dataBlock = new HoodieAvroDataBlock(records, header);

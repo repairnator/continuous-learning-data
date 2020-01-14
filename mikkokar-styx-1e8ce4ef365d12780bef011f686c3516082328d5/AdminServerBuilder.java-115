@@ -1,0 +1,9 @@
+@@ -115,7 +115,7 @@ public AdminServerBuilder backendServicesRegistry(Registry<BackendService> backe
+         return this;
+     }
+ 
+-    public HttpServer build() {
++    public InetServer build() {
+         LOG.info("event bus that will be used is {}", environment.eventBus());
+         StyxConfig styxConfig = environment.configuration();
+         AdminServerConfig adminServerConfig = styxConfig.adminServerConfig();
