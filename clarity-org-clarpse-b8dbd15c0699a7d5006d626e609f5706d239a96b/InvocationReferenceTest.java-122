@@ -1,0 +1,9 @@
+@@ -122,7 +122,7 @@ public void testMethodInheritsLocalVarsInvocations() throws Exception {
+         final ClarpseProject parseService = new ClarpseProject(rawData);
+         final OOPSourceCodeModel generatedSourceModel = parseService.result();
+         assertTrue(
+-                ((ComponentInvocation) generatedSourceModel.getComponent("Test.aMethod()").get().invocations().toArray()[0])
++                ((ComponentReference) generatedSourceModel.getComponent("Test.aMethod()").get().references().toArray()[0])
+                         .invokedComponent().equals("java.lang.String"));
+     }
+ 

@@ -1,0 +1,9 @@
+@@ -70,7 +70,7 @@ public void setApiClient(ApiClient apiClient) {
+ 
+     @SuppressWarnings("rawtypes")
+     private okhttp3.Call getOutagesValidateBeforeCall(final ApiCallback _callback) throws ApiException {
+-        
++
+ 
+         return getOutagesCall(_callback);
+     }

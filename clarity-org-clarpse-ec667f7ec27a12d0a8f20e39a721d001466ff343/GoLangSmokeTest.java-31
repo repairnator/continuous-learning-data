@@ -1,0 +1,9 @@
+@@ -31,7 +31,7 @@ public void spotCheckIntefacev2() {
+     @Test
+     public void spotCheckStructImplementsInterface() {
+         assertTrue(generatedSourceModel.getComponent("pilot.platform.eureka.serviceAccounts")
+-                .get().componentInvocations(ComponentInvocations.IMPLEMENTATION).get(0).invokedComponent()
++                .get().references(TypeReferences.IMPLEMENTATION).get(0).invokedComponent()
+                 .equals("pilot.model.ServiceAccounts"));
+     }
+ 

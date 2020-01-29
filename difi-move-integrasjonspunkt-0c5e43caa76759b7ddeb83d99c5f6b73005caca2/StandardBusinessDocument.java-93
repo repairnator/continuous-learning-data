@@ -1,0 +1,9 @@
+@@ -93,7 +93,7 @@
+     @InstanceOf(value = PubliseringMessage.class, groups = ValidationGroups.DocumentType.Publisering.class)
+     @ApiModelProperty(
+             value = "The business message. Please note that the property name is not 'any'. "
+-                    + "It is one of the following: arkivmelding, beta, digital, digital_dpv, print, innsynskrav or publisering.",
++                    + "It is one of the following: arkivmelding, avtalt, digital, digital_dpv, print, innsynskrav or publisering.",
+             dataType = "no.difi.meldingsutveksling.nextmove.BusinessMessage",
+             required = true
+     )

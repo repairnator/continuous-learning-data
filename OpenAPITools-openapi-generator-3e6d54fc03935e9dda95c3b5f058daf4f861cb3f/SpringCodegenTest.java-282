@@ -1,0 +1,9 @@
+@@ -282,7 +282,7 @@ public void testMultipartBoot() throws IOException {
+         final String multipartArrayApi = files.get("/src/main/java/org/openapitools/api/MultipartArrayApi.java");
+         Assert.assertTrue(multipartArrayApi.contains("List<MultipartFile> files"));
+         Assert.assertTrue(multipartArrayApi.contains("@ApiParam(value = \"Many files\")"));
+-        Assert.assertTrue(multipartArrayApi.contains("@RequestPart(\"files\")"));
++        Assert.assertTrue(multipartArrayApi.contains("@RequestPart(value = \"files\")"));
+ 
+         // Check that the delegate handles the single file
+         final String multipartSingleApiDelegate = files.get("/src/main/java/org/openapitools/api/MultipartSingleApiDelegate.java");

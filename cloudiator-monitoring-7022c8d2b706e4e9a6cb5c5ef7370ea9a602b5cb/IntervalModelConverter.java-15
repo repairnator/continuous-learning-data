@@ -1,0 +1,9 @@
+@@ -15,7 +15,7 @@ public Interval apply(@Nullable IntervalModel intervalModel) {
+       return null;
+     }
+     Interval interval = new Interval()
+-        .unit(UnitEnum.valueOf(intervalModel.getUnit().name()))
++        .unit(TimeUnit.valueOf(intervalModel.getUnit().name()))
+         .period(intervalModel.getPeriod());
+     return interval;
+   }

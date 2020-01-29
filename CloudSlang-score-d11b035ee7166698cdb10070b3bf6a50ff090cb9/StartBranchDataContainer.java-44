@@ -1,0 +1,9 @@
+@@ -44,7 +44,7 @@ public StartBranchDataContainer(Long startPosition, Long executionPlanId, Map<St
+         this.startPosition = startPosition;
+         this.executionPlanId = executionPlanId;
+         this.systemContext = new SystemContext(systemContext);
+-        this.contexts = new HashMap<>();
++        this.contexts = new UnifiedMap<>();
+ 
+         for (String name : contexts.keySet()) {
+             this.contexts.put(name, contexts.get(name));

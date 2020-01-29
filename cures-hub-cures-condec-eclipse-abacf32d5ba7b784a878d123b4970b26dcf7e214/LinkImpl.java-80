@@ -1,0 +1,9 @@
+@@ -80,7 +80,7 @@ public Node getTargetNode() {
+ 	public void setTargetNode(Node target) {
+ 		this.targetNode = target;
+ 		if (targetNode != null) {
+-			targetId = targetNode.toString();
++			targetId = targetNode.getNodeId();
+ 		}
+ 	}
+ 	

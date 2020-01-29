@@ -1,0 +1,9 @@
+@@ -10,7 +10,7 @@
+ import au.org.consumerdatastandards.client.api.CommonDiscoveryAPI;
+ import au.org.consumerdatastandards.client.cli.support.ApiUtil;
+ import au.org.consumerdatastandards.client.cli.support.JsonPrinter;
+-import au.org.consumerdatastandards.client.model.CommonDiscoveryStatus;
++import au.org.consumerdatastandards.client.model.ResponseCommonDiscoveryStatus;
+ import au.org.consumerdatastandards.client.model.ResponseDiscoveryOutagesList;
+ import au.org.consumerdatastandards.conformance.ConformanceError;
+ import au.org.consumerdatastandards.conformance.PayloadValidator;

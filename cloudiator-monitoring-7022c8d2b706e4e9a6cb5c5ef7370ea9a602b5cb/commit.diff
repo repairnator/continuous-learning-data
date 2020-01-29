@@ -1,0 +1,60 @@
+diff --git a/monitoringagent/src/main/java/io/github/cloudiator/monitoring/converter/MonitorToVisorMonitorConverter.java b/monitoringagent/src/main/java/io/github/cloudiator/monitoring/converter/MonitorToVisorMonitorConverter.java
+index 1181d2e..bb4654a 100644
+--- a/monitoringagent/src/main/java/io/github/cloudiator/monitoring/converter/MonitorToVisorMonitorConverter.java
++++ b/monitoringagent/src/main/java/io/github/cloudiator/monitoring/converter/MonitorToVisorMonitorConverter.java
+@@ -2,12 +2,12 @@
+ 
+ 
+ import de.uniulm.omi.cloudiator.util.TwoWayConverter;
++import io.github.cloudiator.monitoring.models.DomainMonitorModel;
+ import io.github.cloudiator.rest.model.DataSink;
+ import io.github.cloudiator.rest.model.Interval;
+-import io.github.cloudiator.rest.model.Interval.UnitEnum;
+-import io.github.cloudiator.monitoring.models.DomainMonitorModel;
+ import io.github.cloudiator.rest.model.PullSensor;
+ import io.github.cloudiator.rest.model.PushSensor;
++import io.github.cloudiator.rest.model.TimeUnit;
+ import io.github.cloudiator.visor.rest.model.DataSink.TypeEnum;
+ import io.github.cloudiator.visor.rest.model.DataSinkConfiguration;
+ import io.github.cloudiator.visor.rest.model.Interval.TimeUnitEnum;
+@@ -15,9 +15,7 @@
+ import io.github.cloudiator.visor.rest.model.SensorMonitor;
+ import java.math.BigDecimal;
+ import java.util.ArrayList;
+-import java.util.HashMap;
+ import java.util.List;
+-import java.util.Map;
+ 
+ public class MonitorToVisorMonitorConverter implements
+     TwoWayConverter<DomainMonitorModel, io.github.cloudiator.visor.rest.model.Monitor> {
+@@ -129,7 +127,7 @@ public DomainMonitorModel applyBack(io.github.cloudiator.visor.rest.model.Monito
+     public Interval applyBack(io.github.cloudiator.visor.rest.model.Interval VisorInterval) {
+       Interval result = new Interval()
+           .period(VisorInterval.getPeriod().longValue())
+-          .unit(UnitEnum.valueOf(VisorInterval.getTimeUnit().getValue()));
++          .unit(TimeUnit.valueOf(VisorInterval.getTimeUnit().getValue()));
+       return result;
+     }
+   }
+diff --git a/monitoringagent/src/main/java/io/github/cloudiator/persistance/IntervalModelConverter.java b/monitoringagent/src/main/java/io/github/cloudiator/persistance/IntervalModelConverter.java
+index 7157afb..b81d6ab 100644
+--- a/monitoringagent/src/main/java/io/github/cloudiator/persistance/IntervalModelConverter.java
++++ b/monitoringagent/src/main/java/io/github/cloudiator/persistance/IntervalModelConverter.java
+@@ -2,7 +2,7 @@
+ 
+ import de.uniulm.omi.cloudiator.util.OneWayConverter;
+ import io.github.cloudiator.rest.model.Interval;
+-import io.github.cloudiator.rest.model.Interval.UnitEnum;
++import io.github.cloudiator.rest.model.TimeUnit;
+ import javax.annotation.Nullable;
+ 
+ public class IntervalModelConverter implements OneWayConverter<IntervalModel, Interval> {
+@@ -15,7 +15,7 @@ public Interval apply(@Nullable IntervalModel intervalModel) {
+       return null;
+     }
+     Interval interval = new Interval()
+-        .unit(UnitEnum.valueOf(intervalModel.getUnit().name()))
++        .unit(TimeUnit.valueOf(intervalModel.getUnit().name()))
+         .period(intervalModel.getPeriod());
+     return interval;
+   }

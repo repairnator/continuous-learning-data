@@ -1,0 +1,9 @@
+@@ -104,7 +104,7 @@ public void testMethodLocalVarTypeDeclarationListSize() throws Exception {
+         final ClarpseProject parseService = new ClarpseProject(rawData);
+         OOPSourceCodeModel generatedSourceModel = parseService.result();
+         assertTrue(generatedSourceModel.getComponent("Test.method().s")
+-                .get().componentInvocations(ComponentInvocations.DECLARATION).size() == 1);
++                .get().references(TypeReferences.SIMPLE).size() == 1);
+     }
+ 
+     @Test

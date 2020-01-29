@@ -1,0 +1,9 @@
+@@ -288,7 +288,7 @@ private static void showHelp(Options options, int exitCode) {
+     System.exit(exitCode);
+   }
+ 
+-  private static void genHeatmap(String ibdFilePath, String createTableSql, String args, CommandType commandType) {
++  private static void genHeatmap(String ibdFilePath, String createTableSql, String args, CommandType commandType) throws IOException, TemplateException {
+     checkNotNull(args, "args should not be null");
+     String destHtmlPath = args;
+     Optional<Pair<String, String>> widthAndHeight = Optional.empty();

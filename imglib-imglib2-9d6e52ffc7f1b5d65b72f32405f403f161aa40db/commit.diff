@@ -1,0 +1,13 @@
+diff --git a/src/test/java/net/imglib2/util/UtilTest.java b/src/test/java/net/imglib2/util/UtilTest.java
+index 63573acad..dc59f98dc 100644
+--- a/src/test/java/net/imglib2/util/UtilTest.java
++++ b/src/test/java/net/imglib2/util/UtilTest.java
+@@ -247,7 +247,7 @@ public void testGetArrayOrCellImgFactory()
+ 	}
+ 
+ 	@Test
+-	public void testGetArrayOrCellImgFacortyWithComplexFloatType()
++	public void testGetArrayOrCellImgFactoryWithComplexFloatType()
+ 	{
+ 		// NB: ComplexFloatType uses two float values per pixel.
+ 		// This test creates an image, where the size is just 66% if Integer.MAX_VALUE.

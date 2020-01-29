@@ -1,0 +1,4122 @@
+diff --git a/modules/openapi-generator/src/main/resources/JavaSpring/formParams.mustache b/modules/openapi-generator/src/main/resources/JavaSpring/formParams.mustache
+index 14d94bfb312..d7b179a6e3b 100644
+--- a/modules/openapi-generator/src/main/resources/JavaSpring/formParams.mustache
++++ b/modules/openapi-generator/src/main/resources/JavaSpring/formParams.mustache
+@@ -1 +1 @@
+-{{#isFormParam}}{{^isFile}}@ApiParam(value = "{{{description}}}"{{#required}}, required=true{{/required}}{{#allowableValues}}, allowableValues="{{#values}}{{{.}}}{{^-last}}, {{/-last}}{{#-last}}{{/-last}}{{/values}}"{{/allowableValues}}{{^isContainer}}{{#defaultValue}}, defaultValue={{^isString}}"{{/isString}}{{#isString}}{{#isEnum}}"{{/isEnum}}{{/isString}}{{{defaultValue}}}{{^isString}}"{{/isString}}{{#isString}}{{#isEnum}}"{{/isEnum}}{{/isString}}{{/defaultValue}}{{/isContainer}}) @RequestParam(value="{{baseName}}"{{#required}}, required=true{{/required}}{{^required}}, required=false{{/required}})  {{{dataType}}} {{paramName}}{{/isFile}}{{#isFile}}@ApiParam(value = "{{{description}}}") {{#useBeanValidation}}@Valid{{/useBeanValidation}} @RequestPart("{{baseName}}") {{#isListContainer}}List<{{/isListContainer}}MultipartFile{{#isListContainer}}>{{/isListContainer}} {{baseName}}{{/isFile}}{{/isFormParam}}
+\ No newline at end of file
++{{#isFormParam}}{{^isFile}}@ApiParam(value = "{{{description}}}"{{#required}}, required=true{{/required}}{{#allowableValues}}, allowableValues="{{#values}}{{{.}}}{{^-last}}, {{/-last}}{{#-last}}{{/-last}}{{/values}}"{{/allowableValues}}{{^isContainer}}{{#defaultValue}}, defaultValue={{^isString}}"{{/isString}}{{#isString}}{{#isEnum}}"{{/isEnum}}{{/isString}}{{{defaultValue}}}{{^isString}}"{{/isString}}{{#isString}}{{#isEnum}}"{{/isEnum}}{{/isString}}{{/defaultValue}}{{/isContainer}}) @RequestPart(value="{{baseName}}"{{#required}}, required=true{{/required}}{{^required}}, required=false{{/required}})  {{{dataType}}} {{paramName}}{{/isFile}}{{#isFile}}@ApiParam(value = "{{{description}}}") {{#useBeanValidation}}@Valid{{/useBeanValidation}} @RequestPart(value = "{{baseName}}") {{#isListContainer}}List<{{/isListContainer}}MultipartFile{{#isListContainer}}>{{/isListContainer}} {{baseName}}{{/isFile}}{{/isFormParam}}
+diff --git a/modules/openapi-generator/src/main/resources/JavaSpring/queryParams.mustache b/modules/openapi-generator/src/main/resources/JavaSpring/queryParams.mustache
+index bb173eef7e4..49ddae8907c 100644
+--- a/modules/openapi-generator/src/main/resources/JavaSpring/queryParams.mustache
++++ b/modules/openapi-generator/src/main/resources/JavaSpring/queryParams.mustache
+@@ -1 +1 @@
+-{{#isQueryParam}}{{#useBeanValidation}}{{>beanValidationQueryParams}}{{/useBeanValidation}}@ApiParam(value = "{{{description}}}"{{#required}}, required = true{{/required}}{{#allowableValues}}, allowableValues = "{{#values}}{{{.}}}{{^-last}}, {{/-last}}{{#-last}}{{/-last}}{{/values}}"{{/allowableValues}}{{^isContainer}}{{#defaultValue}}, defaultValue = {{^isString}}"{{/isString}}{{#isString}}{{#isEnum}}"{{/isEnum}}{{/isString}}{{{defaultValue}}}{{^isString}}"{{/isString}}{{#isString}}{{#isEnum}}"{{/isEnum}}{{/isString}}{{/defaultValue}}{{/isContainer}}) {{#useBeanValidation}}@Valid{{/useBeanValidation}}{{^isModel}} @RequestParam(value = "{{baseName}}"{{#required}}, required = true{{/required}}{{^required}}, required = false{{/required}}{{^isContainer}}{{#defaultValue}}, defaultValue={{^isString}}"{{/isString}}{{#isString}}{{#isEnum}}"{{/isEnum}}{{/isString}}{{{defaultValue}}}{{^isString}}"{{/isString}}{{#isString}}{{#isEnum}}"{{/isEnum}}{{/isString}}{{/defaultValue}}{{/isContainer}}){{/isModel}}{{#isDate}} @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE){{/isDate}}{{#isDateTime}} @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME){{/isDateTime}} {{>optionalDataType}} {{paramName}}{{/isQueryParam}}
+\ No newline at end of file
++{{#isQueryParam}}{{#useBeanValidation}}{{>beanValidationQueryParams}}{{/useBeanValidation}}@ApiParam(value = "{{{description}}}"{{#required}}, required = true{{/required}}{{#allowableValues}}, allowableValues = "{{#values}}{{{.}}}{{^-last}}, {{/-last}}{{#-last}}{{/-last}}{{/values}}"{{/allowableValues}}{{^isContainer}}{{#defaultValue}}, defaultValue = {{^isString}}"{{/isString}}{{#isString}}{{#isEnum}}"{{/isEnum}}{{/isString}}{{{defaultValue}}}{{^isString}}"{{/isString}}{{#isString}}{{#isEnum}}"{{/isEnum}}{{/isString}}{{/defaultValue}}{{/isContainer}}) {{#useBeanValidation}}@Valid{{/useBeanValidation}}{{^isModel}} @RequestParam(value = {{#isMapContainer}}""{{/isMapContainer}}{{^isMapContainer}}"{{baseName}}"{{/isMapContainer}}{{#required}}, required = true{{/required}}{{^required}}, required = false{{/required}}{{^isContainer}}{{#defaultValue}}, defaultValue={{^isString}}"{{/isString}}{{#isString}}{{#isEnum}}"{{/isEnum}}{{/isString}}{{{defaultValue}}}{{^isString}}"{{/isString}}{{#isString}}{{#isEnum}}"{{/isEnum}}{{/isString}}{{/defaultValue}}{{/isContainer}}){{/isModel}}{{#isDate}} @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE){{/isDate}}{{#isDateTime}} @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE_TIME){{/isDateTime}} {{>optionalDataType}} {{paramName}}{{/isQueryParam}}
+diff --git a/modules/openapi-generator/src/test/java/org/openapitools/codegen/java/spring/SpringCodegenTest.java b/modules/openapi-generator/src/test/java/org/openapitools/codegen/java/spring/SpringCodegenTest.java
+index af07607a4f1..8ea8f5de99d 100644
+--- a/modules/openapi-generator/src/test/java/org/openapitools/codegen/java/spring/SpringCodegenTest.java
++++ b/modules/openapi-generator/src/test/java/org/openapitools/codegen/java/spring/SpringCodegenTest.java
+@@ -282,7 +282,7 @@ public void testMultipartBoot() throws IOException {
+         final String multipartArrayApi = files.get("/src/main/java/org/openapitools/api/MultipartArrayApi.java");
+         Assert.assertTrue(multipartArrayApi.contains("List<MultipartFile> files"));
+         Assert.assertTrue(multipartArrayApi.contains("@ApiParam(value = \"Many files\")"));
+-        Assert.assertTrue(multipartArrayApi.contains("@RequestPart(\"files\")"));
++        Assert.assertTrue(multipartArrayApi.contains("@RequestPart(value = \"files\")"));
+ 
+         // Check that the delegate handles the single file
+         final String multipartSingleApiDelegate = files.get("/src/main/java/org/openapitools/api/MultipartSingleApiDelegate.java");
+@@ -292,7 +292,7 @@ public void testMultipartBoot() throws IOException {
+         final String multipartSingleApi = files.get("/src/main/java/org/openapitools/api/MultipartSingleApi.java");
+         Assert.assertTrue(multipartSingleApi.contains("MultipartFile file"));
+         Assert.assertTrue(multipartSingleApi.contains("@ApiParam(value = \"One file\")"));
+-        Assert.assertTrue(multipartSingleApi.contains("@RequestPart(\"file\")"));
++        Assert.assertTrue(multipartSingleApi.contains("@RequestPart(value = \"file\")"));
+     }
+ 
+     @Test
+diff --git a/samples/server/petstore/java-pkmst/.openapi-generator/VERSION b/samples/server/petstore/java-pkmst/.openapi-generator/VERSION
+index e4955748d3e..58592f031f6 100644
+--- a/samples/server/petstore/java-pkmst/.openapi-generator/VERSION
++++ b/samples/server/petstore/java-pkmst/.openapi-generator/VERSION
+@@ -1 +1 @@
+-4.2.2-SNAPSHOT
+\ No newline at end of file
++4.2.3-SNAPSHOT
+\ No newline at end of file
+diff --git a/samples/server/petstore/java-pkmst/src/main/java/com/prokarma/pkmst/controller/PetApi.java b/samples/server/petstore/java-pkmst/src/main/java/com/prokarma/pkmst/controller/PetApi.java
+index ec1b2c40b72..460fd505765 100644
+--- a/samples/server/petstore/java-pkmst/src/main/java/com/prokarma/pkmst/controller/PetApi.java
++++ b/samples/server/petstore/java-pkmst/src/main/java/com/prokarma/pkmst/controller/PetApi.java
+@@ -1,5 +1,5 @@
+ /**
+- * NOTE: This class is auto generated by OpenAPI Generator (https://openapi-generator.tech) (4.2.2-SNAPSHOT).
++ * NOTE: This class is auto generated by OpenAPI Generator (https://openapi-generator.tech) (4.2.3-SNAPSHOT).
+  * https://openapi-generator.tech
+  * Do not edit the class manually.
+  */
+diff --git a/samples/server/petstore/java-pkmst/src/main/java/com/prokarma/pkmst/controller/StoreApi.java b/samples/server/petstore/java-pkmst/src/main/java/com/prokarma/pkmst/controller/StoreApi.java
+index c3d12f4e9c1..d797135e85e 100644
+--- a/samples/server/petstore/java-pkmst/src/main/java/com/prokarma/pkmst/controller/StoreApi.java
++++ b/samples/server/petstore/java-pkmst/src/main/java/com/prokarma/pkmst/controller/StoreApi.java
+@@ -1,5 +1,5 @@
+ /**
+- * NOTE: This class is auto generated by OpenAPI Generator (https://openapi-generator.tech) (4.2.2-SNAPSHOT).
++ * NOTE: This class is auto generated by OpenAPI Generator (https://openapi-generator.tech) (4.2.3-SNAPSHOT).
+  * https://openapi-generator.tech
+  * Do not edit the class manually.
+  */
+diff --git a/samples/server/petstore/java-pkmst/src/main/java/com/prokarma/pkmst/controller/UserApi.java b/samples/server/petstore/java-pkmst/src/main/java/com/prokarma/pkmst/controller/UserApi.java
+index 74634432fb4..052d1e0ec06 100644
+--- a/samples/server/petstore/java-pkmst/src/main/java/com/prokarma/pkmst/controller/UserApi.java
++++ b/samples/server/petstore/java-pkmst/src/main/java/com/prokarma/pkmst/controller/UserApi.java
+@@ -1,5 +1,5 @@
+ /**
+- * NOTE: This class is auto generated by OpenAPI Generator (https://openapi-generator.tech) (4.2.2-SNAPSHOT).
++ * NOTE: This class is auto generated by OpenAPI Generator (https://openapi-generator.tech) (4.2.3-SNAPSHOT).
+  * https://openapi-generator.tech
+  * Do not edit the class manually.
+  */
+diff --git a/samples/server/petstore/java-vertx/async/.openapi-generator/VERSION b/samples/server/petstore/java-vertx/async/.openapi-generator/VERSION
+index d077ffb477a..58592f031f6 100644
+--- a/samples/server/petstore/java-vertx/async/.openapi-generator/VERSION
++++ b/samples/server/petstore/java-vertx/async/.openapi-generator/VERSION
+@@ -1 +1 @@
+-3.3.4-SNAPSHOT
+\ No newline at end of file
++4.2.3-SNAPSHOT
+\ No newline at end of file
+diff --git a/samples/server/petstore/java-vertx/async/src/main/java/org/openapitools/server/api/model/Category.java b/samples/server/petstore/java-vertx/async/src/main/java/org/openapitools/server/api/model/Category.java
+index 2fdf0df82da..f05201c45ad 100644
+--- a/samples/server/petstore/java-vertx/async/src/main/java/org/openapitools/server/api/model/Category.java
++++ b/samples/server/petstore/java-vertx/async/src/main/java/org/openapitools/server/api/model/Category.java
+@@ -7,7 +7,7 @@
+ /**
+  * A category for a pet
+  **/
+-@JsonInclude(JsonInclude.Include.NON_NULL) 
++@JsonInclude(JsonInclude.Include.NON_NULL)
+ public class Category   {
+   
+   private Long id;
+diff --git a/samples/server/petstore/java-vertx/async/src/main/java/org/openapitools/server/api/model/ModelApiResponse.java b/samples/server/petstore/java-vertx/async/src/main/java/org/openapitools/server/api/model/ModelApiResponse.java
+index c6f2ba4ebd4..934a6efdf96 100644
+--- a/samples/server/petstore/java-vertx/async/src/main/java/org/openapitools/server/api/model/ModelApiResponse.java
++++ b/samples/server/petstore/java-vertx/async/src/main/java/org/openapitools/server/api/model/ModelApiResponse.java
+@@ -7,7 +7,7 @@
+ /**
+  * Describes the result of uploading an image resource
+  **/
+-@JsonInclude(JsonInclude.Include.NON_NULL) 
++@JsonInclude(JsonInclude.Include.NON_NULL)
+ public class ModelApiResponse   {
+   
+   private Integer code;
+diff --git a/samples/server/petstore/java-vertx/async/src/main/java/org/openapitools/server/api/model/Order.java b/samples/server/petstore/java-vertx/async/src/main/java/org/openapitools/server/api/model/Order.java
+index 4fa04b8e0a9..0d8d6714212 100644
+--- a/samples/server/petstore/java-vertx/async/src/main/java/org/openapitools/server/api/model/Order.java
++++ b/samples/server/petstore/java-vertx/async/src/main/java/org/openapitools/server/api/model/Order.java
+@@ -9,7 +9,7 @@
+ /**
+  * An order for a pets from the pet store
+  **/
+-@JsonInclude(JsonInclude.Include.NON_NULL) 
++@JsonInclude(JsonInclude.Include.NON_NULL)
+ public class Order   {
+   
+   private Long id;
+diff --git a/samples/server/petstore/java-vertx/async/src/main/java/org/openapitools/server/api/model/Pet.java b/samples/server/petstore/java-vertx/async/src/main/java/org/openapitools/server/api/model/Pet.java
+index abc6feb302d..cb9325acf5d 100644
+--- a/samples/server/petstore/java-vertx/async/src/main/java/org/openapitools/server/api/model/Pet.java
++++ b/samples/server/petstore/java-vertx/async/src/main/java/org/openapitools/server/api/model/Pet.java
+@@ -12,11 +12,11 @@
+ /**
+  * A pet for sale in the pet store
+  **/
+-@JsonInclude(JsonInclude.Include.NON_NULL) 
++@JsonInclude(JsonInclude.Include.NON_NULL)
+ public class Pet   {
+   
+   private Long id;
+-  private Category category = null;
++  private Category category;
+   private String name;
+   private List<String> photoUrls = new ArrayList<>();
+   private List<Tag> tags = new ArrayList<>();
+diff --git a/samples/server/petstore/java-vertx/async/src/main/java/org/openapitools/server/api/model/Tag.java b/samples/server/petstore/java-vertx/async/src/main/java/org/openapitools/server/api/model/Tag.java
+index 660b1d3bb07..0389c2fbeea 100644
+--- a/samples/server/petstore/java-vertx/async/src/main/java/org/openapitools/server/api/model/Tag.java
++++ b/samples/server/petstore/java-vertx/async/src/main/java/org/openapitools/server/api/model/Tag.java
+@@ -7,7 +7,7 @@
+ /**
+  * A tag for a pet
+  **/
+-@JsonInclude(JsonInclude.Include.NON_NULL) 
++@JsonInclude(JsonInclude.Include.NON_NULL)
+ public class Tag   {
+   
+   private Long id;
+diff --git a/samples/server/petstore/java-vertx/async/src/main/java/org/openapitools/server/api/model/User.java b/samples/server/petstore/java-vertx/async/src/main/java/org/openapitools/server/api/model/User.java
+index c30e9eb84a8..0e1e8755555 100644
+--- a/samples/server/petstore/java-vertx/async/src/main/java/org/openapitools/server/api/model/User.java
++++ b/samples/server/petstore/java-vertx/async/src/main/java/org/openapitools/server/api/model/User.java
+@@ -7,7 +7,7 @@
+ /**
+  * A User who is purchasing from the pet store
+  **/
+-@JsonInclude(JsonInclude.Include.NON_NULL) 
++@JsonInclude(JsonInclude.Include.NON_NULL)
+ public class User   {
+   
+   private Long id;
+diff --git a/samples/server/petstore/java-vertx/async/src/main/java/org/openapitools/server/api/verticle/PetApi.java b/samples/server/petstore/java-vertx/async/src/main/java/org/openapitools/server/api/verticle/PetApi.java
+index 28a9e6e3d24..7ec2b40b8ff 100644
+--- a/samples/server/petstore/java-vertx/async/src/main/java/org/openapitools/server/api/verticle/PetApi.java
++++ b/samples/server/petstore/java-vertx/async/src/main/java/org/openapitools/server/api/verticle/PetApi.java
+@@ -13,7 +13,7 @@
+ 
+ public interface PetApi  {
+     //addPet
+-    void addPet(Pet pet, Handler<AsyncResult<Void>> handler);
++    void addPet(Pet body, Handler<AsyncResult<Void>> handler);
+     
+     //deletePet
+     void deletePet(Long petId, String apiKey, Handler<AsyncResult<Void>> handler);
+@@ -28,7 +28,7 @@
+     void getPetById(Long petId, Handler<AsyncResult<Pet>> handler);
+     
+     //updatePet
+-    void updatePet(Pet pet, Handler<AsyncResult<Void>> handler);
++    void updatePet(Pet body, Handler<AsyncResult<Void>> handler);
+     
+     //updatePetWithForm
+     void updatePetWithForm(Long petId, String name, String status, Handler<AsyncResult<Void>> handler);
+diff --git a/samples/server/petstore/java-vertx/async/src/main/java/org/openapitools/server/api/verticle/PetApiVerticle.java b/samples/server/petstore/java-vertx/async/src/main/java/org/openapitools/server/api/verticle/PetApiVerticle.java
+index e2aabfc6510..4b3aa4cfb38 100644
+--- a/samples/server/petstore/java-vertx/async/src/main/java/org/openapitools/server/api/verticle/PetApiVerticle.java
++++ b/samples/server/petstore/java-vertx/async/src/main/java/org/openapitools/server/api/verticle/PetApiVerticle.java
+@@ -48,13 +48,13 @@ public void start() throws Exception {
+             try {
+                 // Workaround for #allParams section clearing the vendorExtensions map
+                 String serviceId = "addPet";
+-                JsonObject petParam = message.body().getJsonObject("Pet");
+-                if (petParam == null) {
+-                    manageError(message, new MainApiException(400, "Pet is required"), serviceId);
++                JsonObject bodyParam = message.body().getJsonObject("body");
++                if (bodyParam == null) {
++                    manageError(message, new MainApiException(400, "body is required"), serviceId);
+                     return;
+                 }
+-                Pet pet = Json.mapper.readValue(petParam.encode(), Pet.class);
+-                service.addPet(pet, result -> {
++                Pet body = Json.mapper.readValue(bodyParam.encode(), Pet.class);
++                service.addPet(body, result -> {
+                     if (result.succeeded())
+                         message.reply(null);
+                     else {
+@@ -177,13 +177,13 @@ public void start() throws Exception {
+             try {
+                 // Workaround for #allParams section clearing the vendorExtensions map
+                 String serviceId = "updatePet";
+-                JsonObject petParam = message.body().getJsonObject("Pet");
+-                if (petParam == null) {
+-                    manageError(message, new MainApiException(400, "Pet is required"), serviceId);
++                JsonObject bodyParam = message.body().getJsonObject("body");
++                if (bodyParam == null) {
++                    manageError(message, new MainApiException(400, "body is required"), serviceId);
+                     return;
+                 }
+-                Pet pet = Json.mapper.readValue(petParam.encode(), Pet.class);
+-                service.updatePet(pet, result -> {
++                Pet body = Json.mapper.readValue(bodyParam.encode(), Pet.class);
++                service.updatePet(body, result -> {
+                     if (result.succeeded())
+                         message.reply(null);
+                     else {
+diff --git a/samples/server/petstore/java-vertx/async/src/main/java/org/openapitools/server/api/verticle/StoreApi.java b/samples/server/petstore/java-vertx/async/src/main/java/org/openapitools/server/api/verticle/StoreApi.java
+index 1f348fa57a4..656978f999b 100644
+--- a/samples/server/petstore/java-vertx/async/src/main/java/org/openapitools/server/api/verticle/StoreApi.java
++++ b/samples/server/petstore/java-vertx/async/src/main/java/org/openapitools/server/api/verticle/StoreApi.java
+@@ -20,6 +20,6 @@
+     void getOrderById(Long orderId, Handler<AsyncResult<Order>> handler);
+     
+     //placeOrder
+-    void placeOrder(Order order, Handler<AsyncResult<Order>> handler);
++    void placeOrder(Order body, Handler<AsyncResult<Order>> handler);
+     
+ }
+diff --git a/samples/server/petstore/java-vertx/async/src/main/java/org/openapitools/server/api/verticle/StoreApiVerticle.java b/samples/server/petstore/java-vertx/async/src/main/java/org/openapitools/server/api/verticle/StoreApiVerticle.java
+index ebe4670ddc3..f83133b94b4 100644
+--- a/samples/server/petstore/java-vertx/async/src/main/java/org/openapitools/server/api/verticle/StoreApiVerticle.java
++++ b/samples/server/petstore/java-vertx/async/src/main/java/org/openapitools/server/api/verticle/StoreApiVerticle.java
+@@ -111,13 +111,13 @@ public void start() throws Exception {
+             try {
+                 // Workaround for #allParams section clearing the vendorExtensions map
+                 String serviceId = "placeOrder";
+-                JsonObject orderParam = message.body().getJsonObject("Order");
+-                if (orderParam == null) {
+-                    manageError(message, new MainApiException(400, "Order is required"), serviceId);
++                JsonObject bodyParam = message.body().getJsonObject("body");
++                if (bodyParam == null) {
++                    manageError(message, new MainApiException(400, "body is required"), serviceId);
+                     return;
+                 }
+-                Order order = Json.mapper.readValue(orderParam.encode(), Order.class);
+-                service.placeOrder(order, result -> {
++                Order body = Json.mapper.readValue(bodyParam.encode(), Order.class);
++                service.placeOrder(body, result -> {
+                     if (result.succeeded())
+                         message.reply(new JsonObject(Json.encode(result.result())).encodePrettily());
+                     else {
+diff --git a/samples/server/petstore/java-vertx/async/src/main/java/org/openapitools/server/api/verticle/UserApi.java b/samples/server/petstore/java-vertx/async/src/main/java/org/openapitools/server/api/verticle/UserApi.java
+index bb114d2c704..28f23b1501b 100644
+--- a/samples/server/petstore/java-vertx/async/src/main/java/org/openapitools/server/api/verticle/UserApi.java
++++ b/samples/server/petstore/java-vertx/async/src/main/java/org/openapitools/server/api/verticle/UserApi.java
+@@ -11,13 +11,13 @@
+ 
+ public interface UserApi  {
+     //createUser
+-    void createUser(User user, Handler<AsyncResult<Void>> handler);
++    void createUser(User body, Handler<AsyncResult<Void>> handler);
+     
+     //createUsersWithArrayInput
+-    void createUsersWithArrayInput(List<User> user, Handler<AsyncResult<Void>> handler);
++    void createUsersWithArrayInput(List<User> body, Handler<AsyncResult<Void>> handler);
+     
+     //createUsersWithListInput
+-    void createUsersWithListInput(List<User> user, Handler<AsyncResult<Void>> handler);
++    void createUsersWithListInput(List<User> body, Handler<AsyncResult<Void>> handler);
+     
+     //deleteUser
+     void deleteUser(String username, Handler<AsyncResult<Void>> handler);
+@@ -32,6 +32,6 @@
+     void logoutUser(Handler<AsyncResult<Void>> handler);
+     
+     //updateUser
+-    void updateUser(String username, User user, Handler<AsyncResult<Void>> handler);
++    void updateUser(String username, User body, Handler<AsyncResult<Void>> handler);
+     
+ }
+diff --git a/samples/server/petstore/java-vertx/async/src/main/java/org/openapitools/server/api/verticle/UserApiVerticle.java b/samples/server/petstore/java-vertx/async/src/main/java/org/openapitools/server/api/verticle/UserApiVerticle.java
+index a356f37a674..8773908b5a0 100644
+--- a/samples/server/petstore/java-vertx/async/src/main/java/org/openapitools/server/api/verticle/UserApiVerticle.java
++++ b/samples/server/petstore/java-vertx/async/src/main/java/org/openapitools/server/api/verticle/UserApiVerticle.java
+@@ -46,13 +46,13 @@ public void start() throws Exception {
+             try {
+                 // Workaround for #allParams section clearing the vendorExtensions map
+                 String serviceId = "createUser";
+-                JsonObject userParam = message.body().getJsonObject("User");
+-                if (userParam == null) {
+-                    manageError(message, new MainApiException(400, "User is required"), serviceId);
++                JsonObject bodyParam = message.body().getJsonObject("body");
++                if (bodyParam == null) {
++                    manageError(message, new MainApiException(400, "body is required"), serviceId);
+                     return;
+                 }
+-                User user = Json.mapper.readValue(userParam.encode(), User.class);
+-                service.createUser(user, result -> {
++                User body = Json.mapper.readValue(bodyParam.encode(), User.class);
++                service.createUser(body, result -> {
+                     if (result.succeeded())
+                         message.reply(null);
+                     else {
+@@ -71,14 +71,14 @@ public void start() throws Exception {
+             try {
+                 // Workaround for #allParams section clearing the vendorExtensions map
+                 String serviceId = "createUsersWithArrayInput";
+-                JsonArray userParam = message.body().getJsonArray("User");
+-                if(userParam == null) {
+-                    manageError(message, new MainApiException(400, "User is required"), serviceId);
++                JsonArray bodyParam = message.body().getJsonArray("body");
++                if(bodyParam == null) {
++                    manageError(message, new MainApiException(400, "body is required"), serviceId);
+                     return;
+                 }
+-                List<User> user = Json.mapper.readValue(userParam.encode(),
+-                    Json.mapper.getTypeFactory().constructCollectionType(List.class, List.class));
+-                service.createUsersWithArrayInput(user, result -> {
++                List<User> body = Json.mapper.readValue(bodyParam.encode(),
++                    Json.mapper.getTypeFactory().constructCollectionType(List.class, User.class));
++                service.createUsersWithArrayInput(body, result -> {
+                     if (result.succeeded())
+                         message.reply(null);
+                     else {
+@@ -97,14 +97,14 @@ public void start() throws Exception {
+             try {
+                 // Workaround for #allParams section clearing the vendorExtensions map
+                 String serviceId = "createUsersWithListInput";
+-                JsonArray userParam = message.body().getJsonArray("User");
+-                if(userParam == null) {
+-                    manageError(message, new MainApiException(400, "User is required"), serviceId);
++                JsonArray bodyParam = message.body().getJsonArray("body");
++                if(bodyParam == null) {
++                    manageError(message, new MainApiException(400, "body is required"), serviceId);
+                     return;
+                 }
+-                List<User> user = Json.mapper.readValue(userParam.encode(),
+-                    Json.mapper.getTypeFactory().constructCollectionType(List.class, List.class));
+-                service.createUsersWithListInput(user, result -> {
++                List<User> body = Json.mapper.readValue(bodyParam.encode(),
++                    Json.mapper.getTypeFactory().constructCollectionType(List.class, User.class));
++                service.createUsersWithListInput(body, result -> {
+                     if (result.succeeded())
+                         message.reply(null);
+                     else {
+@@ -229,13 +229,13 @@ public void start() throws Exception {
+                     return;
+                 }
+                 String username = usernameParam;
+-                JsonObject userParam = message.body().getJsonObject("User");
+-                if (userParam == null) {
+-                    manageError(message, new MainApiException(400, "User is required"), serviceId);
++                JsonObject bodyParam = message.body().getJsonObject("body");
++                if (bodyParam == null) {
++                    manageError(message, new MainApiException(400, "body is required"), serviceId);
+                     return;
+                 }
+-                User user = Json.mapper.readValue(userParam.encode(), User.class);
+-                service.updateUser(username, user, result -> {
++                User body = Json.mapper.readValue(bodyParam.encode(), User.class);
++                service.updateUser(username, body, result -> {
+                     if (result.succeeded())
+                         message.reply(null);
+                     else {
+diff --git a/samples/server/petstore/java-vertx/async/src/main/resources/openapi.json b/samples/server/petstore/java-vertx/async/src/main/resources/openapi.json
+index ab379a276b7..2f40e269947 100644
+--- a/samples/server/petstore/java-vertx/async/src/main/resources/openapi.json
++++ b/samples/server/petstore/java-vertx/async/src/main/resources/openapi.json
+@@ -1,35 +1,32 @@
+ {
+   "openapi" : "3.0.1",
+   "info" : {
+-    "title" : "OpenAPI Petstore",
+     "description" : "This is a sample server Petstore server. For this sample, you can use the api key `special-key` to test the authorization filters.",
+     "license" : {
+       "name" : "Apache-2.0",
+       "url" : "https://www.apache.org/licenses/LICENSE-2.0.html"
+     },
++    "title" : "OpenAPI Petstore",
+     "version" : "1.0.0"
+   },
+   "servers" : [ {
+     "url" : "http://petstore.swagger.io/v2"
+   } ],
+   "tags" : [ {
+-    "name" : "pet",
+-    "description" : "Everything about your Pets"
++    "description" : "Everything about your Pets",
++    "name" : "pet"
+   }, {
+-    "name" : "store",
+-    "description" : "Access to Petstore orders"
++    "description" : "Access to Petstore orders",
++    "name" : "store"
+   }, {
+-    "name" : "user",
+-    "description" : "Operations about user"
++    "description" : "Operations about user",
++    "name" : "user"
+   } ],
+   "paths" : {
+     "/pet" : {
+-      "put" : {
+-        "tags" : [ "pet" ],
+-        "summary" : "Update an existing pet",
+-        "operationId" : "updatePet",
++      "post" : {
++        "operationId" : "addPet",
+         "requestBody" : {
+-          "description" : "Pet object that needs to be added to the store",
+           "content" : {
+             "application/json" : {
+               "schema" : {
+@@ -42,36 +39,29 @@
+               }
+             }
+           },
++          "description" : "Pet object that needs to be added to the store",
+           "required" : true
+         },
+         "responses" : {
+-          "400" : {
+-            "description" : "Invalid ID supplied",
+-            "content" : { }
+-          },
+-          "404" : {
+-            "description" : "Pet not found",
+-            "content" : { }
+-          },
+           "405" : {
+-            "description" : "Validation exception",
+-            "content" : { }
++            "content" : { },
++            "description" : "Invalid input"
+           }
+         },
+         "security" : [ {
+           "petstore_auth" : [ "write:pets", "read:pets" ]
+         } ],
++        "summary" : "Add a new pet to the store",
++        "tags" : [ "pet" ],
++        "x-codegen-request-body-name" : "body",
+         "x-contentType" : "application/json",
+         "x-accepts" : "application/json",
+-        "x-serviceid" : "updatePet",
+-        "x-serviceid-varname" : "UPDATEPET_SERVICE_ID"
++        "x-serviceid" : "addPet",
++        "x-serviceid-varname" : "ADDPET_SERVICE_ID"
+       },
+-      "post" : {
+-        "tags" : [ "pet" ],
+-        "summary" : "Add a new pet to the store",
+-        "operationId" : "addPet",
++      "put" : {
++        "operationId" : "updatePet",
+         "requestBody" : {
+-          "description" : "Pet object that needs to be added to the store",
+           "content" : {
+             "application/json" : {
+               "schema" : {
+@@ -84,75 +74,87 @@
+               }
+             }
+           },
++          "description" : "Pet object that needs to be added to the store",
+           "required" : true
+         },
+         "responses" : {
++          "400" : {
++            "content" : { },
++            "description" : "Invalid ID supplied"
++          },
++          "404" : {
++            "content" : { },
++            "description" : "Pet not found"
++          },
+           "405" : {
+-            "description" : "Invalid input",
+-            "content" : { }
++            "content" : { },
++            "description" : "Validation exception"
+           }
+         },
+         "security" : [ {
+           "petstore_auth" : [ "write:pets", "read:pets" ]
+         } ],
++        "summary" : "Update an existing pet",
++        "tags" : [ "pet" ],
++        "x-codegen-request-body-name" : "body",
+         "x-contentType" : "application/json",
+         "x-accepts" : "application/json",
+-        "x-serviceid" : "addPet",
+-        "x-serviceid-varname" : "ADDPET_SERVICE_ID"
++        "x-serviceid" : "updatePet",
++        "x-serviceid-varname" : "UPDATEPET_SERVICE_ID"
+       }
+     },
+     "/pet/findByStatus" : {
+       "get" : {
+-        "tags" : [ "pet" ],
+-        "summary" : "Finds Pets by status",
+         "description" : "Multiple status values can be provided with comma separated strings",
+         "operationId" : "findPetsByStatus",
+         "parameters" : [ {
+-          "name" : "status",
+-          "in" : "query",
+           "description" : "Status values that need to be considered for filter",
+-          "required" : true,
+-          "style" : "form",
+           "explode" : false,
++          "in" : "query",
++          "name" : "status",
++          "required" : true,
+           "schema" : {
+-            "type" : "array",
+             "items" : {
+-              "type" : "string",
+               "default" : "available",
+-              "enum" : [ "available", "pending", "sold" ]
+-            }
+-          }
++              "enum" : [ "available", "pending", "sold" ],
++              "type" : "string"
++            },
++            "type" : "array"
++          },
++          "style" : "form"
+         } ],
+         "responses" : {
+           "200" : {
+-            "description" : "successful operation",
+             "content" : {
+               "application/xml" : {
+                 "schema" : {
+-                  "type" : "array",
+                   "items" : {
+                     "$ref" : "#/components/schemas/Pet"
+-                  }
++                  },
++                  "type" : "array"
+                 }
+               },
+               "application/json" : {
+                 "schema" : {
+-                  "type" : "array",
+                   "items" : {
+                     "$ref" : "#/components/schemas/Pet"
+-                  }
++                  },
++                  "type" : "array"
+                 }
+               }
+-            }
++            },
++            "description" : "successful operation"
+           },
+           "400" : {
+-            "description" : "Invalid status value",
+-            "content" : { }
++            "content" : { },
++            "description" : "Invalid status value"
+           }
+         },
+         "security" : [ {
+           "petstore_auth" : [ "write:pets", "read:pets" ]
+         } ],
++        "summary" : "Finds Pets by status",
++        "tags" : [ "pet" ],
+         "x-accepts" : "application/json",
+         "x-serviceid" : "findPetsByStatus",
+         "x-serviceid-varname" : "FINDPETSBYSTATUS_SERVICE_ID"
+@@ -160,79 +162,109 @@
+     },
+     "/pet/findByTags" : {
+       "get" : {
+-        "tags" : [ "pet" ],
+-        "summary" : "Finds Pets by tags",
++        "deprecated" : true,
+         "description" : "Multiple tags can be provided with comma separated strings. Use tag1, tag2, tag3 for testing.",
+         "operationId" : "findPetsByTags",
+         "parameters" : [ {
+-          "name" : "tags",
+-          "in" : "query",
+           "description" : "Tags to filter by",
+-          "required" : true,
+-          "style" : "form",
+           "explode" : false,
++          "in" : "query",
++          "name" : "tags",
++          "required" : true,
+           "schema" : {
+-            "type" : "array",
+             "items" : {
+               "type" : "string"
+-            }
+-          }
++            },
++            "type" : "array"
++          },
++          "style" : "form"
+         } ],
+         "responses" : {
+           "200" : {
+-            "description" : "successful operation",
+             "content" : {
+               "application/xml" : {
+                 "schema" : {
+-                  "type" : "array",
+                   "items" : {
+                     "$ref" : "#/components/schemas/Pet"
+-                  }
++                  },
++                  "type" : "array"
+                 }
+               },
+               "application/json" : {
+                 "schema" : {
+-                  "type" : "array",
+                   "items" : {
+                     "$ref" : "#/components/schemas/Pet"
+-                  }
++                  },
++                  "type" : "array"
+                 }
+               }
+-            }
++            },
++            "description" : "successful operation"
+           },
+           "400" : {
+-            "description" : "Invalid tag value",
+-            "content" : { }
++            "content" : { },
++            "description" : "Invalid tag value"
+           }
+         },
+-        "deprecated" : true,
+         "security" : [ {
+           "petstore_auth" : [ "write:pets", "read:pets" ]
+         } ],
++        "summary" : "Finds Pets by tags",
++        "tags" : [ "pet" ],
+         "x-accepts" : "application/json",
+         "x-serviceid" : "findPetsByTags",
+         "x-serviceid-varname" : "FINDPETSBYTAGS_SERVICE_ID"
+       }
+     },
+     "/pet/{petId}" : {
+-      "get" : {
++      "delete" : {
++        "operationId" : "deletePet",
++        "parameters" : [ {
++          "in" : "header",
++          "name" : "api_key",
++          "schema" : {
++            "type" : "string"
++          }
++        }, {
++          "description" : "Pet id to delete",
++          "in" : "path",
++          "name" : "petId",
++          "required" : true,
++          "schema" : {
++            "format" : "int64",
++            "type" : "integer"
++          }
++        } ],
++        "responses" : {
++          "400" : {
++            "content" : { },
++            "description" : "Invalid pet value"
++          }
++        },
++        "security" : [ {
++          "petstore_auth" : [ "write:pets", "read:pets" ]
++        } ],
++        "summary" : "Deletes a pet",
+         "tags" : [ "pet" ],
+-        "summary" : "Find pet by ID",
++        "x-accepts" : "application/json",
++        "x-serviceid" : "deletePet",
++        "x-serviceid-varname" : "DELETEPET_SERVICE_ID"
++      },
++      "get" : {
+         "description" : "Returns a single pet",
+         "operationId" : "getPetById",
+         "parameters" : [ {
+-          "name" : "petId",
+-          "in" : "path",
+           "description" : "ID of pet to return",
++          "in" : "path",
++          "name" : "petId",
+           "required" : true,
+           "schema" : {
+-            "type" : "integer",
+-            "format" : "int64"
++            "format" : "int64",
++            "type" : "integer"
+           }
+         } ],
+         "responses" : {
+           "200" : {
+-            "description" : "successful operation",
+             "content" : {
+               "application/xml" : {
+                 "schema" : {
+@@ -244,36 +276,37 @@
+                   "$ref" : "#/components/schemas/Pet"
+                 }
+               }
+-            }
++            },
++            "description" : "successful operation"
+           },
+           "400" : {
+-            "description" : "Invalid ID supplied",
+-            "content" : { }
++            "content" : { },
++            "description" : "Invalid ID supplied"
+           },
+           "404" : {
+-            "description" : "Pet not found",
+-            "content" : { }
++            "content" : { },
++            "description" : "Pet not found"
+           }
+         },
+         "security" : [ {
+           "api_key" : [ ]
+         } ],
++        "summary" : "Find pet by ID",
++        "tags" : [ "pet" ],
+         "x-accepts" : "application/json",
+         "x-serviceid" : "getPetById",
+         "x-serviceid-varname" : "GETPETBYID_SERVICE_ID"
+       },
+       "post" : {
+-        "tags" : [ "pet" ],
+-        "summary" : "Updates a pet in the store with form data",
+         "operationId" : "updatePetWithForm",
+         "parameters" : [ {
+-          "name" : "petId",
+-          "in" : "path",
+           "description" : "ID of pet that needs to be updated",
++          "in" : "path",
++          "name" : "petId",
+           "required" : true,
+           "schema" : {
+-            "type" : "integer",
+-            "format" : "int64"
++            "format" : "int64",
++            "type" : "integer"
+           }
+         } ],
+         "requestBody" : {
+@@ -282,12 +315,12 @@
+               "schema" : {
+                 "properties" : {
+                   "name" : {
+-                    "type" : "string",
+-                    "description" : "Updated name of the pet"
++                    "description" : "Updated name of the pet",
++                    "type" : "string"
+                   },
+                   "status" : {
+-                    "type" : "string",
+-                    "description" : "Updated status of the pet"
++                    "description" : "Updated status of the pet",
++                    "type" : "string"
+                   }
+                 }
+               }
+@@ -296,65 +329,32 @@
+         },
+         "responses" : {
+           "405" : {
+-            "description" : "Invalid input",
+-            "content" : { }
++            "content" : { },
++            "description" : "Invalid input"
+           }
+         },
+         "security" : [ {
+           "petstore_auth" : [ "write:pets", "read:pets" ]
+         } ],
++        "summary" : "Updates a pet in the store with form data",
++        "tags" : [ "pet" ],
+         "x-contentType" : "application/x-www-form-urlencoded",
+         "x-accepts" : "application/json",
+         "x-serviceid" : "updatePetWithForm",
+         "x-serviceid-varname" : "UPDATEPETWITHFORM_SERVICE_ID"
+-      },
+-      "delete" : {
+-        "tags" : [ "pet" ],
+-        "summary" : "Deletes a pet",
+-        "operationId" : "deletePet",
+-        "parameters" : [ {
+-          "name" : "api_key",
+-          "in" : "header",
+-          "schema" : {
+-            "type" : "string"
+-          }
+-        }, {
+-          "name" : "petId",
+-          "in" : "path",
+-          "description" : "Pet id to delete",
+-          "required" : true,
+-          "schema" : {
+-            "type" : "integer",
+-            "format" : "int64"
+-          }
+-        } ],
+-        "responses" : {
+-          "400" : {
+-            "description" : "Invalid pet value",
+-            "content" : { }
+-          }
+-        },
+-        "security" : [ {
+-          "petstore_auth" : [ "write:pets", "read:pets" ]
+-        } ],
+-        "x-accepts" : "application/json",
+-        "x-serviceid" : "deletePet",
+-        "x-serviceid-varname" : "DELETEPET_SERVICE_ID"
+       }
+     },
+     "/pet/{petId}/uploadImage" : {
+       "post" : {
+-        "tags" : [ "pet" ],
+-        "summary" : "uploads an image",
+         "operationId" : "uploadFile",
+         "parameters" : [ {
+-          "name" : "petId",
+-          "in" : "path",
+           "description" : "ID of pet to update",
++          "in" : "path",
++          "name" : "petId",
+           "required" : true,
+           "schema" : {
+-            "type" : "integer",
+-            "format" : "int64"
++            "format" : "int64",
++            "type" : "integer"
+           }
+         } ],
+         "requestBody" : {
+@@ -363,13 +363,13 @@
+               "schema" : {
+                 "properties" : {
+                   "additionalMetadata" : {
+-                    "type" : "string",
+-                    "description" : "Additional data to pass to server"
++                    "description" : "Additional data to pass to server",
++                    "type" : "string"
+                   },
+                   "file" : {
+-                    "type" : "string",
+                     "description" : "file to upload",
+-                    "format" : "binary"
++                    "format" : "binary",
++                    "type" : "string"
+                   }
+                 }
+               }
+@@ -378,19 +378,21 @@
+         },
+         "responses" : {
+           "200" : {
+-            "description" : "successful operation",
+             "content" : {
+               "application/json" : {
+                 "schema" : {
+                   "$ref" : "#/components/schemas/ApiResponse"
+                 }
+               }
+-            }
++            },
++            "description" : "successful operation"
+           }
+         },
+         "security" : [ {
+           "petstore_auth" : [ "write:pets", "read:pets" ]
+         } ],
++        "summary" : "uploads an image",
++        "tags" : [ "pet" ],
+         "x-contentType" : "multipart/form-data",
+         "x-accepts" : "application/json",
+         "x-serviceid" : "uploadFile",
+@@ -399,29 +401,29 @@
+     },
+     "/store/inventory" : {
+       "get" : {
+-        "tags" : [ "store" ],
+-        "summary" : "Returns pet inventories by status",
+         "description" : "Returns a map of status codes to quantities",
+         "operationId" : "getInventory",
+         "responses" : {
+           "200" : {
+-            "description" : "successful operation",
+             "content" : {
+               "application/json" : {
+                 "schema" : {
+-                  "type" : "object",
+                   "additionalProperties" : {
+-                    "type" : "integer",
+-                    "format" : "int32"
+-                  }
++                    "format" : "int32",
++                    "type" : "integer"
++                  },
++                  "type" : "object"
+                 }
+               }
+-            }
++            },
++            "description" : "successful operation"
+           }
+         },
+         "security" : [ {
+           "api_key" : [ ]
+         } ],
++        "summary" : "Returns pet inventories by status",
++        "tags" : [ "store" ],
+         "x-accepts" : "application/json",
+         "x-serviceid" : "getInventory",
+         "x-serviceid-varname" : "GETINVENTORY_SERVICE_ID"
+@@ -429,11 +431,8 @@
+     },
+     "/store/order" : {
+       "post" : {
+-        "tags" : [ "store" ],
+-        "summary" : "Place an order for a pet",
+         "operationId" : "placeOrder",
+         "requestBody" : {
+-          "description" : "order placed for purchasing the pet",
+           "content" : {
+             "*/*" : {
+               "schema" : {
+@@ -441,11 +440,11 @@
+               }
+             }
+           },
++          "description" : "order placed for purchasing the pet",
+           "required" : true
+         },
+         "responses" : {
+           "200" : {
+-            "description" : "successful operation",
+             "content" : {
+               "application/xml" : {
+                 "schema" : {
+@@ -457,13 +456,17 @@
+                   "$ref" : "#/components/schemas/Order"
+                 }
+               }
+-            }
++            },
++            "description" : "successful operation"
+           },
+           "400" : {
+-            "description" : "Invalid Order",
+-            "content" : { }
++            "content" : { },
++            "description" : "Invalid Order"
+           }
+         },
++        "summary" : "Place an order for a pet",
++        "tags" : [ "store" ],
++        "x-codegen-request-body-name" : "body",
+         "x-contentType" : "*/*",
+         "x-accepts" : "application/json",
+         "x-serviceid" : "placeOrder",
+@@ -471,26 +474,51 @@
+       }
+     },
+     "/store/order/{orderId}" : {
+-      "get" : {
++      "delete" : {
++        "description" : "For valid response try integer IDs with value < 1000. Anything above 1000 or nonintegers will generate API errors",
++        "operationId" : "deleteOrder",
++        "parameters" : [ {
++          "description" : "ID of the order that needs to be deleted",
++          "in" : "path",
++          "name" : "orderId",
++          "required" : true,
++          "schema" : {
++            "type" : "string"
++          }
++        } ],
++        "responses" : {
++          "400" : {
++            "content" : { },
++            "description" : "Invalid ID supplied"
++          },
++          "404" : {
++            "content" : { },
++            "description" : "Order not found"
++          }
++        },
++        "summary" : "Delete purchase order by ID",
+         "tags" : [ "store" ],
+-        "summary" : "Find purchase order by ID",
++        "x-accepts" : "application/json",
++        "x-serviceid" : "deleteOrder",
++        "x-serviceid-varname" : "DELETEORDER_SERVICE_ID"
++      },
++      "get" : {
+         "description" : "For valid response try integer IDs with value <= 5 or > 10. Other values will generated exceptions",
+         "operationId" : "getOrderById",
+         "parameters" : [ {
+-          "name" : "orderId",
+-          "in" : "path",
+           "description" : "ID of pet that needs to be fetched",
++          "in" : "path",
++          "name" : "orderId",
+           "required" : true,
+           "schema" : {
++            "format" : "int64",
+             "maximum" : 5,
+             "minimum" : 1,
+-            "type" : "integer",
+-            "format" : "int64"
++            "type" : "integer"
+           }
+         } ],
+         "responses" : {
+           "200" : {
+-            "description" : "successful operation",
+             "content" : {
+               "application/xml" : {
+                 "schema" : {
+@@ -502,58 +530,30 @@
+                   "$ref" : "#/components/schemas/Order"
+                 }
+               }
+-            }
++            },
++            "description" : "successful operation"
+           },
+           "400" : {
+-            "description" : "Invalid ID supplied",
+-            "content" : { }
++            "content" : { },
++            "description" : "Invalid ID supplied"
+           },
+           "404" : {
+-            "description" : "Order not found",
+-            "content" : { }
++            "content" : { },
++            "description" : "Order not found"
+           }
+         },
++        "summary" : "Find purchase order by ID",
++        "tags" : [ "store" ],
+         "x-accepts" : "application/json",
+         "x-serviceid" : "getOrderById",
+         "x-serviceid-varname" : "GETORDERBYID_SERVICE_ID"
+-      },
+-      "delete" : {
+-        "tags" : [ "store" ],
+-        "summary" : "Delete purchase order by ID",
+-        "description" : "For valid response try integer IDs with value < 1000. Anything above 1000 or nonintegers will generate API errors",
+-        "operationId" : "deleteOrder",
+-        "parameters" : [ {
+-          "name" : "orderId",
+-          "in" : "path",
+-          "description" : "ID of the order that needs to be deleted",
+-          "required" : true,
+-          "schema" : {
+-            "type" : "string"
+-          }
+-        } ],
+-        "responses" : {
+-          "400" : {
+-            "description" : "Invalid ID supplied",
+-            "content" : { }
+-          },
+-          "404" : {
+-            "description" : "Order not found",
+-            "content" : { }
+-          }
+-        },
+-        "x-accepts" : "application/json",
+-        "x-serviceid" : "deleteOrder",
+-        "x-serviceid-varname" : "DELETEORDER_SERVICE_ID"
+       }
+     },
+     "/user" : {
+       "post" : {
+-        "tags" : [ "user" ],
+-        "summary" : "Create user",
+         "description" : "This can only be done by the logged in user.",
+         "operationId" : "createUser",
+         "requestBody" : {
+-          "description" : "Created user object",
+           "content" : {
+             "*/*" : {
+               "schema" : {
+@@ -561,15 +561,19 @@
+               }
+             }
+           },
++          "description" : "Created user object",
+           "required" : true
+         },
+         "responses" : {
+           "default" : {
+-            "description" : "successful operation",
+-            "content" : { }
++            "content" : { },
++            "description" : "successful operation"
+           }
+         },
+-        "x-contentType" : "*/*",
++        "summary" : "Create user",
++        "tags" : [ "user" ],
++        "x-codegen-request-body-name" : "body",
++        "x-contentType" : "*/*",
+         "x-accepts" : "application/json",
+         "x-serviceid" : "createUser",
+         "x-serviceid-varname" : "CREATEUSER_SERVICE_ID"
+@@ -577,29 +581,30 @@
+     },
+     "/user/createWithArray" : {
+       "post" : {
+-        "tags" : [ "user" ],
+-        "summary" : "Creates list of users with given input array",
+         "operationId" : "createUsersWithArrayInput",
+         "requestBody" : {
+-          "description" : "List of user object",
+           "content" : {
+             "*/*" : {
+               "schema" : {
+-                "type" : "array",
+                 "items" : {
+                   "$ref" : "#/components/schemas/User"
+-                }
++                },
++                "type" : "array"
+               }
+             }
+           },
++          "description" : "List of user object",
+           "required" : true
+         },
+         "responses" : {
+           "default" : {
+-            "description" : "successful operation",
+-            "content" : { }
++            "content" : { },
++            "description" : "successful operation"
+           }
+         },
++        "summary" : "Creates list of users with given input array",
++        "tags" : [ "user" ],
++        "x-codegen-request-body-name" : "body",
+         "x-contentType" : "*/*",
+         "x-accepts" : "application/json",
+         "x-serviceid" : "createUsersWithArrayInput",
+@@ -608,29 +613,30 @@
+     },
+     "/user/createWithList" : {
+       "post" : {
+-        "tags" : [ "user" ],
+-        "summary" : "Creates list of users with given input array",
+         "operationId" : "createUsersWithListInput",
+         "requestBody" : {
+-          "description" : "List of user object",
+           "content" : {
+             "*/*" : {
+               "schema" : {
+-                "type" : "array",
+                 "items" : {
+                   "$ref" : "#/components/schemas/User"
+-                }
++                },
++                "type" : "array"
+               }
+             }
+           },
++          "description" : "List of user object",
+           "required" : true
+         },
+         "responses" : {
+           "default" : {
+-            "description" : "successful operation",
+-            "content" : { }
++            "content" : { },
++            "description" : "successful operation"
+           }
+         },
++        "summary" : "Creates list of users with given input array",
++        "tags" : [ "user" ],
++        "x-codegen-request-body-name" : "body",
+         "x-contentType" : "*/*",
+         "x-accepts" : "application/json",
+         "x-serviceid" : "createUsersWithListInput",
+@@ -639,21 +645,19 @@
+     },
+     "/user/login" : {
+       "get" : {
+-        "tags" : [ "user" ],
+-        "summary" : "Logs user into the system",
+         "operationId" : "loginUser",
+         "parameters" : [ {
+-          "name" : "username",
+-          "in" : "query",
+           "description" : "The user name for login",
++          "in" : "query",
++          "name" : "username",
+           "required" : true,
+           "schema" : {
+             "type" : "string"
+           }
+         }, {
+-          "name" : "password",
+-          "in" : "query",
+           "description" : "The password for login in clear text",
++          "in" : "query",
++          "name" : "password",
+           "required" : true,
+           "schema" : {
+             "type" : "string"
+@@ -661,41 +665,43 @@
+         } ],
+         "responses" : {
+           "200" : {
+-            "description" : "successful operation",
+-            "headers" : {
+-              "X-Rate-Limit" : {
+-                "description" : "calls per hour allowed by the user",
++            "content" : {
++              "application/xml" : {
+                 "schema" : {
+-                  "type" : "integer",
+-                  "format" : "int32"
++                  "type" : "string"
+                 }
+               },
+-              "X-Expires-After" : {
+-                "description" : "date in UTC when toekn expires",
++              "application/json" : {
+                 "schema" : {
+-                  "type" : "string",
+-                  "format" : "date-time"
++                  "type" : "string"
+                 }
+               }
+             },
+-            "content" : {
+-              "application/xml" : {
++            "description" : "successful operation",
++            "headers" : {
++              "X-Rate-Limit" : {
++                "description" : "calls per hour allowed by the user",
+                 "schema" : {
+-                  "type" : "string"
++                  "format" : "int32",
++                  "type" : "integer"
+                 }
+               },
+-              "application/json" : {
++              "X-Expires-After" : {
++                "description" : "date in UTC when toekn expires",
+                 "schema" : {
++                  "format" : "date-time",
+                   "type" : "string"
+                 }
+               }
+             }
+           },
+           "400" : {
+-            "description" : "Invalid username/password supplied",
+-            "content" : { }
++            "content" : { },
++            "description" : "Invalid username/password supplied"
+           }
+         },
++        "summary" : "Logs user into the system",
++        "tags" : [ "user" ],
+         "x-accepts" : "application/json",
+         "x-serviceid" : "loginUser",
+         "x-serviceid-varname" : "LOGINUSER_SERVICE_ID"
+@@ -703,29 +709,55 @@
+     },
+     "/user/logout" : {
+       "get" : {
+-        "tags" : [ "user" ],
+-        "summary" : "Logs out current logged in user session",
+         "operationId" : "logoutUser",
+         "responses" : {
+           "default" : {
+-            "description" : "successful operation",
+-            "content" : { }
++            "content" : { },
++            "description" : "successful operation"
+           }
+         },
++        "summary" : "Logs out current logged in user session",
++        "tags" : [ "user" ],
+         "x-accepts" : "application/json",
+         "x-serviceid" : "logoutUser",
+         "x-serviceid-varname" : "LOGOUTUSER_SERVICE_ID"
+       }
+     },
+     "/user/{username}" : {
+-      "get" : {
++      "delete" : {
++        "description" : "This can only be done by the logged in user.",
++        "operationId" : "deleteUser",
++        "parameters" : [ {
++          "description" : "The name that needs to be deleted",
++          "in" : "path",
++          "name" : "username",
++          "required" : true,
++          "schema" : {
++            "type" : "string"
++          }
++        } ],
++        "responses" : {
++          "400" : {
++            "content" : { },
++            "description" : "Invalid username supplied"
++          },
++          "404" : {
++            "content" : { },
++            "description" : "User not found"
++          }
++        },
++        "summary" : "Delete user",
+         "tags" : [ "user" ],
+-        "summary" : "Get user by user name",
++        "x-accepts" : "application/json",
++        "x-serviceid" : "deleteUser",
++        "x-serviceid-varname" : "DELETEUSER_SERVICE_ID"
++      },
++      "get" : {
+         "operationId" : "getUserByName",
+         "parameters" : [ {
+-          "name" : "username",
+-          "in" : "path",
+           "description" : "The name that needs to be fetched. Use user1 for testing.",
++          "in" : "path",
++          "name" : "username",
+           "required" : true,
+           "schema" : {
+             "type" : "string"
+@@ -733,7 +765,6 @@
+         } ],
+         "responses" : {
+           "200" : {
+-            "description" : "successful operation",
+             "content" : {
+               "application/xml" : {
+                 "schema" : {
+@@ -745,37 +776,37 @@
+                   "$ref" : "#/components/schemas/User"
+                 }
+               }
+-            }
++            },
++            "description" : "successful operation"
+           },
+           "400" : {
+-            "description" : "Invalid username supplied",
+-            "content" : { }
++            "content" : { },
++            "description" : "Invalid username supplied"
+           },
+           "404" : {
+-            "description" : "User not found",
+-            "content" : { }
++            "content" : { },
++            "description" : "User not found"
+           }
+         },
++        "summary" : "Get user by user name",
++        "tags" : [ "user" ],
+         "x-accepts" : "application/json",
+         "x-serviceid" : "getUserByName",
+         "x-serviceid-varname" : "GETUSERBYNAME_SERVICE_ID"
+       },
+       "put" : {
+-        "tags" : [ "user" ],
+-        "summary" : "Updated user",
+         "description" : "This can only be done by the logged in user.",
+         "operationId" : "updateUser",
+         "parameters" : [ {
+-          "name" : "username",
+-          "in" : "path",
+           "description" : "name that need to be deleted",
++          "in" : "path",
++          "name" : "username",
+           "required" : true,
+           "schema" : {
+             "type" : "string"
+           }
+         } ],
+         "requestBody" : {
+-          "description" : "Updated user object",
+           "content" : {
+             "*/*" : {
+               "schema" : {
+@@ -783,126 +814,111 @@
+               }
+             }
+           },
++          "description" : "Updated user object",
+           "required" : true
+         },
+         "responses" : {
+           "400" : {
+-            "description" : "Invalid user supplied",
+-            "content" : { }
++            "content" : { },
++            "description" : "Invalid user supplied"
+           },
+           "404" : {
+-            "description" : "User not found",
+-            "content" : { }
++            "content" : { },
++            "description" : "User not found"
+           }
+         },
++        "summary" : "Updated user",
++        "tags" : [ "user" ],
++        "x-codegen-request-body-name" : "body",
+         "x-contentType" : "*/*",
+         "x-accepts" : "application/json",
+         "x-serviceid" : "updateUser",
+         "x-serviceid-varname" : "UPDATEUSER_SERVICE_ID"
+-      },
+-      "delete" : {
+-        "tags" : [ "user" ],
+-        "summary" : "Delete user",
+-        "description" : "This can only be done by the logged in user.",
+-        "operationId" : "deleteUser",
+-        "parameters" : [ {
+-          "name" : "username",
+-          "in" : "path",
+-          "description" : "The name that needs to be deleted",
+-          "required" : true,
+-          "schema" : {
+-            "type" : "string"
+-          }
+-        } ],
+-        "responses" : {
+-          "400" : {
+-            "description" : "Invalid username supplied",
+-            "content" : { }
+-          },
+-          "404" : {
+-            "description" : "User not found",
+-            "content" : { }
+-          }
+-        },
+-        "x-accepts" : "application/json",
+-        "x-serviceid" : "deleteUser",
+-        "x-serviceid-varname" : "DELETEUSER_SERVICE_ID"
+       }
+     }
+   },
+   "components" : {
+     "schemas" : {
+       "Order" : {
+-        "title" : "Pet Order",
+-        "type" : "object",
++        "description" : "An order for a pets from the pet store",
++        "example" : {
++          "petId" : 6,
++          "quantity" : 1,
++          "id" : 0,
++          "shipDate" : "2000-01-23T04:56:07.000+00:00",
++          "complete" : false,
++          "status" : "placed"
++        },
+         "properties" : {
+           "id" : {
+-            "type" : "integer",
+-            "format" : "int64"
++            "format" : "int64",
++            "type" : "integer"
+           },
+           "petId" : {
+-            "type" : "integer",
+-            "format" : "int64"
++            "format" : "int64",
++            "type" : "integer"
+           },
+           "quantity" : {
+-            "type" : "integer",
+-            "format" : "int32"
++            "format" : "int32",
++            "type" : "integer"
+           },
+           "shipDate" : {
+-            "type" : "string",
+-            "format" : "date-time"
++            "format" : "date-time",
++            "type" : "string"
+           },
+           "status" : {
+-            "type" : "string",
+             "description" : "Order Status",
+-            "enum" : [ "placed", "approved", "delivered" ]
++            "enum" : [ "placed", "approved", "delivered" ],
++            "type" : "string"
+           },
+           "complete" : {
+-            "type" : "boolean",
+-            "default" : false
++            "default" : false,
++            "type" : "boolean"
+           }
+         },
+-        "description" : "An order for a pets from the pet store",
+-        "example" : {
+-          "petId" : 6,
+-          "quantity" : 1,
+-          "id" : 0,
+-          "shipDate" : "2000-01-23T04:56:07.000+00:00",
+-          "complete" : false,
+-          "status" : "placed"
+-        },
++        "title" : "Pet Order",
++        "type" : "object",
+         "xml" : {
+           "name" : "Order"
+         }
+       },
+       "Category" : {
+-        "title" : "Pet category",
+-        "type" : "object",
++        "description" : "A category for a pet",
++        "example" : {
++          "name" : "name",
++          "id" : 6
++        },
+         "properties" : {
+           "id" : {
+-            "type" : "integer",
+-            "format" : "int64"
++            "format" : "int64",
++            "type" : "integer"
+           },
+           "name" : {
+             "type" : "string"
+           }
+         },
+-        "description" : "A category for a pet",
+-        "example" : {
+-          "name" : "name",
+-          "id" : 6
+-        },
++        "title" : "Pet category",
++        "type" : "object",
+         "xml" : {
+           "name" : "Category"
+         }
+       },
+       "User" : {
+-        "title" : "a User",
+-        "type" : "object",
++        "description" : "A User who is purchasing from the pet store",
++        "example" : {
++          "firstName" : "firstName",
++          "lastName" : "lastName",
++          "password" : "password",
++          "userStatus" : 6,
++          "phone" : "phone",
++          "id" : 0,
++          "email" : "email",
++          "username" : "username"
++        },
+         "properties" : {
+           "id" : {
+-            "type" : "integer",
+-            "format" : "int64"
++            "format" : "int64",
++            "type" : "integer"
+           },
+           "username" : {
+             "type" : "string"
+@@ -923,118 +939,113 @@
+             "type" : "string"
+           },
+           "userStatus" : {
+-            "type" : "integer",
+             "description" : "User Status",
+-            "format" : "int32"
++            "format" : "int32",
++            "type" : "integer"
+           }
+         },
+-        "description" : "A User who is purchasing from the pet store",
+-        "example" : {
+-          "firstName" : "firstName",
+-          "lastName" : "lastName",
+-          "password" : "password",
+-          "userStatus" : 6,
+-          "phone" : "phone",
+-          "id" : 0,
+-          "email" : "email",
+-          "username" : "username"
+-        },
++        "title" : "a User",
++        "type" : "object",
+         "xml" : {
+           "name" : "User"
+         }
+       },
+       "Tag" : {
+-        "title" : "Pet Tag",
+-        "type" : "object",
++        "description" : "A tag for a pet",
++        "example" : {
++          "name" : "name",
++          "id" : 1
++        },
+         "properties" : {
+           "id" : {
+-            "type" : "integer",
+-            "format" : "int64"
++            "format" : "int64",
++            "type" : "integer"
+           },
+           "name" : {
+             "type" : "string"
+           }
+         },
+-        "description" : "A tag for a pet",
+-        "example" : {
+-          "name" : "name",
+-          "id" : 1
+-        },
++        "title" : "Pet Tag",
++        "type" : "object",
+         "xml" : {
+           "name" : "Tag"
+         }
+       },
+       "Pet" : {
+-        "title" : "a Pet",
+-        "required" : [ "name", "photoUrls" ],
+-        "type" : "object",
++        "description" : "A pet for sale in the pet store",
++        "example" : {
++          "photoUrls" : [ "photoUrls", "photoUrls" ],
++          "name" : "doggie",
++          "id" : 0,
++          "category" : {
++            "name" : "name",
++            "id" : 6
++          },
++          "tags" : [ {
++            "name" : "name",
++            "id" : 1
++          }, {
++            "name" : "name",
++            "id" : 1
++          } ],
++          "status" : "available"
++        },
+         "properties" : {
+           "id" : {
+-            "type" : "integer",
+-            "format" : "int64"
++            "format" : "int64",
++            "type" : "integer"
+           },
+           "category" : {
+             "$ref" : "#/components/schemas/Category"
+           },
+           "name" : {
+-            "type" : "string",
+-            "example" : "doggie"
++            "example" : "doggie",
++            "type" : "string"
+           },
+           "photoUrls" : {
++            "items" : {
++              "type" : "string"
++            },
+             "type" : "array",
+             "xml" : {
+               "name" : "photoUrl",
+               "wrapped" : true
+-            },
+-            "items" : {
+-              "type" : "string"
+             }
+           },
+           "tags" : {
++            "items" : {
++              "$ref" : "#/components/schemas/Tag"
++            },
+             "type" : "array",
+             "xml" : {
+               "name" : "tag",
+               "wrapped" : true
+-            },
+-            "items" : {
+-              "$ref" : "#/components/schemas/Tag"
+             }
+           },
+           "status" : {
+-            "type" : "string",
+             "description" : "pet status in the store",
+-            "enum" : [ "available", "pending", "sold" ]
++            "enum" : [ "available", "pending", "sold" ],
++            "type" : "string"
+           }
+         },
+-        "description" : "A pet for sale in the pet store",
+-        "example" : {
+-          "photoUrls" : [ "photoUrls", "photoUrls" ],
+-          "name" : "doggie",
+-          "id" : 0,
+-          "category" : {
+-            "name" : "name",
+-            "id" : 6
+-          },
+-          "tags" : [ {
+-            "name" : "name",
+-            "id" : 1
+-          }, {
+-            "name" : "name",
+-            "id" : 1
+-          } ],
+-          "status" : "available"
+-        },
++        "required" : [ "name", "photoUrls" ],
++        "title" : "a Pet",
++        "type" : "object",
+         "xml" : {
+           "name" : "Pet"
+         }
+       },
+       "ApiResponse" : {
+-        "title" : "An uploaded response",
+-        "type" : "object",
++        "description" : "Describes the result of uploading an image resource",
++        "example" : {
++          "code" : 0,
++          "type" : "type",
++          "message" : "message"
++        },
+         "properties" : {
+           "code" : {
+-            "type" : "integer",
+-            "format" : "int32"
++            "format" : "int32",
++            "type" : "integer"
+           },
+           "type" : {
+             "type" : "string"
+@@ -1043,17 +1054,12 @@
+             "type" : "string"
+           }
+         },
+-        "description" : "Describes the result of uploading an image resource",
+-        "example" : {
+-          "code" : 0,
+-          "type" : "type",
+-          "message" : "message"
+-        }
++        "title" : "An uploaded response",
++        "type" : "object"
+       }
+     },
+     "securitySchemes" : {
+       "petstore_auth" : {
+-        "type" : "oauth2",
+         "flows" : {
+           "implicit" : {
+             "authorizationUrl" : "http://petstore.swagger.io/api/oauth/dialog",
+@@ -1062,12 +1068,13 @@
+               "read:pets" : "read your pets"
+             }
+           }
+-        }
++        },
++        "type" : "oauth2"
+       },
+       "api_key" : {
+-        "type" : "apiKey",
++        "in" : "header",
+         "name" : "api_key",
+-        "in" : "header"
++        "type" : "apiKey"
+       }
+     }
+   }
+diff --git a/samples/server/petstore/java-vertx/rx/.openapi-generator/VERSION b/samples/server/petstore/java-vertx/rx/.openapi-generator/VERSION
+index 4395ff59232..58592f031f6 100644
+--- a/samples/server/petstore/java-vertx/rx/.openapi-generator/VERSION
++++ b/samples/server/petstore/java-vertx/rx/.openapi-generator/VERSION
+@@ -1 +1 @@
+-3.2.0-SNAPSHOT
+\ No newline at end of file
++4.2.3-SNAPSHOT
+\ No newline at end of file
+diff --git a/samples/server/petstore/java-vertx/rx/src/main/java/org/openapitools/server/api/model/Category.java b/samples/server/petstore/java-vertx/rx/src/main/java/org/openapitools/server/api/model/Category.java
+index 58721d64cd3..f05201c45ad 100644
+--- a/samples/server/petstore/java-vertx/rx/src/main/java/org/openapitools/server/api/model/Category.java
++++ b/samples/server/petstore/java-vertx/rx/src/main/java/org/openapitools/server/api/model/Category.java
+@@ -7,11 +7,11 @@
+ /**
+  * A category for a pet
+  **/
+-@JsonInclude(JsonInclude.Include.NON_NULL) 
++@JsonInclude(JsonInclude.Include.NON_NULL)
+ public class Category   {
+   
+-  private Long id = null;
+-  private String name = null;
++  private Long id;
++  private String name;
+ 
+   public Category () {
+ 
+diff --git a/samples/server/petstore/java-vertx/rx/src/main/java/org/openapitools/server/api/model/ModelApiResponse.java b/samples/server/petstore/java-vertx/rx/src/main/java/org/openapitools/server/api/model/ModelApiResponse.java
+index 60e1945bf1a..934a6efdf96 100644
+--- a/samples/server/petstore/java-vertx/rx/src/main/java/org/openapitools/server/api/model/ModelApiResponse.java
++++ b/samples/server/petstore/java-vertx/rx/src/main/java/org/openapitools/server/api/model/ModelApiResponse.java
+@@ -7,12 +7,12 @@
+ /**
+  * Describes the result of uploading an image resource
+  **/
+-@JsonInclude(JsonInclude.Include.NON_NULL) 
++@JsonInclude(JsonInclude.Include.NON_NULL)
+ public class ModelApiResponse   {
+   
+-  private Integer code = null;
+-  private String type = null;
+-  private String message = null;
++  private Integer code;
++  private String type;
++  private String message;
+ 
+   public ModelApiResponse () {
+ 
+diff --git a/samples/server/petstore/java-vertx/rx/src/main/java/org/openapitools/server/api/model/Order.java b/samples/server/petstore/java-vertx/rx/src/main/java/org/openapitools/server/api/model/Order.java
+index f34e4c0ff4f..0d8d6714212 100644
+--- a/samples/server/petstore/java-vertx/rx/src/main/java/org/openapitools/server/api/model/Order.java
++++ b/samples/server/petstore/java-vertx/rx/src/main/java/org/openapitools/server/api/model/Order.java
+@@ -9,13 +9,13 @@
+ /**
+  * An order for a pets from the pet store
+  **/
+-@JsonInclude(JsonInclude.Include.NON_NULL) 
++@JsonInclude(JsonInclude.Include.NON_NULL)
+ public class Order   {
+   
+-  private Long id = null;
+-  private Long petId = null;
+-  private Integer quantity = null;
+-  private OffsetDateTime shipDate = null;
++  private Long id;
++  private Long petId;
++  private Integer quantity;
++  private OffsetDateTime shipDate;
+ 
+ 
+   public enum StatusEnum {
+@@ -36,7 +36,7 @@ public String toString() {
+     }
+   }
+ 
+-  private StatusEnum status = null;
++  private StatusEnum status;
+   private Boolean complete = false;
+ 
+   public Order () {
+diff --git a/samples/server/petstore/java-vertx/rx/src/main/java/org/openapitools/server/api/model/Pet.java b/samples/server/petstore/java-vertx/rx/src/main/java/org/openapitools/server/api/model/Pet.java
+index be9ab39a496..cb9325acf5d 100644
+--- a/samples/server/petstore/java-vertx/rx/src/main/java/org/openapitools/server/api/model/Pet.java
++++ b/samples/server/petstore/java-vertx/rx/src/main/java/org/openapitools/server/api/model/Pet.java
+@@ -12,12 +12,12 @@
+ /**
+  * A pet for sale in the pet store
+  **/
+-@JsonInclude(JsonInclude.Include.NON_NULL) 
++@JsonInclude(JsonInclude.Include.NON_NULL)
+ public class Pet   {
+   
+-  private Long id = null;
+-  private Category category = null;
+-  private String name = null;
++  private Long id;
++  private Category category;
++  private String name;
+   private List<String> photoUrls = new ArrayList<>();
+   private List<Tag> tags = new ArrayList<>();
+ 
+@@ -40,7 +40,7 @@ public String toString() {
+     }
+   }
+ 
+-  private StatusEnum status = null;
++  private StatusEnum status;
+ 
+   public Pet () {
+ 
+diff --git a/samples/server/petstore/java-vertx/rx/src/main/java/org/openapitools/server/api/model/Tag.java b/samples/server/petstore/java-vertx/rx/src/main/java/org/openapitools/server/api/model/Tag.java
+index acb51386a8f..0389c2fbeea 100644
+--- a/samples/server/petstore/java-vertx/rx/src/main/java/org/openapitools/server/api/model/Tag.java
++++ b/samples/server/petstore/java-vertx/rx/src/main/java/org/openapitools/server/api/model/Tag.java
+@@ -7,11 +7,11 @@
+ /**
+  * A tag for a pet
+  **/
+-@JsonInclude(JsonInclude.Include.NON_NULL) 
++@JsonInclude(JsonInclude.Include.NON_NULL)
+ public class Tag   {
+   
+-  private Long id = null;
+-  private String name = null;
++  private Long id;
++  private String name;
+ 
+   public Tag () {
+ 
+diff --git a/samples/server/petstore/java-vertx/rx/src/main/java/org/openapitools/server/api/model/User.java b/samples/server/petstore/java-vertx/rx/src/main/java/org/openapitools/server/api/model/User.java
+index fedd3d6207e..0e1e8755555 100644
+--- a/samples/server/petstore/java-vertx/rx/src/main/java/org/openapitools/server/api/model/User.java
++++ b/samples/server/petstore/java-vertx/rx/src/main/java/org/openapitools/server/api/model/User.java
+@@ -7,17 +7,17 @@
+ /**
+  * A User who is purchasing from the pet store
+  **/
+-@JsonInclude(JsonInclude.Include.NON_NULL) 
++@JsonInclude(JsonInclude.Include.NON_NULL)
+ public class User   {
+   
+-  private Long id = null;
+-  private String username = null;
+-  private String firstName = null;
+-  private String lastName = null;
+-  private String email = null;
+-  private String password = null;
+-  private String phone = null;
+-  private Integer userStatus = null;
++  private Long id;
++  private String username;
++  private String firstName;
++  private String lastName;
++  private String email;
++  private String password;
++  private String phone;
++  private Integer userStatus;
+ 
+   public User () {
+ 
+diff --git a/samples/server/petstore/java-vertx/rx/src/main/java/org/openapitools/server/api/verticle/PetApi.java b/samples/server/petstore/java-vertx/rx/src/main/java/org/openapitools/server/api/verticle/PetApi.java
+index ed8784f284f..ae86f9bee70 100644
+--- a/samples/server/petstore/java-vertx/rx/src/main/java/org/openapitools/server/api/verticle/PetApi.java
++++ b/samples/server/petstore/java-vertx/rx/src/main/java/org/openapitools/server/api/verticle/PetApi.java
+@@ -13,7 +13,7 @@
+ 
+ public interface PetApi  {
+     //addPet
+-    public Completable addPet(Pet pet);
++    public Completable addPet(Pet body);
+     
+     //deletePet
+     public Completable deletePet(Long petId,String apiKey);
+@@ -28,7 +28,7 @@
+     public Single<Pet> getPetById(Long petId);
+     
+     //updatePet
+-    public Completable updatePet(Pet pet);
++    public Completable updatePet(Pet body);
+     
+     //updatePetWithForm
+     public Completable updatePetWithForm(Long petId,String name,String status);
+diff --git a/samples/server/petstore/java-vertx/rx/src/main/java/org/openapitools/server/api/verticle/PetApiVerticle.java b/samples/server/petstore/java-vertx/rx/src/main/java/org/openapitools/server/api/verticle/PetApiVerticle.java
+index 80f8a99f2e1..7caf45dfd24 100644
+--- a/samples/server/petstore/java-vertx/rx/src/main/java/org/openapitools/server/api/verticle/PetApiVerticle.java
++++ b/samples/server/petstore/java-vertx/rx/src/main/java/org/openapitools/server/api/verticle/PetApiVerticle.java
+@@ -48,13 +48,13 @@ public void start() throws Exception {
+             try {
+                 // Workaround for #allParams section clearing the vendorExtensions map
+                 String serviceId = "addPet";
+-                JsonObject petParam = message.body().getJsonObject("Pet");
+-                if (petParam == null) {
+-                    manageError(message, new MainApiException(400, "Pet is required"), serviceId);
++                JsonObject bodyParam = message.body().getJsonObject("body");
++                if (bodyParam == null) {
++                    manageError(message, new MainApiException(400, "body is required"), serviceId);
+                     return;
+                 }
+-                Pet pet = Json.mapper.readValue(petParam.encode(), Pet.class);
+-                service.addPet(pet).subscribe(
++                Pet body = Json.mapper.readValue(bodyParam.encode(), Pet.class);
++                service.addPet(body).subscribe(
+                     () -> {
+                         message.reply(null);
+                     },
+@@ -172,13 +172,13 @@ public void start() throws Exception {
+             try {
+                 // Workaround for #allParams section clearing the vendorExtensions map
+                 String serviceId = "updatePet";
+-                JsonObject petParam = message.body().getJsonObject("Pet");
+-                if (petParam == null) {
+-                    manageError(message, new MainApiException(400, "Pet is required"), serviceId);
++                JsonObject bodyParam = message.body().getJsonObject("body");
++                if (bodyParam == null) {
++                    manageError(message, new MainApiException(400, "body is required"), serviceId);
+                     return;
+                 }
+-                Pet pet = Json.mapper.readValue(petParam.encode(), Pet.class);
+-                service.updatePet(pet).subscribe(
++                Pet body = Json.mapper.readValue(bodyParam.encode(), Pet.class);
++                service.updatePet(body).subscribe(
+                     () -> {
+                         message.reply(null);
+                     },
+diff --git a/samples/server/petstore/java-vertx/rx/src/main/java/org/openapitools/server/api/verticle/StoreApi.java b/samples/server/petstore/java-vertx/rx/src/main/java/org/openapitools/server/api/verticle/StoreApi.java
+index fd43dcbbdb5..8f9c735708b 100644
+--- a/samples/server/petstore/java-vertx/rx/src/main/java/org/openapitools/server/api/verticle/StoreApi.java
++++ b/samples/server/petstore/java-vertx/rx/src/main/java/org/openapitools/server/api/verticle/StoreApi.java
+@@ -20,6 +20,6 @@
+     public Single<Order> getOrderById(Long orderId);
+     
+     //placeOrder
+-    public Single<Order> placeOrder(Order order);
++    public Single<Order> placeOrder(Order body);
+     
+ }
+diff --git a/samples/server/petstore/java-vertx/rx/src/main/java/org/openapitools/server/api/verticle/StoreApiVerticle.java b/samples/server/petstore/java-vertx/rx/src/main/java/org/openapitools/server/api/verticle/StoreApiVerticle.java
+index ced8cdcbb9a..6e1a60becac 100644
+--- a/samples/server/petstore/java-vertx/rx/src/main/java/org/openapitools/server/api/verticle/StoreApiVerticle.java
++++ b/samples/server/petstore/java-vertx/rx/src/main/java/org/openapitools/server/api/verticle/StoreApiVerticle.java
+@@ -108,13 +108,13 @@ public void start() throws Exception {
+             try {
+                 // Workaround for #allParams section clearing the vendorExtensions map
+                 String serviceId = "placeOrder";
+-                JsonObject orderParam = message.body().getJsonObject("Order");
+-                if (orderParam == null) {
+-                    manageError(message, new MainApiException(400, "Order is required"), serviceId);
++                JsonObject bodyParam = message.body().getJsonObject("body");
++                if (bodyParam == null) {
++                    manageError(message, new MainApiException(400, "body is required"), serviceId);
+                     return;
+                 }
+-                Order order = Json.mapper.readValue(orderParam.encode(), Order.class);
+-                service.placeOrder(order).subscribe(
++                Order body = Json.mapper.readValue(bodyParam.encode(), Order.class);
++                service.placeOrder(body).subscribe(
+                     result -> {
+                         message.reply(new JsonObject(Json.encode(result)).encodePrettily());
+                     },
+diff --git a/samples/server/petstore/java-vertx/rx/src/main/java/org/openapitools/server/api/verticle/UserApi.java b/samples/server/petstore/java-vertx/rx/src/main/java/org/openapitools/server/api/verticle/UserApi.java
+index 20ddbbb5331..cc6be61055c 100644
+--- a/samples/server/petstore/java-vertx/rx/src/main/java/org/openapitools/server/api/verticle/UserApi.java
++++ b/samples/server/petstore/java-vertx/rx/src/main/java/org/openapitools/server/api/verticle/UserApi.java
+@@ -11,13 +11,13 @@
+ 
+ public interface UserApi  {
+     //createUser
+-    public Completable createUser(User user);
++    public Completable createUser(User body);
+     
+     //createUsersWithArrayInput
+-    public Completable createUsersWithArrayInput(List<User> user);
++    public Completable createUsersWithArrayInput(List<User> body);
+     
+     //createUsersWithListInput
+-    public Completable createUsersWithListInput(List<User> user);
++    public Completable createUsersWithListInput(List<User> body);
+     
+     //deleteUser
+     public Completable deleteUser(String username);
+@@ -32,6 +32,6 @@
+     public Completable logoutUser();
+     
+     //updateUser
+-    public Completable updateUser(String username,User user);
++    public Completable updateUser(String username,User body);
+     
+ }
+diff --git a/samples/server/petstore/java-vertx/rx/src/main/java/org/openapitools/server/api/verticle/UserApiVerticle.java b/samples/server/petstore/java-vertx/rx/src/main/java/org/openapitools/server/api/verticle/UserApiVerticle.java
+index 2700bc5b246..7233d8e3e29 100644
+--- a/samples/server/petstore/java-vertx/rx/src/main/java/org/openapitools/server/api/verticle/UserApiVerticle.java
++++ b/samples/server/petstore/java-vertx/rx/src/main/java/org/openapitools/server/api/verticle/UserApiVerticle.java
+@@ -46,13 +46,13 @@ public void start() throws Exception {
+             try {
+                 // Workaround for #allParams section clearing the vendorExtensions map
+                 String serviceId = "createUser";
+-                JsonObject userParam = message.body().getJsonObject("User");
+-                if (userParam == null) {
+-                    manageError(message, new MainApiException(400, "User is required"), serviceId);
++                JsonObject bodyParam = message.body().getJsonObject("body");
++                if (bodyParam == null) {
++                    manageError(message, new MainApiException(400, "body is required"), serviceId);
+                     return;
+                 }
+-                User user = Json.mapper.readValue(userParam.encode(), User.class);
+-                service.createUser(user).subscribe(
++                User body = Json.mapper.readValue(bodyParam.encode(), User.class);
++                service.createUser(body).subscribe(
+                     () -> {
+                         message.reply(null);
+                     },
+@@ -70,14 +70,14 @@ public void start() throws Exception {
+             try {
+                 // Workaround for #allParams section clearing the vendorExtensions map
+                 String serviceId = "createUsersWithArrayInput";
+-                JsonArray userParam = message.body().getJsonArray("User");
+-                if(userParam == null) {
+-                    manageError(message, new MainApiException(400, "User is required"), serviceId);
++                JsonArray bodyParam = message.body().getJsonArray("body");
++                if(bodyParam == null) {
++                    manageError(message, new MainApiException(400, "body is required"), serviceId);
+                     return;
+                 }
+-                List<User> user = Json.mapper.readValue(userParam.encode(),
+-                    Json.mapper.getTypeFactory().constructCollectionType(List.class, List.class));
+-                service.createUsersWithArrayInput(user).subscribe(
++                List<User> body = Json.mapper.readValue(bodyParam.encode(),
++                    Json.mapper.getTypeFactory().constructCollectionType(List.class, User.class));
++                service.createUsersWithArrayInput(body).subscribe(
+                     () -> {
+                         message.reply(null);
+                     },
+@@ -95,14 +95,14 @@ public void start() throws Exception {
+             try {
+                 // Workaround for #allParams section clearing the vendorExtensions map
+                 String serviceId = "createUsersWithListInput";
+-                JsonArray userParam = message.body().getJsonArray("User");
+-                if(userParam == null) {
+-                    manageError(message, new MainApiException(400, "User is required"), serviceId);
++                JsonArray bodyParam = message.body().getJsonArray("body");
++                if(bodyParam == null) {
++                    manageError(message, new MainApiException(400, "body is required"), serviceId);
+                     return;
+                 }
+-                List<User> user = Json.mapper.readValue(userParam.encode(),
+-                    Json.mapper.getTypeFactory().constructCollectionType(List.class, List.class));
+-                service.createUsersWithListInput(user).subscribe(
++                List<User> body = Json.mapper.readValue(bodyParam.encode(),
++                    Json.mapper.getTypeFactory().constructCollectionType(List.class, User.class));
++                service.createUsersWithListInput(body).subscribe(
+                     () -> {
+                         message.reply(null);
+                     },
+@@ -222,13 +222,13 @@ public void start() throws Exception {
+                     return;
+                 }
+                 String username = usernameParam;
+-                JsonObject userParam = message.body().getJsonObject("User");
+-                if (userParam == null) {
+-                    manageError(message, new MainApiException(400, "User is required"), serviceId);
++                JsonObject bodyParam = message.body().getJsonObject("body");
++                if (bodyParam == null) {
++                    manageError(message, new MainApiException(400, "body is required"), serviceId);
+                     return;
+                 }
+-                User user = Json.mapper.readValue(userParam.encode(), User.class);
+-                service.updateUser(username, user).subscribe(
++                User body = Json.mapper.readValue(bodyParam.encode(), User.class);
++                service.updateUser(username, body).subscribe(
+                     () -> {
+                         message.reply(null);
+                     },
+diff --git a/samples/server/petstore/java-vertx/rx/src/main/resources/openapi.json b/samples/server/petstore/java-vertx/rx/src/main/resources/openapi.json
+index f76425b9446..2f40e269947 100644
+--- a/samples/server/petstore/java-vertx/rx/src/main/resources/openapi.json
++++ b/samples/server/petstore/java-vertx/rx/src/main/resources/openapi.json
+@@ -1,35 +1,32 @@
+ {
+   "openapi" : "3.0.1",
+   "info" : {
+-    "title" : "OpenAPI Petstore",
+     "description" : "This is a sample server Petstore server. For this sample, you can use the api key `special-key` to test the authorization filters.",
+     "license" : {
+       "name" : "Apache-2.0",
+       "url" : "https://www.apache.org/licenses/LICENSE-2.0.html"
+     },
++    "title" : "OpenAPI Petstore",
+     "version" : "1.0.0"
+   },
+   "servers" : [ {
+     "url" : "http://petstore.swagger.io/v2"
+   } ],
+   "tags" : [ {
+-    "name" : "pet",
+-    "description" : "Everything about your Pets"
++    "description" : "Everything about your Pets",
++    "name" : "pet"
+   }, {
+-    "name" : "store",
+-    "description" : "Access to Petstore orders"
++    "description" : "Access to Petstore orders",
++    "name" : "store"
+   }, {
+-    "name" : "user",
+-    "description" : "Operations about user"
++    "description" : "Operations about user",
++    "name" : "user"
+   } ],
+   "paths" : {
+     "/pet" : {
+-      "put" : {
+-        "tags" : [ "pet" ],
+-        "summary" : "Update an existing pet",
+-        "operationId" : "updatePet",
++      "post" : {
++        "operationId" : "addPet",
+         "requestBody" : {
+-          "description" : "Pet object that needs to be added to the store",
+           "content" : {
+             "application/json" : {
+               "schema" : {
+@@ -42,36 +39,29 @@
+               }
+             }
+           },
++          "description" : "Pet object that needs to be added to the store",
+           "required" : true
+         },
+         "responses" : {
+-          "400" : {
+-            "description" : "Invalid ID supplied",
+-            "content" : { }
+-          },
+-          "404" : {
+-            "description" : "Pet not found",
+-            "content" : { }
+-          },
+           "405" : {
+-            "description" : "Validation exception",
+-            "content" : { }
++            "content" : { },
++            "description" : "Invalid input"
+           }
+         },
+         "security" : [ {
+           "petstore_auth" : [ "write:pets", "read:pets" ]
+         } ],
++        "summary" : "Add a new pet to the store",
++        "tags" : [ "pet" ],
++        "x-codegen-request-body-name" : "body",
+         "x-contentType" : "application/json",
+         "x-accepts" : "application/json",
+-        "x-serviceid" : "updatePet",
+-        "x-serviceid-varname" : "UPDATEPET_SERVICE_ID"
++        "x-serviceid" : "addPet",
++        "x-serviceid-varname" : "ADDPET_SERVICE_ID"
+       },
+-      "post" : {
+-        "tags" : [ "pet" ],
+-        "summary" : "Add a new pet to the store",
+-        "operationId" : "addPet",
++      "put" : {
++        "operationId" : "updatePet",
+         "requestBody" : {
+-          "description" : "Pet object that needs to be added to the store",
+           "content" : {
+             "application/json" : {
+               "schema" : {
+@@ -84,75 +74,87 @@
+               }
+             }
+           },
++          "description" : "Pet object that needs to be added to the store",
+           "required" : true
+         },
+         "responses" : {
++          "400" : {
++            "content" : { },
++            "description" : "Invalid ID supplied"
++          },
++          "404" : {
++            "content" : { },
++            "description" : "Pet not found"
++          },
+           "405" : {
+-            "description" : "Invalid input",
+-            "content" : { }
++            "content" : { },
++            "description" : "Validation exception"
+           }
+         },
+         "security" : [ {
+           "petstore_auth" : [ "write:pets", "read:pets" ]
+         } ],
++        "summary" : "Update an existing pet",
++        "tags" : [ "pet" ],
++        "x-codegen-request-body-name" : "body",
+         "x-contentType" : "application/json",
+         "x-accepts" : "application/json",
+-        "x-serviceid" : "addPet",
+-        "x-serviceid-varname" : "ADDPET_SERVICE_ID"
++        "x-serviceid" : "updatePet",
++        "x-serviceid-varname" : "UPDATEPET_SERVICE_ID"
+       }
+     },
+     "/pet/findByStatus" : {
+       "get" : {
+-        "tags" : [ "pet" ],
+-        "summary" : "Finds Pets by status",
+         "description" : "Multiple status values can be provided with comma separated strings",
+         "operationId" : "findPetsByStatus",
+         "parameters" : [ {
+-          "name" : "status",
+-          "in" : "query",
+           "description" : "Status values that need to be considered for filter",
+-          "required" : true,
+-          "style" : "form",
+           "explode" : false,
++          "in" : "query",
++          "name" : "status",
++          "required" : true,
+           "schema" : {
+-            "type" : "array",
+             "items" : {
+-              "type" : "string",
++              "default" : "available",
+               "enum" : [ "available", "pending", "sold" ],
+-              "default" : "available"
+-            }
+-          }
++              "type" : "string"
++            },
++            "type" : "array"
++          },
++          "style" : "form"
+         } ],
+         "responses" : {
+           "200" : {
+-            "description" : "successful operation",
+             "content" : {
+               "application/xml" : {
+                 "schema" : {
+-                  "type" : "array",
+                   "items" : {
+                     "$ref" : "#/components/schemas/Pet"
+-                  }
++                  },
++                  "type" : "array"
+                 }
+               },
+               "application/json" : {
+                 "schema" : {
+-                  "type" : "array",
+                   "items" : {
+                     "$ref" : "#/components/schemas/Pet"
+-                  }
++                  },
++                  "type" : "array"
+                 }
+               }
+-            }
++            },
++            "description" : "successful operation"
+           },
+           "400" : {
+-            "description" : "Invalid status value",
+-            "content" : { }
++            "content" : { },
++            "description" : "Invalid status value"
+           }
+         },
+         "security" : [ {
+           "petstore_auth" : [ "write:pets", "read:pets" ]
+         } ],
++        "summary" : "Finds Pets by status",
++        "tags" : [ "pet" ],
+         "x-accepts" : "application/json",
+         "x-serviceid" : "findPetsByStatus",
+         "x-serviceid-varname" : "FINDPETSBYSTATUS_SERVICE_ID"
+@@ -160,79 +162,109 @@
+     },
+     "/pet/findByTags" : {
+       "get" : {
+-        "tags" : [ "pet" ],
+-        "summary" : "Finds Pets by tags",
++        "deprecated" : true,
+         "description" : "Multiple tags can be provided with comma separated strings. Use tag1, tag2, tag3 for testing.",
+         "operationId" : "findPetsByTags",
+         "parameters" : [ {
+-          "name" : "tags",
+-          "in" : "query",
+           "description" : "Tags to filter by",
+-          "required" : true,
+-          "style" : "form",
+           "explode" : false,
++          "in" : "query",
++          "name" : "tags",
++          "required" : true,
+           "schema" : {
+-            "type" : "array",
+             "items" : {
+               "type" : "string"
+-            }
+-          }
++            },
++            "type" : "array"
++          },
++          "style" : "form"
+         } ],
+         "responses" : {
+           "200" : {
+-            "description" : "successful operation",
+             "content" : {
+               "application/xml" : {
+                 "schema" : {
+-                  "type" : "array",
+                   "items" : {
+                     "$ref" : "#/components/schemas/Pet"
+-                  }
++                  },
++                  "type" : "array"
+                 }
+               },
+               "application/json" : {
+                 "schema" : {
+-                  "type" : "array",
+                   "items" : {
+                     "$ref" : "#/components/schemas/Pet"
+-                  }
++                  },
++                  "type" : "array"
+                 }
+               }
+-            }
++            },
++            "description" : "successful operation"
+           },
+           "400" : {
+-            "description" : "Invalid tag value",
+-            "content" : { }
++            "content" : { },
++            "description" : "Invalid tag value"
+           }
+         },
+-        "deprecated" : true,
+         "security" : [ {
+           "petstore_auth" : [ "write:pets", "read:pets" ]
+         } ],
++        "summary" : "Finds Pets by tags",
++        "tags" : [ "pet" ],
+         "x-accepts" : "application/json",
+         "x-serviceid" : "findPetsByTags",
+         "x-serviceid-varname" : "FINDPETSBYTAGS_SERVICE_ID"
+       }
+     },
+     "/pet/{petId}" : {
+-      "get" : {
++      "delete" : {
++        "operationId" : "deletePet",
++        "parameters" : [ {
++          "in" : "header",
++          "name" : "api_key",
++          "schema" : {
++            "type" : "string"
++          }
++        }, {
++          "description" : "Pet id to delete",
++          "in" : "path",
++          "name" : "petId",
++          "required" : true,
++          "schema" : {
++            "format" : "int64",
++            "type" : "integer"
++          }
++        } ],
++        "responses" : {
++          "400" : {
++            "content" : { },
++            "description" : "Invalid pet value"
++          }
++        },
++        "security" : [ {
++          "petstore_auth" : [ "write:pets", "read:pets" ]
++        } ],
++        "summary" : "Deletes a pet",
+         "tags" : [ "pet" ],
+-        "summary" : "Find pet by ID",
++        "x-accepts" : "application/json",
++        "x-serviceid" : "deletePet",
++        "x-serviceid-varname" : "DELETEPET_SERVICE_ID"
++      },
++      "get" : {
+         "description" : "Returns a single pet",
+         "operationId" : "getPetById",
+         "parameters" : [ {
+-          "name" : "petId",
+-          "in" : "path",
+           "description" : "ID of pet to return",
++          "in" : "path",
++          "name" : "petId",
+           "required" : true,
+           "schema" : {
+-            "type" : "integer",
+-            "format" : "int64"
++            "format" : "int64",
++            "type" : "integer"
+           }
+         } ],
+         "responses" : {
+           "200" : {
+-            "description" : "successful operation",
+             "content" : {
+               "application/xml" : {
+                 "schema" : {
+@@ -244,36 +276,37 @@
+                   "$ref" : "#/components/schemas/Pet"
+                 }
+               }
+-            }
++            },
++            "description" : "successful operation"
+           },
+           "400" : {
+-            "description" : "Invalid ID supplied",
+-            "content" : { }
++            "content" : { },
++            "description" : "Invalid ID supplied"
+           },
+           "404" : {
+-            "description" : "Pet not found",
+-            "content" : { }
++            "content" : { },
++            "description" : "Pet not found"
+           }
+         },
+         "security" : [ {
+           "api_key" : [ ]
+         } ],
++        "summary" : "Find pet by ID",
++        "tags" : [ "pet" ],
+         "x-accepts" : "application/json",
+         "x-serviceid" : "getPetById",
+         "x-serviceid-varname" : "GETPETBYID_SERVICE_ID"
+       },
+       "post" : {
+-        "tags" : [ "pet" ],
+-        "summary" : "Updates a pet in the store with form data",
+         "operationId" : "updatePetWithForm",
+         "parameters" : [ {
+-          "name" : "petId",
+-          "in" : "path",
+           "description" : "ID of pet that needs to be updated",
++          "in" : "path",
++          "name" : "petId",
+           "required" : true,
+           "schema" : {
+-            "type" : "integer",
+-            "format" : "int64"
++            "format" : "int64",
++            "type" : "integer"
+           }
+         } ],
+         "requestBody" : {
+@@ -282,12 +315,12 @@
+               "schema" : {
+                 "properties" : {
+                   "name" : {
+-                    "type" : "string",
+-                    "description" : "Updated name of the pet"
++                    "description" : "Updated name of the pet",
++                    "type" : "string"
+                   },
+                   "status" : {
+-                    "type" : "string",
+-                    "description" : "Updated status of the pet"
++                    "description" : "Updated status of the pet",
++                    "type" : "string"
+                   }
+                 }
+               }
+@@ -296,65 +329,32 @@
+         },
+         "responses" : {
+           "405" : {
+-            "description" : "Invalid input",
+-            "content" : { }
++            "content" : { },
++            "description" : "Invalid input"
+           }
+         },
+         "security" : [ {
+           "petstore_auth" : [ "write:pets", "read:pets" ]
+         } ],
++        "summary" : "Updates a pet in the store with form data",
++        "tags" : [ "pet" ],
+         "x-contentType" : "application/x-www-form-urlencoded",
+         "x-accepts" : "application/json",
+         "x-serviceid" : "updatePetWithForm",
+         "x-serviceid-varname" : "UPDATEPETWITHFORM_SERVICE_ID"
+-      },
+-      "delete" : {
+-        "tags" : [ "pet" ],
+-        "summary" : "Deletes a pet",
+-        "operationId" : "deletePet",
+-        "parameters" : [ {
+-          "name" : "api_key",
+-          "in" : "header",
+-          "schema" : {
+-            "type" : "string"
+-          }
+-        }, {
+-          "name" : "petId",
+-          "in" : "path",
+-          "description" : "Pet id to delete",
+-          "required" : true,
+-          "schema" : {
+-            "type" : "integer",
+-            "format" : "int64"
+-          }
+-        } ],
+-        "responses" : {
+-          "400" : {
+-            "description" : "Invalid pet value",
+-            "content" : { }
+-          }
+-        },
+-        "security" : [ {
+-          "petstore_auth" : [ "write:pets", "read:pets" ]
+-        } ],
+-        "x-accepts" : "application/json",
+-        "x-serviceid" : "deletePet",
+-        "x-serviceid-varname" : "DELETEPET_SERVICE_ID"
+       }
+     },
+     "/pet/{petId}/uploadImage" : {
+       "post" : {
+-        "tags" : [ "pet" ],
+-        "summary" : "uploads an image",
+         "operationId" : "uploadFile",
+         "parameters" : [ {
+-          "name" : "petId",
+-          "in" : "path",
+           "description" : "ID of pet to update",
++          "in" : "path",
++          "name" : "petId",
+           "required" : true,
+           "schema" : {
+-            "type" : "integer",
+-            "format" : "int64"
++            "format" : "int64",
++            "type" : "integer"
+           }
+         } ],
+         "requestBody" : {
+@@ -363,13 +363,13 @@
+               "schema" : {
+                 "properties" : {
+                   "additionalMetadata" : {
+-                    "type" : "string",
+-                    "description" : "Additional data to pass to server"
++                    "description" : "Additional data to pass to server",
++                    "type" : "string"
+                   },
+                   "file" : {
+-                    "type" : "string",
+                     "description" : "file to upload",
+-                    "format" : "binary"
++                    "format" : "binary",
++                    "type" : "string"
+                   }
+                 }
+               }
+@@ -378,19 +378,21 @@
+         },
+         "responses" : {
+           "200" : {
+-            "description" : "successful operation",
+             "content" : {
+               "application/json" : {
+                 "schema" : {
+                   "$ref" : "#/components/schemas/ApiResponse"
+                 }
+               }
+-            }
++            },
++            "description" : "successful operation"
+           }
+         },
+         "security" : [ {
+           "petstore_auth" : [ "write:pets", "read:pets" ]
+         } ],
++        "summary" : "uploads an image",
++        "tags" : [ "pet" ],
+         "x-contentType" : "multipart/form-data",
+         "x-accepts" : "application/json",
+         "x-serviceid" : "uploadFile",
+@@ -399,29 +401,29 @@
+     },
+     "/store/inventory" : {
+       "get" : {
+-        "tags" : [ "store" ],
+-        "summary" : "Returns pet inventories by status",
+         "description" : "Returns a map of status codes to quantities",
+         "operationId" : "getInventory",
+         "responses" : {
+           "200" : {
+-            "description" : "successful operation",
+             "content" : {
+               "application/json" : {
+                 "schema" : {
+-                  "type" : "object",
+                   "additionalProperties" : {
+-                    "type" : "integer",
+-                    "format" : "int32"
+-                  }
++                    "format" : "int32",
++                    "type" : "integer"
++                  },
++                  "type" : "object"
+                 }
+               }
+-            }
++            },
++            "description" : "successful operation"
+           }
+         },
+         "security" : [ {
+           "api_key" : [ ]
+         } ],
++        "summary" : "Returns pet inventories by status",
++        "tags" : [ "store" ],
+         "x-accepts" : "application/json",
+         "x-serviceid" : "getInventory",
+         "x-serviceid-varname" : "GETINVENTORY_SERVICE_ID"
+@@ -429,11 +431,8 @@
+     },
+     "/store/order" : {
+       "post" : {
+-        "tags" : [ "store" ],
+-        "summary" : "Place an order for a pet",
+         "operationId" : "placeOrder",
+         "requestBody" : {
+-          "description" : "order placed for purchasing the pet",
+           "content" : {
+             "*/*" : {
+               "schema" : {
+@@ -441,11 +440,11 @@
+               }
+             }
+           },
++          "description" : "order placed for purchasing the pet",
+           "required" : true
+         },
+         "responses" : {
+           "200" : {
+-            "description" : "successful operation",
+             "content" : {
+               "application/xml" : {
+                 "schema" : {
+@@ -457,13 +456,17 @@
+                   "$ref" : "#/components/schemas/Order"
+                 }
+               }
+-            }
++            },
++            "description" : "successful operation"
+           },
+           "400" : {
+-            "description" : "Invalid Order",
+-            "content" : { }
++            "content" : { },
++            "description" : "Invalid Order"
+           }
+         },
++        "summary" : "Place an order for a pet",
++        "tags" : [ "store" ],
++        "x-codegen-request-body-name" : "body",
+         "x-contentType" : "*/*",
+         "x-accepts" : "application/json",
+         "x-serviceid" : "placeOrder",
+@@ -471,26 +474,51 @@
+       }
+     },
+     "/store/order/{orderId}" : {
+-      "get" : {
++      "delete" : {
++        "description" : "For valid response try integer IDs with value < 1000. Anything above 1000 or nonintegers will generate API errors",
++        "operationId" : "deleteOrder",
++        "parameters" : [ {
++          "description" : "ID of the order that needs to be deleted",
++          "in" : "path",
++          "name" : "orderId",
++          "required" : true,
++          "schema" : {
++            "type" : "string"
++          }
++        } ],
++        "responses" : {
++          "400" : {
++            "content" : { },
++            "description" : "Invalid ID supplied"
++          },
++          "404" : {
++            "content" : { },
++            "description" : "Order not found"
++          }
++        },
++        "summary" : "Delete purchase order by ID",
+         "tags" : [ "store" ],
+-        "summary" : "Find purchase order by ID",
++        "x-accepts" : "application/json",
++        "x-serviceid" : "deleteOrder",
++        "x-serviceid-varname" : "DELETEORDER_SERVICE_ID"
++      },
++      "get" : {
+         "description" : "For valid response try integer IDs with value <= 5 or > 10. Other values will generated exceptions",
+         "operationId" : "getOrderById",
+         "parameters" : [ {
+-          "name" : "orderId",
+-          "in" : "path",
+           "description" : "ID of pet that needs to be fetched",
++          "in" : "path",
++          "name" : "orderId",
+           "required" : true,
+           "schema" : {
++            "format" : "int64",
+             "maximum" : 5,
+             "minimum" : 1,
+-            "type" : "integer",
+-            "format" : "int64"
++            "type" : "integer"
+           }
+         } ],
+         "responses" : {
+           "200" : {
+-            "description" : "successful operation",
+             "content" : {
+               "application/xml" : {
+                 "schema" : {
+@@ -502,58 +530,30 @@
+                   "$ref" : "#/components/schemas/Order"
+                 }
+               }
+-            }
++            },
++            "description" : "successful operation"
+           },
+           "400" : {
+-            "description" : "Invalid ID supplied",
+-            "content" : { }
++            "content" : { },
++            "description" : "Invalid ID supplied"
+           },
+           "404" : {
+-            "description" : "Order not found",
+-            "content" : { }
++            "content" : { },
++            "description" : "Order not found"
+           }
+         },
++        "summary" : "Find purchase order by ID",
++        "tags" : [ "store" ],
+         "x-accepts" : "application/json",
+         "x-serviceid" : "getOrderById",
+         "x-serviceid-varname" : "GETORDERBYID_SERVICE_ID"
+-      },
+-      "delete" : {
+-        "tags" : [ "store" ],
+-        "summary" : "Delete purchase order by ID",
+-        "description" : "For valid response try integer IDs with value < 1000. Anything above 1000 or nonintegers will generate API errors",
+-        "operationId" : "deleteOrder",
+-        "parameters" : [ {
+-          "name" : "orderId",
+-          "in" : "path",
+-          "description" : "ID of the order that needs to be deleted",
+-          "required" : true,
+-          "schema" : {
+-            "type" : "string"
+-          }
+-        } ],
+-        "responses" : {
+-          "400" : {
+-            "description" : "Invalid ID supplied",
+-            "content" : { }
+-          },
+-          "404" : {
+-            "description" : "Order not found",
+-            "content" : { }
+-          }
+-        },
+-        "x-accepts" : "application/json",
+-        "x-serviceid" : "deleteOrder",
+-        "x-serviceid-varname" : "DELETEORDER_SERVICE_ID"
+       }
+     },
+     "/user" : {
+       "post" : {
+-        "tags" : [ "user" ],
+-        "summary" : "Create user",
+         "description" : "This can only be done by the logged in user.",
+         "operationId" : "createUser",
+         "requestBody" : {
+-          "description" : "Created user object",
+           "content" : {
+             "*/*" : {
+               "schema" : {
+@@ -561,15 +561,19 @@
+               }
+             }
+           },
++          "description" : "Created user object",
+           "required" : true
+         },
+         "responses" : {
+           "default" : {
+-            "description" : "successful operation",
+-            "content" : { }
++            "content" : { },
++            "description" : "successful operation"
+           }
+         },
+-        "x-contentType" : "*/*",
++        "summary" : "Create user",
++        "tags" : [ "user" ],
++        "x-codegen-request-body-name" : "body",
++        "x-contentType" : "*/*",
+         "x-accepts" : "application/json",
+         "x-serviceid" : "createUser",
+         "x-serviceid-varname" : "CREATEUSER_SERVICE_ID"
+@@ -577,29 +581,30 @@
+     },
+     "/user/createWithArray" : {
+       "post" : {
+-        "tags" : [ "user" ],
+-        "summary" : "Creates list of users with given input array",
+         "operationId" : "createUsersWithArrayInput",
+         "requestBody" : {
+-          "description" : "List of user object",
+           "content" : {
+             "*/*" : {
+               "schema" : {
+-                "type" : "array",
+                 "items" : {
+                   "$ref" : "#/components/schemas/User"
+-                }
++                },
++                "type" : "array"
+               }
+             }
+           },
++          "description" : "List of user object",
+           "required" : true
+         },
+         "responses" : {
+           "default" : {
+-            "description" : "successful operation",
+-            "content" : { }
++            "content" : { },
++            "description" : "successful operation"
+           }
+         },
++        "summary" : "Creates list of users with given input array",
++        "tags" : [ "user" ],
++        "x-codegen-request-body-name" : "body",
+         "x-contentType" : "*/*",
+         "x-accepts" : "application/json",
+         "x-serviceid" : "createUsersWithArrayInput",
+@@ -608,29 +613,30 @@
+     },
+     "/user/createWithList" : {
+       "post" : {
+-        "tags" : [ "user" ],
+-        "summary" : "Creates list of users with given input array",
+         "operationId" : "createUsersWithListInput",
+         "requestBody" : {
+-          "description" : "List of user object",
+           "content" : {
+             "*/*" : {
+               "schema" : {
+-                "type" : "array",
+                 "items" : {
+                   "$ref" : "#/components/schemas/User"
+-                }
++                },
++                "type" : "array"
+               }
+             }
+           },
++          "description" : "List of user object",
+           "required" : true
+         },
+         "responses" : {
+           "default" : {
+-            "description" : "successful operation",
+-            "content" : { }
++            "content" : { },
++            "description" : "successful operation"
+           }
+         },
++        "summary" : "Creates list of users with given input array",
++        "tags" : [ "user" ],
++        "x-codegen-request-body-name" : "body",
+         "x-contentType" : "*/*",
+         "x-accepts" : "application/json",
+         "x-serviceid" : "createUsersWithListInput",
+@@ -639,21 +645,19 @@
+     },
+     "/user/login" : {
+       "get" : {
+-        "tags" : [ "user" ],
+-        "summary" : "Logs user into the system",
+         "operationId" : "loginUser",
+         "parameters" : [ {
+-          "name" : "username",
+-          "in" : "query",
+           "description" : "The user name for login",
++          "in" : "query",
++          "name" : "username",
+           "required" : true,
+           "schema" : {
+             "type" : "string"
+           }
+         }, {
+-          "name" : "password",
+-          "in" : "query",
+           "description" : "The password for login in clear text",
++          "in" : "query",
++          "name" : "password",
+           "required" : true,
+           "schema" : {
+             "type" : "string"
+@@ -661,41 +665,43 @@
+         } ],
+         "responses" : {
+           "200" : {
+-            "description" : "successful operation",
+-            "headers" : {
+-              "X-Rate-Limit" : {
+-                "description" : "calls per hour allowed by the user",
++            "content" : {
++              "application/xml" : {
+                 "schema" : {
+-                  "type" : "integer",
+-                  "format" : "int32"
++                  "type" : "string"
+                 }
+               },
+-              "X-Expires-After" : {
+-                "description" : "date in UTC when toekn expires",
++              "application/json" : {
+                 "schema" : {
+-                  "type" : "string",
+-                  "format" : "date-time"
++                  "type" : "string"
+                 }
+               }
+             },
+-            "content" : {
+-              "application/xml" : {
++            "description" : "successful operation",
++            "headers" : {
++              "X-Rate-Limit" : {
++                "description" : "calls per hour allowed by the user",
+                 "schema" : {
+-                  "type" : "string"
++                  "format" : "int32",
++                  "type" : "integer"
+                 }
+               },
+-              "application/json" : {
++              "X-Expires-After" : {
++                "description" : "date in UTC when toekn expires",
+                 "schema" : {
++                  "format" : "date-time",
+                   "type" : "string"
+                 }
+               }
+             }
+           },
+           "400" : {
+-            "description" : "Invalid username/password supplied",
+-            "content" : { }
++            "content" : { },
++            "description" : "Invalid username/password supplied"
+           }
+         },
++        "summary" : "Logs user into the system",
++        "tags" : [ "user" ],
+         "x-accepts" : "application/json",
+         "x-serviceid" : "loginUser",
+         "x-serviceid-varname" : "LOGINUSER_SERVICE_ID"
+@@ -703,29 +709,55 @@
+     },
+     "/user/logout" : {
+       "get" : {
+-        "tags" : [ "user" ],
+-        "summary" : "Logs out current logged in user session",
+         "operationId" : "logoutUser",
+         "responses" : {
+           "default" : {
+-            "description" : "successful operation",
+-            "content" : { }
++            "content" : { },
++            "description" : "successful operation"
+           }
+         },
++        "summary" : "Logs out current logged in user session",
++        "tags" : [ "user" ],
+         "x-accepts" : "application/json",
+         "x-serviceid" : "logoutUser",
+         "x-serviceid-varname" : "LOGOUTUSER_SERVICE_ID"
+       }
+     },
+     "/user/{username}" : {
+-      "get" : {
++      "delete" : {
++        "description" : "This can only be done by the logged in user.",
++        "operationId" : "deleteUser",
++        "parameters" : [ {
++          "description" : "The name that needs to be deleted",
++          "in" : "path",
++          "name" : "username",
++          "required" : true,
++          "schema" : {
++            "type" : "string"
++          }
++        } ],
++        "responses" : {
++          "400" : {
++            "content" : { },
++            "description" : "Invalid username supplied"
++          },
++          "404" : {
++            "content" : { },
++            "description" : "User not found"
++          }
++        },
++        "summary" : "Delete user",
+         "tags" : [ "user" ],
+-        "summary" : "Get user by user name",
++        "x-accepts" : "application/json",
++        "x-serviceid" : "deleteUser",
++        "x-serviceid-varname" : "DELETEUSER_SERVICE_ID"
++      },
++      "get" : {
+         "operationId" : "getUserByName",
+         "parameters" : [ {
+-          "name" : "username",
+-          "in" : "path",
+           "description" : "The name that needs to be fetched. Use user1 for testing.",
++          "in" : "path",
++          "name" : "username",
+           "required" : true,
+           "schema" : {
+             "type" : "string"
+@@ -733,7 +765,6 @@
+         } ],
+         "responses" : {
+           "200" : {
+-            "description" : "successful operation",
+             "content" : {
+               "application/xml" : {
+                 "schema" : {
+@@ -745,37 +776,37 @@
+                   "$ref" : "#/components/schemas/User"
+                 }
+               }
+-            }
++            },
++            "description" : "successful operation"
+           },
+           "400" : {
+-            "description" : "Invalid username supplied",
+-            "content" : { }
++            "content" : { },
++            "description" : "Invalid username supplied"
+           },
+           "404" : {
+-            "description" : "User not found",
+-            "content" : { }
++            "content" : { },
++            "description" : "User not found"
+           }
+         },
++        "summary" : "Get user by user name",
++        "tags" : [ "user" ],
+         "x-accepts" : "application/json",
+         "x-serviceid" : "getUserByName",
+         "x-serviceid-varname" : "GETUSERBYNAME_SERVICE_ID"
+       },
+       "put" : {
+-        "tags" : [ "user" ],
+-        "summary" : "Updated user",
+         "description" : "This can only be done by the logged in user.",
+         "operationId" : "updateUser",
+         "parameters" : [ {
+-          "name" : "username",
+-          "in" : "path",
+           "description" : "name that need to be deleted",
++          "in" : "path",
++          "name" : "username",
+           "required" : true,
+           "schema" : {
+             "type" : "string"
+           }
+         } ],
+         "requestBody" : {
+-          "description" : "Updated user object",
+           "content" : {
+             "*/*" : {
+               "schema" : {
+@@ -783,126 +814,111 @@
+               }
+             }
+           },
++          "description" : "Updated user object",
+           "required" : true
+         },
+         "responses" : {
+           "400" : {
+-            "description" : "Invalid user supplied",
+-            "content" : { }
++            "content" : { },
++            "description" : "Invalid user supplied"
+           },
+           "404" : {
+-            "description" : "User not found",
+-            "content" : { }
++            "content" : { },
++            "description" : "User not found"
+           }
+         },
++        "summary" : "Updated user",
++        "tags" : [ "user" ],
++        "x-codegen-request-body-name" : "body",
+         "x-contentType" : "*/*",
+         "x-accepts" : "application/json",
+         "x-serviceid" : "updateUser",
+         "x-serviceid-varname" : "UPDATEUSER_SERVICE_ID"
+-      },
+-      "delete" : {
+-        "tags" : [ "user" ],
+-        "summary" : "Delete user",
+-        "description" : "This can only be done by the logged in user.",
+-        "operationId" : "deleteUser",
+-        "parameters" : [ {
+-          "name" : "username",
+-          "in" : "path",
+-          "description" : "The name that needs to be deleted",
+-          "required" : true,
+-          "schema" : {
+-            "type" : "string"
+-          }
+-        } ],
+-        "responses" : {
+-          "400" : {
+-            "description" : "Invalid username supplied",
+-            "content" : { }
+-          },
+-          "404" : {
+-            "description" : "User not found",
+-            "content" : { }
+-          }
+-        },
+-        "x-accepts" : "application/json",
+-        "x-serviceid" : "deleteUser",
+-        "x-serviceid-varname" : "DELETEUSER_SERVICE_ID"
+       }
+     }
+   },
+   "components" : {
+     "schemas" : {
+       "Order" : {
+-        "title" : "Pet Order",
+-        "type" : "object",
++        "description" : "An order for a pets from the pet store",
++        "example" : {
++          "petId" : 6,
++          "quantity" : 1,
++          "id" : 0,
++          "shipDate" : "2000-01-23T04:56:07.000+00:00",
++          "complete" : false,
++          "status" : "placed"
++        },
+         "properties" : {
+           "id" : {
+-            "type" : "integer",
+-            "format" : "int64"
++            "format" : "int64",
++            "type" : "integer"
+           },
+           "petId" : {
+-            "type" : "integer",
+-            "format" : "int64"
++            "format" : "int64",
++            "type" : "integer"
+           },
+           "quantity" : {
+-            "type" : "integer",
+-            "format" : "int32"
++            "format" : "int32",
++            "type" : "integer"
+           },
+           "shipDate" : {
+-            "type" : "string",
+-            "format" : "date-time"
++            "format" : "date-time",
++            "type" : "string"
+           },
+           "status" : {
+-            "type" : "string",
+             "description" : "Order Status",
+-            "enum" : [ "placed", "approved", "delivered" ]
++            "enum" : [ "placed", "approved", "delivered" ],
++            "type" : "string"
+           },
+           "complete" : {
+-            "type" : "boolean",
+-            "default" : false
++            "default" : false,
++            "type" : "boolean"
+           }
+         },
+-        "description" : "An order for a pets from the pet store",
+-        "example" : {
+-          "petId" : 6,
+-          "quantity" : 1,
+-          "id" : 0,
+-          "shipDate" : "2000-01-23T04:56:07.000+00:00",
+-          "complete" : false,
+-          "status" : "placed"
+-        },
++        "title" : "Pet Order",
++        "type" : "object",
+         "xml" : {
+           "name" : "Order"
+         }
+       },
+       "Category" : {
+-        "title" : "Pet category",
+-        "type" : "object",
++        "description" : "A category for a pet",
++        "example" : {
++          "name" : "name",
++          "id" : 6
++        },
+         "properties" : {
+           "id" : {
+-            "type" : "integer",
+-            "format" : "int64"
++            "format" : "int64",
++            "type" : "integer"
+           },
+           "name" : {
+             "type" : "string"
+           }
+         },
+-        "description" : "A category for a pet",
+-        "example" : {
+-          "name" : "name",
+-          "id" : 6
+-        },
++        "title" : "Pet category",
++        "type" : "object",
+         "xml" : {
+           "name" : "Category"
+         }
+       },
+       "User" : {
+-        "title" : "a User",
+-        "type" : "object",
++        "description" : "A User who is purchasing from the pet store",
++        "example" : {
++          "firstName" : "firstName",
++          "lastName" : "lastName",
++          "password" : "password",
++          "userStatus" : 6,
++          "phone" : "phone",
++          "id" : 0,
++          "email" : "email",
++          "username" : "username"
++        },
+         "properties" : {
+           "id" : {
+-            "type" : "integer",
+-            "format" : "int64"
++            "format" : "int64",
++            "type" : "integer"
+           },
+           "username" : {
+             "type" : "string"
+@@ -923,118 +939,113 @@
+             "type" : "string"
+           },
+           "userStatus" : {
+-            "type" : "integer",
+             "description" : "User Status",
+-            "format" : "int32"
++            "format" : "int32",
++            "type" : "integer"
+           }
+         },
+-        "description" : "A User who is purchasing from the pet store",
+-        "example" : {
+-          "firstName" : "firstName",
+-          "lastName" : "lastName",
+-          "password" : "password",
+-          "userStatus" : 6,
+-          "phone" : "phone",
+-          "id" : 0,
+-          "email" : "email",
+-          "username" : "username"
+-        },
++        "title" : "a User",
++        "type" : "object",
+         "xml" : {
+           "name" : "User"
+         }
+       },
+       "Tag" : {
+-        "title" : "Pet Tag",
+-        "type" : "object",
++        "description" : "A tag for a pet",
++        "example" : {
++          "name" : "name",
++          "id" : 1
++        },
+         "properties" : {
+           "id" : {
+-            "type" : "integer",
+-            "format" : "int64"
++            "format" : "int64",
++            "type" : "integer"
+           },
+           "name" : {
+             "type" : "string"
+           }
+         },
+-        "description" : "A tag for a pet",
+-        "example" : {
+-          "name" : "name",
+-          "id" : 1
+-        },
++        "title" : "Pet Tag",
++        "type" : "object",
+         "xml" : {
+           "name" : "Tag"
+         }
+       },
+       "Pet" : {
+-        "title" : "a Pet",
+-        "required" : [ "name", "photoUrls" ],
+-        "type" : "object",
++        "description" : "A pet for sale in the pet store",
++        "example" : {
++          "photoUrls" : [ "photoUrls", "photoUrls" ],
++          "name" : "doggie",
++          "id" : 0,
++          "category" : {
++            "name" : "name",
++            "id" : 6
++          },
++          "tags" : [ {
++            "name" : "name",
++            "id" : 1
++          }, {
++            "name" : "name",
++            "id" : 1
++          } ],
++          "status" : "available"
++        },
+         "properties" : {
+           "id" : {
+-            "type" : "integer",
+-            "format" : "int64"
++            "format" : "int64",
++            "type" : "integer"
+           },
+           "category" : {
+             "$ref" : "#/components/schemas/Category"
+           },
+           "name" : {
+-            "type" : "string",
+-            "example" : "doggie"
++            "example" : "doggie",
++            "type" : "string"
+           },
+           "photoUrls" : {
++            "items" : {
++              "type" : "string"
++            },
+             "type" : "array",
+             "xml" : {
+               "name" : "photoUrl",
+               "wrapped" : true
+-            },
+-            "items" : {
+-              "type" : "string"
+             }
+           },
+           "tags" : {
++            "items" : {
++              "$ref" : "#/components/schemas/Tag"
++            },
+             "type" : "array",
+             "xml" : {
+               "name" : "tag",
+               "wrapped" : true
+-            },
+-            "items" : {
+-              "$ref" : "#/components/schemas/Tag"
+             }
+           },
+           "status" : {
+-            "type" : "string",
+             "description" : "pet status in the store",
+-            "enum" : [ "available", "pending", "sold" ]
++            "enum" : [ "available", "pending", "sold" ],
++            "type" : "string"
+           }
+         },
+-        "description" : "A pet for sale in the pet store",
+-        "example" : {
+-          "photoUrls" : [ "photoUrls", "photoUrls" ],
+-          "name" : "doggie",
+-          "id" : 0,
+-          "category" : {
+-            "name" : "name",
+-            "id" : 6
+-          },
+-          "tags" : [ {
+-            "name" : "name",
+-            "id" : 1
+-          }, {
+-            "name" : "name",
+-            "id" : 1
+-          } ],
+-          "status" : "available"
+-        },
++        "required" : [ "name", "photoUrls" ],
++        "title" : "a Pet",
++        "type" : "object",
+         "xml" : {
+           "name" : "Pet"
+         }
+       },
+       "ApiResponse" : {
+-        "title" : "An uploaded response",
+-        "type" : "object",
++        "description" : "Describes the result of uploading an image resource",
++        "example" : {
++          "code" : 0,
++          "type" : "type",
++          "message" : "message"
++        },
+         "properties" : {
+           "code" : {
+-            "type" : "integer",
+-            "format" : "int32"
++            "format" : "int32",
++            "type" : "integer"
+           },
+           "type" : {
+             "type" : "string"
+@@ -1043,17 +1054,12 @@
+             "type" : "string"
+           }
+         },
+-        "description" : "Describes the result of uploading an image resource",
+-        "example" : {
+-          "code" : 0,
+-          "type" : "type",
+-          "message" : "message"
+-        }
++        "title" : "An uploaded response",
++        "type" : "object"
+       }
+     },
+     "securitySchemes" : {
+       "petstore_auth" : {
+-        "type" : "oauth2",
+         "flows" : {
+           "implicit" : {
+             "authorizationUrl" : "http://petstore.swagger.io/api/oauth/dialog",
+@@ -1062,12 +1068,13 @@
+               "read:pets" : "read your pets"
+             }
+           }
+-        }
++        },
++        "type" : "oauth2"
+       },
+       "api_key" : {
+-        "type" : "apiKey",
++        "in" : "header",
+         "name" : "api_key",
+-        "in" : "header"
++        "type" : "apiKey"
+       }
+     }
+   }
+diff --git a/samples/server/petstore/springboot/pom.xml b/samples/server/petstore/springboot/pom.xml
+index 6d6b85134ae..51bf73b4093 100644
+--- a/samples/server/petstore/springboot/pom.xml
++++ b/samples/server/petstore/springboot/pom.xml
+@@ -1,10 +1,10 @@
+ <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+     <modelVersion>4.0.0</modelVersion>
+     <groupId>org.openapitools</groupId>
+-    <artifactId>springboot</artifactId>
++    <artifactId>openapi-spring</artifactId>
+     <packaging>jar</packaging>
+-    <name>springboot</name>
+-    <version>1.0.0-SNAPSHOT</version>
++    <name>openapi-spring</name>
++    <version>1.0.0</version>
+     <properties>
+         <java.version>1.8</java.version>
+         <maven.compiler.source>${java.version}</maven.compiler.source>
+diff --git a/samples/server/petstore/springboot/src/main/java/org/openapitools/api/AnotherFakeApi.java b/samples/server/petstore/springboot/src/main/java/org/openapitools/api/AnotherFakeApi.java
+index 688b8e51a9e..2ac0fff6ef6 100644
+--- a/samples/server/petstore/springboot/src/main/java/org/openapitools/api/AnotherFakeApi.java
++++ b/samples/server/petstore/springboot/src/main/java/org/openapitools/api/AnotherFakeApi.java
+@@ -49,7 +49,9 @@
+         produces = { "application/json" }, 
+         consumes = { "application/json" },
+         method = RequestMethod.PATCH)
+-    default ResponseEntity<Client> call123testSpecialTags(@ApiParam(value = "client model" ,required=true )  @Valid @RequestBody Client body) {
++    default ResponseEntity<Client> call123testSpecialTags(
++@ApiParam(value = "client model" ,required=true )  @Valid @RequestBody Client body
++) {
+         getRequest().ifPresent(request -> {
+             for (MediaType mediaType: MediaType.parseMediaTypes(request.getHeader("Accept"))) {
+                 if (mediaType.isCompatibleWith(MediaType.valueOf("application/json"))) {
+diff --git a/samples/server/petstore/springboot/src/main/java/org/openapitools/api/FakeApi.java b/samples/server/petstore/springboot/src/main/java/org/openapitools/api/FakeApi.java
+index f0d45954558..d293fbce59e 100644
+--- a/samples/server/petstore/springboot/src/main/java/org/openapitools/api/FakeApi.java
++++ b/samples/server/petstore/springboot/src/main/java/org/openapitools/api/FakeApi.java
+@@ -58,7 +58,9 @@
+     @RequestMapping(value = "/fake/create_xml_item",
+         consumes = { "application/xml", "application/xml; charset=utf-8", "application/xml; charset=utf-16", "text/xml", "text/xml; charset=utf-8", "text/xml; charset=utf-16" },
+         method = RequestMethod.POST)
+-    default ResponseEntity<Void> createXmlItem(@ApiParam(value = "XmlItem Body" ,required=true )  @Valid @RequestBody XmlItem xmlItem) {
++    default ResponseEntity<Void> createXmlItem(
++@ApiParam(value = "XmlItem Body" ,required=true )  @Valid @RequestBody XmlItem xmlItem
++) {
+         return new ResponseEntity<>(HttpStatus.NOT_IMPLEMENTED);
+ 
+     }
+@@ -77,7 +79,9 @@
+     @RequestMapping(value = "/fake/outer/boolean",
+         produces = { "*/*" }, 
+         method = RequestMethod.POST)
+-    default ResponseEntity<Boolean> fakeOuterBooleanSerialize(@ApiParam(value = "Input boolean as post body"  )  @Valid @RequestBody(required = false) Boolean body) {
++    default ResponseEntity<Boolean> fakeOuterBooleanSerialize(
++@ApiParam(value = "Input boolean as post body"  )  @Valid @RequestBody(required = false) Boolean body
++) {
+         return new ResponseEntity<>(HttpStatus.NOT_IMPLEMENTED);
+ 
+     }
+@@ -96,7 +100,9 @@
+     @RequestMapping(value = "/fake/outer/composite",
+         produces = { "*/*" }, 
+         method = RequestMethod.POST)
+-    default ResponseEntity<OuterComposite> fakeOuterCompositeSerialize(@ApiParam(value = "Input composite as post body"  )  @Valid @RequestBody(required = false) OuterComposite body) {
++    default ResponseEntity<OuterComposite> fakeOuterCompositeSerialize(
++@ApiParam(value = "Input composite as post body"  )  @Valid @RequestBody(required = false) OuterComposite body
++) {
+         getRequest().ifPresent(request -> {
+             for (MediaType mediaType: MediaType.parseMediaTypes(request.getHeader("Accept"))) {
+                 if (mediaType.isCompatibleWith(MediaType.valueOf("*/*"))) {
+@@ -124,7 +130,9 @@
+     @RequestMapping(value = "/fake/outer/number",
+         produces = { "*/*" }, 
+         method = RequestMethod.POST)
+-    default ResponseEntity<BigDecimal> fakeOuterNumberSerialize(@ApiParam(value = "Input number as post body"  )  @Valid @RequestBody(required = false) BigDecimal body) {
++    default ResponseEntity<BigDecimal> fakeOuterNumberSerialize(
++@ApiParam(value = "Input number as post body"  )  @Valid @RequestBody(required = false) BigDecimal body
++) {
+         return new ResponseEntity<>(HttpStatus.NOT_IMPLEMENTED);
+ 
+     }
+@@ -143,7 +151,9 @@
+     @RequestMapping(value = "/fake/outer/string",
+         produces = { "*/*" }, 
+         method = RequestMethod.POST)
+-    default ResponseEntity<String> fakeOuterStringSerialize(@ApiParam(value = "Input string as post body"  )  @Valid @RequestBody(required = false) String body) {
++    default ResponseEntity<String> fakeOuterStringSerialize(
++@ApiParam(value = "Input string as post body"  )  @Valid @RequestBody(required = false) String body
++) {
+         return new ResponseEntity<>(HttpStatus.NOT_IMPLEMENTED);
+ 
+     }
+@@ -162,7 +172,9 @@
+     @RequestMapping(value = "/fake/body-with-file-schema",
+         consumes = { "application/json" },
+         method = RequestMethod.PUT)
+-    default ResponseEntity<Void> testBodyWithFileSchema(@ApiParam(value = "" ,required=true )  @Valid @RequestBody FileSchemaTestClass body) {
++    default ResponseEntity<Void> testBodyWithFileSchema(
++@ApiParam(value = "" ,required=true )  @Valid @RequestBody FileSchemaTestClass body
++) {
+         return new ResponseEntity<>(HttpStatus.NOT_IMPLEMENTED);
+ 
+     }
+@@ -181,7 +193,11 @@
+     @RequestMapping(value = "/fake/body-with-query-params",
+         consumes = { "application/json" },
+         method = RequestMethod.PUT)
+-    default ResponseEntity<Void> testBodyWithQueryParams(@NotNull @ApiParam(value = "", required = true) @Valid @RequestParam(value = "query", required = true) String query,@ApiParam(value = "" ,required=true )  @Valid @RequestBody User body) {
++    default ResponseEntity<Void> testBodyWithQueryParams(@NotNull @ApiParam(value = "", required = true) @Valid @RequestParam(value = "query", required = true) String query
++
++,
++@ApiParam(value = "" ,required=true )  @Valid @RequestBody User body
++) {
+         return new ResponseEntity<>(HttpStatus.NOT_IMPLEMENTED);
+ 
+     }
+@@ -201,7 +217,9 @@
+         produces = { "application/json" }, 
+         consumes = { "application/json" },
+         method = RequestMethod.PATCH)
+-    default ResponseEntity<Client> testClientModel(@ApiParam(value = "client model" ,required=true )  @Valid @RequestBody Client body) {
++    default ResponseEntity<Client> testClientModel(
++@ApiParam(value = "client model" ,required=true )  @Valid @RequestBody Client body
++) {
+         getRequest().ifPresent(request -> {
+             for (MediaType mediaType: MediaType.parseMediaTypes(request.getHeader("Accept"))) {
+                 if (mediaType.isCompatibleWith(MediaType.valueOf("application/json"))) {
+@@ -246,7 +264,35 @@
+     @RequestMapping(value = "/fake",
+         consumes = { "application/x-www-form-urlencoded" },
+         method = RequestMethod.POST)
+-    default ResponseEntity<Void> testEndpointParameters(@ApiParam(value = "None", required=true) @RequestParam(value="number", required=true)  BigDecimal number,@ApiParam(value = "None", required=true) @RequestParam(value="double", required=true)  Double _double,@ApiParam(value = "None", required=true) @RequestParam(value="pattern_without_delimiter", required=true)  String patternWithoutDelimiter,@ApiParam(value = "None", required=true) @RequestParam(value="byte", required=true)  byte[] _byte,@ApiParam(value = "None") @RequestParam(value="integer", required=false)  Integer integer,@ApiParam(value = "None") @RequestParam(value="int32", required=false)  Integer int32,@ApiParam(value = "None") @RequestParam(value="int64", required=false)  Long int64,@ApiParam(value = "None") @RequestParam(value="float", required=false)  Float _float,@ApiParam(value = "None") @RequestParam(value="string", required=false)  String string,@ApiParam(value = "None") @Valid @RequestPart("binary") MultipartFile binary,@ApiParam(value = "None") @RequestParam(value="date", required=false)  LocalDate date,@ApiParam(value = "None") @RequestParam(value="dateTime", required=false)  OffsetDateTime dateTime,@ApiParam(value = "None") @RequestParam(value="password", required=false)  String password,@ApiParam(value = "None") @RequestParam(value="callback", required=false)  String paramCallback) {
++    default ResponseEntity<Void> testEndpointParameters(
++@ApiParam(value = "None", required=true) @RequestPart(value="number", required=true)  BigDecimal number
++,
++@ApiParam(value = "None", required=true) @RequestPart(value="double", required=true)  Double _double
++,
++@ApiParam(value = "None", required=true) @RequestPart(value="pattern_without_delimiter", required=true)  String patternWithoutDelimiter
++,
++@ApiParam(value = "None", required=true) @RequestPart(value="byte", required=true)  byte[] _byte
++,
++@ApiParam(value = "None") @RequestPart(value="integer", required=false)  Integer integer
++,
++@ApiParam(value = "None") @RequestPart(value="int32", required=false)  Integer int32
++,
++@ApiParam(value = "None") @RequestPart(value="int64", required=false)  Long int64
++,
++@ApiParam(value = "None") @RequestPart(value="float", required=false)  Float _float
++,
++@ApiParam(value = "None") @RequestPart(value="string", required=false)  String string
++,
++@ApiParam(value = "None") @Valid @RequestPart(value = "binary") MultipartFile binary
++,
++@ApiParam(value = "None") @RequestPart(value="date", required=false)  LocalDate date
++,
++@ApiParam(value = "None") @RequestPart(value="dateTime", required=false)  OffsetDateTime dateTime
++,
++@ApiParam(value = "None") @RequestPart(value="password", required=false)  String password
++,
++@ApiParam(value = "None") @RequestPart(value="callback", required=false)  String paramCallback
++) {
+         return new ResponseEntity<>(HttpStatus.NOT_IMPLEMENTED);
+ 
+     }
+@@ -274,7 +320,23 @@
+     @RequestMapping(value = "/fake",
+         consumes = { "application/x-www-form-urlencoded" },
+         method = RequestMethod.GET)
+-    default ResponseEntity<Void> testEnumParameters(@ApiParam(value = "Header parameter enum test (string array)" , allowableValues=">, $") @RequestHeader(value="enum_header_string_array", required=false) List<String> enumHeaderStringArray,@ApiParam(value = "Header parameter enum test (string)" , allowableValues="_abc, -efg, (xyz)", defaultValue="-efg") @RequestHeader(value="enum_header_string", required=false) String enumHeaderString,@ApiParam(value = "Query parameter enum test (string array)", allowableValues = ">, $") @Valid @RequestParam(value = "enum_query_string_array", required = false) List<String> enumQueryStringArray,@ApiParam(value = "Query parameter enum test (string)", allowableValues = "_abc, -efg, (xyz)", defaultValue = "-efg") @Valid @RequestParam(value = "enum_query_string", required = false, defaultValue="-efg") String enumQueryString,@ApiParam(value = "Query parameter enum test (double)", allowableValues = "1, -2") @Valid @RequestParam(value = "enum_query_integer", required = false) Integer enumQueryInteger,@ApiParam(value = "Query parameter enum test (double)", allowableValues = "1.1, -1.2") @Valid @RequestParam(value = "enum_query_double", required = false) Double enumQueryDouble,@ApiParam(value = "Form parameter enum test (string array)", allowableValues=">, $") @RequestParam(value="enum_form_string_array", required=false)  List<String> enumFormStringArray,@ApiParam(value = "Form parameter enum test (string)", allowableValues="_abc, -efg, (xyz)", defaultValue="-efg") @RequestParam(value="enum_form_string", required=false)  String enumFormString) {
++    default ResponseEntity<Void> testEnumParameters(
++@ApiParam(value = "Header parameter enum test (string array)" , allowableValues=">, $") @RequestHeader(value="enum_header_string_array", required=false) List<String> enumHeaderStringArray
++,
++@ApiParam(value = "Header parameter enum test (string)" , allowableValues="_abc, -efg, (xyz)", defaultValue="-efg") @RequestHeader(value="enum_header_string", required=false) String enumHeaderString
++,@ApiParam(value = "Query parameter enum test (string array)", allowableValues = ">, $") @Valid @RequestParam(value = "enum_query_string_array", required = false) List<String> enumQueryStringArray
++
++,@ApiParam(value = "Query parameter enum test (string)", allowableValues = "_abc, -efg, (xyz)", defaultValue = "-efg") @Valid @RequestParam(value = "enum_query_string", required = false, defaultValue="-efg") String enumQueryString
++
++,@ApiParam(value = "Query parameter enum test (double)", allowableValues = "1, -2") @Valid @RequestParam(value = "enum_query_integer", required = false) Integer enumQueryInteger
++
++,@ApiParam(value = "Query parameter enum test (double)", allowableValues = "1.1, -1.2") @Valid @RequestParam(value = "enum_query_double", required = false) Double enumQueryDouble
++
++,
++@ApiParam(value = "Form parameter enum test (string array)", allowableValues=">, $") @RequestPart(value="enum_form_string_array", required=false)  List<String> enumFormStringArray
++,
++@ApiParam(value = "Form parameter enum test (string)", allowableValues="_abc, -efg, (xyz)", defaultValue="-efg") @RequestPart(value="enum_form_string", required=false)  String enumFormString
++) {
+         return new ResponseEntity<>(HttpStatus.NOT_IMPLEMENTED);
+ 
+     }
+@@ -297,7 +359,19 @@
+         @ApiResponse(code = 400, message = "Someting wrong") })
+     @RequestMapping(value = "/fake",
+         method = RequestMethod.DELETE)
+-    default ResponseEntity<Void> testGroupParameters(@NotNull @ApiParam(value = "Required String in group parameters", required = true) @Valid @RequestParam(value = "required_string_group", required = true) Integer requiredStringGroup,@ApiParam(value = "Required Boolean in group parameters" ,required=true) @RequestHeader(value="required_boolean_group", required=true) Boolean requiredBooleanGroup,@NotNull @ApiParam(value = "Required Integer in group parameters", required = true) @Valid @RequestParam(value = "required_int64_group", required = true) Long requiredInt64Group,@ApiParam(value = "String in group parameters") @Valid @RequestParam(value = "string_group", required = false) Integer stringGroup,@ApiParam(value = "Boolean in group parameters" ) @RequestHeader(value="boolean_group", required=false) Boolean booleanGroup,@ApiParam(value = "Integer in group parameters") @Valid @RequestParam(value = "int64_group", required = false) Long int64Group) {
++    default ResponseEntity<Void> testGroupParameters(@NotNull @ApiParam(value = "Required String in group parameters", required = true) @Valid @RequestParam(value = "required_string_group", required = true) Integer requiredStringGroup
++
++,
++@ApiParam(value = "Required Boolean in group parameters" ,required=true) @RequestHeader(value="required_boolean_group", required=true) Boolean requiredBooleanGroup
++,@NotNull @ApiParam(value = "Required Integer in group parameters", required = true) @Valid @RequestParam(value = "required_int64_group", required = true) Long requiredInt64Group
++
++,@ApiParam(value = "String in group parameters") @Valid @RequestParam(value = "string_group", required = false) Integer stringGroup
++
++,
++@ApiParam(value = "Boolean in group parameters" ) @RequestHeader(value="boolean_group", required=false) Boolean booleanGroup
++,@ApiParam(value = "Integer in group parameters") @Valid @RequestParam(value = "int64_group", required = false) Long int64Group
++
++) {
+         return new ResponseEntity<>(HttpStatus.NOT_IMPLEMENTED);
+ 
+     }
+@@ -315,7 +389,9 @@
+     @RequestMapping(value = "/fake/inline-additionalProperties",
+         consumes = { "application/json" },
+         method = RequestMethod.POST)
+-    default ResponseEntity<Void> testInlineAdditionalProperties(@ApiParam(value = "request body" ,required=true )  @Valid @RequestBody Map<String, String> param) {
++    default ResponseEntity<Void> testInlineAdditionalProperties(
++@ApiParam(value = "request body" ,required=true )  @Valid @RequestBody Map<String, String> param
++) {
+         return new ResponseEntity<>(HttpStatus.NOT_IMPLEMENTED);
+ 
+     }
+@@ -334,7 +410,11 @@
+     @RequestMapping(value = "/fake/jsonFormData",
+         consumes = { "application/x-www-form-urlencoded" },
+         method = RequestMethod.GET)
+-    default ResponseEntity<Void> testJsonFormData(@ApiParam(value = "field1", required=true) @RequestParam(value="param", required=true)  String param,@ApiParam(value = "field2", required=true) @RequestParam(value="param2", required=true)  String param2) {
++    default ResponseEntity<Void> testJsonFormData(
++@ApiParam(value = "field1", required=true) @RequestPart(value="param", required=true)  String param
++,
++@ApiParam(value = "field2", required=true) @RequestPart(value="param2", required=true)  String param2
++) {
+         return new ResponseEntity<>(HttpStatus.NOT_IMPLEMENTED);
+ 
+     }
+@@ -356,7 +436,17 @@
+         @ApiResponse(code = 200, message = "Success") })
+     @RequestMapping(value = "/fake/test-query-paramters",
+         method = RequestMethod.PUT)
+-    default ResponseEntity<Void> testQueryParameterCollectionFormat(@NotNull @ApiParam(value = "", required = true) @Valid @RequestParam(value = "pipe", required = true) List<String> pipe,@NotNull @ApiParam(value = "", required = true) @Valid @RequestParam(value = "ioutil", required = true) List<String> ioutil,@NotNull @ApiParam(value = "", required = true) @Valid @RequestParam(value = "http", required = true) List<String> http,@NotNull @ApiParam(value = "", required = true) @Valid @RequestParam(value = "url", required = true) List<String> url,@NotNull @ApiParam(value = "", required = true) @Valid @RequestParam(value = "context", required = true) List<String> context) {
++    default ResponseEntity<Void> testQueryParameterCollectionFormat(@NotNull @ApiParam(value = "", required = true) @Valid @RequestParam(value = "pipe", required = true) List<String> pipe
++
++,@NotNull @ApiParam(value = "", required = true) @Valid @RequestParam(value = "ioutil", required = true) List<String> ioutil
++
++,@NotNull @ApiParam(value = "", required = true) @Valid @RequestParam(value = "http", required = true) List<String> http
++
++,@NotNull @ApiParam(value = "", required = true) @Valid @RequestParam(value = "url", required = true) List<String> url
++
++,@NotNull @ApiParam(value = "", required = true) @Valid @RequestParam(value = "context", required = true) List<String> context
++
++) {
+         return new ResponseEntity<>(HttpStatus.NOT_IMPLEMENTED);
+ 
+     }
+@@ -382,7 +472,13 @@
+         produces = { "application/json" }, 
+         consumes = { "multipart/form-data" },
+         method = RequestMethod.POST)
+-    default ResponseEntity<ModelApiResponse> uploadFileWithRequiredFile(@ApiParam(value = "ID of pet to update",required=true) @PathVariable("petId") Long petId,@ApiParam(value = "file to upload") @Valid @RequestPart("requiredFile") MultipartFile requiredFile,@ApiParam(value = "Additional data to pass to server") @RequestParam(value="additionalMetadata", required=false)  String additionalMetadata) {
++    default ResponseEntity<ModelApiResponse> uploadFileWithRequiredFile(
++@ApiParam(value = "ID of pet to update",required=true) @PathVariable("petId") Long petId
++,
++@ApiParam(value = "file to upload") @Valid @RequestPart(value = "requiredFile") MultipartFile requiredFile
++,
++@ApiParam(value = "Additional data to pass to server") @RequestPart(value="additionalMetadata", required=false)  String additionalMetadata
++) {
+         getRequest().ifPresent(request -> {
+             for (MediaType mediaType: MediaType.parseMediaTypes(request.getHeader("Accept"))) {
+                 if (mediaType.isCompatibleWith(MediaType.valueOf("application/json"))) {
+diff --git a/samples/server/petstore/springboot/src/main/java/org/openapitools/api/FakeClassnameTestApi.java b/samples/server/petstore/springboot/src/main/java/org/openapitools/api/FakeClassnameTestApi.java
+index 9a812e59198..c0ef681e201 100644
+--- a/samples/server/petstore/springboot/src/main/java/org/openapitools/api/FakeClassnameTestApi.java
++++ b/samples/server/petstore/springboot/src/main/java/org/openapitools/api/FakeClassnameTestApi.java
+@@ -51,7 +51,9 @@
+         produces = { "application/json" }, 
+         consumes = { "application/json" },
+         method = RequestMethod.PATCH)
+-    default ResponseEntity<Client> testClassname(@ApiParam(value = "client model" ,required=true )  @Valid @RequestBody Client body) {
++    default ResponseEntity<Client> testClassname(
++@ApiParam(value = "client model" ,required=true )  @Valid @RequestBody Client body
++) {
+         getRequest().ifPresent(request -> {
+             for (MediaType mediaType: MediaType.parseMediaTypes(request.getHeader("Accept"))) {
+                 if (mediaType.isCompatibleWith(MediaType.valueOf("application/json"))) {
+diff --git a/samples/server/petstore/springboot/src/main/java/org/openapitools/api/PetApi.java b/samples/server/petstore/springboot/src/main/java/org/openapitools/api/PetApi.java
+index eef3a5ada1c..4ece5815f4c 100644
+--- a/samples/server/petstore/springboot/src/main/java/org/openapitools/api/PetApi.java
++++ b/samples/server/petstore/springboot/src/main/java/org/openapitools/api/PetApi.java
+@@ -56,7 +56,9 @@
+     @RequestMapping(value = "/pet",
+         consumes = { "application/json", "application/xml" },
+         method = RequestMethod.POST)
+-    default ResponseEntity<Void> addPet(@ApiParam(value = "Pet object that needs to be added to the store" ,required=true )  @Valid @RequestBody Pet body) {
++    default ResponseEntity<Void> addPet(
++@ApiParam(value = "Pet object that needs to be added to the store" ,required=true )  @Valid @RequestBody Pet body
++) {
+         return new ResponseEntity<>(HttpStatus.NOT_IMPLEMENTED);
+ 
+     }
+@@ -81,7 +83,11 @@
+         @ApiResponse(code = 400, message = "Invalid pet value") })
+     @RequestMapping(value = "/pet/{petId}",
+         method = RequestMethod.DELETE)
+-    default ResponseEntity<Void> deletePet(@ApiParam(value = "Pet id to delete",required=true) @PathVariable("petId") Long petId,@ApiParam(value = "" ) @RequestHeader(value="api_key", required=false) String apiKey) {
++    default ResponseEntity<Void> deletePet(
++@ApiParam(value = "Pet id to delete",required=true) @PathVariable("petId") Long petId
++,
++@ApiParam(value = "" ) @RequestHeader(value="api_key", required=false) String apiKey
++) {
+         return new ResponseEntity<>(HttpStatus.NOT_IMPLEMENTED);
+ 
+     }
+@@ -107,7 +113,9 @@
+     @RequestMapping(value = "/pet/findByStatus",
+         produces = { "application/xml", "application/json" }, 
+         method = RequestMethod.GET)
+-    default ResponseEntity<List<Pet>> findPetsByStatus(@NotNull @ApiParam(value = "Status values that need to be considered for filter", required = true, allowableValues = "available, pending, sold") @Valid @RequestParam(value = "status", required = true) List<String> status) {
++    default ResponseEntity<List<Pet>> findPetsByStatus(@NotNull @ApiParam(value = "Status values that need to be considered for filter", required = true, allowableValues = "available, pending, sold") @Valid @RequestParam(value = "status", required = true) List<String> status
++
++) {
+         getRequest().ifPresent(request -> {
+             for (MediaType mediaType: MediaType.parseMediaTypes(request.getHeader("Accept"))) {
+                 if (mediaType.isCompatibleWith(MediaType.valueOf("application/json"))) {
+@@ -148,7 +156,9 @@
+     @RequestMapping(value = "/pet/findByTags",
+         produces = { "application/xml", "application/json" }, 
+         method = RequestMethod.GET)
+-    default ResponseEntity<List<Pet>> findPetsByTags(@NotNull @ApiParam(value = "Tags to filter by", required = true) @Valid @RequestParam(value = "tags", required = true) List<String> tags) {
++    default ResponseEntity<List<Pet>> findPetsByTags(@NotNull @ApiParam(value = "Tags to filter by", required = true) @Valid @RequestParam(value = "tags", required = true) List<String> tags
++
++) {
+         getRequest().ifPresent(request -> {
+             for (MediaType mediaType: MediaType.parseMediaTypes(request.getHeader("Accept"))) {
+                 if (mediaType.isCompatibleWith(MediaType.valueOf("application/json"))) {
+@@ -187,7 +197,9 @@
+     @RequestMapping(value = "/pet/{petId}",
+         produces = { "application/xml", "application/json" }, 
+         method = RequestMethod.GET)
+-    default ResponseEntity<Pet> getPetById(@ApiParam(value = "ID of pet to return",required=true) @PathVariable("petId") Long petId) {
++    default ResponseEntity<Pet> getPetById(
++@ApiParam(value = "ID of pet to return",required=true) @PathVariable("petId") Long petId
++) {
+         getRequest().ifPresent(request -> {
+             for (MediaType mediaType: MediaType.parseMediaTypes(request.getHeader("Accept"))) {
+                 if (mediaType.isCompatibleWith(MediaType.valueOf("application/json"))) {
+@@ -230,7 +242,9 @@
+     @RequestMapping(value = "/pet",
+         consumes = { "application/json", "application/xml" },
+         method = RequestMethod.PUT)
+-    default ResponseEntity<Void> updatePet(@ApiParam(value = "Pet object that needs to be added to the store" ,required=true )  @Valid @RequestBody Pet body) {
++    default ResponseEntity<Void> updatePet(
++@ApiParam(value = "Pet object that needs to be added to the store" ,required=true )  @Valid @RequestBody Pet body
++) {
+         return new ResponseEntity<>(HttpStatus.NOT_IMPLEMENTED);
+ 
+     }
+@@ -255,7 +269,13 @@
+     @RequestMapping(value = "/pet/{petId}",
+         consumes = { "application/x-www-form-urlencoded" },
+         method = RequestMethod.POST)
+-    default ResponseEntity<Void> updatePetWithForm(@ApiParam(value = "ID of pet that needs to be updated",required=true) @PathVariable("petId") Long petId,@ApiParam(value = "Updated name of the pet") @RequestParam(value="name", required=false)  String name,@ApiParam(value = "Updated status of the pet") @RequestParam(value="status", required=false)  String status) {
++    default ResponseEntity<Void> updatePetWithForm(
++@ApiParam(value = "ID of pet that needs to be updated",required=true) @PathVariable("petId") Long petId
++,
++@ApiParam(value = "Updated name of the pet") @RequestPart(value="name", required=false)  String name
++,
++@ApiParam(value = "Updated status of the pet") @RequestPart(value="status", required=false)  String status
++) {
+         return new ResponseEntity<>(HttpStatus.NOT_IMPLEMENTED);
+ 
+     }
+@@ -281,7 +301,13 @@
+         produces = { "application/json" }, 
+         consumes = { "multipart/form-data" },
+         method = RequestMethod.POST)
+-    default ResponseEntity<ModelApiResponse> uploadFile(@ApiParam(value = "ID of pet to update",required=true) @PathVariable("petId") Long petId,@ApiParam(value = "Additional data to pass to server") @RequestParam(value="additionalMetadata", required=false)  String additionalMetadata,@ApiParam(value = "file to upload") @Valid @RequestPart("file") MultipartFile file) {
++    default ResponseEntity<ModelApiResponse> uploadFile(
++@ApiParam(value = "ID of pet to update",required=true) @PathVariable("petId") Long petId
++,
++@ApiParam(value = "Additional data to pass to server") @RequestPart(value="additionalMetadata", required=false)  String additionalMetadata
++,
++@ApiParam(value = "file to upload") @Valid @RequestPart(value = "file") MultipartFile file
++) {
+         getRequest().ifPresent(request -> {
+             for (MediaType mediaType: MediaType.parseMediaTypes(request.getHeader("Accept"))) {
+                 if (mediaType.isCompatibleWith(MediaType.valueOf("application/json"))) {
+diff --git a/samples/server/petstore/springboot/src/main/java/org/openapitools/api/StoreApi.java b/samples/server/petstore/springboot/src/main/java/org/openapitools/api/StoreApi.java
+index ed0551b3044..f6b57f7e3de 100644
+--- a/samples/server/petstore/springboot/src/main/java/org/openapitools/api/StoreApi.java
++++ b/samples/server/petstore/springboot/src/main/java/org/openapitools/api/StoreApi.java
+@@ -50,7 +50,9 @@
+         @ApiResponse(code = 404, message = "Order not found") })
+     @RequestMapping(value = "/store/order/{order_id}",
+         method = RequestMethod.DELETE)
+-    default ResponseEntity<Void> deleteOrder(@ApiParam(value = "ID of the order that needs to be deleted",required=true) @PathVariable("order_id") String orderId) {
++    default ResponseEntity<Void> deleteOrder(
++@ApiParam(value = "ID of the order that needs to be deleted",required=true) @PathVariable("order_id") String orderId
++) {
+         return new ResponseEntity<>(HttpStatus.NOT_IMPLEMENTED);
+ 
+     }
+@@ -93,7 +95,9 @@
+     @RequestMapping(value = "/store/order/{order_id}",
+         produces = { "application/xml", "application/json" }, 
+         method = RequestMethod.GET)
+-    default ResponseEntity<Order> getOrderById(@Min(1L) @Max(5L) @ApiParam(value = "ID of pet that needs to be fetched",required=true) @PathVariable("order_id") Long orderId) {
++    default ResponseEntity<Order> getOrderById(
++@Min(1L) @Max(5L) @ApiParam(value = "ID of pet that needs to be fetched",required=true) @PathVariable("order_id") Long orderId
++) {
+         getRequest().ifPresent(request -> {
+             for (MediaType mediaType: MediaType.parseMediaTypes(request.getHeader("Accept"))) {
+                 if (mediaType.isCompatibleWith(MediaType.valueOf("application/json"))) {
+@@ -127,7 +131,9 @@
+     @RequestMapping(value = "/store/order",
+         produces = { "application/xml", "application/json" }, 
+         method = RequestMethod.POST)
+-    default ResponseEntity<Order> placeOrder(@ApiParam(value = "order placed for purchasing the pet" ,required=true )  @Valid @RequestBody Order body) {
++    default ResponseEntity<Order> placeOrder(
++@ApiParam(value = "order placed for purchasing the pet" ,required=true )  @Valid @RequestBody Order body
++) {
+         getRequest().ifPresent(request -> {
+             for (MediaType mediaType: MediaType.parseMediaTypes(request.getHeader("Accept"))) {
+                 if (mediaType.isCompatibleWith(MediaType.valueOf("application/json"))) {
+diff --git a/samples/server/petstore/springboot/src/main/java/org/openapitools/api/UserApi.java b/samples/server/petstore/springboot/src/main/java/org/openapitools/api/UserApi.java
+index fc9ca11b96c..2c79a024b57 100644
+--- a/samples/server/petstore/springboot/src/main/java/org/openapitools/api/UserApi.java
++++ b/samples/server/petstore/springboot/src/main/java/org/openapitools/api/UserApi.java
+@@ -48,7 +48,9 @@
+         @ApiResponse(code = 200, message = "successful operation") })
+     @RequestMapping(value = "/user",
+         method = RequestMethod.POST)
+-    default ResponseEntity<Void> createUser(@ApiParam(value = "Created user object" ,required=true )  @Valid @RequestBody User body) {
++    default ResponseEntity<Void> createUser(
++@ApiParam(value = "Created user object" ,required=true )  @Valid @RequestBody User body
++) {
+         return new ResponseEntity<>(HttpStatus.NOT_IMPLEMENTED);
+ 
+     }
+@@ -65,7 +67,9 @@
+         @ApiResponse(code = 200, message = "successful operation") })
+     @RequestMapping(value = "/user/createWithArray",
+         method = RequestMethod.POST)
+-    default ResponseEntity<Void> createUsersWithArrayInput(@ApiParam(value = "List of user object" ,required=true )  @Valid @RequestBody List<User> body) {
++    default ResponseEntity<Void> createUsersWithArrayInput(
++@ApiParam(value = "List of user object" ,required=true )  @Valid @RequestBody List<User> body
++) {
+         return new ResponseEntity<>(HttpStatus.NOT_IMPLEMENTED);
+ 
+     }
+@@ -82,7 +86,9 @@
+         @ApiResponse(code = 200, message = "successful operation") })
+     @RequestMapping(value = "/user/createWithList",
+         method = RequestMethod.POST)
+-    default ResponseEntity<Void> createUsersWithListInput(@ApiParam(value = "List of user object" ,required=true )  @Valid @RequestBody List<User> body) {
++    default ResponseEntity<Void> createUsersWithListInput(
++@ApiParam(value = "List of user object" ,required=true )  @Valid @RequestBody List<User> body
++) {
+         return new ResponseEntity<>(HttpStatus.NOT_IMPLEMENTED);
+ 
+     }
+@@ -102,7 +108,9 @@
+         @ApiResponse(code = 404, message = "User not found") })
+     @RequestMapping(value = "/user/{username}",
+         method = RequestMethod.DELETE)
+-    default ResponseEntity<Void> deleteUser(@ApiParam(value = "The name that needs to be deleted",required=true) @PathVariable("username") String username) {
++    default ResponseEntity<Void> deleteUser(
++@ApiParam(value = "The name that needs to be deleted",required=true) @PathVariable("username") String username
++) {
+         return new ResponseEntity<>(HttpStatus.NOT_IMPLEMENTED);
+ 
+     }
+@@ -124,7 +132,9 @@
+     @RequestMapping(value = "/user/{username}",
+         produces = { "application/xml", "application/json" }, 
+         method = RequestMethod.GET)
+-    default ResponseEntity<User> getUserByName(@ApiParam(value = "The name that needs to be fetched. Use user1 for testing.",required=true) @PathVariable("username") String username) {
++    default ResponseEntity<User> getUserByName(
++@ApiParam(value = "The name that needs to be fetched. Use user1 for testing.",required=true) @PathVariable("username") String username
++) {
+         getRequest().ifPresent(request -> {
+             for (MediaType mediaType: MediaType.parseMediaTypes(request.getHeader("Accept"))) {
+                 if (mediaType.isCompatibleWith(MediaType.valueOf("application/json"))) {
+@@ -159,7 +169,11 @@
+     @RequestMapping(value = "/user/login",
+         produces = { "application/xml", "application/json" }, 
+         method = RequestMethod.GET)
+-    default ResponseEntity<String> loginUser(@NotNull @ApiParam(value = "The user name for login", required = true) @Valid @RequestParam(value = "username", required = true) String username,@NotNull @ApiParam(value = "The password for login in clear text", required = true) @Valid @RequestParam(value = "password", required = true) String password) {
++    default ResponseEntity<String> loginUser(@NotNull @ApiParam(value = "The user name for login", required = true) @Valid @RequestParam(value = "username", required = true) String username
++
++,@NotNull @ApiParam(value = "The password for login in clear text", required = true) @Valid @RequestParam(value = "password", required = true) String password
++
++) {
+         return new ResponseEntity<>(HttpStatus.NOT_IMPLEMENTED);
+ 
+     }
+@@ -196,7 +210,11 @@
+         @ApiResponse(code = 404, message = "User not found") })
+     @RequestMapping(value = "/user/{username}",
+         method = RequestMethod.PUT)
+-    default ResponseEntity<Void> updateUser(@ApiParam(value = "name that need to be deleted",required=true) @PathVariable("username") String username,@ApiParam(value = "Updated user object" ,required=true )  @Valid @RequestBody User body) {
++    default ResponseEntity<Void> updateUser(
++@ApiParam(value = "name that need to be deleted",required=true) @PathVariable("username") String username
++,
++@ApiParam(value = "Updated user object" ,required=true )  @Valid @RequestBody User body
++) {
+         return new ResponseEntity<>(HttpStatus.NOT_IMPLEMENTED);
+ 
+     }

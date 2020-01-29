@@ -1,0 +1,6 @@
+@@ -1,4 +1,4 @@
+-package de.sqlstatement.emergproxy;
++package de.sqlstatement.amboss;
+ 
+ import net.md_5.bungee.api.plugin.Command;
+ import net.md_5.bungee.api.plugin.Plugin;

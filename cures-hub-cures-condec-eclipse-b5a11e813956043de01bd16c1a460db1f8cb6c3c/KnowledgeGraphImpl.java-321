@@ -1,0 +1,9 @@
+@@ -321,7 +321,7 @@ public void insertLink(Node node1, Node node2) {
+ 	
+ 	@Override
+ 	public void removeLink(Node node1, Node node2) {
+-		this.removeEdge(node1, node2);
++		this.removeAllEdges(node1, node2);
+ 	}
+ 	
+ 	@Override

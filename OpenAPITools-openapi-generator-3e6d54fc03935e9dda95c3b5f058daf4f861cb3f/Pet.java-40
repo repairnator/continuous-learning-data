@@ -1,0 +1,9 @@
+@@ -40,7 +40,7 @@ public String toString() {
+     }
+   }
+ 
+-  private StatusEnum status = null;
++  private StatusEnum status;
+ 
+   public Pet () {
+ 

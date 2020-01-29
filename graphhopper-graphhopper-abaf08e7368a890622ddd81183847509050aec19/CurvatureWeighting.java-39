@@ -1,0 +1,9 @@
+@@ -39,7 +39,7 @@ public CurvatureWeighting(FlagEncoder flagEncoder, PMap pMap) {
+     }
+ 
+     public CurvatureWeighting(FlagEncoder flagEncoder, PMap pMap, TurnCostProvider turnCostProvider) {
+-        super(flagEncoder, pMap, turnCostProvider);
++        super("curvature", flagEncoder, pMap, turnCostProvider);
+ 
+         priorityEnc = flagEncoder.getDecimalEncodedValue(EncodingManager.getKey(flagEncoder, "priority"));
+         curvatureEnc = flagEncoder.getDecimalEncodedValue(EncodingManager.getKey(flagEncoder, "curvature"));

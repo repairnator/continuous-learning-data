@@ -1,0 +1,9 @@
+@@ -123,7 +123,7 @@ ResponseBankingProductList listProducts(
+             reference = "ParamPage"
+         )
+         @CDSDataType(CustomDataType.PositiveInteger)
+-        Integer page, 
++        Integer page,
+         @Param(
+             name = "page-size",
+             description = "Page size to request. Default is 25 (standard pagination)",

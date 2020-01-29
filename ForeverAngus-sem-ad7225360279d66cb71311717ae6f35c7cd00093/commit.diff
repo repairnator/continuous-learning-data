@@ -1,0 +1,26 @@
+diff --git a/Dockerfile b/Dockerfile
+index cafb6f6..68d9915 100644
+--- a/Dockerfile
++++ b/Dockerfile
+@@ -1,4 +1,4 @@
+ FROM openjdk:7
+-COPY ./target/classes/com /tmp/com
++COPY ./target/seMethods-0.1.0.1-jar-with-dependencies.jar /tmp
+ WORKDIR /tmp
+-ENTRYPOINT ["java", "com.napier.sem.App"]
+\ No newline at end of file
++ENTRYPOINT ["java", "-jar", "seMethods-0.1.0.1-jar-with-dependencies.jar"]
+\ No newline at end of file
+diff --git a/src/main/java/com/napier/sem/App.java b/src/main/java/com/napier/sem/App.java
+index 8e7aeb2..2417c27 100644
+--- a/src/main/java/com/napier/sem/App.java
++++ b/src/main/java/com/napier/sem/App.java
+@@ -8,7 +8,7 @@
+ public class App {
+     public static void main(String[] args) {
+         // Connect to MongoDB on local system - we're using port 27000
+-        MongoClient mongoClient = new MongoClient("localhost", 27000);
++        MongoClient mongoClient = new MongoClient("mongo-dbserver");
+         // Get a database - will create when we use it
+         MongoDatabase database = mongoClient.getDatabase("mydb");
+         // Get a collection from the database

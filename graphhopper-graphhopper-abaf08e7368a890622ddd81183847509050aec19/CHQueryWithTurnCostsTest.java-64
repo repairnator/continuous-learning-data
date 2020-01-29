@@ -1,0 +1,9 @@
+@@ -64,7 +64,7 @@
+     public CHQueryWithTurnCostsTest(String algoString) {
+         this.algoString = algoString;
+         graph = new GraphBuilder(encodingManager)
+-                .setCHProfileStrings("motorcycle|shortest|edge")
++                .setCHProfileStrings("car|shortest|edge")
+                 .create();
+         weighting = graph.getCHProfiles().get(0).getWeighting();
+         chGraph = graph.getCHGraph();

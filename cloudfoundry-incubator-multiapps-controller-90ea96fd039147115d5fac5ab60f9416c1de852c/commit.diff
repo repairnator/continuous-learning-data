@@ -1,0 +1,716 @@
+diff --git a/com.sap.cloud.lm.sl.cf.core/src/main/java/com/sap/cloud/lm/sl/cf/core/cf/v2/ApplicationCloudModelBuilder.java b/com.sap.cloud.lm.sl.cf.core/src/main/java/com/sap/cloud/lm/sl/cf/core/cf/v2/ApplicationCloudModelBuilder.java
+index ede43f1e6..37f41bb28 100644
+--- a/com.sap.cloud.lm.sl.cf.core/src/main/java/com/sap/cloud/lm/sl/cf/core/cf/v2/ApplicationCloudModelBuilder.java
++++ b/com.sap.cloud.lm.sl.cf.core/src/main/java/com/sap/cloud/lm/sl/cf/core/cf/v2/ApplicationCloudModelBuilder.java
+@@ -128,16 +128,16 @@ private ApplicationUrisCloudModelBuilder getApplicationUrisCloudModelBuilder(Lis
+ 
+     public List<String> getApplicationUris(Module module) {
+         List<Map<String, Object>> parametersList = parametersChainBuilder.buildModuleChain(module.getName());
+-        DeployedMtaModule deployedModule = findDeployedModule(deployedMta, module);
++        DeployedMtaModule deployedModule = getDeployedMtaModule(module);
+         return getApplicationUrisCloudModelBuilder(parametersList).getApplicationUris(module, parametersList, deployedModule);
+     }
+ 
+-    protected <R> R parseParameters(List<Map<String, Object>> parametersList, ParametersParser<R> parser) {
+-        return parser.parse(parametersList);
++    private DeployedMtaModule getDeployedMtaModule(Module module) {
++        return deployedMta == null ? null : deployedMta.findLiveDeployedModule(module.getName());
+     }
+ 
+-    protected DeployedMtaModule findDeployedModule(DeployedMta deployedMta, Module module) {
+-        return deployedMta == null ? null : deployedMta.findDeployedModule(module.getName());
++    protected <R> R parseParameters(List<Map<String, Object>> parametersList, ParametersParser<R> parser) {
++        return parser.parse(parametersList);
+     }
+ 
+     public List<String> getAllApplicationServices(Module module) {
+diff --git a/com.sap.cloud.lm.sl.cf.core/src/main/java/com/sap/cloud/lm/sl/cf/core/model/DeployedMta.java b/com.sap.cloud.lm.sl.cf.core/src/main/java/com/sap/cloud/lm/sl/cf/core/model/DeployedMta.java
+index 58417b32a..5f154baf2 100644
+--- a/com.sap.cloud.lm.sl.cf.core/src/main/java/com/sap/cloud/lm/sl/cf/core/model/DeployedMta.java
++++ b/com.sap.cloud.lm.sl.cf.core/src/main/java/com/sap/cloud/lm/sl/cf/core/model/DeployedMta.java
+@@ -63,10 +63,11 @@ public boolean equals(Object object) {
+         return Objects.equals(metadata, other.metadata);
+     }
+ 
+-    public DeployedMtaModule findDeployedModule(String moduleName) {
++    public DeployedMtaModule findLiveDeployedModule(String moduleName) {
+         return getModules().stream()
+                            .filter(module -> module.getModuleName()
+                                                    .equalsIgnoreCase(moduleName))
++                           .filter(DeployedMtaModule::isLive)
+                            .findFirst()
+                            .orElse(null);
+     }
+diff --git a/com.sap.cloud.lm.sl.cf.core/src/main/java/com/sap/cloud/lm/sl/cf/core/model/DeployedMtaModule.java b/com.sap.cloud.lm.sl.cf.core/src/main/java/com/sap/cloud/lm/sl/cf/core/model/DeployedMtaModule.java
+index 140f1d977..7cb65a501 100644
+--- a/com.sap.cloud.lm.sl.cf.core/src/main/java/com/sap/cloud/lm/sl/cf/core/model/DeployedMtaModule.java
++++ b/com.sap.cloud.lm.sl.cf.core/src/main/java/com/sap/cloud/lm/sl/cf/core/model/DeployedMtaModule.java
+@@ -12,6 +12,7 @@
+     private List<String> services;
+     private List<String> providedDependencyNames;
+     private List<String> uris;
++    private boolean isLive = true;
+ 
+     public DeployedMtaModule() {
+     }
+@@ -55,6 +56,10 @@ public Date getUpdatedOn() {
+         return uris;
+     }
+ 
++    public boolean isLive() {
++        return isLive;
++    }
++
+     public void setAppName(String appName) {
+         this.appName = appName;
+     }
+@@ -83,4 +88,8 @@ public void setUris(List<String> uris) {
+         this.uris = uris;
+     }
+ 
++    public void setLive(boolean isLive) {
++        this.isLive = isLive;
++    }
++
+ }
+diff --git a/com.sap.cloud.lm.sl.cf.core/src/test/resources/com/sap/cloud/lm/sl/cf/core/cf/detect/deployed-components-07.json b/com.sap.cloud.lm.sl.cf.core/src/test/resources/com/sap/cloud/lm/sl/cf/core/cf/detect/deployed-components-07.json
+index 298ed8944..b9a762c9c 100644
+--- a/com.sap.cloud.lm.sl.cf.core/src/test/resources/com/sap/cloud/lm/sl/cf/core/cf/detect/deployed-components-07.json
++++ b/com.sap.cloud.lm.sl.cf.core/src/test/resources/com/sap/cloud/lm/sl/cf/core/cf/detect/deployed-components-07.json
+@@ -1,40 +1,25 @@
+ {
+-  "mtas": [
+-    {
+-      "metadata": {
+-        "id": "quux",
+-        "version": "0.1.0"
+-      },
+-      "modules": [
+-        {
+-          "moduleName": "mta-module-1",
+-          "appName": "mta-application-1",
+-          "services": [],
+-          "providedDependencyNames": [
+-            "mta-provided-dependency-1",
+-            "mta-provided-dependency-2"
+-          ],
+-          "uris": []
+-        },
+-        {
+-          "moduleName": "mta-module-2",
+-          "appName": "mta-application-2",
+-          "services": [
+-            "service-1",
+-            "service-2"
+-          ],
+-          "providedDependencyNames": [],
+-          "uris": []
+-        }
+-      ],
+-      "services": [
+-        "service-1",
+-        "service-2"
+-      ]
+-    }
+-  ],
+-  "standaloneApps": [
+-    "standalone-application-1",
+-    "standalone-application-2"
+-  ]
++  "mtas" : [ {
++    "metadata" : {
++      "id" : "quux",
++      "version" : "0.1.0"
++    },
++    "modules" : [ {
++      "moduleName" : "mta-module-1",
++      "appName" : "mta-application-1",
++      "services" : [ ],
++      "providedDependencyNames" : [ "mta-provided-dependency-1", "mta-provided-dependency-2" ],
++      "uris" : [ ],
++      "isLive" : true
++    }, {
++      "moduleName" : "mta-module-2",
++      "appName" : "mta-application-2",
++      "services" : [ "service-1", "service-2" ],
++      "providedDependencyNames" : [ ],
++      "uris" : [ ],
++      "isLive" : true
++    } ],
++    "services" : [ "service-1", "service-2" ]
++  } ],
++  "standaloneApps" : [ "standalone-application-1", "standalone-application-2" ]
+ }
+\ No newline at end of file
+diff --git a/com.sap.cloud.lm.sl.cf.core/src/test/resources/com/sap/cloud/lm/sl/cf/core/cf/detect/deployed-components-08.json b/com.sap.cloud.lm.sl.cf.core/src/test/resources/com/sap/cloud/lm/sl/cf/core/cf/detect/deployed-components-08.json
+index 96ab52e7e..bbb211f07 100644
+--- a/com.sap.cloud.lm.sl.cf.core/src/test/resources/com/sap/cloud/lm/sl/cf/core/cf/detect/deployed-components-08.json
++++ b/com.sap.cloud.lm.sl.cf.core/src/test/resources/com/sap/cloud/lm/sl/cf/core/cf/detect/deployed-components-08.json
+@@ -1,40 +1,25 @@
+ {
+-  "mtas": [
+-    {
+-      "metadata": {
+-        "id": "quux",
+-        "version": "0.0.0-unknown"
+-      },
+-      "modules": [
+-        {
+-          "moduleName": "mta-module-1",
+-          "appName": "mta-application-1",
+-          "services": [],
+-          "providedDependencyNames": [
+-            "mta-provided-dependency-1",
+-            "mta-provided-dependency-2"
+-          ],
+-          "uris": []
+-        },
+-        {
+-          "moduleName": "mta-module-2",
+-          "appName": "mta-application-2",
+-          "services": [
+-            "service-1",
+-            "service-2"
+-          ],
+-          "providedDependencyNames": [],
+-          "uris": []
+-        }
+-      ],
+-      "services": [
+-        "service-1",
+-        "service-2"
+-      ]
+-    }
+-  ],
+-  "standaloneApps": [
+-    "standalone-application-1",
+-    "standalone-application-2"
+-  ]
++  "mtas" : [ {
++    "metadata" : {
++      "id" : "quux",
++      "version" : "0.0.0-unknown"
++    },
++    "modules" : [ {
++      "moduleName" : "mta-module-1",
++      "appName" : "mta-application-1",
++      "services" : [ ],
++      "providedDependencyNames" : [ "mta-provided-dependency-1", "mta-provided-dependency-2" ],
++      "uris" : [ ],
++      "isLive" : true
++    }, {
++      "moduleName" : "mta-module-2",
++      "appName" : "mta-application-2",
++      "services" : [ "service-1", "service-2" ],
++      "providedDependencyNames" : [ ],
++      "uris" : [ ],
++      "isLive" : true
++    } ],
++    "services" : [ "service-1", "service-2" ]
++  } ],
++  "standaloneApps" : [ "standalone-application-1", "standalone-application-2" ]
+ }
+\ No newline at end of file
+diff --git a/com.sap.cloud.lm.sl.cf.core/src/test/resources/com/sap/cloud/lm/sl/cf/core/cf/detect/deployed-components-09.json b/com.sap.cloud.lm.sl.cf.core/src/test/resources/com/sap/cloud/lm/sl/cf/core/cf/detect/deployed-components-09.json
+index 66dcf7cbf..4f1b46f82 100644
+--- a/com.sap.cloud.lm.sl.cf.core/src/test/resources/com/sap/cloud/lm/sl/cf/core/cf/detect/deployed-components-09.json
++++ b/com.sap.cloud.lm.sl.cf.core/src/test/resources/com/sap/cloud/lm/sl/cf/core/cf/detect/deployed-components-09.json
+@@ -1,40 +1,25 @@
+ {
+-  "mtas": [
+-    {
+-      "metadata": {
+-        "id": "quux",
+-        "version": "0.0.0-unknown"
+-      },
+-      "modules": [
+-        {
+-          "moduleName": "mta-module",
+-          "appName": "mta-application-blue",
+-          "services": [],
+-          "providedDependencyNames": [
+-            "mta-provided-dependency-1",
+-            "mta-provided-dependency-2"
+-          ],
+-          "uris": []
+-        },
+-        {
+-          "moduleName": "mta-module",
+-          "appName": "mta-application-green",
+-          "services": [
+-            "service-1",
+-            "service-2"
+-          ],
+-          "providedDependencyNames": [],
+-          "uris": []
+-        }
+-      ],
+-      "services": [
+-        "service-1",
+-        "service-2"
+-      ]
+-    }
+-  ],
+-  "standaloneApps": [
+-    "standalone-application-1",
+-    "standalone-application-2"
+-  ]
++  "mtas" : [ {
++    "metadata" : {
++      "id" : "quux",
++      "version" : "0.0.0-unknown"
++    },
++    "modules" : [ {
++      "moduleName" : "mta-module",
++      "appName" : "mta-application-blue",
++      "services" : [ ],
++      "providedDependencyNames" : [ "mta-provided-dependency-1", "mta-provided-dependency-2" ],
++      "uris" : [ ],
++      "isLive" : true
++    }, {
++      "moduleName" : "mta-module",
++      "appName" : "mta-application-green",
++      "services" : [ "service-1", "service-2" ],
++      "providedDependencyNames" : [ ],
++      "uris" : [ ],
++      "isLive" : true
++    } ],
++    "services" : [ "service-1", "service-2" ]
++  } ],
++  "standaloneApps" : [ "standalone-application-1", "standalone-application-2" ]
+ }
+\ No newline at end of file
+diff --git a/com.sap.cloud.lm.sl.cf.core/src/test/resources/com/sap/cloud/lm/sl/cf/core/cf/detect/deployed-components-10.json b/com.sap.cloud.lm.sl.cf.core/src/test/resources/com/sap/cloud/lm/sl/cf/core/cf/detect/deployed-components-10.json
+index e1498e6fb..b8da5cf6b 100644
+--- a/com.sap.cloud.lm.sl.cf.core/src/test/resources/com/sap/cloud/lm/sl/cf/core/cf/detect/deployed-components-10.json
++++ b/com.sap.cloud.lm.sl.cf.core/src/test/resources/com/sap/cloud/lm/sl/cf/core/cf/detect/deployed-components-10.json
+@@ -1,37 +1,25 @@
+ {
+-  "mtas": [
+-    {
+-      "metadata": {
+-        "id": "quux",
+-        "version": "0.1.0"
+-      },
+-      "modules": [
+-        {
+-          "moduleName": "mta-module-1",
+-          "appName": "mta-application-1",
+-          "services": [],
+-          "providedDependencyNames": [],
+-          "uris": []
+-        },
+-        {
+-          "moduleName": "mta-module-2",
+-          "appName": "mta-application-2",
+-          "services": [
+-            "service-1",
+-            "service-2"
+-          ],
+-          "providedDependencyNames": [],
+-          "uris": []
+-        }
+-      ],
+-      "services": [
+-        "service-1",
+-        "service-2"
+-      ]
+-    }
+-  ],
+-  "standaloneApps": [
+-    "standalone-application-1",
+-    "standalone-application-2"
+-  ]
++  "mtas" : [ {
++    "metadata" : {
++      "id" : "quux",
++      "version" : "0.1.0"
++    },
++    "modules" : [ {
++      "moduleName" : "mta-module-1",
++      "appName" : "mta-application-1",
++      "services" : [ ],
++      "providedDependencyNames" : [ ],
++      "uris" : [ ],
++      "isLive" : true
++    }, {
++      "moduleName" : "mta-module-2",
++      "appName" : "mta-application-2",
++      "services" : [ "service-1", "service-2" ],
++      "providedDependencyNames" : [ ],
++      "uris" : [ ],
++      "isLive" : true
++    } ],
++    "services" : [ "service-1", "service-2" ]
++  } ],
++  "standaloneApps" : [ "standalone-application-1", "standalone-application-2" ]
+ }
+\ No newline at end of file
+diff --git a/com.sap.cloud.lm.sl.cf.process/src/main/java/com/sap/cloud/lm/sl/cf/process/helpers/ApplicationColorDetector.java b/com.sap.cloud.lm.sl.cf.process/src/main/java/com/sap/cloud/lm/sl/cf/process/helpers/ApplicationColorDetector.java
+index b5b276210..d34813177 100644
+--- a/com.sap.cloud.lm.sl.cf.process/src/main/java/com/sap/cloud/lm/sl/cf/process/helpers/ApplicationColorDetector.java
++++ b/com.sap.cloud.lm.sl.cf.process/src/main/java/com/sap/cloud/lm/sl/cf/process/helpers/ApplicationColorDetector.java
+@@ -26,7 +26,7 @@
+ @Named("applicationColorDetector")
+ public class ApplicationColorDetector {
+ 
+-    private static final ApplicationColor COLOR_OF_APPLICATIONS_WITHOUT_SUFFIX = ApplicationColor.BLUE;
++    public static final ApplicationColor COLOR_OF_APPLICATIONS_WITHOUT_SUFFIX = ApplicationColor.BLUE;
+ 
+     @Inject
+     private OperationService operationService;
+@@ -69,7 +69,7 @@ public ApplicationColor detectLiveApplicationColor(DeployedMta deployedMta, Stri
+         if (latestDeployedColor == null) {
+             return olderApplicationColor;
+         }
+-        return phase == Phase.UNDEPLOY ? latestDeployedColor : olderApplicationColor;
++        return phase == Phase.UNDEPLOY ? latestDeployedColor : latestDeployedColor.getAlternativeColor();
+     }
+ 
+     public ApplicationColor detectSingularDeployedApplicationColor(DeployedMta deployedMta) {
+diff --git a/com.sap.cloud.lm.sl.cf.process/src/main/java/com/sap/cloud/lm/sl/cf/process/message/Messages.java b/com.sap.cloud.lm.sl.cf.process/src/main/java/com/sap/cloud/lm/sl/cf/process/message/Messages.java
+index bc265118f..1f15507f3 100644
+--- a/com.sap.cloud.lm.sl.cf.process/src/main/java/com/sap/cloud/lm/sl/cf/process/message/Messages.java
++++ b/com.sap.cloud.lm.sl.cf.process/src/main/java/com/sap/cloud/lm/sl/cf/process/message/Messages.java
+@@ -418,6 +418,7 @@
+     public static final String ARCHIVE_IS_VERIFIED = "Archive signature is verified";
+     public static final String CHECKING_FOR_OVERWRITING_READ_ONLY_PARAMETERS = "Checking for overwriting read-only parameters for mta with id: \"{0}\"";
+     public static final String NO_READ_ONLY_PARAMETERS_ARE_OVERWRITTEN = "No read-only parameters are overwritten";
++    public static final String MARKED_MODULE_AS_IDLE = "Module \"{0}\" with applicatio name \"{1}\" was marked as idle";
+ 
+     protected Messages() {
+     }
+diff --git a/com.sap.cloud.lm.sl.cf.process/src/main/java/com/sap/cloud/lm/sl/cf/process/steps/BlueGreenRenameStep.java b/com.sap.cloud.lm.sl.cf.process/src/main/java/com/sap/cloud/lm/sl/cf/process/steps/BlueGreenRenameStep.java
+index 5917ad195..cfa7631b4 100644
+--- a/com.sap.cloud.lm.sl.cf.process/src/main/java/com/sap/cloud/lm/sl/cf/process/steps/BlueGreenRenameStep.java
++++ b/com.sap.cloud.lm.sl.cf.process/src/main/java/com/sap/cloud/lm/sl/cf/process/steps/BlueGreenRenameStep.java
+@@ -1,5 +1,7 @@
+ package com.sap.cloud.lm.sl.cf.process.steps;
+ 
++import java.util.List;
++
+ import javax.inject.Inject;
+ import javax.inject.Named;
+ 
+@@ -10,9 +12,11 @@
+ import com.sap.cloud.lm.sl.cf.core.helpers.ApplicationColorAppender;
+ import com.sap.cloud.lm.sl.cf.core.model.ApplicationColor;
+ import com.sap.cloud.lm.sl.cf.core.model.DeployedMta;
++import com.sap.cloud.lm.sl.cf.core.model.DeployedMtaModule;
+ import com.sap.cloud.lm.sl.cf.process.Constants;
+ import com.sap.cloud.lm.sl.cf.process.helpers.ApplicationColorDetector;
+ import com.sap.cloud.lm.sl.cf.process.message.Messages;
++import com.sap.cloud.lm.sl.cf.process.util.DeployedModuleCalculatorWithColor;
+ import com.sap.cloud.lm.sl.common.ConflictException;
+ import com.sap.cloud.lm.sl.mta.model.DeploymentDescriptor;
+ 
+@@ -45,9 +49,12 @@ protected StepPhase executeStep(ExecutionWrapper execution) {
+             ApplicationColor liveMtaColor = getLiveApplicationColor(deployedMta, execution);
+             ApplicationColor idleMtaColor = liveMtaColor.getAlternativeColor();
+             getStepLogger().info(Messages.ASSUMED_LIVE_AND_IDLE_COLORS, liveMtaColor, idleMtaColor);
++            deployedMtaColor = liveMtaColor;
+             mtaColor = idleMtaColor;
+         }
+ 
++        setIdleModules(execution, deployedMta, deployedMtaColor);
++
+         StepsUtil.setDeployedMtaColor(execution.getContext(), deployedMtaColor);
+         StepsUtil.setMtaColor(execution.getContext(), mtaColor);
+ 
+@@ -68,6 +75,16 @@ private ApplicationColor getLiveApplicationColor(DeployedMta deployedMta, Execut
+                                                                                                   .getVariable(Constants.VAR_CORRELATION_ID));
+     }
+ 
++    private void setIdleModules(ExecutionWrapper execution, DeployedMta deployedMta, ApplicationColor deployedMtaColor) {
++        if (deployedMta != null && deployedMtaColor != null) {
++            List<DeployedMtaModule> updatedModules = new DeployedModuleCalculatorWithColor(deployedMta.getModules(),
++                                                                                           deployedMtaColor,
++                                                                                           getStepLogger()).updateIdleDeployedModules();
++            deployedMta.setModules(updatedModules);
++            StepsUtil.setDeployedMta(execution.getContext(), deployedMta);
++        }
++    }
++
+     protected void visit(ExecutionWrapper execution, DeploymentDescriptor descriptor, ApplicationColor mtaColor,
+                          ApplicationColor deployedMtaColor) {
+         ApplicationColorAppender appender = new ApplicationColorAppender(deployedMtaColor, mtaColor);
+diff --git a/com.sap.cloud.lm.sl.cf.process/src/main/java/com/sap/cloud/lm/sl/cf/process/steps/StepsUtil.java b/com.sap.cloud.lm.sl.cf.process/src/main/java/com/sap/cloud/lm/sl/cf/process/steps/StepsUtil.java
+index 123ad44de..61b23836d 100644
+--- a/com.sap.cloud.lm.sl.cf.process/src/main/java/com/sap/cloud/lm/sl/cf/process/steps/StepsUtil.java
++++ b/com.sap.cloud.lm.sl.cf.process/src/main/java/com/sap/cloud/lm/sl/cf/process/steps/StepsUtil.java
+@@ -767,6 +767,7 @@ static ApplicationCloudModelBuilder getApplicationCloudModelBuilder(VariableScop
+         String deployId = DEPLOY_ID_PREFIX + getCorrelationId(scope);
+ 
+         DeploymentDescriptor deploymentDescriptor = StepsUtil.getCompleteDeploymentDescriptor(scope);
++
+         DeployedMta deployedMta = StepsUtil.getDeployedMta(scope);
+ 
+         return handlerFactory.getApplicationCloudModelBuilder(deploymentDescriptor, true, deployedMta, deployId, stepLogger);
+diff --git a/com.sap.cloud.lm.sl.cf.process/src/main/java/com/sap/cloud/lm/sl/cf/process/util/DeployedModuleCalculator.java b/com.sap.cloud.lm.sl.cf.process/src/main/java/com/sap/cloud/lm/sl/cf/process/util/DeployedModuleCalculator.java
+new file mode 100644
+index 000000000..261bf8643
+--- /dev/null
++++ b/com.sap.cloud.lm.sl.cf.process/src/main/java/com/sap/cloud/lm/sl/cf/process/util/DeployedModuleCalculator.java
+@@ -0,0 +1,11 @@
++package com.sap.cloud.lm.sl.cf.process.util;
++
++import java.util.List;
++
++import com.sap.cloud.lm.sl.cf.core.model.DeployedMtaModule;
++
++public interface DeployedModuleCalculator {
++
++    List<DeployedMtaModule> updateIdleDeployedModules();
++
++}
+diff --git a/com.sap.cloud.lm.sl.cf.process/src/main/java/com/sap/cloud/lm/sl/cf/process/util/DeployedModuleCalculatorWithColor.java b/com.sap.cloud.lm.sl.cf.process/src/main/java/com/sap/cloud/lm/sl/cf/process/util/DeployedModuleCalculatorWithColor.java
+new file mode 100644
+index 000000000..ab5f984bb
+--- /dev/null
++++ b/com.sap.cloud.lm.sl.cf.process/src/main/java/com/sap/cloud/lm/sl/cf/process/util/DeployedModuleCalculatorWithColor.java
+@@ -0,0 +1,55 @@
++package com.sap.cloud.lm.sl.cf.process.util;
++
++import java.util.List;
++import java.util.stream.Collectors;
++
++import com.sap.cloud.lm.sl.cf.core.model.ApplicationColor;
++import com.sap.cloud.lm.sl.cf.core.model.DeployedMtaModule;
++import com.sap.cloud.lm.sl.cf.process.helpers.ApplicationColorDetector;
++import com.sap.cloud.lm.sl.cf.process.message.Messages;
++
++public class DeployedModuleCalculatorWithColor implements DeployedModuleCalculator {
++
++    private List<DeployedMtaModule> deployedModules;
++
++    private ApplicationColor deployedMtaColor;
++
++    private StepLogger stepLogger;
++
++    public DeployedModuleCalculatorWithColor(List<DeployedMtaModule> deployedModules, ApplicationColor deployedMtaColor,
++                                             StepLogger stepLogger) {
++        this.deployedModules = deployedModules;
++        this.deployedMtaColor = deployedMtaColor;
++        this.stepLogger = stepLogger;
++    }
++
++    @Override
++    public List<DeployedMtaModule> updateIdleDeployedModules() {
++        return deployedModules.stream()
++                              .map(this::setIdleModules)
++                              .collect(Collectors.toList());
++    }
++
++    private DeployedMtaModule setIdleModules(DeployedMtaModule deployedModule) {
++        if (doesDeployedModuleNotContainLiveColor(deployedModule)) {
++            deployedModule.setLive(false);
++            stepLogger.debug(Messages.MARKED_MODULE_AS_IDLE, deployedModule.getModuleName(), deployedModule.getAppName());
++        }
++        return deployedModule;
++    }
++
++    private boolean doesDeployedModuleNotContainLiveColor(DeployedMtaModule deployedModule) {
++        String appName = deployedModule.getAppName();
++        return !appName.endsWith(deployedMtaColor.asSuffix())
++            && !(doesDeployedModuleContainColorWithoutSuffix(appName) && doesDeployedColorMatchColorWithoutSuffix());
++    }
++
++    private boolean doesDeployedModuleContainColorWithoutSuffix(String appName) {
++        return !appName.endsWith(ApplicationColor.BLUE.asSuffix()) && !appName.endsWith(ApplicationColor.GREEN.asSuffix());
++    }
++
++    private boolean doesDeployedColorMatchColorWithoutSuffix() {
++        return deployedMtaColor == ApplicationColorDetector.COLOR_OF_APPLICATIONS_WITHOUT_SUFFIX;
++    }
++
++}
+diff --git a/com.sap.cloud.lm.sl.cf.process/src/test/java/com/sap/cloud/lm/sl/cf/process/util/DeployedModuleCalculatorWithColorTest.java b/com.sap.cloud.lm.sl.cf.process/src/test/java/com/sap/cloud/lm/sl/cf/process/util/DeployedModuleCalculatorWithColorTest.java
+new file mode 100644
+index 000000000..17d316ef2
+--- /dev/null
++++ b/com.sap.cloud.lm.sl.cf.process/src/test/java/com/sap/cloud/lm/sl/cf/process/util/DeployedModuleCalculatorWithColorTest.java
+@@ -0,0 +1,112 @@
++package com.sap.cloud.lm.sl.cf.process.util;
++
++import static java.text.MessageFormat.format;
++import static org.junit.jupiter.api.Assertions.assertTrue;
++
++import java.util.Arrays;
++import java.util.Collections;
++import java.util.List;
++import java.util.stream.Collectors;
++import java.util.stream.Stream;
++
++import org.junit.jupiter.api.BeforeEach;
++import org.junit.jupiter.params.ParameterizedTest;
++import org.junit.jupiter.params.provider.Arguments;
++import org.junit.jupiter.params.provider.MethodSource;
++import org.mockito.Mock;
++import org.mockito.MockitoAnnotations;
++
++import com.sap.cloud.lm.sl.cf.core.model.ApplicationColor;
++import com.sap.cloud.lm.sl.cf.core.model.DeployedMtaModule;
++
++public class DeployedModuleCalculatorWithColorTest {
++
++    @Mock
++    private StepLogger stepLogger;
++
++    @BeforeEach
++    public void setUp() {
++        MockitoAnnotations.initMocks(this);
++    }
++
++    private static Stream<Arguments> testUpdateIdleDeployedModules() {
++        return Stream.of(
++        // @formatter:off
++               // (1) Get module-1 from deployed modules [module-1, module-2]
++               Arguments.of(Arrays.asList(new DeployedModule("module-1", "foo-blue"), new DeployedModule("module-2", "bar-green")), ApplicationColor.BLUE, new DeployedModule("module-1", "foo-blue")),
++               // (2) Get live application in case where both blue and green are deployed
++               Arguments.of(Arrays.asList(new DeployedModule("module-1", "foo-blue"), new DeployedModule("module-1", "foo-green")), ApplicationColor.GREEN, new DeployedModule("module-1", "foo-green")),
++               // (3) Test without deployed mta
++               Arguments.of(Collections.emptyList(), ApplicationColor.BLUE, null),
++               // (4) Get application without color suffix when previous deployed color is BLUE
++               Arguments.of(Arrays.asList(new DeployedModule("module-1", "foo"), new DeployedModule("module-1", "foo-green")), ApplicationColor.BLUE, new DeployedModule("module-1", "foo")),
++               // (5) Get live application (foo-green) when foo and foo-blue exists
++               Arguments.of(Arrays.asList(new DeployedModule("module-1", "foo"), new DeployedModule("module-1", "foo-blue"), new DeployedModule("module-1", "foo-green")), ApplicationColor.GREEN, 
++                            new DeployedModule("module-1", "foo-green"))
++        // @formatter:on
++        );
++    }
++
++    @ParameterizedTest
++    @MethodSource
++    public void testUpdateIdleDeployedModules(List<DeployedModule> deployedModulesNames, ApplicationColor deployedMtaColor,
++                                              DeployedModule expectedDeployedModule) {
++        List<DeployedMtaModule> deployedModules = buildDeployedModulesList(deployedModulesNames);
++
++        List<DeployedMtaModule> updateDeployedModules = new DeployedModuleCalculatorWithColor(deployedModules,
++                                                                                              deployedMtaColor,
++                                                                                              stepLogger).updateIdleDeployedModules();
++
++        if (expectedDeployedModule != null) {
++            assertTrue(updateDeployedModules.stream()
++                                            .anyMatch(deployedModule -> doesItMatchToExpectedDeployedModule(deployedModule,
++                                                                                                            expectedDeployedModule)),
++                       format("Expected module:{0} with application name:{1} and live:true", expectedDeployedModule.moduleName,
++                              expectedDeployedModule.appName));
++
++            assertTrue(updateDeployedModules.stream()
++                                            .filter(deployedModule -> doesNotContainLiveModule(expectedDeployedModule, deployedModule))
++                                            .allMatch(deployedModule -> deployedModule.isLive() == false),
++                       format("Only module:{0} with application name:{1} should be live", expectedDeployedModule.moduleName,
++                              expectedDeployedModule.appName));
++            return;
++        }
++        assertTrue(updateDeployedModules.isEmpty(), "Updated Deployed Modules list should be empty but was not");
++    }
++
++    private List<DeployedMtaModule> buildDeployedModulesList(List<DeployedModule> deployedModulesNames) {
++        return deployedModulesNames.stream()
++                                   .map(this::buildDeployedModule)
++                                   .collect(Collectors.toList());
++    }
++
++    private DeployedMtaModule buildDeployedModule(DeployedModule deployedModuleName) {
++        DeployedMtaModule deployedModule = new DeployedMtaModule();
++        deployedModule.setModuleName(deployedModuleName.moduleName);
++        deployedModule.setAppName(deployedModuleName.appName);
++        return deployedModule;
++    }
++
++    private boolean doesItMatchToExpectedDeployedModule(DeployedMtaModule deployedModule, DeployedModule expectedDeployedModule) {
++        String moduleName = deployedModule.getModuleName();
++        String appName = deployedModule.getAppName();
++        return expectedDeployedModule.moduleName.equals(moduleName) && expectedDeployedModule.appName.equals(appName)
++            && deployedModule.isLive();
++    }
++
++    private boolean doesNotContainLiveModule(DeployedModule expectedLiveDeployedModule, DeployedMtaModule deployedModule) {
++        return !deployedModule.getAppName()
++                              .equals(expectedLiveDeployedModule.appName);
++    }
++
++    private static class DeployedModule {
++        String moduleName;
++        String appName;
++
++        public DeployedModule(String moduleName, String appName) {
++            this.moduleName = moduleName;
++            this.appName = appName;
++        }
++
++    }
++}
+diff --git a/com.sap.cloud.lm.sl.cf.process/src/test/resources/com/sap/cloud/lm/sl/cf/process/steps/deployed-mta-01.json b/com.sap.cloud.lm.sl.cf.process/src/test/resources/com/sap/cloud/lm/sl/cf/process/steps/deployed-mta-01.json
+index 2f5aca550..95f58677a 100644
+--- a/com.sap.cloud.lm.sl.cf.process/src/test/resources/com/sap/cloud/lm/sl/cf/process/steps/deployed-mta-01.json
++++ b/com.sap.cloud.lm.sl.cf.process/src/test/resources/com/sap/cloud/lm/sl/cf/process/steps/deployed-mta-01.json
+@@ -1,40 +1,29 @@
+ {
+-  "metadata": {
+-    "id": "com.sap.xs2.samples.helloworld",
+-    "version": "0.1.0"
++  "metadata" : {
++    "id" : "com.sap.xs2.samples.helloworld",
++    "version" : "0.1.0"
+   },
+-  "modules": [
+-    {
+-      "moduleName": "node-hello-world-db",
+-      "appName": "node-hello-world-db",
+-      "services": [
+-        "node-hdi-container"
+-      ],
+-      "providedDependencyNames": [],
+-      "uris": []
+-    },
+-    {
+-      "moduleName": "node-hello-world-backend",
+-      "appName": "node-hello-world-backend",
+-      "services": [
+-        "uaa",
+-        "node-hdi-container"
+-      ],
+-      "providedDependencyNames": [],
+-      "uris": []
+-    },
+-    {
+-      "moduleName": "node-hello-world",
+-      "appName": "node-hello-world",
+-      "services": [
+-        "uaa"
+-      ],
+-      "providedDependencyNames": [],
+-      "uris": []
+-    }
+-  ],
+-  "services": [
+-    "node-hdi-container",
+-    "uaa"
+-  ]
++  "modules" : [ {
++    "moduleName" : "node-hello-world-db",
++    "appName" : "node-hello-world-db",
++    "services" : [ "node-hdi-container" ],
++    "providedDependencyNames" : [ ],
++    "uris" : [ ],
++    "isLive" : true
++  }, {
++    "moduleName" : "node-hello-world-backend",
++    "appName" : "node-hello-world-backend",
++    "services" : [ "uaa", "node-hdi-container" ],
++    "providedDependencyNames" : [ ],
++    "uris" : [ ],
++    "isLive" : true
++  }, {
++    "moduleName" : "node-hello-world",
++    "appName" : "node-hello-world",
++    "services" : [ "uaa" ],
++    "providedDependencyNames" : [ ],
++    "uris" : [ ],
++    "isLive" : true
++  } ],
++  "services" : [ "node-hdi-container", "uaa" ]
+ }
+\ No newline at end of file

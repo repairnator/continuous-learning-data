@@ -1,0 +1,9 @@
+@@ -73,7 +73,7 @@ public Object filter(Object object, JinjavaInterpreter interpreter, String... ar
+       return String.valueOf(res);
+     }
+ 
+-    return object;
++    return safeFilter(object, interpreter, arg);
+   }
+ 
+   @Override

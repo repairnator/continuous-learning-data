@@ -1,0 +1,3380 @@
+diff --git a/core/src/main/java/com/graphhopper/coll/MapEntry.java b/api/src/main/java/com/graphhopper/coll/MapEntry.java
+similarity index 100%
+rename from core/src/main/java/com/graphhopper/coll/MapEntry.java
+rename to api/src/main/java/com/graphhopper/coll/MapEntry.java
+diff --git a/api/src/main/java/com/graphhopper/routing/util/CustomModel.java b/api/src/main/java/com/graphhopper/routing/util/CustomModel.java
+new file mode 100644
+index 0000000000..9f5e620e7a
+--- /dev/null
++++ b/api/src/main/java/com/graphhopper/routing/util/CustomModel.java
+@@ -0,0 +1,114 @@
++/*
++ *  Licensed to GraphHopper GmbH under one or more contributor
++ *  license agreements. See the NOTICE file distributed with this work for
++ *  additional information regarding copyright ownership.
++ *
++ *  GraphHopper GmbH licenses this file to you under the Apache License,
++ *  Version 2.0 (the "License"); you may not use this file except in
++ *  compliance with the License. You may obtain a copy of the License at
++ *
++ *       http://www.apache.org/licenses/LICENSE-2.0
++ *
++ *  Unless required by applicable law or agreed to in writing, software
++ *  distributed under the License is distributed on an "AS IS" BASIS,
++ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ *  See the License for the specific language governing permissions and
++ *  limitations under the License.
++ */
++package com.graphhopper.routing.util;
++
++import com.graphhopper.util.Helper;
++
++import java.util.HashMap;
++import java.util.Map;
++
++public class CustomModel {
++
++    /**
++     * Converting to seconds is not necessary but makes adding other penalties easier (e.g. turn
++     * costs or traffic light costs etc)
++     */
++    public final static double SPEED_CONV = 3.6;
++    // required
++    private String base;
++    // optional:
++    private Double vehicleMaxSpeed, vehicleWeight, vehicleWidth, vehicleHeight, vehicleLength;
++    // the default is copied from ShortFastestWeighting
++    private double distanceFactor = 0.07;
++    private Map<String, Object> speedFactor = new HashMap<>();
++    private Map<String, Object> averageSpeed = new HashMap<>();
++    private Map<String, Object> priorityMap = new HashMap<>();
++
++    public CustomModel() {
++    }
++
++    public void setBase(String base) {
++        this.base = base;
++    }
++
++    public String getBase() {
++        if (Helper.isEmpty(base))
++            throw new IllegalArgumentException("No base specified");
++        return base;
++    }
++
++    public void setVehicleWeight(Double vehicleWeight) {
++        this.vehicleWeight = vehicleWeight;
++    }
++
++    public Double getVehicleWeight() {
++        return vehicleWeight;
++    }
++
++    public void setVehicleHeight(Double vehicleHeight) {
++        this.vehicleHeight = vehicleHeight;
++    }
++
++    public Double getVehicleHeight() {
++        return vehicleHeight;
++    }
++
++    public void setVehicleLength(Double vehicleLength) {
++        this.vehicleLength = vehicleLength;
++    }
++
++    public Double getVehicleLength() {
++        return vehicleLength;
++    }
++
++    public void setVehicleWidth(Double vehicleWidth) {
++        this.vehicleWidth = vehicleWidth;
++    }
++
++    public Double getVehicleWidth() {
++        return vehicleWidth;
++    }
++
++    public void setVehicleMaxSpeed(Double vehicleMaxSpeed) {
++        this.vehicleMaxSpeed = vehicleMaxSpeed;
++    }
++
++    public Double getVehicleMaxSpeed() {
++        return vehicleMaxSpeed;
++    }
++
++    public void setDistanceFactor(double distanceFactor) {
++        this.distanceFactor = distanceFactor;
++    }
++
++    public double getDistanceFactor() {
++        return distanceFactor;
++    }
++
++    public Map<String, Object> getSpeedFactor() {
++        return speedFactor;
++    }
++
++    public Map<String, Object> getAverageSpeed() {
++        return averageSpeed;
++    }
++
++    public Map<String, Object> getPriority() {
++        return priorityMap;
++    }
++}
+\ No newline at end of file
+diff --git a/api/src/main/java/com/graphhopper/routing/util/CustomRequest.java b/api/src/main/java/com/graphhopper/routing/util/CustomRequest.java
+new file mode 100644
+index 0000000000..539cd8ebcb
+--- /dev/null
++++ b/api/src/main/java/com/graphhopper/routing/util/CustomRequest.java
+@@ -0,0 +1,32 @@
++/*
++ *  Licensed to GraphHopper GmbH under one or more contributor
++ *  license agreements. See the NOTICE file distributed with this work for
++ *  additional information regarding copyright ownership.
++ *
++ *  GraphHopper GmbH licenses this file to you under the Apache License,
++ *  Version 2.0 (the "License"); you may not use this file except in
++ *  compliance with the License. You may obtain a copy of the License at
++ *
++ *       http://www.apache.org/licenses/LICENSE-2.0
++ *
++ *  Unless required by applicable law or agreed to in writing, software
++ *  distributed under the License is distributed on an "AS IS" BASIS,
++ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ *  See the License for the specific language governing permissions and
++ *  limitations under the License.
++ */
++package com.graphhopper.routing.util;
++
++import com.graphhopper.GHRequest;
++
++public class CustomRequest extends GHRequest {
++    private CustomModel model;
++
++    public void setModel(CustomModel model) {
++        this.model = model;
++    }
++
++    public CustomModel getModel() {
++        return model;
++    }
++}
+diff --git a/api/src/main/java/com/graphhopper/util/Helper.java b/api/src/main/java/com/graphhopper/util/Helper.java
+index 60b3b32c69..8a760fd3d3 100644
+--- a/api/src/main/java/com/graphhopper/util/Helper.java
++++ b/api/src/main/java/com/graphhopper/util/Helper.java
+@@ -17,6 +17,7 @@
+  */
+ package com.graphhopper.util;
+ 
++import com.graphhopper.coll.MapEntry;
+ import com.graphhopper.util.shapes.BBox;
+ 
+ import java.io.*;
+@@ -163,6 +164,26 @@ public static boolean removeDir(File file) {
+         return file.delete();
+     }
+ 
++    /**
++     * @return a collection of files with the specified file ending or all files if the collection is empty. The String
++     * key is the base file name. Files with only one dot are supported.
++     */
++    public static List<Map.Entry<String, File>> listFiles(File directory, Collection<String> fileEndings) {
++        if (!directory.isDirectory())
++            throw new IllegalArgumentException("location " + directory + " must be directory but wasn't.");
++        List<Map.Entry<String, File>> result = new ArrayList<>();
++        for (File file : directory.listFiles()) {
++            try {
++                String[] fileNameParts = file.getName().split("\\.");
++                if (fileNameParts.length == 2 && (fileEndings.isEmpty() || fileEndings.contains(fileNameParts[1])))
++                    result.add(new MapEntry<>(fileNameParts[0], file));
++            } catch (Exception ex) {
++                throw new RuntimeException(ex);
++            }
++        }
++        return result;
++    }
++
+     public static long getTotalMB() {
+         return Runtime.getRuntime().totalMemory() / MB;
+     }
+@@ -460,4 +481,33 @@ public static String join(String delimiter, List<String> strings) {
+         }
+         return sb.toString();
+     }
++
++    /**
++     * This method finds the enum in the enumClass via enum.toString
++     */
++    public static <T extends Enum<T>> T getValueOf(Class<T> enumClass, String enumToString) {
++        if (enumToString == null)
++            return enumClass.getEnumConstants()[0];
++
++        for (T e : enumClass.getEnumConstants()) {
++            if (e.toString().equals(enumToString)) {
++                return e;
++            }
++        }
++        return enumClass.getEnumConstants()[0];
++    }
++
++    public static Double[] createEnumToDoubleArray(String name, double min, double max, Class<? extends Enum> enumClass,
++                                                   Map<String, Object> map) {
++        Double[] tmp = new Double[enumClass.getEnumConstants().length];
++        for (Map.Entry<String, Object> encValEntry : map.entrySet()) {
++            Enum enumValue = getValueOf(enumClass, encValEntry.getKey());
++            tmp[enumValue.ordinal()] = ((Number) encValEntry.getValue()).doubleValue();
++            if (tmp[enumValue.ordinal()] < min)
++                throw new IllegalArgumentException(name + " cannot be lower than " + min);
++            if (tmp[enumValue.ordinal()] > max)
++                throw new IllegalArgumentException(name + " cannot be bigger than " + max);
++        }
++        return tmp;
++    }
+ }
+diff --git a/config-example.yml b/config-example.yml
+index 66a2b8062f..4d4119637d 100644
+--- a/config-example.yml
++++ b/config-example.yml
+@@ -18,6 +18,19 @@ graphhopper:
+   # More options are: surface,max_width,max_height,max_weight,max_axle_load,max_length,hazmat,hazmat_tunnel,hazmat_water,toll,track_type
+   graph.encoded_values: road_class,road_class_link,road_environment,max_speed,road_access
+ 
++  # You can define your own customized vehicles via a yaml file that should be used 
++  # for CH or LM preparation (see different modes below). For example:
++  #
++  #  base: car               # use one of the previously defined flag_encoders
++  #  vehicle_max_speed: 100
++  #  priority: { road_class: { primary: 0.5 } }
++  # 
++  # Other entries than 'vehicle_max_speed' are 'vehicle_weight', 'vehicle_width', 'vehicle_height' and 'vehicle_length' are also supported.
++  # Other entries than 'priority' are 'speed_factor', 'delay' and 'average_sped' where the encoded values defined above like 'surface' can be used.
++  # See the CustomWeighting class of how the different entries influence the weighting (cost function).
++  #
++  # graph.custom_profiles.directory: ./profiles/
++
+   ##### Elevation #####
+ 
+ 
+diff --git a/core/files/changelog.txt b/core/files/changelog.txt
+index 50fa9cfb70..6efa303c1b 100644
+--- a/core/files/changelog.txt
++++ b/core/files/changelog.txt
+@@ -1,6 +1,6 @@
+ 1.0
++    removed GenericWeighting and DataFlagEncoder as a normal CarFlagEncoder does the job too. Or use the new CustomWeighting.
+     revert compression of landmark preparation data, see #1749 and #1376
+-    removed GenericWeighting and DataFlagEncoder as a normal CarFlagEncoder does the job too
+     add required EncodedValues like road_class to EncodingManager if not added from user
+     removed PathNative,PathBidirRef,Path4CH,EdgeBasedPathCH and moved path extraction code out of Path class, added PathExtractor,BidirPathExtractor(+subclasses for CH) instead, #1730
+     conditional turn restrictions now supported, #1683
+diff --git a/core/src/main/java/com/graphhopper/GraphHopper.java b/core/src/main/java/com/graphhopper/GraphHopper.java
+index 202c9d2024..b0a1178f1b 100644
+--- a/core/src/main/java/com/graphhopper/GraphHopper.java
++++ b/core/src/main/java/com/graphhopper/GraphHopper.java
+@@ -129,6 +129,7 @@
+     private TagParserFactory tagParserFactory = new DefaultTagParserFactory();
+     private final ReadWriteLock readWriteLock = new ReentrantReadWriteLock();
+     private PathDetailsBuilderFactory pathBuilderFactory = new PathDetailsBuilderFactory();
++    private Map<String, CustomModel> importCustomModels = new HashMap<>();
+ 
+     public GraphHopper() {
+         chFactoryDecorator.setEnabled(true);
+@@ -173,6 +174,11 @@ public GraphHopper setEncodingManager(EncodingManager em) {
+         return this;
+     }
+ 
++    public GraphHopper putCustomModel(String name, CustomModel customModel) {
++        importCustomModels.put(name, customModel);
++        return this;
++    }
++
+     public ElevationProvider getElevationProvider() {
+         return eleProvider;
+     }
+@@ -812,30 +818,44 @@ public final CHAlgoFactoryDecorator getCHFactoryDecorator() {
+     }
+ 
+     private void initCHAlgoFactoryDecorator() {
+-        if (!chFactoryDecorator.hasCHProfiles()) {
+-            for (FlagEncoder encoder : encodingManager.fetchEdgeEncoders()) {
+-                for (String chWeightingStr : chFactoryDecorator.getCHProfileStrings()) {
+-                    // ghStorage is null at this point
+-
+-                    // extract weighting string and u-turn-costs
+-                    String configStr = "";
+-                    if (chWeightingStr.contains("|")) {
+-                        configStr = chWeightingStr;
+-                        chWeightingStr = chWeightingStr.split("\\|")[0];
+-                    }
+-                    PMap config = new PMap(configStr);
+-                    int uTurnCosts = config.getInt(Routing.U_TURN_COSTS, INFINITE_U_TURN_COSTS);
+-
+-                    CHAlgoFactoryDecorator.EdgeBasedCHMode edgeBasedCHMode = chFactoryDecorator.getEdgeBasedCHMode();
+-                    if (!(edgeBasedCHMode == EDGE_OR_NODE && encoder.supportsTurnCosts())) {
+-                        chFactoryDecorator.addCHProfile(CHProfile.nodeBased(createWeighting(new HintsMap(chWeightingStr), encoder, null, NO_TURN_COST_PROVIDER)));
+-                    }
+-                    if (edgeBasedCHMode != OFF && encoder.supportsTurnCosts()) {
+-                        chFactoryDecorator.addCHProfile(CHProfile.edgeBased(createWeighting(new HintsMap(chWeightingStr), encoder, null, new DefaultTurnCostProvider(encoder, ghStorage.getTurnCostStorage(), uTurnCosts))));
+-                    }
++        if (chFactoryDecorator.hasCHProfiles())
++            return;
++
++        for (FlagEncoder encoder : encodingManager.fetchEdgeEncoders()) {
++            for (String chWeightingStr : chFactoryDecorator.getCHProfileStrings()) {
++                // ghStorage is null at this point
++
++                // extract weighting string and u-turn-costs
++                String configStr = "";
++                if (chWeightingStr.contains("|")) {
++                    configStr = chWeightingStr;
++                    chWeightingStr = chWeightingStr.split("\\|")[0];
++                }
++                PMap config = new PMap(configStr);
++                int uTurnCosts = config.getInt(Routing.U_TURN_COSTS, INFINITE_U_TURN_COSTS);
++
++                CHAlgoFactoryDecorator.EdgeBasedCHMode edgeBasedCHMode = chFactoryDecorator.getEdgeBasedCHMode();
++                if (!(edgeBasedCHMode == EDGE_OR_NODE && encoder.supportsTurnCosts())) {
++                    chFactoryDecorator.addCHProfile(CHProfile.nodeBased(createWeighting(new HintsMap(chWeightingStr), encoder,
++                            null, NO_TURN_COST_PROVIDER, null)));
++                }
++                if (edgeBasedCHMode != OFF && encoder.supportsTurnCosts()) {
++                    chFactoryDecorator.addCHProfile(CHProfile.edgeBased(createWeighting(new HintsMap(chWeightingStr), encoder,
++                            null, new DefaultTurnCostProvider(encoder, ghStorage.getTurnCostStorage(), uTurnCosts), null)));
+                 }
+             }
+         }
++
++        for (Map.Entry<String, CustomModel> entry : importCustomModels.entrySet()) {
++            if (!getEncodingManager().hasEncoder(entry.getValue().getBase()))
++                throw new IllegalArgumentException("For the custom_model " + entry.getKey() + " the specified base " +
++                        entry.getValue().getBase() + " is required in the graph.flag_encoders list");
++            FlagEncoder baseEncoder = getEncodingManager().getEncoder(entry.getValue().getBase());
++            // TODO NOW use the turn cost specified in customModel
++            Weighting weighting = new CustomWeighting("custom|" + entry.getKey(),
++                    baseEncoder, encodingManager, encodedValueFactory, NO_TURN_COST_PROVIDER, entry.getValue());
++            chFactoryDecorator.addCHProfile(CHProfile.nodeBased(weighting));
++        }
+     }
+ 
+     public final LMAlgoFactoryDecorator getLMFactoryDecorator() {
+@@ -849,10 +869,18 @@ private void initLMAlgoFactoryDecorator() {
+         for (FlagEncoder encoder : encodingManager.fetchEdgeEncoders()) {
+             for (String lmWeightingStr : lmFactoryDecorator.getWeightingsAsStrings()) {
+                 // note that we do not consider turn costs during LM preparation?
+-                Weighting weighting = createWeighting(new HintsMap(lmWeightingStr), encoder, null, NO_TURN_COST_PROVIDER);
++                Weighting weighting = createWeighting(new HintsMap(lmWeightingStr), encoder, null, NO_TURN_COST_PROVIDER, null);
+                 lmFactoryDecorator.addWeighting(weighting);
+             }
+         }
++
++        for (Map.Entry<String, CustomModel> entry : importCustomModels.entrySet()) {
++            FlagEncoder baseEncoder = getEncodingManager().getEncoder(entry.getValue().getBase());
++            // TODO NOW use the turn cost specified in customModel
++            Weighting weighting = new CustomWeighting("custom|" + entry.getKey(),
++                    baseEncoder, encodingManager, encodedValueFactory, NO_TURN_COST_PROVIDER, entry.getValue());
++            lmFactoryDecorator.addWeighting(weighting);
++        }
+     }
+ 
+     /**
+@@ -938,15 +966,24 @@ void interpolateBridgesAndOrTunnels() {
+      * @return the weighting to be used for route calculation
+      * @see HintsMap
+      */
+-    public Weighting createWeighting(HintsMap hintsMap, FlagEncoder encoder, Graph graph, TurnCostProvider turnCostProvider) {
++    public Weighting createWeighting(HintsMap hintsMap, FlagEncoder encoder, Graph graph, TurnCostProvider turnCostProvider, CustomModel customModel) {
+         String weightingStr = toLowerCase(hintsMap.getWeighting());
+         Weighting weighting = null;
+ 
+-        if ("shortest".equalsIgnoreCase(weightingStr)) {
++        if ("custom".equalsIgnoreCase(weightingStr)) {
++            if (customModel == null) {
++                customModel = importCustomModels.get(hintsMap.getVehicle());
++                if (customModel == null)
++                    throw new IllegalArgumentException("Did you specify the 'model' entry in your request? It cannot be null. " +
++                            "Internal weighting=" + weightingStr + " and vehicle=" + hintsMap.getVehicle());
++            }
++            weighting = new CustomWeighting("custom|" + encoder.toString(), encoder, encodingManager,
++                    encodedValueFactory, turnCostProvider, customModel);
++        } else if ("shortest".equalsIgnoreCase(weightingStr)) {
+             weighting = new ShortestWeighting(encoder, turnCostProvider);
+         } else if ("fastest".equalsIgnoreCase(weightingStr) || weightingStr.isEmpty()) {
+             if (encoder.supports(PriorityWeighting.class))
+-                weighting = new PriorityWeighting(encoder, hintsMap, turnCostProvider);
++                weighting = new PriorityWeighting("fastest", encoder, hintsMap, turnCostProvider);
+             else
+                 weighting = new FastestWeighting(encoder, hintsMap, turnCostProvider);
+         } else if ("curvature".equalsIgnoreCase(weightingStr)) {
+@@ -977,10 +1014,14 @@ public GHResponse route(GHRequest request) {
+         return response;
+     }
+ 
++    public List<Path> calcPaths(GHRequest request, GHResponse ghRsp) {
++        return calcPaths(request, ghRsp, null);
++    }
++
+     /**
+      * This method calculates the alternative path list using the low level Path objects.
+      */
+-    public List<Path> calcPaths(GHRequest request, GHResponse ghRsp) {
++    public List<Path> calcPaths(GHRequest request, GHResponse ghRsp, CustomModel customModel) {
+         if (ghStorage == null || !fullyLoaded)
+             throw new IllegalStateException("Do a successful call to load or importOrLoad before routing");
+ 
+@@ -1082,7 +1123,7 @@ else if (ALT_ROUTE.equalsIgnoreCase(algoStr))
+             } else {
+                 checkNonChMaxWaypointDistance(points);
+                 queryGraph = QueryGraph.lookup(ghStorage, qResults);
+-                weighting = createWeighting(hints, encoder, queryGraph, turnCostProvider);
++                weighting = createWeighting(hints, encoder, queryGraph, turnCostProvider, customModel);
+             }
+             ghRsp.addDebugInfo("tmode:" + tMode.toString());
+ 
+diff --git a/core/src/main/java/com/graphhopper/routing/profiles/DefaultEncodedValueFactory.java b/core/src/main/java/com/graphhopper/routing/profiles/DefaultEncodedValueFactory.java
+index a36fbfbd84..23efd5c4ca 100644
+--- a/core/src/main/java/com/graphhopper/routing/profiles/DefaultEncodedValueFactory.java
++++ b/core/src/main/java/com/graphhopper/routing/profiles/DefaultEncodedValueFactory.java
+@@ -75,4 +75,29 @@ public EncodedValue create(String string) {
+         }
+         return enc;
+     }
++
++    public Class<? extends Enum> findValues(String name) {
++        if (RoadClass.KEY.equals(name))
++            return RoadClass.class;
++        if (RoadEnvironment.KEY.equals(name))
++            return RoadEnvironment.class;
++        if (RoadAccess.KEY.equals(name))
++            return RoadAccess.class;
++        if (Surface.KEY.equals(name))
++            return Surface.class;
++        if (Toll.KEY.equals(name))
++            return Toll.class;
++        if (TrackType.KEY.equals(name))
++            return TrackType.class;
++        if (Hazmat.KEY.equals(name))
++            return Hazmat.class;
++        if (HazmatTunnel.KEY.equals(name))
++            return HazmatTunnel.class;
++        if (HazmatWater.KEY.equals(name))
++            return HazmatWater.class;
++        if (name.endsWith(EncodingManager.getKey("", RouteNetwork.EV_SUFFIX)))
++            return RouteNetwork.class;
++
++        throw new IllegalArgumentException("Cannot find enum class " + name);
++    }
+ }
+diff --git a/core/src/main/java/com/graphhopper/routing/profiles/EncodedValueFactory.java b/core/src/main/java/com/graphhopper/routing/profiles/EncodedValueFactory.java
+index 2e28d8e379..be59289146 100644
+--- a/core/src/main/java/com/graphhopper/routing/profiles/EncodedValueFactory.java
++++ b/core/src/main/java/com/graphhopper/routing/profiles/EncodedValueFactory.java
+@@ -23,4 +23,6 @@
+      * of it.
+      */
+     EncodedValue create(String encodedValueString);
++
++    Class<? extends Enum> findValues(String name);
+ }
+diff --git a/core/src/main/java/com/graphhopper/routing/profiles/Toll.java b/core/src/main/java/com/graphhopper/routing/profiles/Toll.java
+index 29f8684725..70d4ed97cb 100644
+--- a/core/src/main/java/com/graphhopper/routing/profiles/Toll.java
++++ b/core/src/main/java/com/graphhopper/routing/profiles/Toll.java
+@@ -17,6 +17,8 @@
+  */
+ package com.graphhopper.routing.profiles;
+ 
++import com.graphhopper.util.Helper;
++
+ /**
+  * This enum defines the toll value like NO (default), ALL (all vehicles) and HGV (toll for heavy goods vehicles)
+  */
+@@ -31,6 +33,16 @@
+         this.name = name;
+     }
+ 
++    public static Toll find(String name) {
++        if (name == null)
++            return NO;
++        try {
++            return Toll.valueOf(Helper.toUpperCase(name));
++        } catch (IllegalArgumentException ex) {
++            return NO;
++        }
++    }
++
+     @Override
+     public String toString() {
+         return name;
+diff --git a/core/src/main/java/com/graphhopper/routing/util/AbstractFlagEncoder.java b/core/src/main/java/com/graphhopper/routing/util/AbstractFlagEncoder.java
+index 2c1a0e5953..c0ebc02968 100644
+--- a/core/src/main/java/com/graphhopper/routing/util/AbstractFlagEncoder.java
++++ b/core/src/main/java/com/graphhopper/routing/util/AbstractFlagEncoder.java
+@@ -67,6 +67,7 @@
+     private boolean blockByDefault = true;
+     private boolean blockFords = true;
+     private boolean registered;
++    private String name;
+     protected EncodedValueLookup encodedValueLookup;
+ 
+     // Speeds from CarFlagEncoder
+@@ -80,10 +81,6 @@ public AbstractFlagEncoder(PMap properties) {
+         throw new RuntimeException("This method must be overridden in derived classes");
+     }
+ 
+-    public AbstractFlagEncoder(String propertiesStr) {
+-        this(new PMap(propertiesStr));
+-    }
+-
+     /**
+      * @param speedBits    specify the number of bits used for speed
+      * @param speedFactor  specify the factor to multiple the stored value (can be used to increase
+@@ -91,7 +88,10 @@ public AbstractFlagEncoder(String propertiesStr) {
+      * @param maxTurnCosts specify the maximum value used for turn costs, if this value is reached a
+      *                     turn is forbidden and results in costs of positive infinity.
+      */
+-    protected AbstractFlagEncoder(int speedBits, double speedFactor, int maxTurnCosts) {
++    protected AbstractFlagEncoder(String name, int speedBits, double speedFactor, int maxTurnCosts) {
++        if (Helper.isEmpty(name))
++            throw new IllegalArgumentException("name cannot be empty");
++        this.name = name;
+         this.maxTurnCosts = maxTurnCosts <= 0 ? 0 : maxTurnCosts;
+         this.speedBits = speedBits;
+         this.speedFactor = speedFactor;
+@@ -507,4 +507,9 @@ public boolean supports(Class<?> feature) {
+     public boolean hasEncodedValue(String key) {
+         return encodedValueLookup.hasEncodedValue(key);
+     }
++
++    @Override
++    public final String toString() {
++        return name;
++    }
+ }
+diff --git a/core/src/main/java/com/graphhopper/routing/util/Bike2WeightFlagEncoder.java b/core/src/main/java/com/graphhopper/routing/util/Bike2WeightFlagEncoder.java
+index b214010f54..e44c0e378d 100644
+--- a/core/src/main/java/com/graphhopper/routing/util/Bike2WeightFlagEncoder.java
++++ b/core/src/main/java/com/graphhopper/routing/util/Bike2WeightFlagEncoder.java
+@@ -36,17 +36,17 @@ public Bike2WeightFlagEncoder() {
+         this(new PMap());
+     }
+ 
+-    public Bike2WeightFlagEncoder(String propertiesStr) {
+-        this(new PMap(propertiesStr));
+-    }
+-
+     public Bike2WeightFlagEncoder(PMap properties) {
+-        super(properties);
++        this(properties.get("name", "bike2"),
++                properties.getInt("speed_bits", 4),
++                properties.getInt("speed_factor", 2),
++                properties.getBool("turn_costs", false) ? 1 : 0);
++        this.setBlockFords(properties.getBool("block_fords", false));
+         speedTwoDirections = true;
+     }
+ 
+-    public Bike2WeightFlagEncoder(int speedBits, double speedFactor, int maxTurnCosts) {
+-        super(speedBits, speedFactor, maxTurnCosts);
++    public Bike2WeightFlagEncoder(String name, int speedBits, double speedFactor, int maxTurnCosts) {
++        super(name, speedBits, speedFactor, maxTurnCosts);
+         speedTwoDirections = true;
+     }
+ 
+@@ -122,9 +122,4 @@ public void applyWayTags(ReaderWay way, EdgeIteratorState edge) {
+         }
+         edge.setFlags(intsRef);
+     }
+-
+-    @Override
+-    public String toString() {
+-        return "bike2";
+-    }
+ }
+diff --git a/core/src/main/java/com/graphhopper/routing/util/BikeCommonFlagEncoder.java b/core/src/main/java/com/graphhopper/routing/util/BikeCommonFlagEncoder.java
+index abdc8ba041..93b9110d2e 100644
+--- a/core/src/main/java/com/graphhopper/routing/util/BikeCommonFlagEncoder.java
++++ b/core/src/main/java/com/graphhopper/routing/util/BikeCommonFlagEncoder.java
+@@ -60,8 +60,8 @@
+     // This is the specific bicycle class
+     private String classBicycleKey;
+ 
+-    protected BikeCommonFlagEncoder(int speedBits, double speedFactor, int maxTurnCosts) {
+-        super(speedBits, speedFactor, maxTurnCosts);
++    protected BikeCommonFlagEncoder(String name, int speedBits, double speedFactor, int maxTurnCosts) {
++        super(name, speedBits, speedFactor, maxTurnCosts);
+         // strict set, usually vehicle and agricultural/forestry are ignored by cyclists
+         restrictions.addAll(Arrays.asList("bicycle", "vehicle", "access"));
+         restrictedValues.add("private");
+diff --git a/core/src/main/java/com/graphhopper/routing/util/BikeFlagEncoder.java b/core/src/main/java/com/graphhopper/routing/util/BikeFlagEncoder.java
+index 8a6d527fa4..186a0bd09f 100644
+--- a/core/src/main/java/com/graphhopper/routing/util/BikeFlagEncoder.java
++++ b/core/src/main/java/com/graphhopper/routing/util/BikeFlagEncoder.java
+@@ -27,22 +27,19 @@
+  */
+ public class BikeFlagEncoder extends BikeCommonFlagEncoder {
+     public BikeFlagEncoder() {
+-        this(4, 2, 0);
+-    }
+-
+-    public BikeFlagEncoder(String propertiesString) {
+-        this(new PMap(propertiesString));
++        this(new PMap());
+     }
+ 
+     public BikeFlagEncoder(PMap properties) {
+-        this(properties.getInt("speed_bits", 4),
++        this(properties.get("name", "bike"),
++                properties.getInt("speed_bits", 4),
+                 properties.getInt("speed_factor", 2),
+                 properties.getBool("turn_costs", false) ? 1 : 0);
+         this.setBlockFords(properties.getBool("block_fords", false));
+     }
+ 
+-    public BikeFlagEncoder(int speedBits, double speedFactor, int maxTurnCosts) {
+-        super(speedBits, speedFactor, maxTurnCosts);
++    public BikeFlagEncoder(String name, int speedBits, double speedFactor, int maxTurnCosts) {
++        super(name, speedBits, speedFactor, maxTurnCosts);
+         addPushingSection("path");
+         addPushingSection("footway");
+         addPushingSection("pedestrian");
+@@ -71,9 +68,4 @@ public BikeFlagEncoder(int speedBits, double speedFactor, int maxTurnCosts) {
+     public int getVersion() {
+         return 2;
+     }
+-
+-    @Override
+-    public String toString() {
+-        return "bike";
+-    }
+ }
+diff --git a/core/src/main/java/com/graphhopper/routing/util/Car4WDFlagEncoder.java b/core/src/main/java/com/graphhopper/routing/util/Car4WDFlagEncoder.java
+index 375eb0854c..17613c3cea 100644
+--- a/core/src/main/java/com/graphhopper/routing/util/Car4WDFlagEncoder.java
++++ b/core/src/main/java/com/graphhopper/routing/util/Car4WDFlagEncoder.java
+@@ -27,8 +27,7 @@
+ public class Car4WDFlagEncoder extends CarFlagEncoder {
+ 
+     public Car4WDFlagEncoder(PMap properties) {
+-        super(properties);
+-
++        super(properties.has("name") ? properties : properties.put("name", "car4wd"));
+         trackTypeSpeedMap.put("grade4", 5); // ... some hard or compressed materials
+         trackTypeSpeedMap.put("grade5", 5); // ... no hard materials. soil/sand/grass
+     }
+@@ -37,9 +36,4 @@ public Car4WDFlagEncoder(PMap properties) {
+     public int getVersion() {
+         return 2;
+     }
+-
+-    @Override
+-    public String toString() {
+-        return "car4wd";
+-    }
+ }
+diff --git a/core/src/main/java/com/graphhopper/routing/util/CarFlagEncoder.java b/core/src/main/java/com/graphhopper/routing/util/CarFlagEncoder.java
+index c5bc498d54..9d55fc9d3c 100644
+--- a/core/src/main/java/com/graphhopper/routing/util/CarFlagEncoder.java
++++ b/core/src/main/java/com/graphhopper/routing/util/CarFlagEncoder.java
+@@ -17,7 +17,6 @@
+  */
+ package com.graphhopper.routing.util;
+ 
+-import com.graphhopper.reader.OSMTurnRelation;
+ import com.graphhopper.reader.ReaderWay;
+ import com.graphhopper.routing.profiles.EncodedValue;
+ import com.graphhopper.routing.profiles.UnsignedDecimalEncodedValue;
+@@ -36,11 +35,10 @@
+ public class CarFlagEncoder extends AbstractFlagEncoder {
+     protected final Map<String, Integer> trackTypeSpeedMap = new HashMap<>();
+     protected final Set<String> badSurfaceSpeedMap = new HashSet<>();
+-
++    private final boolean speedTwoDirections;
+     // This value determines the maximal possible on roads with bad surfaces
+     protected int badSurfaceSpeed;
+ 
+-    protected boolean speedTwoDirections;
+     /**
+      * A map which associates string to speed. Get some impression:
+      * http://www.itoworld.com/map/124#fullscreen
+@@ -49,24 +47,26 @@
+     protected final Map<String, Integer> defaultSpeedMap = new HashMap<>();
+ 
+     public CarFlagEncoder() {
+-        this(5, 5, 0);
++        this(new PMap());
+     }
+ 
+     public CarFlagEncoder(PMap properties) {
+-        this((int) properties.getLong("speed_bits", 5),
++        this(properties.get("name", "car"),
++                properties.getBool("speed_two_directions", false),
++                properties.getInt("speed_bits", 5),
+                 properties.getDouble("speed_factor", 5),
+                 properties.getBool("turn_costs", false) ? 1 : 0);
+-        this.speedTwoDirections = properties.getBool("speed_two_directions", false);
+         this.setBlockFords(properties.getBool("block_fords", false));
+         this.setBlockByDefault(properties.getBool("block_barriers", true));
+     }
+ 
+-    public CarFlagEncoder(String propertiesStr) {
+-        this(new PMap(propertiesStr));
++    public CarFlagEncoder(int speedBits, double speedFactor, int maxTurnCosts) {
++        this("car", false, speedBits, speedFactor, maxTurnCosts);
+     }
+ 
+-    public CarFlagEncoder(int speedBits, double speedFactor, int maxTurnCosts) {
+-        super(speedBits, speedFactor, maxTurnCosts);
++    public CarFlagEncoder(String name, boolean speedTwoDirections, int speedBits, double speedFactor, int maxTurnCosts) {
++        super(name, speedBits, speedFactor, maxTurnCosts);
++        this.speedTwoDirections = speedTwoDirections;
+         restrictions.addAll(Arrays.asList("motorcar", "motor_vehicle", "vehicle", "access"));
+         restrictedValues.add("private");
+         restrictedValues.add("agricultural");
+@@ -301,9 +301,4 @@ protected double applyBadSurfaceSpeed(ReaderWay way, double speed) {
+             speed = badSurfaceSpeed;
+         return speed;
+     }
+-
+-    @Override
+-    public String toString() {
+-        return "car";
+-    }
+ }
+diff --git a/core/src/main/java/com/graphhopper/routing/util/EncodingManager.java b/core/src/main/java/com/graphhopper/routing/util/EncodingManager.java
+index f7ffdbf739..283e60f74d 100644
+--- a/core/src/main/java/com/graphhopper/routing/util/EncodingManager.java
++++ b/core/src/main/java/com/graphhopper/routing/util/EncodingManager.java
+@@ -791,7 +791,7 @@ public DecimalEncodedValue getDecimalEncodedValue(String key) {
+     /**
+      * All EncodedValue names that are created from a FlagEncoder should use this method to mark them as
+      * "none-shared" across the other FlagEncoders. E.g. average_speed for the CarFlagEncoder will
+-     * be named car-average_speed
++     * be named car.average_speed
+      */
+     public static String getKey(FlagEncoder encoder, String str) {
+         return getKey(encoder.toString(), str);
+diff --git a/core/src/main/java/com/graphhopper/routing/util/FootFlagEncoder.java b/core/src/main/java/com/graphhopper/routing/util/FootFlagEncoder.java
+index 33a5eacbbc..8b30d8b33f 100644
+--- a/core/src/main/java/com/graphhopper/routing/util/FootFlagEncoder.java
++++ b/core/src/main/java/com/graphhopper/routing/util/FootFlagEncoder.java
+@@ -54,26 +54,20 @@
+     private EnumEncodedValue<RouteNetwork> footRouteEnc;
+     Map<RouteNetwork, Integer> routeMap = new HashMap<>();
+ 
+-    /**
+-     * Should be only instantiated via EncodingManager
+-     */
+     public FootFlagEncoder() {
+-        this(4, 1);
++        this(new PMap());
+     }
+ 
+     public FootFlagEncoder(PMap properties) {
+-        this((int) properties.getLong("speed_bits", 4),
++        this(properties.get("name", "foot"),
++                properties.getInt("speed_bits", 4),
+                 properties.getDouble("speed_factor", 1));
+         this.setBlockFords(properties.getBool("block_fords", false));
+         this.speedTwoDirections = properties.getBool("speed_two_directions", false);
+     }
+ 
+-    public FootFlagEncoder(String propertiesStr) {
+-        this(new PMap(propertiesStr));
+-    }
+-
+-    public FootFlagEncoder(int speedBits, double speedFactor) {
+-        super(speedBits, speedFactor, 0);
++    public FootFlagEncoder(String name, int speedBits, double speedFactor) {
++        super(name, speedBits, speedFactor, 0);
+         restrictions.addAll(Arrays.asList("foot", "access"));
+         restrictedValues.add("private");
+         restrictedValues.add("no");
+@@ -315,9 +309,4 @@ public boolean supports(Class<?> feature) {
+         }
+         return speed;
+     }
+-
+-    @Override
+-    public String toString() {
+-        return "foot";
+-    }
+ }
+diff --git a/core/src/main/java/com/graphhopper/routing/util/HikeFlagEncoder.java b/core/src/main/java/com/graphhopper/routing/util/HikeFlagEncoder.java
+index 19a8649ebd..86dfee376f 100644
+--- a/core/src/main/java/com/graphhopper/routing/util/HikeFlagEncoder.java
++++ b/core/src/main/java/com/graphhopper/routing/util/HikeFlagEncoder.java
+@@ -38,17 +38,18 @@
+ public class HikeFlagEncoder extends FootFlagEncoder {
+ 
+     public HikeFlagEncoder() {
+-        this(4, 1);
++        this(new PMap());
+     }
+ 
+     public HikeFlagEncoder(PMap properties) {
+-        this((int) properties.getLong("speed_bits", 4),
++        this(properties.get("name", "hike"),
++                properties.getInt("speed_bits", 4),
+                 properties.getDouble("speed_factor", 1));
+         this.setBlockFords(properties.getBool("block_fords", false));
+     }
+ 
+-    public HikeFlagEncoder(int speedBits, double speedFactor) {
+-        super(speedBits, speedFactor);
++    public HikeFlagEncoder(String name, int speedBits, double speedFactor) {
++        super(name, speedBits, speedFactor);
+ 
+         routeMap.put(INTERNATIONAL, BEST.getValue());
+         routeMap.put(NATIONAL, BEST.getValue());
+@@ -135,9 +136,4 @@ public boolean supports(Class<?> feature) {
+ 
+         return PriorityWeighting.class.isAssignableFrom(feature);
+     }
+-
+-    @Override
+-    public String toString() {
+-        return "hike";
+-    }
+ }
+diff --git a/core/src/main/java/com/graphhopper/routing/util/MotorcycleFlagEncoder.java b/core/src/main/java/com/graphhopper/routing/util/MotorcycleFlagEncoder.java
+index 4f5a5c3548..2953b21da3 100644
+--- a/core/src/main/java/com/graphhopper/routing/util/MotorcycleFlagEncoder.java
++++ b/core/src/main/java/com/graphhopper/routing/util/MotorcycleFlagEncoder.java
+@@ -46,23 +46,19 @@
+     private DecimalEncodedValue curvatureEncoder;
+ 
+     public MotorcycleFlagEncoder() {
+-        this(5, 5, 0);
++        this(new PMap());
+     }
+ 
+     public MotorcycleFlagEncoder(PMap properties) {
+-        this(properties.getInt("speed_bits", 5),
++        this(properties.get("name", "motorcycle"),
++                properties.getInt("speed_bits", 5),
+                 properties.getDouble("speed_factor", 5),
+                 properties.getBool("turn_costs", false) ? 1 : 0);
+         this.setBlockFords(properties.getBool("block_fords", false));
+     }
+ 
+-    public MotorcycleFlagEncoder(String propertiesStr) {
+-        this(new PMap(propertiesStr));
+-    }
+-
+-    public MotorcycleFlagEncoder(int speedBits, double speedFactor, int maxTurnCosts) {
+-        super(speedBits, speedFactor, maxTurnCosts);
+-        speedTwoDirections = true;
++    public MotorcycleFlagEncoder(String name, int speedBits, double speedFactor, int maxTurnCosts) {
++        super(name, true, speedBits, speedFactor, maxTurnCosts);
+         restrictions.remove("motorcar");
+         //  moped, mofa
+         restrictions.add("motorcycle");
+@@ -299,9 +295,4 @@ public boolean supports(Class<?> feature) {
+ 
+         return PriorityWeighting.class.isAssignableFrom(feature);
+     }
+-
+-    @Override
+-    public String toString() {
+-        return "motorcycle";
+-    }
+ }
+diff --git a/core/src/main/java/com/graphhopper/routing/util/MountainBikeFlagEncoder.java b/core/src/main/java/com/graphhopper/routing/util/MountainBikeFlagEncoder.java
+index 87d379e47b..f31d73a52d 100644
+--- a/core/src/main/java/com/graphhopper/routing/util/MountainBikeFlagEncoder.java
++++ b/core/src/main/java/com/graphhopper/routing/util/MountainBikeFlagEncoder.java
+@@ -34,22 +34,19 @@
+  */
+ public class MountainBikeFlagEncoder extends BikeCommonFlagEncoder {
+     public MountainBikeFlagEncoder() {
+-        this(4, 2, 0);
++        this(new PMap());
+     }
+ 
+     public MountainBikeFlagEncoder(PMap properties) {
+-        this((int) properties.getLong("speed_bits", 4),
++        this(properties.get("name", "mtb"),
++                properties.getInt("speed_bits", 4),
+                 properties.getDouble("speed_factor", 2),
+                 properties.getBool("turn_costs", false) ? 1 : 0);
+         this.setBlockFords(properties.getBool("block_fords", false));
+     }
+ 
+-    public MountainBikeFlagEncoder(String propertiesStr) {
+-        this(new PMap(propertiesStr));
+-    }
+-
+-    public MountainBikeFlagEncoder(int speedBits, double speedFactor, int maxTurnCosts) {
+-        super(speedBits, speedFactor, maxTurnCosts);
++    public MountainBikeFlagEncoder(String name, int speedBits, double speedFactor, int maxTurnCosts) {
++        super(name, speedBits, speedFactor, maxTurnCosts);
+         setTrackTypeSpeed("grade1", 18); // paved
+         setTrackTypeSpeed("grade2", 16); // now unpaved ...
+         setTrackTypeSpeed("grade3", 12);
+@@ -160,9 +157,4 @@ boolean isSacScaleAllowed(String sacScale) {
+         return "hiking".equals(sacScale) || "mountain_hiking".equals(sacScale)
+                 || "demanding_mountain_hiking".equals(sacScale) || "alpine_hiking".equals(sacScale);
+     }
+-
+-    @Override
+-    public String toString() {
+-        return "mtb";
+-    }
+ }
+diff --git a/core/src/main/java/com/graphhopper/routing/util/RacingBikeFlagEncoder.java b/core/src/main/java/com/graphhopper/routing/util/RacingBikeFlagEncoder.java
+index ae9b1eb5f4..f25a8ca5e9 100644
+--- a/core/src/main/java/com/graphhopper/routing/util/RacingBikeFlagEncoder.java
++++ b/core/src/main/java/com/graphhopper/routing/util/RacingBikeFlagEncoder.java
+@@ -18,7 +18,6 @@
+ package com.graphhopper.routing.util;
+ 
+ import com.graphhopper.reader.ReaderWay;
+-import com.graphhopper.storage.IntsRef;
+ import com.graphhopper.util.PMap;
+ 
+ import java.util.TreeMap;
+@@ -34,22 +33,19 @@
+  */
+ public class RacingBikeFlagEncoder extends BikeCommonFlagEncoder {
+     public RacingBikeFlagEncoder() {
+-        this(4, 2, 0);
++        this(new PMap());
+     }
+ 
+     public RacingBikeFlagEncoder(PMap properties) {
+-        this((int) properties.getLong("speed_bits", 4),
++        this(properties.get("name", "racingbike"),
++                (int) properties.getLong("speed_bits", 4),
+                 properties.getDouble("speed_factor", 2),
+                 properties.getBool("turn_costs", false) ? 1 : 0);
+         this.setBlockFords(properties.getBool("block_fords", false));
+     }
+ 
+-    public RacingBikeFlagEncoder(String propertiesStr) {
+-        this(new PMap(propertiesStr));
+-    }
+-
+-    public RacingBikeFlagEncoder(int speedBits, double speedFactor, int maxTurnCosts) {
+-        super(speedBits, speedFactor, maxTurnCosts);
++    public RacingBikeFlagEncoder(String name, int speedBits, double speedFactor, int maxTurnCosts) {
++        super(name, speedBits, speedFactor, maxTurnCosts);
+         preferHighwayTags.add("road");
+         preferHighwayTags.add("secondary");
+         preferHighwayTags.add("secondary_link");
+@@ -152,9 +148,4 @@ boolean isSacScaleAllowed(String sacScale) {
+     public int getVersion() {
+         return 2;
+     }
+-
+-    @Override
+-    public String toString() {
+-        return "racingbike";
+-    }
+ }
+diff --git a/core/src/main/java/com/graphhopper/routing/util/WheelchairFlagEncoder.java b/core/src/main/java/com/graphhopper/routing/util/WheelchairFlagEncoder.java
+index 11585f3484..25f72eda00 100644
+--- a/core/src/main/java/com/graphhopper/routing/util/WheelchairFlagEncoder.java
++++ b/core/src/main/java/com/graphhopper/routing/util/WheelchairFlagEncoder.java
+@@ -45,17 +45,18 @@
+      * Should be only instantiated via EncodingManager
+      */
+     public WheelchairFlagEncoder() {
+-        this(4, 1);
++        this(new PMap());
+     }
+ 
+     public WheelchairFlagEncoder(PMap properties) {
+-        this((int) properties.getLong("speed_bits", 4),
++        this(properties.get("name", "wheelchair"),
++                properties.getInt("speed_bits", 4),
+                 properties.getDouble("speed_factor", 1));
+         this.setBlockFords(properties.getBool("block_fords", false));
+     }
+ 
+-    public WheelchairFlagEncoder(int speedBits, double speedFactor) {
+-        super(speedBits, speedFactor);
++    public WheelchairFlagEncoder(String name, int speedBits, double speedFactor) {
++        super(name, speedBits, speedFactor);
+         restrictions.add("wheelchair");
+ 
+         setBlockByDefault(false);
+@@ -276,9 +277,4 @@ protected int handlePriority(ReaderWay way, Integer priorityFromRelation) {
+ 
+         return weightToPrioMap.lastEntry().getValue();
+     }
+-
+-    @Override
+-    public String toString() {
+-        return "wheelchair";
+-    }
+ }
+diff --git a/core/src/main/java/com/graphhopper/routing/weighting/AbstractWeighting.java b/core/src/main/java/com/graphhopper/routing/weighting/AbstractWeighting.java
+index 9479207f3b..b7f74194f6 100644
+--- a/core/src/main/java/com/graphhopper/routing/weighting/AbstractWeighting.java
++++ b/core/src/main/java/com/graphhopper/routing/weighting/AbstractWeighting.java
+@@ -36,18 +36,20 @@
+     protected final DecimalEncodedValue avSpeedEnc;
+     protected final BooleanEncodedValue accessEnc;
+     private final TurnCostProvider turnCostProvider;
++    private final String name;
+ 
+-    protected AbstractWeighting(FlagEncoder encoder) {
+-        this(encoder, NO_TURN_COST_PROVIDER);
++    protected AbstractWeighting(String name, FlagEncoder encoder) {
++        this(name, encoder, NO_TURN_COST_PROVIDER);
+     }
+ 
+-    protected AbstractWeighting(FlagEncoder encoder, TurnCostProvider turnCostProvider) {
++    protected AbstractWeighting(String name, FlagEncoder encoder, TurnCostProvider turnCostProvider) {
+         this.flagEncoder = encoder;
+         if (!flagEncoder.isRegistered())
+             throw new IllegalStateException("Make sure you add the FlagEncoder " + flagEncoder + " to an EncodingManager before using it elsewhere");
+-        if (!isValidName(getName()))
+-            throw new IllegalStateException("Not a valid name for a Weighting: " + getName());
++        if (!isValidName(name))
++            throw new IllegalStateException("Not a valid name for a Weighting: " + name);
+ 
++        this.name = name;
+         avSpeedEnc = encoder.getAverageSpeedEnc();
+         accessEnc = encoder.getAccessEnc();
+         this.turnCostProvider = turnCostProvider;
+@@ -59,7 +61,6 @@ protected AbstractWeighting(FlagEncoder encoder, TurnCostProvider turnCostProvid
+      */
+     public abstract double calcEdgeWeight(EdgeIteratorState edgeState, boolean reverse);
+ 
+-
+     @Override
+     public long calcEdgeMillis(EdgeIteratorState edgeState, boolean reverse) {
+         // special case for loop edges: since they do not have a meaningful direction we always need to read them in
+@@ -123,6 +124,11 @@ public boolean equals(Object obj) {
+         return toString().equals(other.toString());
+     }
+ 
++    @Override
++    public final String getName() {
++        return name;
++    }
++
+     static boolean isValidName(String name) {
+         if (name == null || name.isEmpty())
+             return false;
+diff --git a/core/src/main/java/com/graphhopper/routing/weighting/CurvatureWeighting.java b/core/src/main/java/com/graphhopper/routing/weighting/CurvatureWeighting.java
+index 535c5afd95..c7d0bc1781 100644
+--- a/core/src/main/java/com/graphhopper/routing/weighting/CurvatureWeighting.java
++++ b/core/src/main/java/com/graphhopper/routing/weighting/CurvatureWeighting.java
+@@ -39,7 +39,7 @@ public CurvatureWeighting(FlagEncoder flagEncoder, PMap pMap) {
+     }
+ 
+     public CurvatureWeighting(FlagEncoder flagEncoder, PMap pMap, TurnCostProvider turnCostProvider) {
+-        super(flagEncoder, pMap, turnCostProvider);
++        super("curvature", flagEncoder, pMap, turnCostProvider);
+ 
+         priorityEnc = flagEncoder.getDecimalEncodedValue(EncodingManager.getKey(flagEncoder, "priority"));
+         curvatureEnc = flagEncoder.getDecimalEncodedValue(EncodingManager.getKey(flagEncoder, "curvature"));
+@@ -70,9 +70,4 @@ public double calcEdgeWeight(EdgeIteratorState edgeState, boolean reverse) {
+     protected double getRoadSpeed(EdgeIteratorState edge, boolean reverse) {
+         return reverse ? edge.getReverse(avSpeedEnc) : edge.get(avSpeedEnc);
+     }
+-
+-    @Override
+-    public String getName() {
+-        return "curvature";
+-    }
+ }
+diff --git a/core/src/main/java/com/graphhopper/routing/weighting/CustomWeighting.java b/core/src/main/java/com/graphhopper/routing/weighting/CustomWeighting.java
+new file mode 100644
+index 0000000000..a4b4de25fd
+--- /dev/null
++++ b/core/src/main/java/com/graphhopper/routing/weighting/CustomWeighting.java
+@@ -0,0 +1,122 @@
++/*
++ *  Licensed to GraphHopper GmbH under one or more contributor
++ *  license agreements. See the NOTICE file distributed with this work for
++ *  additional information regarding copyright ownership.
++ *
++ *  GraphHopper GmbH licenses this file to you under the Apache License,
++ *  Version 2.0 (the "License"); you may not use this file except in
++ *  compliance with the License. You may obtain a copy of the License at
++ *
++ *       http://www.apache.org/licenses/LICENSE-2.0
++ *
++ *  Unless required by applicable law or agreed to in writing, software
++ *  distributed under the License is distributed on an "AS IS" BASIS,
++ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ *  See the License for the specific language governing permissions and
++ *  limitations under the License.
++ */
++package com.graphhopper.routing.weighting;
++
++import com.graphhopper.routing.profiles.BooleanEncodedValue;
++import com.graphhopper.routing.profiles.EncodedValueFactory;
++import com.graphhopper.routing.profiles.EncodedValueLookup;
++import com.graphhopper.routing.util.CustomModel;
++import com.graphhopper.routing.util.FlagEncoder;
++import com.graphhopper.routing.util.HintsMap;
++import com.graphhopper.routing.weighting.custom.AverageSpeedCustomConfig;
++import com.graphhopper.routing.weighting.custom.PriorityCustomConfig;
++import com.graphhopper.util.EdgeIteratorState;
++
++import static com.graphhopper.util.EdgeIterator.NO_EDGE;
++
++/**
++ * Every EncodedValue like road_environment can influence one or more aspects of this Weighting: the
++ * speed_factor, the average_speed and the priority. The formula is basically:
++ * <pre>
++ * if no access to edge then return infinity
++ * speed = pick_first(average_speed_map) * multiply_all(speed_factor_map)
++ * distanceInfluence = distance * distanceFactor
++ * weight = (toSeconds(distance / speed) + distanceInfluence) / priority;
++ * return weight
++ * </pre>
++ */
++public class CustomWeighting extends AbstractWeighting {
++
++    private BooleanEncodedValue baseVehicleProfileAccessEnc;
++    private String baseVehicleProfile;
++
++    private final double maxPriority;
++    private double maxSpeed;
++    private double distanceFactor;
++    private AverageSpeedCustomConfig speedConfig;
++    private PriorityCustomConfig priorityConfig;
++
++    public CustomWeighting(String name, FlagEncoder baseFlagEncoder, EncodedValueLookup lookup,
++                           EncodedValueFactory factory, TurnCostProvider turnCostProvider, CustomModel customModel) {
++        super(name, baseFlagEncoder, turnCostProvider);
++        baseVehicleProfileAccessEnc = baseFlagEncoder.getAccessEnc();
++        baseVehicleProfile = customModel.getBase();
++        if (customModel.getVehicleMaxSpeed() == null || customModel.getVehicleMaxSpeed() < 2)
++            customModel.setVehicleMaxSpeed(baseFlagEncoder.getMaxSpeed());
++
++        speedConfig = new AverageSpeedCustomConfig(customModel, lookup, factory);
++        maxSpeed = speedConfig.getMaxSpeedFactor() * customModel.getVehicleMaxSpeed() / CustomModel.SPEED_CONV;
++
++        priorityConfig = new PriorityCustomConfig(customModel, lookup, factory);
++        maxPriority = priorityConfig.getMax();
++        if (maxPriority < 1)
++            throw new IllegalArgumentException("maximum priority cannot be smaller than 1 but was " + maxPriority);
++
++        distanceFactor = customModel.getDistanceFactor();
++        if (distanceFactor < 0)
++            throw new IllegalArgumentException("distance_factor cannot be negative");
++    }
++
++    @Override
++    public double getMinWeight(double distance) {
++        return (distance / maxSpeed + distance * distanceFactor) / maxPriority;
++    }
++
++    @Override
++    public double calcEdgeWeight(EdgeIteratorState edgeState, boolean reverse) {
++        double distance = edgeState.getDistance();
++        double seconds = calcSeconds(distance, edgeState, reverse);
++        if (Double.isInfinite(seconds))
++            return Double.POSITIVE_INFINITY;
++        return (seconds + distance * distanceFactor) / priorityConfig.calcPriority(edgeState, reverse);
++    }
++
++    double calcSeconds(double distance, EdgeIteratorState edge, boolean reverse) {
++        // special case for loop edges: since they do not have a meaningful direction we always need to read them in forward direction
++        if (edge.getBaseNode() == edge.getAdjNode())
++            reverse = false;
++
++        // TODO see #1835
++        if (reverse ? !edge.getReverse(baseVehicleProfileAccessEnc) : !edge.get(baseVehicleProfileAccessEnc))
++            return Double.POSITIVE_INFINITY;
++
++        double speed = speedConfig.calcSpeed(edge, reverse);
++        if (speed == 0)
++            return Double.POSITIVE_INFINITY;
++        if (speed < 0)
++            throw new IllegalArgumentException("Speed cannot be negative");
++
++        return distance / speed * CustomModel.SPEED_CONV;
++    }
++
++    @Override
++    public long calcEdgeMillis(EdgeIteratorState edgeState, boolean reverse) {
++        return Math.round(calcSeconds(edgeState.getDistance(), edgeState, reverse) * 1000);
++    }
++
++    @Override
++    public boolean matches(HintsMap reqMap) {
++        return (reqMap.getWeighting().isEmpty() || getName().equals(reqMap.getWeighting())) &&
++                (reqMap.getVehicle().isEmpty() || baseVehicleProfile.equals(reqMap.getVehicle()));
++    }
++
++    @Override
++    public String toString() {
++        return getName();
++    }
++}
+\ No newline at end of file
+diff --git a/core/src/main/java/com/graphhopper/routing/weighting/FastestWeighting.java b/core/src/main/java/com/graphhopper/routing/weighting/FastestWeighting.java
+index 736af023dc..fd410c7ffe 100644
+--- a/core/src/main/java/com/graphhopper/routing/weighting/FastestWeighting.java
++++ b/core/src/main/java/com/graphhopper/routing/weighting/FastestWeighting.java
+@@ -60,7 +60,11 @@ public FastestWeighting(FlagEncoder encoder, PMap map) {
+     }
+ 
+     public FastestWeighting(FlagEncoder encoder, PMap map, TurnCostProvider turnCostProvider) {
+-        super(encoder, turnCostProvider);
++        this("fastest", encoder, map, turnCostProvider);
++    }
++
++    public FastestWeighting(String name, FlagEncoder encoder, PMap map, TurnCostProvider turnCostProvider) {
++        super(name, encoder, turnCostProvider);
+         headingPenalty = map.getDouble(Routing.HEADING_PENALTY, Routing.DEFAULT_HEADING_PENALTY);
+         headingPenaltyMillis = Math.round(headingPenalty * 1000);
+         maxSpeed = encoder.getMaxSpeed() / SPEED_CONV;
+@@ -116,9 +120,4 @@ static double checkBounds(String key, double val, double from, double to) {
+ 
+         return val;
+     }
+-
+-    @Override
+-    public String getName() {
+-        return "fastest";
+-    }
+ }
+diff --git a/core/src/main/java/com/graphhopper/routing/weighting/PriorityWeighting.java b/core/src/main/java/com/graphhopper/routing/weighting/PriorityWeighting.java
+index 9e822030d7..9fef74bf67 100644
+--- a/core/src/main/java/com/graphhopper/routing/weighting/PriorityWeighting.java
++++ b/core/src/main/java/com/graphhopper/routing/weighting/PriorityWeighting.java
+@@ -37,12 +37,8 @@
+     private final double minFactor;
+     private final DecimalEncodedValue priorityEnc;
+ 
+-    public PriorityWeighting(FlagEncoder encoder, PMap pMap) {
+-        this(encoder, pMap, NO_TURN_COST_PROVIDER);
+-    }
+-
+-    public PriorityWeighting(FlagEncoder encoder, PMap pMap, TurnCostProvider turnCostProvider) {
+-        super(encoder, pMap, turnCostProvider);
++    public PriorityWeighting(String name, FlagEncoder encoder, PMap pMap, TurnCostProvider turnCostProvider) {
++        super(name, encoder, pMap, turnCostProvider);
+         priorityEnc = encoder.getDecimalEncodedValue(EncodingManager.getKey(encoder, "priority"));
+         double maxPriority = PriorityCode.getFactor(BEST.getValue());
+         minFactor = 1 / (0.5 + maxPriority);
+diff --git a/core/src/main/java/com/graphhopper/routing/weighting/ShortFastestWeighting.java b/core/src/main/java/com/graphhopper/routing/weighting/ShortFastestWeighting.java
+index eb82cf0005..2d4104b81d 100644
+--- a/core/src/main/java/com/graphhopper/routing/weighting/ShortFastestWeighting.java
++++ b/core/src/main/java/com/graphhopper/routing/weighting/ShortFastestWeighting.java
+@@ -30,7 +30,6 @@
+  * @author Peter Karich
+  */
+ public class ShortFastestWeighting extends FastestWeighting {
+-    // For now keep parameters local within class
+     private static final String NAME = "short_fastest";
+     private static final String TIME_FACTOR = "short_fastest.time_factor";
+     private static final String DISTANCE_FACTOR = "short_fastest.distance_factor";
+@@ -42,7 +41,7 @@ public ShortFastestWeighting(FlagEncoder encoder, PMap map) {
+     }
+ 
+     public ShortFastestWeighting(FlagEncoder encoder, PMap map, TurnCostProvider turnCostProvider) {
+-        super(encoder, turnCostProvider);
++        super(NAME, encoder, map, turnCostProvider);
+         timeFactor = checkBounds(TIME_FACTOR, map.getDouble(TIME_FACTOR, 1), 0, 10);
+ 
+         // default value derived from the cost for time e.g. 25€/hour and for distance 0.5€/km
+@@ -57,7 +56,7 @@ public ShortFastestWeighting(FlagEncoder encoder, double distanceFactor) {
+     }
+ 
+     public ShortFastestWeighting(FlagEncoder encoder, double distanceFactor, TurnCostProvider turnCostProvider) {
+-        super(encoder, turnCostProvider);
++        super(NAME, encoder, new PMap(), turnCostProvider);
+         this.distanceFactor = checkBounds(DISTANCE_FACTOR, distanceFactor, 0, 10);
+         this.timeFactor = 1;
+     }
+@@ -72,9 +71,4 @@ public double calcEdgeWeight(EdgeIteratorState edgeState, boolean reverse) {
+         double time = super.calcEdgeWeight(edgeState, reverse);
+         return time * timeFactor + edgeState.getDistance() * distanceFactor;
+     }
+-
+-    @Override
+-    public String getName() {
+-        return NAME;
+-    }
+ }
+diff --git a/core/src/main/java/com/graphhopper/routing/weighting/ShortestWeighting.java b/core/src/main/java/com/graphhopper/routing/weighting/ShortestWeighting.java
+index 356050e0ad..5b72ad76b2 100644
+--- a/core/src/main/java/com/graphhopper/routing/weighting/ShortestWeighting.java
++++ b/core/src/main/java/com/graphhopper/routing/weighting/ShortestWeighting.java
+@@ -35,7 +35,7 @@ public ShortestWeighting(FlagEncoder flagEncoder) {
+     }
+ 
+     public ShortestWeighting(FlagEncoder flagEncoder, TurnCostProvider turnCostProvider) {
+-        super(flagEncoder, turnCostProvider);
++        super("shortest", flagEncoder, turnCostProvider);
+     }
+ 
+     @Override
+@@ -47,9 +47,4 @@ public double getMinWeight(double currDistToGoal) {
+     public double calcEdgeWeight(EdgeIteratorState edgeState, boolean reverse) {
+         return edgeState.getDistance();
+     }
+-
+-    @Override
+-    public String getName() {
+-        return "shortest";
+-    }
+ }
+diff --git a/core/src/main/java/com/graphhopper/routing/weighting/custom/AverageSpeedCustomConfig.java b/core/src/main/java/com/graphhopper/routing/weighting/custom/AverageSpeedCustomConfig.java
+new file mode 100644
+index 0000000000..3177c9591e
+--- /dev/null
++++ b/core/src/main/java/com/graphhopper/routing/weighting/custom/AverageSpeedCustomConfig.java
+@@ -0,0 +1,113 @@
++/*
++ *  Licensed to GraphHopper GmbH under one or more contributor
++ *  license agreements. See the NOTICE file distributed with this work for
++ *  additional information regarding copyright ownership.
++ *
++ *  GraphHopper GmbH licenses this file to you under the Apache License,
++ *  Version 2.0 (the "License"); you may not use this file except in
++ *  compliance with the License. You may obtain a copy of the License at
++ *
++ *       http://www.apache.org/licenses/LICENSE-2.0
++ *
++ *  Unless required by applicable law or agreed to in writing, software
++ *  distributed under the License is distributed on an "AS IS" BASIS,
++ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ *  See the License for the specific language governing permissions and
++ *  limitations under the License.
++ */
++package com.graphhopper.routing.weighting.custom;
++
++import com.graphhopper.routing.profiles.DecimalEncodedValue;
++import com.graphhopper.routing.profiles.EncodedValueFactory;
++import com.graphhopper.routing.profiles.EncodedValueLookup;
++import com.graphhopper.routing.profiles.EnumEncodedValue;
++import com.graphhopper.routing.util.CustomModel;
++import com.graphhopper.routing.util.EncodingManager;
++import com.graphhopper.util.EdgeIteratorState;
++import com.graphhopper.util.Helper;
++
++import java.util.ArrayList;
++import java.util.List;
++import java.util.Map;
++
++import static com.graphhopper.routing.weighting.custom.PriorityCustomConfig.pickMax;
++
++public class AverageSpeedCustomConfig {
++    private List<ConfigMapEntry> speedFactorList = new ArrayList<>();
++    private List<ConfigMapEntry> avgSpeedList = new ArrayList<>();
++    private DecimalEncodedValue avgSpeedEnc;
++    private CustomModel customModel;
++    private double maxSpeedFactor = 1;
++
++    public AverageSpeedCustomConfig(CustomModel customModel, EncodedValueLookup lookup, EncodedValueFactory factory) {
++        this.customModel = customModel;
++        this.avgSpeedEnc = lookup.getDecimalEncodedValue(EncodingManager.getKey(customModel.getBase(), "average_speed"));
++        // do as much as possible outside of the eval method
++        for (Map.Entry<String, Object> entry : customModel.getAverageSpeed().entrySet()) {
++            Object value = entry.getValue();
++            if (!lookup.hasEncodedValue(entry.getKey()))
++                throw new IllegalArgumentException("Cannot find '" + entry.getKey() + "' specified in 'average_speed'");
++
++            if (value instanceof Map) {
++                EnumEncodedValue enumEncodedValue = lookup.getEnumEncodedValue(entry.getKey(), Enum.class);
++                Class<? extends Enum> enumClass = factory.findValues(entry.getKey());
++                Double[] values = Helper.createEnumToDoubleArray("average_speed", 0,
++                        customModel.getVehicleMaxSpeed(), enumClass, (Map<String, Object>) value);
++                maxSpeedFactor = pickMax(values, maxSpeedFactor);
++                avgSpeedList.add(new EnumToValue(enumEncodedValue, values));
++            } else {
++                throw new IllegalArgumentException("Type " + value.getClass() + " is not supported for 'average_speed'");
++            }
++        }
++
++        for (Map.Entry<String, Object> entry : customModel.getSpeedFactor().entrySet()) {
++            if (!lookup.hasEncodedValue(entry.getKey()))
++                throw new IllegalArgumentException("Cannot find '" + entry.getKey() + "' specified in 'speed_factor'");
++            Object value = entry.getValue();
++            if (value instanceof Map) {
++                EnumEncodedValue enumEncodedValue = lookup.getEnumEncodedValue(entry.getKey(), Enum.class);
++                Class<? extends Enum> enumClass = factory.findValues(entry.getKey());
++                Double[] values = Helper.createEnumToDoubleArray("speed_factor", 0, 2, enumClass, (Map<String, Object>) value);
++                speedFactorList.add(new EnumToValue(enumEncodedValue, values));
++            } else {
++                throw new IllegalArgumentException("Type " + value.getClass() + " is not supported for 'speed_factor'");
++            }
++        }
++    }
++
++    public double getMaxSpeedFactor() {
++        return maxSpeedFactor;
++    }
++
++
++    /**
++     * @return speed in km/h
++     */
++    public double calcSpeed(EdgeIteratorState edge, boolean reverse) {
++        // this code is interpreting the yaml. We could try to make it faster using ANTLR with which we can create AST and compile using janino
++        double speed = Double.NaN;
++        for (int i = 0; i < avgSpeedList.size(); i++) {
++            ConfigMapEntry entry = avgSpeedList.get(i);
++            Double value = entry.getValue(edge, reverse);
++            // only first matches
++            if (value != null) {
++                speed = value;
++                break;
++            }
++        }
++        if (Double.isNaN(speed))
++            speed = reverse ? edge.getReverse(avgSpeedEnc) : edge.get(avgSpeedEnc);
++        if (Double.isInfinite(speed) || Double.isNaN(speed) || speed < 0)
++            throw new IllegalStateException("Invalid average_speed " + speed);
++
++        for (int i = 0; i < speedFactorList.size(); i++) {
++            ConfigMapEntry entry = speedFactorList.get(i);
++            Double value = entry.getValue(edge, reverse);
++            // include all matches
++            if (value != null)
++                speed *= value;
++        }
++
++        return Math.min(speed, customModel.getVehicleMaxSpeed());
++    }
++}
+diff --git a/core/src/main/java/com/graphhopper/routing/weighting/custom/ConfigMapEntry.java b/core/src/main/java/com/graphhopper/routing/weighting/custom/ConfigMapEntry.java
+new file mode 100644
+index 0000000000..4287f39589
+--- /dev/null
++++ b/core/src/main/java/com/graphhopper/routing/weighting/custom/ConfigMapEntry.java
+@@ -0,0 +1,27 @@
++/*
++ *  Licensed to GraphHopper GmbH under one or more contributor
++ *  license agreements. See the NOTICE file distributed with this work for
++ *  additional information regarding copyright ownership.
++ *
++ *  GraphHopper GmbH licenses this file to you under the Apache License,
++ *  Version 2.0 (the "License"); you may not use this file except in
++ *  compliance with the License. You may obtain a copy of the License at
++ *
++ *       http://www.apache.org/licenses/LICENSE-2.0
++ *
++ *  Unless required by applicable law or agreed to in writing, software
++ *  distributed under the License is distributed on an "AS IS" BASIS,
++ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ *  See the License for the specific language governing permissions and
++ *  limitations under the License.
++ */
++package com.graphhopper.routing.weighting.custom;
++
++import com.graphhopper.util.EdgeIteratorState;
++
++public interface ConfigMapEntry {
++    /**
++     * @return a double value or null if this entry should be skipped
++     */
++    Double getValue(EdgeIteratorState iter, boolean reverse);
++}
+diff --git a/core/src/main/java/com/graphhopper/routing/weighting/custom/EnumToValue.java b/core/src/main/java/com/graphhopper/routing/weighting/custom/EnumToValue.java
+new file mode 100644
+index 0000000000..983495762f
+--- /dev/null
++++ b/core/src/main/java/com/graphhopper/routing/weighting/custom/EnumToValue.java
+@@ -0,0 +1,45 @@
++/*
++ *  Licensed to GraphHopper GmbH under one or more contributor
++ *  license agreements. See the NOTICE file distributed with this work for
++ *  additional information regarding copyright ownership.
++ *
++ *  GraphHopper GmbH licenses this file to you under the Apache License,
++ *  Version 2.0 (the "License"); you may not use this file except in
++ *  compliance with the License. You may obtain a copy of the License at
++ *
++ *       http://www.apache.org/licenses/LICENSE-2.0
++ *
++ *  Unless required by applicable law or agreed to in writing, software
++ *  distributed under the License is distributed on an "AS IS" BASIS,
++ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ *  See the License for the specific language governing permissions and
++ *  limitations under the License.
++ */
++package com.graphhopper.routing.weighting.custom;
++
++import com.graphhopper.routing.profiles.EnumEncodedValue;
++import com.graphhopper.routing.profiles.IntEncodedValue;
++import com.graphhopper.util.EdgeIteratorState;
++
++import java.util.Arrays;
++
++public final class EnumToValue implements ConfigMapEntry {
++    private final IntEncodedValue eev;
++    private final Double[] values;
++
++    EnumToValue(EnumEncodedValue eev, Double[] values) {
++        this.eev = eev;
++        this.values = values;
++    }
++
++    @Override
++    public Double getValue(EdgeIteratorState iter, boolean reverse) {
++        int enumOrdinal = iter.get(eev);
++        return values[enumOrdinal];
++    }
++
++    @Override
++    public String toString() {
++        return eev.getName() + ": " + Arrays.toString(values);
++    }
++}
+diff --git a/core/src/main/java/com/graphhopper/routing/weighting/custom/PriorityCustomConfig.java b/core/src/main/java/com/graphhopper/routing/weighting/custom/PriorityCustomConfig.java
+new file mode 100644
+index 0000000000..b23bc81489
+--- /dev/null
++++ b/core/src/main/java/com/graphhopper/routing/weighting/custom/PriorityCustomConfig.java
+@@ -0,0 +1,117 @@
++/*
++ *  Licensed to GraphHopper GmbH under one or more contributor
++ *  license agreements. See the NOTICE file distributed with this work for
++ *  additional information regarding copyright ownership.
++ *
++ *  GraphHopper GmbH licenses this file to you under the Apache License,
++ *  Version 2.0 (the "License"); you may not use this file except in
++ *  compliance with the License. You may obtain a copy of the License at
++ *
++ *       http://www.apache.org/licenses/LICENSE-2.0
++ *
++ *  Unless required by applicable law or agreed to in writing, software
++ *  distributed under the License is distributed on an "AS IS" BASIS,
++ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ *  See the License for the specific language governing permissions and
++ *  limitations under the License.
++ */
++package com.graphhopper.routing.weighting.custom;
++
++import com.graphhopper.routing.profiles.*;
++import com.graphhopper.routing.util.CustomModel;
++import com.graphhopper.util.EdgeIteratorState;
++import com.graphhopper.util.Helper;
++
++import java.util.ArrayList;
++import java.util.List;
++import java.util.Map;
++
++public class PriorityCustomConfig {
++    private final CustomModel config;
++    private List<ConfigMapEntry> priorityList = new ArrayList<>();
++    private double maxPriority;
++
++    public PriorityCustomConfig(CustomModel customModel, EncodedValueLookup lookup, EncodedValueFactory factory) {
++        this.config = customModel;
++        add(lookup, customModel.getVehicleWeight(), "vehicle_weight", MaxWeight.KEY);
++        add(lookup, customModel.getVehicleWidth(), "vehicle_width", MaxWidth.KEY);
++        add(lookup, customModel.getVehicleHeight(), "vehicle_height", MaxHeight.KEY);
++        add(lookup, customModel.getVehicleLength(), "vehicle_length", MaxLength.KEY);
++
++        // default for priority is 1
++        maxPriority = 1;
++        for (Map.Entry<String, Object> entry : customModel.getPriority().entrySet()) {
++            if (!lookup.hasEncodedValue(entry.getKey()))
++                throw new IllegalArgumentException("Cannot find '" + entry.getKey() + "' specified in 'priority'");
++            Object value = entry.getValue();
++            if (value instanceof Map) {
++                EnumEncodedValue enumEncodedValue = lookup.getEnumEncodedValue(entry.getKey(), Enum.class);
++                Class<? extends Enum> enumClass = factory.findValues(entry.getKey());
++                Double[] values = Helper.createEnumToDoubleArray("priority", 0, Double.POSITIVE_INFINITY, enumClass, (Map<String, Object>) value);
++                maxPriority = pickMax(values, maxPriority);
++                priorityList.add(new EnumToValue(enumEncodedValue, values));
++            } else {
++                throw new IllegalArgumentException("Type " + value.getClass() + " is not supported for 'priority'");
++            }
++        }
++    }
++
++    static double pickMax(Double[] values, double max) {
++        for (Double val : values) {
++            max = val == null ? max : Math.max(max, val);
++        }
++        return max;
++    }
++
++
++    public double getMax() {
++        return maxPriority;
++    }
++
++    void add(EncodedValueLookup lookup, Double value, String name, String encValue) {
++        if (value == null)
++            return;
++        if (!lookup.hasEncodedValue(encValue))
++            throw new IllegalArgumentException("You cannot use " + name + " as encoded value '" + encValue + "' was not enabled on the server.");
++        priorityList.add(new MaxValueConfigMapEntry(name, lookup.getDecimalEncodedValue(encValue), value));
++    }
++
++    /**
++     * @return weight without unit. The lower the priority is the higher the weight of the specified edge will be.
++     */
++    public double calcPriority(EdgeIteratorState edge, boolean reverse) {
++        double priority = 1;
++        for (int i = 0; i < priorityList.size(); i++) {
++            ConfigMapEntry entry = priorityList.get(i);
++            Double value = entry.getValue(edge, reverse);
++            if (value != null) {
++                if (value < 0)
++                    throw new IllegalStateException("Invalid priority_" + i + ": " + value);
++                priority *= value;
++            }
++        }
++        return Math.min(priority, maxPriority);
++    }
++
++    private static class MaxValueConfigMapEntry implements ConfigMapEntry {
++        DecimalEncodedValue ev;
++        double vehicleValue;
++
++        public MaxValueConfigMapEntry(String name, DecimalEncodedValue ev, double vehicleValue) {
++            if (vehicleValue < 0)
++                throw new IllegalArgumentException(name + " cannot be negative");
++            this.ev = ev;
++            this.vehicleValue = vehicleValue;
++        }
++
++        @Override
++        public Double getValue(EdgeIteratorState iter, boolean reverse) {
++            return (vehicleValue < (reverse ? iter.getReverse(ev) : iter.get(ev))) ? null : 0.0;
++        }
++
++        @Override
++        public String toString() {
++            return ev.getName() + ": " + vehicleValue;
++        }
++    }
++}
+diff --git a/core/src/test/java/com/graphhopper/routing/CHQueryWithTurnCostsTest.java b/core/src/test/java/com/graphhopper/routing/CHQueryWithTurnCostsTest.java
+index bc456d80dc..9cdd748671 100644
+--- a/core/src/test/java/com/graphhopper/routing/CHQueryWithTurnCostsTest.java
++++ b/core/src/test/java/com/graphhopper/routing/CHQueryWithTurnCostsTest.java
+@@ -20,9 +20,9 @@
+ 
+ import com.carrotsearch.hppc.IntArrayList;
+ import com.graphhopper.routing.ch.PrepareEncoder;
++import com.graphhopper.routing.util.CarFlagEncoder;
+ import com.graphhopper.routing.util.EncodingManager;
+ import com.graphhopper.routing.util.FlagEncoder;
+-import com.graphhopper.routing.util.MotorcycleFlagEncoder;
+ import com.graphhopper.routing.weighting.Weighting;
+ import com.graphhopper.storage.CHGraph;
+ import com.graphhopper.storage.GraphBuilder;
+@@ -49,7 +49,7 @@
+ @RunWith(Parameterized.class)
+ public class CHQueryWithTurnCostsTest {
+     private final int maxCost = 10;
+-    private final FlagEncoder encoder = new MotorcycleFlagEncoder(5, 5, maxCost);
++    private final FlagEncoder encoder = new CarFlagEncoder("car", true, 5, 5, maxCost);
+     private final EncodingManager encodingManager = EncodingManager.create(encoder);
+     private final Weighting weighting;
+     private final GraphHopperStorage graph;
+@@ -64,7 +64,7 @@
+     public CHQueryWithTurnCostsTest(String algoString) {
+         this.algoString = algoString;
+         graph = new GraphBuilder(encodingManager)
+-                .setCHProfileStrings("motorcycle|shortest|edge")
++                .setCHProfileStrings("car|shortest|edge")
+                 .create();
+         weighting = graph.getCHProfiles().get(0).getWeighting();
+         chGraph = graph.getCHGraph();
+diff --git a/core/src/test/java/com/graphhopper/routing/RoutingAlgorithmIT.java b/core/src/test/java/com/graphhopper/routing/RoutingAlgorithmIT.java
+index cbe65bebda..a022d77660 100644
+--- a/core/src/test/java/com/graphhopper/routing/RoutingAlgorithmIT.java
++++ b/core/src/test/java/com/graphhopper/routing/RoutingAlgorithmIT.java
+@@ -64,8 +64,7 @@
+ 
+         FlagEncoder encoder = hopper.getEncodingManager().getEncoder(hints.getVehicle());
+         TurnCostProvider turnCostProvider = tMode.isEdgeBased() ? new DefaultTurnCostProvider(encoder, ghStorage.getTurnCostStorage()) : NO_TURN_COST_PROVIDER;
+-        Weighting weighting = hopper.createWeighting(hints, encoder, hopper.getGraphHopperStorage(), turnCostProvider);
+-
++        Weighting weighting = hopper.createWeighting(hints, encoder, hopper.getGraphHopperStorage(), turnCostProvider, null);
+         HintsMap defaultHints = new HintsMap().put(Parameters.CH.DISABLE, true).put(Parameters.Landmark.DISABLE, true)
+                 .setVehicle(hints.getVehicle()).setWeighting(hints.getWeighting());
+ 
+diff --git a/core/src/test/java/com/graphhopper/routing/ch/Path4CHTest.java b/core/src/test/java/com/graphhopper/routing/ch/Path4CHTest.java
+index 9044121b7d..a5ec3cbd1c 100644
+--- a/core/src/test/java/com/graphhopper/routing/ch/Path4CHTest.java
++++ b/core/src/test/java/com/graphhopper/routing/ch/Path4CHTest.java
+@@ -4,9 +4,9 @@
+ import com.graphhopper.routing.Path;
+ import com.graphhopper.routing.RoutingAlgorithm;
+ import com.graphhopper.routing.profiles.DecimalEncodedValue;
++import com.graphhopper.routing.util.CarFlagEncoder;
+ import com.graphhopper.routing.util.EncodingManager;
+ import com.graphhopper.routing.util.FlagEncoder;
+-import com.graphhopper.routing.util.MotorcycleFlagEncoder;
+ import com.graphhopper.storage.CHGraph;
+ import com.graphhopper.storage.GraphBuilder;
+ import com.graphhopper.storage.GraphHopperStorage;
+@@ -25,10 +25,10 @@
+ 
+     @Before
+     public void init() {
+-        encoder = new MotorcycleFlagEncoder(5, 5, maxTurnCosts);
++        encoder = new CarFlagEncoder("car", true, 5, 5, maxTurnCosts);
+         EncodingManager em = EncodingManager.create(encoder);
+         graph = new GraphBuilder(em)
+-                .setCHProfileStrings("motorcycle|fastest|edge")
++                .setCHProfileStrings("car|fastest|edge")
+                 .create();
+         chGraph = graph.getCHGraph();
+     }
+diff --git a/core/src/test/java/com/graphhopper/routing/ch/PrepareContractionHierarchiesTest.java b/core/src/test/java/com/graphhopper/routing/ch/PrepareContractionHierarchiesTest.java
+index 5340162a94..761c6df235 100644
+--- a/core/src/test/java/com/graphhopper/routing/ch/PrepareContractionHierarchiesTest.java
++++ b/core/src/test/java/com/graphhopper/routing/ch/PrepareContractionHierarchiesTest.java
+@@ -44,7 +44,7 @@
+  * @author Peter Karich
+  */
+ public class PrepareContractionHierarchiesTest {
+-    private final CarFlagEncoder carEncoder = new CarFlagEncoder("speed_two_directions=true");
++    private final CarFlagEncoder carEncoder = new CarFlagEncoder("car", true, 5, 5, 0);
+     private final EncodingManager encodingManager = EncodingManager.create(carEncoder);
+     private final Weighting weighting = new ShortestWeighting(carEncoder);
+     private final CHProfile chProfile = CHProfile.nodeBased(weighting);
+diff --git a/core/src/test/java/com/graphhopper/routing/util/EncodingManagerTest.java b/core/src/test/java/com/graphhopper/routing/util/EncodingManagerTest.java
+index 8ec0bbde24..2887247c7f 100644
+--- a/core/src/test/java/com/graphhopper/routing/util/EncodingManagerTest.java
++++ b/core/src/test/java/com/graphhopper/routing/util/EncodingManagerTest.java
+@@ -82,17 +82,12 @@ public void testWrongEncoders() {
+ 
+     @Test
+     public void testToDetailsStringIncludesEncoderVersionNumber() {
+-        FlagEncoder encoder = new AbstractFlagEncoder(1, 2.0, 0) {
++        FlagEncoder encoder = new AbstractFlagEncoder("new_encoder", 1, 2.0, 0) {
+             @Override
+             public int getVersion() {
+                 return 10;
+             }
+ 
+-            @Override
+-            public String toString() {
+-                return "new_encoder";
+-            }
+-
+             @Override
+             protected String getPropertiesString() {
+                 return "my_properties";
+@@ -121,18 +116,13 @@ public void testCombineRelations() {
+         ReaderRelation osmRel = new ReaderRelation(1);
+ 
+         BikeFlagEncoder defaultBike = new BikeFlagEncoder();
+-        BikeFlagEncoder lessRelationCodes = new BikeFlagEncoder() {
++        BikeFlagEncoder lessRelationCodes = new BikeFlagEncoder("less_relations_bits", 4, 2, 0) {
+             @Override
+             public IntsRef handleWayTags(IntsRef edgeFlags, ReaderWay way, EncodingManager.Access access) {
+                 if (bikeRouteEnc.getEnum(false, edgeFlags) != RouteNetwork.OTHER)
+                     priorityEnc.setDecimal(false, edgeFlags, PriorityCode.getFactor(2));
+                 return edgeFlags;
+             }
+-
+-            @Override
+-            public String toString() {
+-                return "less_relations_bits";
+-            }
+         };
+         EncodingManager manager = new EncodingManager.Builder().add(lessRelationCodes).add(defaultBike).build();
+ 
+diff --git a/core/src/test/java/com/graphhopper/routing/weighting/CustomWeightingTest.java b/core/src/test/java/com/graphhopper/routing/weighting/CustomWeightingTest.java
+new file mode 100644
+index 0000000000..332d0f8ad4
+--- /dev/null
++++ b/core/src/test/java/com/graphhopper/routing/weighting/CustomWeightingTest.java
+@@ -0,0 +1,95 @@
++/*
++ *  Licensed to GraphHopper GmbH under one or more contributor
++ *  license agreements. See the NOTICE file distributed with this work for
++ *  additional information regarding copyright ownership.
++ *
++ *  GraphHopper GmbH licenses this file to you under the Apache License,
++ *  Version 2.0 (the "License"); you may not use this file except in
++ *  compliance with the License. You may obtain a copy of the License at
++ *
++ *       http://www.apache.org/licenses/LICENSE-2.0
++ *
++ *  Unless required by applicable law or agreed to in writing, software
++ *  distributed under the License is distributed on an "AS IS" BASIS,
++ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ *  See the License for the specific language governing permissions and
++ *  limitations under the License.
++ */
++package com.graphhopper.routing.weighting;
++
++import com.graphhopper.routing.profiles.*;
++import com.graphhopper.routing.util.CarFlagEncoder;
++import com.graphhopper.routing.util.CustomModel;
++import com.graphhopper.routing.util.EncodingManager;
++import com.graphhopper.routing.util.FlagEncoder;
++import com.graphhopper.storage.GraphBuilder;
++import com.graphhopper.storage.GraphHopperStorage;
++import com.graphhopper.util.EdgeIteratorState;
++import org.junit.Before;
++import org.junit.Test;
++
++import java.util.HashMap;
++import java.util.Map;
++
++import static com.graphhopper.routing.profiles.RoadClass.*;
++import static com.graphhopper.routing.weighting.TurnCostProvider.NO_TURN_COST_PROVIDER;
++import static org.junit.Assert.assertEquals;
++
++public class CustomWeightingTest {
++
++    GraphHopperStorage graphHopperStorage;
++    DecimalEncodedValue avSpeedEnc;
++    BooleanEncodedValue accessEnc;
++    EnumEncodedValue<RoadClass> roadClassEnc;
++    EncodingManager encodingManager;
++    FlagEncoder carFE;
++
++    @Before
++    public void setUp() {
++        carFE = new CarFlagEncoder();
++        encodingManager = new EncodingManager.Builder().add(carFE).build();
++        avSpeedEnc = carFE.getAverageSpeedEnc();
++        accessEnc = carFE.getAccessEnc();
++        roadClassEnc = encodingManager.getEnumEncodedValue(KEY, RoadClass.class);
++        graphHopperStorage = new GraphBuilder(encodingManager).create();
++    }
++
++    @Test
++    public void testBasic() {
++        EdgeIteratorState edge1 = graphHopperStorage.edge(0, 1).setDistance(10).
++                set(roadClassEnc, PRIMARY).set(avSpeedEnc, 80).set(accessEnc, true).setReverse(accessEnc, true);
++        EdgeIteratorState edge2 = graphHopperStorage.edge(1, 2).setDistance(10).
++                set(roadClassEnc, SECONDARY).set(avSpeedEnc, 70).set(accessEnc, true).setReverse(accessEnc, true);
++
++        CustomModel vehicleModel = new CustomModel();
++        vehicleModel.setVehicleMaxSpeed(120d);
++        vehicleModel.setBase("car");
++        Map map = new HashMap();
++        map.put(PRIMARY.toString(), 2.0);
++        vehicleModel.getPriority().put(KEY, map);
++
++        Weighting weighting = new CustomWeighting("custom", carFE, encodingManager, new DefaultEncodedValueFactory(), NO_TURN_COST_PROVIDER, vehicleModel);
++        assertEquals(1.21, weighting.calcEdgeWeight(edge2, false), 0.01);
++        assertEquals(0.575, weighting.calcEdgeWeight(edge1, false), 0.01);
++
++        map.put(PRIMARY.toString(), 1.1);
++        weighting = new CustomWeighting("custom", carFE, encodingManager, new DefaultEncodedValueFactory(), NO_TURN_COST_PROVIDER, vehicleModel);
++        assertEquals(1.045, weighting.calcEdgeWeight(edge1, false), 0.01);
++
++        // force integer value
++        map.put(PRIMARY.toString(), 1);
++        weighting = new CustomWeighting("custom", carFE, encodingManager, new DefaultEncodedValueFactory(), NO_TURN_COST_PROVIDER, vehicleModel);
++        assertEquals(1.15, weighting.calcEdgeWeight(edge1, false), 0.01);
++    }
++
++    @Test
++    public void testNoMaxSpeed() {
++        EdgeIteratorState edge1 = graphHopperStorage.edge(0, 1).setDistance(10).
++                set(roadClassEnc, PRIMARY).set(avSpeedEnc, 80).set(accessEnc, true).setReverse(accessEnc, true);
++        CustomModel vehicleModel = new CustomModel();
++        vehicleModel.setBase("car");
++
++        Weighting weighting = new CustomWeighting("custom", carFE, encodingManager, new DefaultEncodedValueFactory(), NO_TURN_COST_PROVIDER, vehicleModel);
++        assertEquals(1.15, weighting.calcEdgeWeight(edge1, false), 0.01);
++    }
++}
+\ No newline at end of file
+diff --git a/core/src/test/java/com/graphhopper/routing/weighting/RandomizedRoutingTest.java b/core/src/test/java/com/graphhopper/routing/weighting/RandomizedRoutingTest.java
+index 917d41fe1e..9de917ac4b 100644
+--- a/core/src/test/java/com/graphhopper/routing/weighting/RandomizedRoutingTest.java
++++ b/core/src/test/java/com/graphhopper/routing/weighting/RandomizedRoutingTest.java
+@@ -101,10 +101,10 @@ public RandomizedRoutingTest(Algo algo, boolean prepareCH, boolean prepareLM, Tr
+     @Before
+     public void init() {
+         dir = new RAMDirectory();
+-        encoder = new MotorcycleFlagEncoder(5, 5, 1);
++        encoder = new CarFlagEncoder("car", true, 5, 5, 1);
+         EncodingManager encodingManager = EncodingManager.create(encoder);
+         graph = new GraphBuilder(encodingManager)
+-                .setCHProfileStrings("motorcycle|fastest|node", "motorcycle|fastest|edge")
++                .setCHProfileStrings("car|fastest|node", "car|fastest|edge")
+                 .setDir(dir)
+                 .create();
+         chProfiles = graph.getCHProfiles();
+diff --git a/core/src/test/java/com/graphhopper/storage/AbstractGraphStorageTester.java b/core/src/test/java/com/graphhopper/storage/AbstractGraphStorageTester.java
+index ef84dd5620..df9fc6f0a8 100644
+--- a/core/src/test/java/com/graphhopper/storage/AbstractGraphStorageTester.java
++++ b/core/src/test/java/com/graphhopper/storage/AbstractGraphStorageTester.java
+@@ -966,13 +966,8 @@ public void testStringIndex() {
+     public void test8AndMoreBytesForEdgeFlags() {
+         Directory dir = new RAMDirectory();
+         List<FlagEncoder> list = new ArrayList<>();
+-        list.add(new TmpCarFlagEncoder(29, 0.001, 0) {
+-            @Override
+-            public String toString() {
+-                return "car0";
+-            }
+-        });
+-        list.add(new TmpCarFlagEncoder(29, 0.001, 0));
++        list.add(new CarFlagEncoder("car0", false, 29, 0.001, 0));
++        list.add(new CarFlagEncoder(29, 0.001, 0));
+         EncodingManager manager = EncodingManager.create(list);
+         graph = new GraphHopperStorage(dir, manager, false).create(defaultSize);
+ 
+@@ -1009,19 +1004,9 @@ public String toString() {
+         assertTrue(edgeIter.getReverse(access1Enc));
+ 
+         list.clear();
+-        list.add(new TmpCarFlagEncoder(29, 0.001, 0) {
+-            @Override
+-            public String toString() {
+-                return "car0";
+-            }
+-        });
+-        list.add(new TmpCarFlagEncoder(29, 0.001, 0));
+-        list.add(new TmpCarFlagEncoder(30, 0.001, 0) {
+-            @Override
+-            public String toString() {
+-                return "car2";
+-            }
+-        });
++        list.add(new CarFlagEncoder("car0", false, 29, 0.001, 0));
++        list.add(new CarFlagEncoder(29, 0.001, 0));
++        list.add(new CarFlagEncoder("car2", false, 30, 0.001, 0));
+         manager = EncodingManager.create(list);
+         graph = new GraphHopperStorage(new RAMDirectory(), manager, false).create(defaultSize);
+         edgeIter = graph.edge(0, 1).set(access0Enc, true).setReverse(access0Enc, false);
+diff --git a/core/src/test/java/com/graphhopper/storage/ShortcutUnpackerTest.java b/core/src/test/java/com/graphhopper/storage/ShortcutUnpackerTest.java
+index 5f08f81937..4f1f76817b 100644
+--- a/core/src/test/java/com/graphhopper/storage/ShortcutUnpackerTest.java
++++ b/core/src/test/java/com/graphhopper/storage/ShortcutUnpackerTest.java
+@@ -4,9 +4,9 @@
+ import com.carrotsearch.hppc.IntArrayList;
+ import com.graphhopper.routing.ch.PrepareEncoder;
+ import com.graphhopper.routing.profiles.DecimalEncodedValue;
++import com.graphhopper.routing.util.CarFlagEncoder;
+ import com.graphhopper.routing.util.EncodingManager;
+ import com.graphhopper.routing.util.FlagEncoder;
+-import com.graphhopper.routing.util.MotorcycleFlagEncoder;
+ import com.graphhopper.routing.util.TraversalMode;
+ import com.graphhopper.util.EdgeIteratorState;
+ import com.graphhopper.util.GHUtility;
+@@ -43,11 +43,10 @@ public ShortcutUnpackerTest(TraversalMode traversalMode) {
+ 
+     @Before
+     public void init() {
+-        // use motorcycle to be able to set different fwd/bwd speeds
+-        encoder = new MotorcycleFlagEncoder(5, 5, 10);
++        encoder = new CarFlagEncoder("car", true, 5, 5, 10);
+         encodingManager = EncodingManager.create(encoder);
+         graph = new GraphBuilder(encodingManager)
+-                .setCHProfileStrings("motorcycle|fastest|" + (edgeBased ? "edge" : "node"))
++                .setCHProfileStrings("car|fastest|" + (edgeBased ? "edge" : "node"))
+                 .create();
+         chGraph = graph.getCHGraph();
+         routingCHGraph = new RoutingCHGraphImpl(chGraph, chGraph.getCHProfile().getWeighting());
+diff --git a/core/src/test/java/com/graphhopper/storage/TurnCostStorageTest.java b/core/src/test/java/com/graphhopper/storage/TurnCostStorageTest.java
+index e7ea7963db..764d473a3d 100644
+--- a/core/src/test/java/com/graphhopper/storage/TurnCostStorageTest.java
++++ b/core/src/test/java/com/graphhopper/storage/TurnCostStorageTest.java
+@@ -37,7 +37,7 @@
+     @Before
+     public void setup() {
+         FlagEncoder carEncoder = new CarFlagEncoder(5, 5, 3);
+-        FlagEncoder bikeEncoder = new BikeFlagEncoder(5, 5, 3);
++        FlagEncoder bikeEncoder = new BikeFlagEncoder("bike", 5, 5, 3);
+         manager = EncodingManager.create(carEncoder, bikeEncoder);
+     }
+ 
+diff --git a/reader-osm/src/test/java/com/graphhopper/GraphHopperIT.java b/reader-osm/src/test/java/com/graphhopper/GraphHopperIT.java
+index afd38ef783..f5fe501e0d 100644
+--- a/reader-osm/src/test/java/com/graphhopper/GraphHopperIT.java
++++ b/reader-osm/src/test/java/com/graphhopper/GraphHopperIT.java
+@@ -1118,7 +1118,7 @@ public void testFlexMode_631() {
+         req.getHints().put(CH.DISABLE, true);
+         rsp = tmpHopper.route(req);
+         long flexSum = rsp.getHints().getLong("visited_nodes.sum", 0);
+-        assertTrue("Too few visited nodes for flex mode " + flexSum, flexSum > 60);
++        assertTrue("Too few visited nodes for custom mode " + flexSum, flexSum > 60);
+ 
+         bestPath = rsp.getBest();
+         assertEquals(3587, bestPath.getDistance(), 1);
+diff --git a/reader-osm/src/test/java/com/graphhopper/reader/osm/GraphHopperOSMTest.java b/reader-osm/src/test/java/com/graphhopper/reader/osm/GraphHopperOSMTest.java
+index 3c2a10b09b..782a615996 100644
+--- a/reader-osm/src/test/java/com/graphhopper/reader/osm/GraphHopperOSMTest.java
++++ b/reader-osm/src/test/java/com/graphhopper/reader/osm/GraphHopperOSMTest.java
+@@ -981,8 +981,8 @@ public void testMultipleLMPreparationsInParallel() {
+ 
+     @Test
+     public void testGetWeightingForCH() {
+-        TestEncoder truck = new TestEncoder("truck");
+-        TestEncoder simpleTruck = new TestEncoder("simple_truck");
++        FlagEncoder truck = new CarFlagEncoder(new PMap("name=truck"));
++        FlagEncoder simpleTruck = new CarFlagEncoder(new PMap("name=simple_truck"));
+ 
+         // use simple truck first
+         EncodingManager em = EncodingManager.create(simpleTruck, truck);
+@@ -1022,17 +1022,4 @@ public void testGetMultipleWeightingsForCH() {
+ 
+         assertEquals(2, tmpGH.getCHFactoryDecorator().getCHProfileStrings().size());
+     }
+-
+-    private static class TestEncoder extends CarFlagEncoder {
+-        private final String name;
+-
+-        public TestEncoder(String name) {
+-            this.name = name;
+-        }
+-
+-        @Override
+-        public String toString() {
+-            return name;
+-        }
+-    }
+ }
+diff --git a/reader-osm/src/test/java/com/graphhopper/reader/osm/OSMReaderTest.java b/reader-osm/src/test/java/com/graphhopper/reader/osm/OSMReaderTest.java
+index b057069274..f1104d7fda 100644
+--- a/reader-osm/src/test/java/com/graphhopper/reader/osm/OSMReaderTest.java
++++ b/reader-osm/src/test/java/com/graphhopper/reader/osm/OSMReaderTest.java
+@@ -723,13 +723,8 @@ public void testReadEleFromDataProvider() {
+     @Test
+     public void testTurnFlagCombination() {
+         CarFlagEncoder car = new CarFlagEncoder(5, 5, 24);
+-        CarFlagEncoder truck = new CarFlagEncoder(5, 5, 24) {
+-            @Override
+-            public String toString() {
+-                return "truck";
+-            }
+-        };
+-        BikeFlagEncoder bike = new BikeFlagEncoder(4, 2, 24);
++        CarFlagEncoder truck = new CarFlagEncoder("truck", false, 5, 5, 24);
++        BikeFlagEncoder bike = new BikeFlagEncoder("bike", 4, 2, 24);
+         EncodingManager manager = new EncodingManager.Builder().add(bike).add(truck).add(car).build();
+ 
+         GraphHopper hopper = new GraphHopperOSM().
+@@ -975,7 +970,7 @@ public GraphHopperFacade(String osmFile, boolean turnCosts, String prefLang) {
+             BikeFlagEncoder bikeEncoder;
+             if (turnCosts) {
+                 carEncoder = new CarFlagEncoder(5, 5, 1);
+-                bikeEncoder = new BikeFlagEncoder(4, 2, 1);
++                bikeEncoder = new BikeFlagEncoder("bike", 4, 2, 1);
+             } else {
+                 carEncoder = new CarFlagEncoder();
+                 bikeEncoder = new BikeFlagEncoder();
+diff --git a/reader-osm/src/test/java/com/graphhopper/routing/TrafficChangeWithNodeOrderingReusingTest.java b/reader-osm/src/test/java/com/graphhopper/routing/TrafficChangeWithNodeOrderingReusingTest.java
+index efbc268497..22dccae2c0 100644
+--- a/reader-osm/src/test/java/com/graphhopper/routing/TrafficChangeWithNodeOrderingReusingTest.java
++++ b/reader-osm/src/test/java/com/graphhopper/routing/TrafficChangeWithNodeOrderingReusingTest.java
+@@ -175,7 +175,7 @@ private static String fmt(double number) {
+         private final double maxDeviationPercentage;
+ 
+         public RandomDeviationWeighting(Weighting baseWeighting, double maxDeviationPercentage) {
+-            super(baseWeighting.getFlagEncoder());
++            super("random_deviation", baseWeighting.getFlagEncoder());
+             this.baseWeighting = baseWeighting;
+             this.maxDeviationPercentage = maxDeviationPercentage;
+         }
+@@ -209,10 +209,5 @@ public double calcEdgeWeight(EdgeIteratorState edgeState, boolean reverse) {
+             }
+             return result;
+         }
+-
+-        @Override
+-        public String getName() {
+-            return "random_deviation";
+-        }
+     }
+ }
+diff --git a/tools/src/main/java/com/graphhopper/tools/Measurement.java b/tools/src/main/java/com/graphhopper/tools/Measurement.java
+index b5e8be35b0..8322867fb5 100644
+--- a/tools/src/main/java/com/graphhopper/tools/Measurement.java
++++ b/tools/src/main/java/com/graphhopper/tools/Measurement.java
+@@ -141,6 +141,8 @@ protected DataReader importData() throws IOException {
+             }
+         };
+ 
++        // add more encoded values for CustomModel
++        args.put("graph.encoded_values", "max_width,max_height,toll,hazmat");
+         hopper.init(args).
+                 // use server to allow path simplification
+                         forServer();
+@@ -152,6 +154,7 @@ protected DataReader importData() throws IOException {
+         hopper.getLMFactoryDecorator().setDisablingAllowed(true);
+         hopper.importOrLoad();
+ 
++        CustomModel customModel = createCustomModel();
+         GraphHopperStorage g = hopper.getGraphHopperStorage();
+         EncodingManager encodingManager = hopper.getEncodingManager();
+         if (encodingManager.fetchEdgeEncoders().size() != 1) {
+@@ -173,6 +176,8 @@ protected DataReader importData() throws IOException {
+             if (runSlow) {
+                 printTimeOfRouteQuery(hopper, new QuerySettings("routing", vehicleStr, count / 20, isCH, isLM).
+                         withInstructions());
++                printTimeOfRouteQuery(hopper, new QuerySettings("routing_custom", vehicleStr, count / 20, isCH, isLM).
++                        withInstructions().customModel(customModel));
+                 printTimeOfRouteQuery(hopper, new QuerySettings("routing_edge", vehicleStr, count / 20, isCH, isLM).
+                         withInstructions().edgeBased());
+                 printTimeOfRouteQuery(hopper, new QuerySettings("routing_block_area", vehicleStr, count / 20, isCH, isLM).
+@@ -193,6 +198,9 @@ protected DataReader importData() throws IOException {
+                 activeLMCount = 8;
+                 printTimeOfRouteQuery(hopper, new QuerySettings("routingLM" + activeLMCount + "_block_area", vehicleStr, count / 4, isCH, isLM).
+                         withInstructions().activeLandmarks(activeLMCount).blockArea(blockAreaStr));
++                // TODO NOW it does not seem to work!? I.e. it is not faster than routing_custom
++                printTimeOfRouteQuery(hopper, new QuerySettings("routingLM" + activeLMCount + "_custom", vehicleStr, count / 20, isCH, isLM).
++                        withInstructions().activeLandmarks(activeLMCount).customModel(customModel));
+                 // compareRouting(hopper, vehicleStr, count / 5);
+             }
+ 
+@@ -267,6 +275,7 @@ protected DataReader importData() throws IOException {
+         int activeLandmarks = -1;
+         boolean withInstructions, withPointHints, sod, edgeBased, simplify, alternative;
+         String blockArea;
++        CustomModel customModel;
+ 
+         QuerySettings(String prefix, String vehicle, int count, boolean isCH, boolean isLM) {
+             this.vehicle = vehicle;
+@@ -315,6 +324,15 @@ QuerySettings blockArea(String str) {
+             blockArea = str;
+             return this;
+         }
++
++        public QuerySettings customModel(CustomModel customModel) {
++            this.customModel = customModel;
++            return this;
++        }
++
++        public CustomModel customModel() {
++            return customModel;
++        }
+     }
+ 
+     void fillAllowedEdges(AllEdgesIterator iter, GHBitSet bs) {
+@@ -550,7 +568,7 @@ public int doCalc(boolean warmup, int run) {
+                 double toLat = na.getLatitude(to);
+                 double toLon = na.getLongitude(to);
+                 GHRequest req = new GHRequest(fromLat, fromLon, toLat, toLon).
+-                        setWeighting("fastest").
++                        setWeighting(querySettings.customModel() == null ? "fastest" : "custom").
+                         setVehicle(querySettings.vehicle);
+ 
+                 req.getHints().put(CH.DISABLE, !querySettings.ch).
+@@ -589,9 +607,9 @@ public int doCalc(boolean warmup, int run) {
+                 // put(algo + ".approximation", "BeelineSimplification").
+                 // put(algo + ".epsilon", 2);
+ 
+-                GHResponse rsp;
++                GHResponse rsp = new GHResponse();
+                 try {
+-                    rsp = hopper.route(req);
++                    hopper.calcPaths(req, rsp, querySettings.customModel());
+                 } catch (Exception ex) {
+                     // 'not found' can happen if import creates more than one subnetwork
+                     throw new RuntimeException("Error while calculating route! "
+@@ -704,6 +722,35 @@ private void storeJson(String jsonLocation, boolean useMeasurementTimeAsRefTime)
+         }
+     }
+ 
++    private CustomModel createCustomModel() {
++        CustomModel customModel = new CustomModel();
++        customModel.setBase("car");
++        customModel.setVehicleMaxSpeed(110.0);
++        customModel.setVehicleHeight(3.8);
++        customModel.setVehicleWidth(2.5);
++        // the default distance_factor for custom requests is currently 1 which makes it too different regarding speed
++        // compared to a normal car request. So, set it to 0 for a fair speed comparison.
++        customModel.setDistanceFactor(0);
++
++        Map<String, Object> map = new HashMap<>();
++        map.put("motorway", 1.1);
++        map.put("primary", 0.5);
++        customModel.getPriority().put("road_class", map);
++        map = new HashMap<>();
++        map.put("no", 1.5);
++        customModel.getPriority().put("toll", map);
++        map = new HashMap<>();
++        map.put("no", 0);
++        customModel.getPriority().put("hazmat", map);
++
++        map = new HashMap<>();
++        map.put("motorway", 0.85);
++        map.put("primary", 0.9);
++        customModel.getSpeedFactor().put("road_class", map);
++
++        return customModel;
++    }
++
+     private void storeProperties(String propLocation) {
+         logger.info("storing measurement properties in " + propLocation);
+         try (FileWriter fileWriter = new FileWriter(propLocation)) {
+diff --git a/tools/src/main/java/com/graphhopper/ui/MiniGraphUI.java b/tools/src/main/java/com/graphhopper/ui/MiniGraphUI.java
+index a2d1a65871..e3e38ae510 100644
+--- a/tools/src/main/java/com/graphhopper/ui/MiniGraphUI.java
++++ b/tools/src/main/java/com/graphhopper/ui/MiniGraphUI.java
+@@ -145,7 +145,7 @@ public RoutingAlgorithm createAlgo(Graph g, AlgorithmOptions opts) {
+             map.put(Parameters.CH.DISABLE, true);
+ //            map.put(Parameters.Landmark.DISABLE, true);
+             routingGraph = graph;
+-            weighting = hopper.createWeighting(map, encoder, graph, NO_TURN_COST_PROVIDER);
++            weighting = hopper.createWeighting(map, encoder, graph, NO_TURN_COST_PROVIDER, null);
+             final RoutingAlgorithmFactory tmpFactory = hopper.getAlgorithmFactory(map);
+             algoFactory = new RoutingAlgorithmFactory() {
+ 
+diff --git a/web-api/src/main/java/com/graphhopper/jackson/CustomModelDeserializer.java b/web-api/src/main/java/com/graphhopper/jackson/CustomModelDeserializer.java
+new file mode 100644
+index 0000000000..e548e3ef08
+--- /dev/null
++++ b/web-api/src/main/java/com/graphhopper/jackson/CustomModelDeserializer.java
+@@ -0,0 +1,35 @@
++/*
++ *  Licensed to GraphHopper GmbH under one or more contributor
++ *  license agreements. See the NOTICE file distributed with this work for
++ *  additional information regarding copyright ownership.
++ *
++ *  GraphHopper GmbH licenses this file to you under the Apache License,
++ *  Version 2.0 (the "License"); you may not use this file except in
++ *  compliance with the License. You may obtain a copy of the License at
++ *
++ *       http://www.apache.org/licenses/LICENSE-2.0
++ *
++ *  Unless required by applicable law or agreed to in writing, software
++ *  distributed under the License is distributed on an "AS IS" BASIS,
++ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ *  See the License for the specific language governing permissions and
++ *  limitations under the License.
++ */
++package com.graphhopper.jackson;
++
++import com.fasterxml.jackson.core.JsonParser;
++import com.fasterxml.jackson.databind.DeserializationContext;
++import com.fasterxml.jackson.databind.JsonDeserializer;
++import com.fasterxml.jackson.databind.ObjectMapper;
++import com.fasterxml.jackson.databind.PropertyNamingStrategy;
++import com.graphhopper.routing.util.CustomModel;
++
++import java.io.IOException;
++
++public class CustomModelDeserializer extends JsonDeserializer<CustomModel> {
++    @Override
++    public CustomModel deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
++        p.setCodec(new ObjectMapper().setPropertyNamingStrategy(PropertyNamingStrategy.SNAKE_CASE));
++        return p.readValueAs(CustomModel.class);
++    }
++}
+diff --git a/web-api/src/main/java/com/graphhopper/jackson/CustomModelMixIn.java b/web-api/src/main/java/com/graphhopper/jackson/CustomModelMixIn.java
+new file mode 100644
+index 0000000000..66f61a1f70
+--- /dev/null
++++ b/web-api/src/main/java/com/graphhopper/jackson/CustomModelMixIn.java
+@@ -0,0 +1,56 @@
++/*
++ *  Licensed to GraphHopper GmbH under one or more contributor
++ *  license agreements. See the NOTICE file distributed with this work for
++ *  additional information regarding copyright ownership.
++ *
++ *  GraphHopper GmbH licenses this file to you under the Apache License,
++ *  Version 2.0 (the "License"); you may not use this file except in
++ *  compliance with the License. You may obtain a copy of the License at
++ *
++ *       http://www.apache.org/licenses/LICENSE-2.0
++ *
++ *  Unless required by applicable law or agreed to in writing, software
++ *  distributed under the License is distributed on an "AS IS" BASIS,
++ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ *  See the License for the specific language governing permissions and
++ *  limitations under the License.
++ */
++package com.graphhopper.jackson;
++
++import com.fasterxml.jackson.annotation.JsonProperty;
++
++import java.util.Map;
++
++/**
++ * With this approach we avoid the jackson annotations dependency in core. Another approach without duplication would
++ * be a separate CustomModelDeserializer with an ObjectMapper with a SNAKE_CASE as property naming strategy.
++ */
++interface CustomModelMixIn {
++
++    @JsonProperty("vehicle_max_speed")
++    double getVehicleMaxSpeed();
++
++    @JsonProperty("vehicle_weight")
++    double getVehicleWeight();
++
++    @JsonProperty("vehicle_width")
++    double getVehicleWidth();
++
++    @JsonProperty("vehicle_height")
++    double getVehicleHeight();
++
++    @JsonProperty("vehicle_length")
++    double getVehicleLength();
++
++    @JsonProperty("min_priority")
++    double getMinPriority();
++
++    @JsonProperty("distance_factor")
++    double getDistanceFactor();
++
++    @JsonProperty("speed_factor")
++    Map<String, Object> getSpeedFactor();
++
++    @JsonProperty("average_speed")
++    Map<String, Object> getAverageSpeed();
++}
+diff --git a/web-api/src/main/java/com/graphhopper/jackson/GraphHopperModule.java b/web-api/src/main/java/com/graphhopper/jackson/GraphHopperModule.java
+index a3deb5d82e..010940ce85 100644
+--- a/web-api/src/main/java/com/graphhopper/jackson/GraphHopperModule.java
++++ b/web-api/src/main/java/com/graphhopper/jackson/GraphHopperModule.java
+@@ -22,6 +22,7 @@
+ import com.graphhopper.GHResponse;
+ import com.graphhopper.MultiException;
+ import com.graphhopper.PathWrapper;
++import com.graphhopper.routing.util.CustomModel;
+ import com.graphhopper.util.CmdArgs;
+ import com.graphhopper.util.InstructionList;
+ import com.graphhopper.util.details.PathDetail;
+@@ -32,6 +33,7 @@
+ 
+     public GraphHopperModule() {
+         setMixInAnnotation(GHRequest.class, GHRequestMixIn.class);
++        addDeserializer(CustomModel.class, new CustomModelDeserializer());
+         addDeserializer(GHResponse.class, new GHResponseDeserializer());
+         addDeserializer(PathWrapper.class, new PathWrapperDeserializer());
+         addDeserializer(BBox.class, new BBoxDeserializer());
+diff --git a/web-bundle/src/main/java/com/graphhopper/http/GraphHopperManaged.java b/web-bundle/src/main/java/com/graphhopper/http/GraphHopperManaged.java
+index 8d890c37d9..6a869b65ec 100644
+--- a/web-bundle/src/main/java/com/graphhopper/http/GraphHopperManaged.java
++++ b/web-bundle/src/main/java/com/graphhopper/http/GraphHopperManaged.java
+@@ -20,23 +20,26 @@
+ 
+ import com.fasterxml.jackson.databind.DeserializationFeature;
+ import com.fasterxml.jackson.databind.ObjectMapper;
++import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+ import com.graphhopper.GraphHopper;
++import com.graphhopper.jackson.Jackson;
+ import com.graphhopper.json.geo.JsonFeatureCollection;
+ import com.graphhopper.reader.gtfs.GraphHopperGtfs;
+ import com.graphhopper.reader.osm.GraphHopperOSM;
+ import com.graphhopper.routing.lm.LandmarkStorage;
++import com.graphhopper.routing.util.CustomModel;
+ import com.graphhopper.routing.util.spatialrules.SpatialRuleLookupHelper;
+ import com.graphhopper.util.CmdArgs;
++import com.graphhopper.util.Helper;
+ import com.graphhopper.util.Parameters;
+ import com.graphhopper.util.shapes.BBox;
+ import io.dropwizard.lifecycle.Managed;
+ import org.slf4j.Logger;
+ import org.slf4j.LoggerFactory;
+ 
+-import java.io.FileInputStream;
+-import java.io.IOException;
+-import java.io.InputStreamReader;
+-import java.io.Reader;
++import java.io.*;
++import java.util.Arrays;
++import java.util.Map;
+ 
+ import static com.graphhopper.util.Helper.UTF_CS;
+ 
+@@ -71,6 +74,20 @@ public GraphHopperManaged(CmdArgs configuration, ObjectMapper objectMapper) {
+                 throw new RuntimeException(e);
+             }
+         }
++
++        String customModelLocation = configuration.get("graph.custom_profiles.directory", "");
++        if (!customModelLocation.isEmpty()) {
++            ObjectMapper yamlOM = Jackson.initObjectMapper(new ObjectMapper(new YAMLFactory()));
++            for (Map.Entry<String, File> entry : Helper.listFiles(new File(customModelLocation), Arrays.asList("yaml", "yml"))) {
++                try {
++                    CustomModel customModel = yamlOM.readValue(entry.getValue(), CustomModel.class);
++                    graphHopper.putCustomModel(entry.getKey(), customModel);
++                } catch (Exception ex) {
++                    throw new RuntimeException("Cannot custom_model from " + entry.getValue(), ex);
++                }
++            }
++        }
++
+         graphHopper.init(configuration);
+     }
+ 
+diff --git a/web-bundle/src/main/java/com/graphhopper/resources/IsochroneResource.java b/web-bundle/src/main/java/com/graphhopper/resources/IsochroneResource.java
+index 5e455dcd8f..6855ecf9e5 100644
+--- a/web-bundle/src/main/java/com/graphhopper/resources/IsochroneResource.java
++++ b/web-bundle/src/main/java/com/graphhopper/resources/IsochroneResource.java
+@@ -92,7 +92,7 @@ public Response doGet(
+         RouteResource.initHints(hintsMap, uriInfo.getQueryParameters());
+ 
+         // todo: isochrones with turn costs ?
+-        Weighting weighting = graphHopper.createWeighting(hintsMap, encoder, graph, NO_TURN_COST_PROVIDER);
++        Weighting weighting = graphHopper.createWeighting(hintsMap, encoder, graph, NO_TURN_COST_PROVIDER, null);
+         Isochrone isochrone = new Isochrone(queryGraph, weighting, reverseFlow);
+ 
+         if (distanceInMeter > 0) {
+diff --git a/web-bundle/src/main/java/com/graphhopper/resources/RouteResource.java b/web-bundle/src/main/java/com/graphhopper/resources/RouteResource.java
+index 3d17c90ac1..6c00ea4c62 100644
+--- a/web-bundle/src/main/java/com/graphhopper/resources/RouteResource.java
++++ b/web-bundle/src/main/java/com/graphhopper/resources/RouteResource.java
+@@ -17,11 +17,12 @@
+  */
+ package com.graphhopper.resources;
+ 
+-import com.graphhopper.GHRequest;
+-import com.graphhopper.GHResponse;
+-import com.graphhopper.GraphHopperAPI;
+-import com.graphhopper.MultiException;
++import com.fasterxml.jackson.databind.ObjectMapper;
++import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
++import com.graphhopper.*;
+ import com.graphhopper.http.WebHelper;
++import com.graphhopper.jackson.Jackson;
++import com.graphhopper.routing.util.CustomRequest;
+ import com.graphhopper.routing.util.HintsMap;
+ import com.graphhopper.util.Constants;
+ import com.graphhopper.util.InstructionList;
+@@ -59,11 +60,13 @@
+ 
+     private final GraphHopperAPI graphHopper;
+     private final Boolean hasElevation;
++    private final ObjectMapper yamlOM;
+ 
+     @Inject
+     public RouteResource(GraphHopperAPI graphHopper, @Named("hasElevation") Boolean hasElevation) {
+         this.graphHopper = graphHopper;
+         this.hasElevation = hasElevation;
++        this.yamlOM = Jackson.initObjectMapper(new ObjectMapper(new YAMLFactory()));
+     }
+ 
+     @GET
+@@ -176,7 +179,15 @@ public Response doPost(GHRequest request, @Context HttpServletRequest httpReq) {
+             throw new IllegalArgumentException("Empty request");
+ 
+         StopWatch sw = new StopWatch().start();
+-        GHResponse ghResponse = graphHopper.route(request);
++        GHResponse ghResponse = new GHResponse();
++        if (request instanceof CustomRequest) {
++            if (!(graphHopper instanceof GraphHopper))
++                throw new IllegalStateException("CustomRequest requires GraphHopper base class");
++            request.setWeighting("custom").getHints().put("ch.disable", true);
++            ((GraphHopper) graphHopper).calcPaths(request, ghResponse, ((CustomRequest) request).getModel());
++        } else {
++            ghResponse = graphHopper.route(request);
++        }
+ 
+         boolean instructions = request.getHints().getBool(INSTRUCTIONS, true);
+         boolean writeGPX = "gpx".equalsIgnoreCase(request.getHints().get("type", "json"));
+@@ -185,16 +196,17 @@ public Response doPost(GHRequest request, @Context HttpServletRequest httpReq) {
+         boolean calcPoints = request.getHints().getBool(CALC_POINTS, true);
+         boolean pointsEncoded = request.getHints().getBool("points_encoded", true);
+ 
+-        /* default to false for the route part in next API version, see #437 */
++        // default to false for the route part in next API version, see #437
+         boolean withRoute = request.getHints().getBool("gpx.route", true);
+         boolean withTrack = request.getHints().getBool("gpx.track", true);
+         boolean withWayPoints = request.getHints().getBool("gpx.waypoints", false);
+         String trackName = request.getHints().get("gpx.trackname", "GraphHopper Track");
+         String timeString = request.getHints().get("gpx.millis", "");
+         float took = sw.stop().getSeconds();
+-        String infoStr = httpReq.getRemoteAddr() + " " + httpReq.getLocale() + " " + httpReq.getHeader("User-Agent");
+-        String logStr = httpReq.getQueryString() + " " + infoStr + " " + request.getPoints().size() + ", took:"
+-                + took + ", " + request.getAlgorithm() + ", " + request.getWeighting() + ", " + request.getVehicle();
++        String logStr = (httpReq.getQueryString() == null ? "-" : httpReq.getQueryString())
++                + " " + httpReq.getRemoteAddr() + " " + httpReq.getLocale() + " " + httpReq.getHeader("User-Agent")
++                + " " + request.getPoints().size() + ", took:" + took + ", " + request.getAlgorithm()
++                + ", " + request.getWeighting() + ", " + request.getVehicle();
+ 
+         if (ghResponse.hasErrors()) {
+             logger.error(logStr + ", errors:" + ghResponse.getErrors());
+@@ -217,6 +229,20 @@ public Response doPost(GHRequest request, @Context HttpServletRequest httpReq) {
+         }
+     }
+ 
++    @POST
++    @Consumes({"text/x-yaml", "text/yaml", "application/x-yaml", "application/yaml"})
++    @Produces({MediaType.APPLICATION_JSON, MediaType.APPLICATION_XML, "application/gpx+xml"})
++    public Response doPost(String yaml, @Context HttpServletRequest httpReq) {
++        CustomRequest customRequest;
++        try {
++            customRequest = yamlOM.readValue(yaml, CustomRequest.class);
++        } catch (Exception ex) {
++            // TODO should we really provide this much details to API users?
++            throw new IllegalArgumentException("Incorrect YAML: " + ex.getMessage(), ex);
++        }
++        return doPost(customRequest, httpReq);
++    }
++
+     private void enableEdgeBasedIfThereAreCurbsides(List<String> curbsides, GHRequest request) {
+         if (!curbsides.isEmpty()) {
+             if (!request.getHints().getBool(EDGE_BASED, true)) {
+diff --git a/web-bundle/src/main/java/com/graphhopper/resources/SPTResource.java b/web-bundle/src/main/java/com/graphhopper/resources/SPTResource.java
+index 371871412d..23825d3619 100644
+--- a/web-bundle/src/main/java/com/graphhopper/resources/SPTResource.java
++++ b/web-bundle/src/main/java/com/graphhopper/resources/SPTResource.java
+@@ -80,7 +80,7 @@ public Response doGet(
+         RouteResource.initHints(hintsMap, uriInfo.getQueryParameters());
+ 
+         // todo: /spt with turn costs ?
+-        Weighting weighting = graphHopper.createWeighting(hintsMap, encoder, graph, NO_TURN_COST_PROVIDER);
++        Weighting weighting = graphHopper.createWeighting(hintsMap, encoder, graph, NO_TURN_COST_PROVIDER, null);
+         Isochrone isochrone = new Isochrone(queryGraph, weighting, reverseFlow);
+ 
+         if (distanceInMeter > 0) {
+diff --git a/web/src/main/resources/assets/index.html b/web/src/main/resources/assets/index.html
+index 7a8e1a79b4..4deb8086cb 100644
+--- a/web/src/main/resources/assets/index.html
++++ b/web/src/main/resources/assets/index.html
+@@ -60,8 +60,13 @@
+             <div class="clear"></div>
+             <input id="searchButton" type="submit" value="Search">
+         </form>
++        <div id="flex-input-link" class="left" style="cursor: pointer"><small>flex</small></div>
+         <div id="export-link" class="left"><a href="/maps"><img src='img/link.png'></a></div>
+         <div id="gpxExportButton"><a href=""><img alt="gpx" src='img/gpx.png'></a></div>
++        <div id="flex-input" style="display: none">
++            <textarea id="flex-input-text" name="Text1" cols="34" rows="10"></textarea>
++            <input id="flex-search-button" style="float: right; margin-right: 5px" type="submit" value="Search">
++        </div>
+         <div id="hosting">Powered by <a href='https://www.graphhopper.com/products/'>GraphHopper API</a></div>
+     </div>
+     <div class="clear"></div>
+diff --git a/web/src/main/resources/assets/js/main-template.js b/web/src/main/resources/assets/js/main-template.js
+index 7b0543fb15..0f3e5efdcb 100644
+--- a/web/src/main/resources/assets/js/main-template.js
++++ b/web/src/main/resources/assets/js/main-template.js
+@@ -81,6 +81,94 @@ $(document).ready(function (e) {
+ 
+     gpxExport.addGpxExport(ghRequest);
+ 
++    $("#flex-input-link").click(function() {
++        $("#regular-input").toggle();
++        $("#flex-input").toggle();
++        // avoid default action, so use a different search button
++        $("#searchButton").toggle();
++        mapLayer.adjustMapSize();
++    });
++
++    var sendData = function() {
++       mapLayer.clearElevation();
++       mapLayer.clearLayers();
++       flagAll();
++
++       var infoDiv = $("#info");
++       infoDiv.empty();
++       infoDiv.show();
++       var routeResultsDiv = $("<div class='route_results'/>");
++       infoDiv.append(routeResultsDiv);
++       routeResultsDiv.html('<img src="img/indicator.gif"/> Search Route ...');
++       var inputText = $("#flex-input-text").val();
++       if(inputText.length < 5) {
++           routeResultsDiv.html("JSON/YAML too short");
++           return;
++       }
++
++       var points = [];
++       for(var idx = 0; idx < ghRequest.route.size(); idx++) {
++           var point = ghRequest.route.getIndex(idx);
++           if (point.isResolved()) {
++               points.push([point.lng, point.lat]);
++           } else {
++               routeResultsDiv.html("Unresolved points");
++               return;
++           }
++       }
++
++       var request, contentType;
++       if(inputText.indexOf("{") == 0) {
++           try {
++             contentType = 'application/json; charset=utf-8';
++             var jsonModel = JSON.parse(inputText);
++             var jsonRequest = {"model": jsonModel, "points": points, "points_encoded": "false", "elevation": ghRequest.api_params.elevation};
++             request = JSON.stringify(jsonRequest);
++           } catch(ex) {
++             routeResultsDiv.html("Cannot parse JSON " + ex);
++             return;
++           }
++       } else {
++           contentType = "text/yaml";
++           var lines = inputText.split('\n');
++           var modelText = "";
++           for(var i = 0; i < lines.length; i++) {
++             modelText += " "+lines[i] + "\n";
++           }
++           var pointsStr = "";
++           for(var i = 0; i < points.length; i++) {
++             if(i > 0) pointsStr += ",";
++             pointsStr += "[" + points[i] + "]";
++           }
++
++           request = "points: [" + pointsStr + "]\n"
++                   + "points_encoded: false\n"
++                   + "elevation: " + ghRequest.api_params.elevation +"\n"
++                   + "model:\n" + modelText;
++           console.log(request)
++       }
++
++       $.ajax({
++           url: "/route",
++           type: "POST",
++           contentType: contentType,
++           dataType: "json",
++           data: request,
++           success: createRouteCallback(ghRequest, routeResultsDiv, "", true),
++           error: function(err) {
++               routeResultsDiv.html("Error response: cannot process input");
++               var json = JSON.parse(err.responseText);
++               createRouteCallback(ghRequest, routeResultsDiv, "", true)(json);
++           }
++        });
++    };
++
++    $("#flex-input-text").keydown(function (e) {
++        // CTRL+Enter
++        if (e.ctrlKey && e.keyCode == 13) sendData();
++    });
++    $("#flex-search-button").click(sendData);
++
+     if (isProduction())
+         $('#hosting').show();
+ 
+@@ -510,6 +598,202 @@ function flagAll() {
+     }
+ }
+ 
++function createRouteCallback(request, routeResultsDiv, urlForHistory, doZoom) {
++    return function (json) {
++       routeResultsDiv.html("");
++       if (json.message) {
++           var tmpErrors = json.message;
++           console.log(tmpErrors);
++           if (json.hints) {
++               for (var m = 0; m < json.hints.length; m++) {
++                   routeResultsDiv.append("<div class='error'>" + json.hints[m].message + "</div>");
++               }
++           } else {
++               routeResultsDiv.append("<div class='error'>" + tmpErrors + "</div>");
++           }
++           return;
++       }
++
++       function createClickHandler(geoJsons, currentLayerIndex, tabHeader, oneTab, hasElevation, details) {
++           return function () {
++
++               var currentGeoJson = geoJsons[currentLayerIndex];
++               mapLayer.eachLayer(function (layer) {
++                   // skip markers etc
++                   if (!layer.setStyle)
++                       return;
++
++                   var doHighlight = layer.feature === currentGeoJson;
++                   layer.setStyle(doHighlight ? highlightRouteStyle : alternativeRouteStye);
++                   if (doHighlight) {
++                       if (!L.Browser.ie && !L.Browser.opera)
++                           layer.bringToFront();
++                   }
++               });
++
++               if (hasElevation) {
++                   mapLayer.clearElevation();
++                   mapLayer.addElevation(currentGeoJson, details);
++               }
++
++               headerTabs.find("li").removeClass("current");
++               routeResultsDiv.find("div").removeClass("current");
++
++               tabHeader.addClass("current");
++               oneTab.addClass("current");
++           };
++       }
++
++       var headerTabs = $("<ul id='route_result_tabs'/>");
++       if (json.paths.length > 1) {
++           routeResultsDiv.append(headerTabs);
++           routeResultsDiv.append("<div class='clear'/>");
++       }
++
++       // the routing layer uses the geojson properties.style for the style, see map.js
++       var defaultRouteStyle = {color: "#00cc33", "weight": 5, "opacity": 0.6};
++       var highlightRouteStyle = {color: "#00cc33", "weight": 6, "opacity": 0.8};
++       var alternativeRouteStye = {color: "darkgray", "weight": 6, "opacity": 0.8};
++       var geoJsons = [];
++       var firstHeader;
++
++       // Create buttons to toggle between SI and imperial units.
++       var createUnitsChooserButtonClickHandler = function (useMiles) {
++           return function () {
++               mapLayer.updateScale(useMiles);
++               ghRequest.useMiles = useMiles;
++               resolveAll();
++               if (ghRequest.route.isResolved())
++                 routeLatLng(ghRequest);
++           };
++       };
++
++       if(json.paths.length > 0 && json.paths[0].points_order) {
++           mapLayer.clearLayers();
++           var po = json.paths[0].points_order;
++           for (i = 0; i < po.length; i++) {
++               setFlag(ghRequest.route.getIndex(po[i]), i);
++           }
++       }
++
++       for (var pathIndex = 0; pathIndex < json.paths.length; pathIndex++) {
++           var tabHeader = $("<li>").append((pathIndex + 1) + "<img class='alt_route_img' src='img/alt_route.png'/>");
++           if (pathIndex === 0)
++               firstHeader = tabHeader;
++
++           headerTabs.append(tabHeader);
++           var path = json.paths[pathIndex];
++           var style = (pathIndex === 0) ? defaultRouteStyle : alternativeRouteStye;
++
++           var geojsonFeature = {
++               "type": "Feature",
++               "geometry": path.points,
++               "properties": {
++                   "style": style,
++                   name: "route",
++                   snapped_waypoints: path.snapped_waypoints
++               }
++           };
++
++           geoJsons.push(geojsonFeature);
++           mapLayer.addDataToRoutingLayer(geojsonFeature);
++           var oneTab = $("<div class='route_result_tab'>");
++           routeResultsDiv.append(oneTab);
++           tabHeader.click(createClickHandler(geoJsons, pathIndex, tabHeader, oneTab, request.hasElevation(), path.details));
++
++           var routeInfo = $("<div class='route_description'>");
++           if (path.description && path.description.length > 0) {
++               routeInfo.text(path.description);
++               routeInfo.append("<br/>");
++           }
++
++           var tempDistance = translate.createDistanceString(path.distance, request.useMiles);
++           var tempRouteInfo;
++           if(request.isPublicTransit()) {
++               var tempArrTime = moment(ghRequest.getEarliestDepartureTime())
++                                       .add(path.time, 'milliseconds')
++                                       .format('LT');
++               if(path.transfers >= 0)
++                   tempRouteInfo = translate.tr("pt_route_info", [tempArrTime, path.transfers, tempDistance]);
++               else
++                   tempRouteInfo = translate.tr("pt_route_info_walking", [tempArrTime, tempDistance]);
++           } else {
++               var tmpDuration = translate.createTimeString(path.time);
++               tempRouteInfo = translate.tr("route_info", [tempDistance, tmpDuration]);
++           }
++
++           routeInfo.append(tempRouteInfo);
++
++           var kmButton = $("<button class='plain_text_button " + (request.useMiles ? "gray" : "") + "'>");
++           kmButton.text(translate.tr2("km_abbr"));
++           kmButton.click(createUnitsChooserButtonClickHandler(false));
++
++           var miButton = $("<button class='plain_text_button " + (request.useMiles ? "" : "gray") + "'>");
++           miButton.text(translate.tr2("mi_abbr"));
++           miButton.click(createUnitsChooserButtonClickHandler(true));
++
++           var buttons = $("<span style='float: right;'>");
++           buttons.append(kmButton);
++           buttons.append('|');
++           buttons.append(miButton);
++
++           routeInfo.append(buttons);
++
++           if (request.hasElevation()) {
++               routeInfo.append(translate.createEleInfoString(path.ascend, path.descend, request.useMiles));
++           }
++
++           routeInfo.append($("<div style='clear:both'/>"));
++           oneTab.append(routeInfo);
++
++           if (path.instructions) {
++               var instructions = require('./instructions.js');
++               oneTab.append(instructions.create(mapLayer, path, urlForHistory, request));
++           }
++
++           var detailObj = path.details;
++           if(detailObj && request.api_params.debug) {
++               // detailKey, would be for example average_speed
++               for (var detailKey in detailObj) {
++                   var pathDetailsArr = detailObj[detailKey];
++                   for (i = 0; i < pathDetailsArr.length; i++) {
++                       var pathDetailObj = pathDetailsArr[i];
++                       var firstIndex = pathDetailObj[0];
++                       var value = pathDetailObj[2];
++                       var lngLat = path.points.coordinates[firstIndex];
++                       L.marker([lngLat[1], lngLat[0]], {
++                           icon: L.icon({
++                               iconUrl: './img/marker-small-blue.png',
++                               iconSize: [15, 15]
++                           }),
++                           draggable: true,
++                           autoPan: true
++                       }).addTo(mapLayer.getRoutingLayer()).bindPopup(detailKey + ":" + value);
++                   }
++               }
++           }
++       }
++       // already select best path
++       firstHeader.click();
++
++       mapLayer.adjustMapSize();
++       // TODO change bounding box on click
++       var firstPath = json.paths[0];
++       if (firstPath.bbox && doZoom) {
++           var minLon = firstPath.bbox[0];
++           var minLat = firstPath.bbox[1];
++           var maxLon = firstPath.bbox[2];
++           var maxLat = firstPath.bbox[3];
++           var tmpB = new L.LatLngBounds(new L.LatLng(minLat, minLon), new L.LatLng(maxLat, maxLon));
++           mapLayer.fitMapToBounds(tmpB);
++       }
++
++       $('.defaulting').each(function (index, element) {
++           $(element).css("color", "black");
++       });
++   }
++}
++
+ function routeLatLng(request, doQuery) {
+     var i;
+ 
+@@ -548,199 +832,7 @@ function routeLatLng(request, doQuery) {
+ 
+     var urlForAPI = request.createURL();
+     routeResultsDiv.html('<img src="img/indicator.gif"/> Search Route ...');
+-    request.doRequest(urlForAPI, function (json) {
+-        routeResultsDiv.html("");
+-        if (json.message) {
+-            var tmpErrors = json.message;
+-            console.log(tmpErrors);
+-            if (json.hints) {
+-                for (var m = 0; m < json.hints.length; m++) {
+-                    routeResultsDiv.append("<div class='error'>" + json.hints[m].message + "</div>");
+-                }
+-            } else {
+-                routeResultsDiv.append("<div class='error'>" + tmpErrors + "</div>");
+-            }
+-            return;
+-        }
+-
+-        function createClickHandler(geoJsons, currentLayerIndex, tabHeader, oneTab, hasElevation, details) {
+-            return function () {
+-
+-                var currentGeoJson = geoJsons[currentLayerIndex];
+-                mapLayer.eachLayer(function (layer) {
+-                    // skip markers etc
+-                    if (!layer.setStyle)
+-                        return;
+-
+-                    var doHighlight = layer.feature === currentGeoJson;
+-                    layer.setStyle(doHighlight ? highlightRouteStyle : alternativeRouteStye);
+-                    if (doHighlight) {
+-                        if (!L.Browser.ie && !L.Browser.opera)
+-                            layer.bringToFront();
+-                    }
+-                });
+-
+-                if (hasElevation) {
+-                    mapLayer.clearElevation();
+-                    mapLayer.addElevation(currentGeoJson, details);
+-                }
+-
+-                headerTabs.find("li").removeClass("current");
+-                routeResultsDiv.find("div").removeClass("current");
+-
+-                tabHeader.addClass("current");
+-                oneTab.addClass("current");
+-            };
+-        }
+-
+-        var headerTabs = $("<ul id='route_result_tabs'/>");
+-        if (json.paths.length > 1) {
+-            routeResultsDiv.append(headerTabs);
+-            routeResultsDiv.append("<div class='clear'/>");
+-        }
+-
+-        // the routing layer uses the geojson properties.style for the style, see map.js
+-        var defaultRouteStyle = {color: "#00cc33", "weight": 5, "opacity": 0.6};
+-        var highlightRouteStyle = {color: "#00cc33", "weight": 6, "opacity": 0.8};
+-        var alternativeRouteStye = {color: "darkgray", "weight": 6, "opacity": 0.8};
+-        var geoJsons = [];
+-        var firstHeader;
+-
+-        // Create buttons to toggle between SI and imperial units.
+-        var createUnitsChooserButtonClickHandler = function (useMiles) {
+-            return function () {
+-                mapLayer.updateScale(useMiles);
+-                ghRequest.useMiles = useMiles;
+-                resolveAll();
+-                if (ghRequest.route.isResolved())
+-                  routeLatLng(ghRequest);
+-            };
+-        };
+-
+-        if(json.paths.length > 0 && json.paths[0].points_order) {
+-            mapLayer.clearLayers();
+-            var po = json.paths[0].points_order;
+-            for (i = 0; i < po.length; i++) {
+-                setFlag(ghRequest.route.getIndex(po[i]), i);
+-            }
+-        }
+-
+-        for (var pathIndex = 0; pathIndex < json.paths.length; pathIndex++) {
+-            var tabHeader = $("<li>").append((pathIndex + 1) + "<img class='alt_route_img' src='img/alt_route.png'/>");
+-            if (pathIndex === 0)
+-                firstHeader = tabHeader;
+-
+-            headerTabs.append(tabHeader);
+-            var path = json.paths[pathIndex];
+-            var style = (pathIndex === 0) ? defaultRouteStyle : alternativeRouteStye;
+-
+-            var geojsonFeature = {
+-                "type": "Feature",
+-                "geometry": path.points,
+-                "properties": {
+-                    "style": style,
+-                    name: "route",
+-                    snapped_waypoints: path.snapped_waypoints
+-                }
+-            };
+-
+-            geoJsons.push(geojsonFeature);
+-            mapLayer.addDataToRoutingLayer(geojsonFeature);
+-            var oneTab = $("<div class='route_result_tab'>");
+-            routeResultsDiv.append(oneTab);
+-            tabHeader.click(createClickHandler(geoJsons, pathIndex, tabHeader, oneTab, request.hasElevation(), path.details));
+-
+-            var routeInfo = $("<div class='route_description'>");
+-            if (path.description && path.description.length > 0) {
+-                routeInfo.text(path.description);
+-                routeInfo.append("<br/>");
+-            }
+-
+-            var tempDistance = translate.createDistanceString(path.distance, request.useMiles);
+-            var tempRouteInfo;
+-            if(request.isPublicTransit()) {
+-                var tempArrTime = moment(ghRequest.getEarliestDepartureTime())
+-                                        .add(path.time, 'milliseconds')
+-                                        .format('LT');
+-                if(path.transfers >= 0)
+-                    tempRouteInfo = translate.tr("pt_route_info", [tempArrTime, path.transfers, tempDistance]);
+-                else
+-                    tempRouteInfo = translate.tr("pt_route_info_walking", [tempArrTime, tempDistance]);
+-            } else {
+-                var tmpDuration = translate.createTimeString(path.time);
+-                tempRouteInfo = translate.tr("route_info", [tempDistance, tmpDuration]);
+-            }
+-
+-            routeInfo.append(tempRouteInfo);
+-
+-            var kmButton = $("<button class='plain_text_button " + (request.useMiles ? "gray" : "") + "'>");
+-            kmButton.text(translate.tr2("km_abbr"));
+-            kmButton.click(createUnitsChooserButtonClickHandler(false));
+-
+-            var miButton = $("<button class='plain_text_button " + (request.useMiles ? "" : "gray") + "'>");
+-            miButton.text(translate.tr2("mi_abbr"));
+-            miButton.click(createUnitsChooserButtonClickHandler(true));
+-
+-            var buttons = $("<span style='float: right;'>");
+-            buttons.append(kmButton);
+-            buttons.append('|');
+-            buttons.append(miButton);
+-
+-            routeInfo.append(buttons);
+-
+-            if (request.hasElevation()) {
+-                routeInfo.append(translate.createEleInfoString(path.ascend, path.descend, request.useMiles));
+-            }
+-
+-            routeInfo.append($("<div style='clear:both'/>"));
+-            oneTab.append(routeInfo);
+-
+-            if (path.instructions) {
+-                var instructions = require('./instructions.js');
+-                oneTab.append(instructions.create(mapLayer, path, urlForHistory, request));
+-            }
+-
+-            var detailObj = path.details;
+-            if(detailObj && request.api_params.debug) {
+-                // detailKey, would be for example average_speed
+-                for (var detailKey in detailObj) {
+-                    var pathDetailsArr = detailObj[detailKey];
+-                    for (i = 0; i < pathDetailsArr.length; i++) {
+-                        var pathDetailObj = pathDetailsArr[i];
+-                        var firstIndex = pathDetailObj[0];
+-                        var value = pathDetailObj[2];
+-                        var lngLat = path.points.coordinates[firstIndex];
+-                        L.marker([lngLat[1], lngLat[0]], {
+-                            icon: L.icon({
+-                                iconUrl: './img/marker-small-blue.png',
+-                                iconSize: [15, 15]
+-                            }),
+-                            draggable: true,
+-                            autoPan: true
+-                        }).addTo(mapLayer.getRoutingLayer()).bindPopup(detailKey + ":" + value);
+-                    }
+-                }
+-            }
+-        }
+-        // already select best path
+-        firstHeader.click();
+-
+-        mapLayer.adjustMapSize();
+-        // TODO change bounding box on click
+-        var firstPath = json.paths[0];
+-        if (firstPath.bbox && doZoom) {
+-            var minLon = firstPath.bbox[0];
+-            var minLat = firstPath.bbox[1];
+-            var maxLon = firstPath.bbox[2];
+-            var maxLat = firstPath.bbox[3];
+-            var tmpB = new L.LatLngBounds(new L.LatLng(minLat, minLon), new L.LatLng(maxLat, maxLon));
+-            mapLayer.fitMapToBounds(tmpB);
+-        }
+-
+-        $('.defaulting').each(function (index, element) {
+-            $(element).css("color", "black");
+-        });
+-    });
++    request.doRequest(urlForAPI, createRouteCallback(request, routeResultsDiv, urlForHistory, doZoom));
+ }
+ 
+ function mySubmit() {
+diff --git a/web/src/test/java/com/graphhopper/http/resources/CustomWeightingRouteResourceTest.java b/web/src/test/java/com/graphhopper/http/resources/CustomWeightingRouteResourceTest.java
+new file mode 100644
+index 0000000000..a045a5d310
+--- /dev/null
++++ b/web/src/test/java/com/graphhopper/http/resources/CustomWeightingRouteResourceTest.java
+@@ -0,0 +1,88 @@
++package com.graphhopper.http.resources;
++
++import com.fasterxml.jackson.databind.JsonNode;
++import com.graphhopper.http.GraphHopperApplication;
++import com.graphhopper.http.GraphHopperServerConfiguration;
++import com.graphhopper.util.CmdArgs;
++import com.graphhopper.util.Helper;
++import io.dropwizard.testing.junit.DropwizardAppRule;
++import org.junit.AfterClass;
++import org.junit.BeforeClass;
++import org.junit.ClassRule;
++import org.junit.Test;
++
++import javax.ws.rs.client.Entity;
++import javax.ws.rs.core.MediaType;
++import javax.ws.rs.core.Response;
++import java.io.File;
++
++import static com.graphhopper.http.resources.RouteResourceTest.assertBetween;
++import static org.junit.Assert.assertEquals;
++import static org.junit.Assert.assertFalse;
++
++public class CustomWeightingRouteResourceTest {
++
++    private static final String DIR = "./target/north-bayreuth-gh/";
++    private static final GraphHopperServerConfiguration config = new GraphHopperServerConfiguration();
++
++    static {
++        config.getGraphHopperConfiguration().merge(new CmdArgs().
++                put("graph.flag_encoders", "bike,car").
++                put("routing.ch.disabling_allowed", "true").
++                put("graph.custom_profiles.directory", "./src/test/resources/com/graphhopper/http/resources/").
++                put("prepare.min_network_size", "0").
++                put("prepare.min_one_way_network_size", "0").
++                // we need more than the default encoded values (truck.yml and cargo_bike.yml)
++                put("graph.encoded_values", "max_height,max_weight,max_width,hazmat,toll,surface,track_type").
++                put("datareader.file", "../core/files/north-bayreuth.osm.gz").
++                put("graph.location", DIR));
++    }
++
++    @ClassRule
++    public static final DropwizardAppRule<GraphHopperServerConfiguration> app = new DropwizardAppRule<>(GraphHopperApplication.class, config);
++
++    @BeforeClass
++    @AfterClass
++    public static void cleanUp() {
++        Helper.removeDir(new File(DIR));
++    }
++
++    @Test
++    public void testCHQuery() {
++        String jsonQuery = "{" +
++                " \"points\": [[11.58199, 50.0141], [11.5865, 50.0095]]," +
++                " \"vehicle\": \"car\"," +
++                " \"weighting\": \"custom|truck\"" +
++                "}";
++        final Response response = app.client().target("http://localhost:8080/route").request().post(Entity.json(jsonQuery));
++        assertEquals(200, response.getStatus());
++        JsonNode json = response.readEntity(JsonNode.class);
++        JsonNode infoJson = json.get("info");
++        assertFalse(infoJson.has("errors"));
++        JsonNode path = json.get("paths").get(0);
++        assertBetween("distance wasn't correct", path.get("distance").asDouble(), 1400, 1600);
++        assertBetween("time wasn't correct", path.get("time").asLong() / 1000.0, 120, 180);
++    }
++
++    @Test
++    public void testCargoBike() {
++        String yamlQuery = "points: [[11.58199, 50.0141], [11.5865, 50.0095]]\n" +
++                "model:\n" +
++                "  base: bike\n";
++        JsonNode yamlNode = app.client().target("http://localhost:8080/route").request().post(Entity.entity(yamlQuery,
++                new MediaType("application", "yaml"))).readEntity(JsonNode.class);
++        JsonNode path = yamlNode.get("paths").get(0);
++        assertBetween("distance wasn't correct", path.get("distance").asDouble(), 600, 700);
++
++        // TODO load cargo_bike from file - but how to easily merge with the "points" array?
++        yamlQuery = "points: [[11.58199, 50.0141], [11.5865, 50.0095]]\n" +
++                "model:\n" +
++                "  base: bike\n" +
++                // only one tunnel is mapped in this osm file with max_height=1.7 => https://www.openstreetmap.org/way/132908255
++                "  vehicle_height: 2\n";
++        yamlNode = app.client().target("http://localhost:8080/route").request().post(Entity.entity(yamlQuery,
++                new MediaType("application", "yaml"))).readEntity(JsonNode.class);
++        path = yamlNode.get("paths").get(0);
++        assertBetween("distance wasn't correct", path.get("distance").asDouble(), 1000, 2000);
++    }
++}
+\ No newline at end of file
+diff --git a/web/src/test/java/com/graphhopper/http/resources/RouteResourceTest.java b/web/src/test/java/com/graphhopper/http/resources/RouteResourceTest.java
+index f297f02141..e972fc7e0b 100644
+--- a/web/src/test/java/com/graphhopper/http/resources/RouteResourceTest.java
++++ b/web/src/test/java/com/graphhopper/http/resources/RouteResourceTest.java
+@@ -42,6 +42,7 @@
+ import org.junit.Test;
+ 
+ import javax.ws.rs.client.Entity;
++import javax.ws.rs.core.MediaType;
+ import javax.ws.rs.core.Response;
+ import java.io.File;
+ import java.util.Arrays;
+@@ -61,13 +62,13 @@
+ 
+     static {
+         config.getGraphHopperConfiguration().merge(new CmdArgs().
+-                put("graph.flag_encoders", "car").
++                put("graph.flag_encoders", "car,foot").
+                 put("prepare.ch.weightings", "fastest").
+                 put("routing.ch.disabling_allowed", "true").
+                 put("prepare.min_network_size", "0").
+                 put("prepare.min_one_way_network_size", "0").
+                 put("datareader.file", "../core/files/andorra.osm.pbf").
+-                put("graph.encoded_values", "road_class,surface,road_environment,max_speed").
++                put("graph.encoded_values", "surface").
+                 put("graph.location", DIR));
+     }
+ 
+@@ -96,7 +97,7 @@ public void testBasicQuery() {
+     @Test
+     public void testBasicPostQuery() {
+         String jsonStr = "{ \"points\": [[1.536198,42.554851], [1.548128, 42.510071]] }";
+-        final Response response = app.client().target("http://localhost:8080/route").request().post(Entity.json(jsonStr));
++        Response response = app.client().target("http://localhost:8080/route").request().post(Entity.json(jsonStr));
+         assertEquals(200, response.getStatus());
+         JsonNode json = response.readEntity(JsonNode.class);
+         JsonNode infoJson = json.get("info");
+@@ -105,6 +106,12 @@ public void testBasicPostQuery() {
+         double distance = path.get("distance").asDouble();
+         assertTrue("distance wasn't correct:" + distance, distance > 9000);
+         assertTrue("distance wasn't correct:" + distance, distance < 9500);
++
++        // we currently just ignore URL parameters
++        jsonStr = "{ \"points\": [[1.536198,42.554851], [1.548128, 42.510071]] }";
++        response = app.client().target("http://localhost:8080/route?vehicle=unknown&weighting=unknown").request().post(Entity.json(jsonStr));
++        assertEquals(200, response.getStatus());
++        assertFalse(response.readEntity(JsonNode.class).get("info").has("errors"));
+     }
+ 
+     @Test
+@@ -236,10 +243,10 @@ public void testPathDetails() {
+         assertEquals(5, averageSpeedList.get(1).getLength());
+ 
+         List<PathDetail> edgeIdDetails = pathDetails.get("edge_id");
+-        assertEquals(77, edgeIdDetails.size());
+-        assertEquals(880L, edgeIdDetails.get(0).getValue());
++        assertEquals(78, edgeIdDetails.size());
++        assertEquals(915L, edgeIdDetails.get(0).getValue());
+         assertEquals(2, edgeIdDetails.get(0).getLength());
+-        assertEquals(881L, edgeIdDetails.get(1).getValue());
++        assertEquals(916L, edgeIdDetails.get(1).getValue());
+         assertEquals(8, edgeIdDetails.get(1).getLength());
+ 
+         long expectedTime = rsp.getBest().getTime();
+@@ -293,8 +300,8 @@ public void testPathDetailsWithoutGraphHopperWeb() {
+         JsonNode edgeIds = details.get("edge_id");
+         int firstLink = edgeIds.get(0).get(2).asInt();
+         int lastLink = edgeIds.get(edgeIds.size() - 1).get(2).asInt();
+-        assertEquals(880, firstLink);
+-        assertEquals(1421, lastLink);
++        assertEquals(915, firstLink);
++        assertEquals(1547, lastLink);
+ 
+         JsonNode maxSpeed = details.get("max_speed");
+         assertEquals(-1, maxSpeed.get(0).get(2).asDouble(-1), .01);
+@@ -463,4 +470,92 @@ public void testTooManyHeadings() {
+         assertEquals("The number of 'heading' parameters must be <= 1 or equal to the number of points (1)", json.get("message").asText());
+     }
+ 
++    @Test
++    public void testCustomWeightingJson() {
++        String jsonQuery = "{" +
++                " \"points\": [[1.518946,42.531453],[1.54006,42.511178]]," +
++                " \"model\": { \"base\": \"car\" }" +
++                "}";
++        final Response response = app.client().target("http://localhost:8080/route").request().post(Entity.json(jsonQuery));
++        assertEquals(200, response.getStatus());
++        JsonNode json = response.readEntity(JsonNode.class);
++        JsonNode infoJson = json.get("info");
++        assertFalse(infoJson.has("errors"));
++        JsonNode path = json.get("paths").get(0);
++        assertBetween("distance wasn't correct", path.get("distance").asDouble(), 3100, 3300);
++        assertBetween("time wasn't correct", path.get("time").asLong() / 1000.0, 170, 200);
++    }
++
++    @Test
++    public void testCustomWeightingYaml() {
++        String yamlQuery = "points: [[1.518946,42.531453], [1.54006,42.511178]]\n" +
++                "model:\n" +
++                "  base: car\n";
++        JsonNode yamlNode = queryYaml(yamlQuery, 200).readEntity(JsonNode.class);
++        JsonNode infoElement = yamlNode.get("info");
++        assertFalse(infoElement.has("errors"));
++        JsonNode path = yamlNode.get("paths").get(0);
++        assertBetween("distance wasn't correct", path.get("distance").asDouble(), 3100, 3300);
++    }
++
++    @Test
++    public void testCustomWeighting() {
++        String yamlQuery = "points: [[1.529106,42.506567], [1.54006,42.511178]]\n" +
++                "model:\n" +
++                "  base: car\n" +
++                "  priority:\n" +
++                "    road_class:\n" +
++                "      secondary: 2\n";
++        JsonNode yamlNode = queryYaml(yamlQuery, 200).readEntity(JsonNode.class);
++        JsonNode path = yamlNode.get("paths").get(0);
++        assertBetween("distance wasn't correct", path.get("distance").asDouble(), 1300, 1400);
++
++        // now prefer primary roads via special yaml-map notation
++        yamlQuery = "points: [[1.5274,42.506211], [1.54006,42.511178]]\n" +
++                "model:\n" +
++                "  base: car\n" +
++                "  priority:\n" +
++                "    road_class: { residential: 1.2, primary: 1.5 }";
++        yamlNode = queryYaml(yamlQuery, 200).readEntity(JsonNode.class);
++        path = yamlNode.get("paths").get(0);
++        assertBetween("distance wasn't correct", path.get("distance").asDouble(), 1650, 1750);
++    }
++
++    @Test
++    public void testCustomWeightingAvoidTunnels() {
++        String yamlQuery = "points: [[1.533365, 42.506211], [1.523924, 42.520605]]\n" +
++                "model:\n" +
++                "  base: car\n" +
++                "  priority:\n" +
++                "    road_environment:\n" +
++                "      tunnel: 0.1\n";
++        JsonNode yamlNode = queryYaml(yamlQuery, 200).readEntity(JsonNode.class);
++        JsonNode path = yamlNode.get("paths").get(0);
++        assertBetween("distance wasn't correct", path.get("distance").asDouble(), 2350, 2500);
++    }
++
++    @Test
++    public void testCustomWeightingSimplisticWheelchair() {
++        String yamlQuery = "points: [[1.540875,42.510672], [1.54212,42.511131]]\n" +
++                "model:\n" +
++                "  base: foot\n" +
++                "  priority:\n" +
++                "    road_class:\n" +
++                "      steps: 0\n";
++        JsonNode yamlNode = queryYaml(yamlQuery, 200).readEntity(JsonNode.class);
++        JsonNode path = yamlNode.get("paths").get(0);
++        assertBetween("distance wasn't correct", path.get("distance").asDouble(), 500, 600);
++    }
++
++    static void assertBetween(String msg, double val, double from, double to) {
++        assertTrue(msg + " :" + val, val > from);
++        assertTrue(msg + " :" + val, val < to);
++    }
++
++    Response queryYaml(String yamlStr, int code) {
++        Response response = app.client().target("http://localhost:8080/route").request().post(Entity.entity(yamlStr,
++                new MediaType("application", "yaml")));
++        assertEquals(code, response.getStatus());
++        return response;
++    }
+ }
+diff --git a/web/src/test/resources/com/graphhopper/http/resources/cargo_bike.yml b/web/src/test/resources/com/graphhopper/http/resources/cargo_bike.yml
+new file mode 100644
+index 0000000000..d3db1a4de8
+--- /dev/null
++++ b/web/src/test/resources/com/graphhopper/http/resources/cargo_bike.yml
+@@ -0,0 +1,15 @@
++base: bike
++
++# let's assume cargo bikes are e-bikes and we should lower speed to prefer shorter and not faster routes automatically
++vehicle_max_speed: 25
++
++vehicle_height: 2.3
++vehicle_width: 1.2
++
++priority:
++  surface:
++    sand: 0.5
++  # prefer better tracks
++  track_type: { other: 1.1, grade1: 1.1 }
++  # prefer official bike routes
++  bike.network: { other: 0.5 }
+\ No newline at end of file
+diff --git a/web/src/test/resources/com/graphhopper/http/resources/truck.yml b/web/src/test/resources/com/graphhopper/http/resources/truck.yml
+new file mode 100644
+index 0000000000..6e7bbb2338
+--- /dev/null
++++ b/web/src/test/resources/com/graphhopper/http/resources/truck.yml
+@@ -0,0 +1,50 @@
++# Specify a vehicle (FlagEncoder) or another custom profile like
++base: car
++
++# Trucks are slower so limit all speed to this value. In km/h
++vehicle_max_speed: 100
++# in meter
++vehicle_height: 3.8
++vehicle_width: 2.5
++# in tons
++vehicle_weight: 4.5
++
++# Let's change the estimated average speed for motorway to 100 km/h
++# Please note that in contrast to the other factors (like priority or speed_factor) the first match determines the value
++# I.e. if a road_class==motorway and road_environment==bridge, then the resulting average_speed=100
++average_speed:
++  road_class:
++    motorway: 95
++    residential: 30
++  road_environment:
++    bridge: 85
++
++# The formula is defined in CustomWeighting, where the speed_factor can be used to increase speed and decrease speed
++# It is important to note that if two conditions are satisfied the values are multiplied e.g. if road_class==motorway
++# and road_environment==tunnel, then the resulting speed is average_speed*0.85*0.9. The minimum value is 0.
++speed_factor:
++  road_environment:
++    tunnel: 0.85
++  # trucks should be a bit slower on certain road classes compared to the 'base' car
++  # a more compact JSON-way to list the properties, fully YAML-compatible:
++  road_class: { motorway: 0.85, primary: 0.9 }
++
++# Now we want to set a preference without changing the speed. I.e. trucks shall prefer bigger roads and so we could
++# increase the speed for them, but this is ugly, so we use priority that does not influence the speed.
++# The default priority 1 won't change something. Higher than 1 will prefer the road under the specified condition
++# and lower than 1 will avoid it. If two conditions are met the values will be multiplied. The minimum value is 0.
++priority:
++  road_class:
++    motorway: 1.1
++    residential: 0.5
++    # cars allow tracks so we should block them here, but in the example in CustomWeightingRouteResourceTest the bridge is only accessible through a track
++    # track: 0
++  # avoid toll roads (prefer roads with 'no' toll)
++  toll: { no: 1.5 }
++  # let's assume we transport gas: so NEVER go on restricted roads with hazmat==no
++  hazmat: { no: 0 }
++  # allow delivery access
++  road_access: { delivery: 1 }
++  # avoid turns if possible and links are one simple indication for that
++  # TODO booleans are not yet supported here
++  # road_class_link: 0.5
+\ No newline at end of file

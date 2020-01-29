@@ -1,0 +1,8 @@
+@@ -87,6 +87,6 @@ public void setCommit(GitCommit commit) {
+ 	
+ 	@Override
+ 	public String getNodeId() {
+-		return commit.getNodeId();
++		return "DKE: " + type.getName() + " " + commit.getNodeId();
+ 	}
+ }

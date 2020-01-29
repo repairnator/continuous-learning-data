@@ -1,0 +1,9 @@
+@@ -175,7 +175,7 @@ private static String fmt(double number) {
+         private final double maxDeviationPercentage;
+ 
+         public RandomDeviationWeighting(Weighting baseWeighting, double maxDeviationPercentage) {
+-            super(baseWeighting.getFlagEncoder());
++            super("random_deviation", baseWeighting.getFlagEncoder());
+             this.baseWeighting = baseWeighting;
+             this.maxDeviationPercentage = maxDeviationPercentage;
+         }

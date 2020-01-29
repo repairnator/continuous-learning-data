@@ -1,0 +1,420 @@
+diff --git a/build.gradle b/build.gradle
+index 25c1555..4169d68 100644
+--- a/build.gradle
++++ b/build.gradle
+@@ -1,3 +1,5 @@
++import org.flywaydb.gradle.task.FlywayMigrateTask
++
+ buildscript {
+     ext {
+         springBootVersion = "2.0.6.RELEASE"
+@@ -15,6 +17,7 @@ buildscript {
+ 
+ plugins {
+     id "java"
++    id "org.flywaydb.flyway" version "5.0.5"
+ }
+ 
+ apply plugin: 'org.springframework.boot'
+@@ -25,13 +28,34 @@ repositories {
+ 
+ dependencies {
+     compile("org.springframework.boot:spring-boot-starter-web:$springBootVersion")
++    compile("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.9.7")
++    compile("org.springframework.boot:spring-boot-starter-jdbc:$springBootVersion")
++
++    compile("mysql:mysql-connector-java:8.0.11")
++
+     testCompile("org.springframework.boot:spring-boot-starter-test:$springBootVersion")
++    testCompile("org.mockito:mockito-core:2.23.4")
+ }
+ 
++def developmentDbUrl = "jdbc:mysql://localhost:3306/tracker_dev?user=tracker&useSSL=false&useTimezone=true&serverTimezone=UTC&useLegacyDatetimeCode=false"
+ bootRun.environment([
+-        "WELCOME_MESSAGE": "hellp from build.gradle",
++        "WELCOME_MESSAGE": "hello",
++        "SPRING_DATASOURCE_URL": developmentDbUrl,
+ ])
+ 
++def testDbUrl = "jdbc:mysql://localhost:3306/tracker_test?user=tracker&useSSL=false&useTimezone=true&serverTimezone=UTC&useLegacyDatetimeCode=false"
+ test.environment([
+         "WELCOME_MESSAGE": "Hello from test",
+-])
+\ No newline at end of file
++        "SPRING_DATASOURCE_URL": testDbUrl,
++])
++
++flyway {
++    url = developmentDbUrl
++    user = "tracker"
++    password = ""
++    locations = ["filesystem:databases/tracker/migrations"]
++}
++
++task testMigrate(type: FlywayMigrateTask) {
++    url = testDbUrl
++}
+diff --git a/src/main/java/io/pivotal/pal/tracker/paltracker/InMemoryTimeEntryRepository.java b/src/main/java/io/pivotal/pal/tracker/paltracker/InMemoryTimeEntryRepository.java
+deleted file mode 100644
+index de54b4d..0000000
+--- a/src/main/java/io/pivotal/pal/tracker/paltracker/InMemoryTimeEntryRepository.java
++++ /dev/null
+@@ -1,72 +0,0 @@
+-package io.pivotal.pal.tracker.paltracker;
+-
+-import org.springframework.stereotype.Repository;
+-
+-import java.sql.Time;
+-import java.util.ArrayList;
+-import java.util.HashMap;
+-import java.util.List;
+-import java.util.Map;
+-
+-@Repository
+-public class InMemoryTimeEntryRepository implements TimeEntryRepository {
+-
+-    private long currentId = 1L;
+-
+-
+-    private static Map timeEntyMap = new HashMap<String,TimeEntry>();
+-
+-    @Override
+-    public TimeEntry create(TimeEntry timeEntry) {
+-
+-        Long id = currentId++;
+-
+-        TimeEntry newTimeEntry = new TimeEntry(id,
+-                timeEntry.getProjectId(),timeEntry.getUserId(),timeEntry.getDate(),timeEntry.getHours());
+-
+-        if(newTimeEntry != null) {
+-            timeEntyMap.put(id, newTimeEntry);
+-        }
+-
+-        return (TimeEntry) timeEntyMap.get(newTimeEntry.getId());
+-    }
+-
+-    @Override
+-    public TimeEntry find(long timeEntryId) {
+-
+-        if(timeEntryId >0){
+-            return (TimeEntry) timeEntyMap.get(timeEntryId);
+-        }
+-            return  null;
+-    }
+-
+-    @Override
+-    public List<TimeEntry> list() {
+-
+-        return new ArrayList<TimeEntry>(timeEntyMap.values());
+-    }
+-
+-    @Override
+-    public TimeEntry update(long id, TimeEntry timeEntry) {
+-
+-        TimeEntry existingTimeEntry = (TimeEntry) timeEntyMap.get(id);
+-
+-        existingTimeEntry.setDate(timeEntry.getDate());
+-        existingTimeEntry.setHours(timeEntry.getHours());
+-        existingTimeEntry.setProjectId(timeEntry.getProjectId());
+-        existingTimeEntry.setUserId(timeEntry.getUserId());
+-
+-        timeEntyMap.put(id,timeEntry);
+-
+-        return existingTimeEntry;
+-
+-    }
+-
+-    @Override
+-    public void delete(long timeEntryId) {
+-
+-       TimeEntry timeEntry = (TimeEntry) timeEntyMap.get(timeEntryId);
+-        timeEntyMap.remove(timeEntry.getId());
+-
+-    }
+-}
+diff --git a/src/main/java/io/pivotal/pal/tracker/paltracker/JdbcTimeEntryRepository.java b/src/main/java/io/pivotal/pal/tracker/paltracker/JdbcTimeEntryRepository.java
+new file mode 100644
+index 0000000..8089efd
+--- /dev/null
++++ b/src/main/java/io/pivotal/pal/tracker/paltracker/JdbcTimeEntryRepository.java
+@@ -0,0 +1,92 @@
++
++
++package io.pivotal.pal.tracker.paltracker;
++
++import io.pivotal.pal.tracker.paltracker.TimeEntry;
++import io.pivotal.pal.tracker.paltracker.TimeEntryRepository;
++import org.springframework.jdbc.core.JdbcTemplate;
++import org.springframework.jdbc.core.ResultSetExtractor;
++import org.springframework.jdbc.core.RowMapper;
++import org.springframework.jdbc.support.GeneratedKeyHolder;
++import org.springframework.jdbc.support.KeyHolder;
++
++import javax.sql.DataSource;
++import java.sql.Date;
++import java.sql.PreparedStatement;
++import java.util.List;
++
++import static java.sql.Statement.RETURN_GENERATED_KEYS;
++
++public class JdbcTimeEntryRepository implements TimeEntryRepository {
++
++    private final JdbcTemplate jdbcTemplate;
++
++    public JdbcTimeEntryRepository(DataSource dataSource) {
++        this.jdbcTemplate = new JdbcTemplate(dataSource);
++    }
++
++    @Override
++    public TimeEntry create(TimeEntry timeEntry) {
++        KeyHolder generatedKeyHolder = new GeneratedKeyHolder();
++
++        jdbcTemplate.update(connection -> {
++            PreparedStatement statement = connection.prepareStatement(
++                    "INSERT INTO time_entries (project_id, user_id, date, hours) " +
++                            "VALUES (?, ?, ?, ?)",
++                    RETURN_GENERATED_KEYS
++            );
++
++            statement.setLong(1, timeEntry.getProjectId());
++            statement.setLong(2, timeEntry.getUserId());
++            statement.setDate(3, Date.valueOf(timeEntry.getDate()));
++            statement.setInt(4, timeEntry.getHours());
++
++            return statement;
++        }, generatedKeyHolder);
++
++        return find(generatedKeyHolder.getKey().longValue());
++    }
++
++    @Override
++    public TimeEntry find(Long id) {
++        return jdbcTemplate.query(
++                "SELECT id, project_id, user_id, date, hours FROM time_entries WHERE id = ?",
++                new Object[]{id},
++                extractor);
++    }
++
++    @Override
++    public List<TimeEntry> list() {
++        return jdbcTemplate.query("SELECT id, project_id, user_id, date, hours FROM time_entries", mapper);
++    }
++
++    @Override
++    public TimeEntry update(Long id, TimeEntry timeEntry) {
++        jdbcTemplate.update("UPDATE time_entries " +
++                        "SET project_id = ?, user_id = ?, date = ?,  hours = ? " +
++                        "WHERE id = ?",
++                timeEntry.getProjectId(),
++                timeEntry.getUserId(),
++                Date.valueOf(timeEntry.getDate()),
++                timeEntry.getHours(),
++                id);
++
++        return find(id);
++    }
++
++    @Override
++    public void delete(Long id) {
++        jdbcTemplate.update("DELETE FROM time_entries WHERE id = ?", id);
++    }
++
++    private final RowMapper<TimeEntry> mapper = (rs, rowNum) -> new TimeEntry(
++            rs.getLong("id"),
++            rs.getLong("project_id"),
++            rs.getLong("user_id"),
++            rs.getDate("date").toLocalDate(),
++            rs.getInt("hours")
++    );
++
++    private final ResultSetExtractor<TimeEntry> extractor =
++            (rs) -> rs.next() ? mapper.mapRow(rs, 1) : null;
++}
+diff --git a/src/main/java/io/pivotal/pal/tracker/paltracker/TimeEntryController.java b/src/main/java/io/pivotal/pal/tracker/paltracker/TimeEntryController.java
+index c2a7bc3..025cd6e 100644
+--- a/src/main/java/io/pivotal/pal/tracker/paltracker/TimeEntryController.java
++++ b/src/main/java/io/pivotal/pal/tracker/paltracker/TimeEntryController.java
+@@ -14,7 +14,7 @@
+ public class TimeEntryController {
+ 
+     @Autowired
+-    InMemoryTimeEntryRepository repository;
++    JdbcTimeEntryRepository repository;
+ 
+ 
+     public TimeEntryController(TimeEntryRepository timeEntryRepository) {
+diff --git a/src/main/java/io/pivotal/pal/tracker/paltracker/TimeEntryRepository.java b/src/main/java/io/pivotal/pal/tracker/paltracker/TimeEntryRepository.java
+index 68ff460..6d75de9 100644
+--- a/src/main/java/io/pivotal/pal/tracker/paltracker/TimeEntryRepository.java
++++ b/src/main/java/io/pivotal/pal/tracker/paltracker/TimeEntryRepository.java
+@@ -1,17 +1,13 @@
+ package io.pivotal.pal.tracker.paltracker;
+ 
+-import java.sql.Time;
++import io.pivotal.pal.tracker.paltracker.TimeEntry;
++
+ import java.util.List;
+ 
+ public interface TimeEntryRepository {
+-
+-    public TimeEntry create(TimeEntry any);
+-
+-    public TimeEntry find(long timeEntryId);
+-
+-    public List<TimeEntry> list() ;
+-
+-    public TimeEntry update(long timeEntryId, TimeEntry any);
+-
+-    public void delete(long timeEntryId) ;
+-}
++    TimeEntry create(TimeEntry timeEntry);
++    TimeEntry find(Long id);
++    List<TimeEntry> list();
++    TimeEntry update(Long id, TimeEntry timeEntry);
++    void delete(Long id);
++}
+\ No newline at end of file
+diff --git a/src/test/java/test/pivotal/pal/tracker/InMemoryTimeEntryRepositoryTest.java b/src/test/java/test/pivotal/pal/tracker/InMemoryTimeEntryRepositoryTest.java
+deleted file mode 100644
+index 8725949..0000000
+--- a/src/test/java/test/pivotal/pal/tracker/InMemoryTimeEntryRepositoryTest.java
++++ /dev/null
+@@ -1,121 +0,0 @@
+-//package test.pivotal.pal.tracker;
+-//
+-//import io.pivotal.pal.tracker.paltracker.InMemoryTimeEntryRepository;
+-//import io.pivotal.pal.tracker.paltracker.TimeEntry;
+-//import org.junit.Test;
+-//
+-//import java.time.LocalDate;
+-//import java.util.List;
+-//
+-//import static java.util.Arrays.asList;
+-//import static org.assertj.core.api.Assertions.assertThat;
+-//
+-//public class InMemoryTimeEntryRepositoryTest {
+-//    @Test
+-//    public void create() throws Exception {
+-//        InMemoryTimeEntryRepository repo = new InMemoryTimeEntryRepository();
+-//
+-//        long projectId = 123L;
+-//        long userId = 456L;
+-//        long timeEntryId = 1L;
+-//        TimeEntry createdTimeEntry = repo.create(new TimeEntry(timeEntryId,projectId, userId, LocalDate.parse("2017-01-08"), 8));
+-//
+-//
+-//        TimeEntry expected = new TimeEntry(timeEntryId, projectId, userId, LocalDate.parse("2017-01-08"), 8);
+-//        assertThat(createdTimeEntry).isEqualTo(expected);
+-//
+-//        TimeEntry readEntry = repo.find(createdTimeEntry.getId());
+-//        assertThat(readEntry).isEqualTo(expected);
+-//    }
+-//
+-//    @Test
+-//    public void find() throws Exception {
+-//        InMemoryTimeEntryRepository repo = new InMemoryTimeEntryRepository();
+-//
+-//        long projectId = 123L;
+-//        long userId = 456L;
+-//        repo.create(new TimeEntry(projectId, userId, LocalDate.parse("2017-01-08"), 8));
+-//
+-//        long timeEntryId = 1L;
+-//        TimeEntry expected = new TimeEntry(timeEntryId, projectId, userId, LocalDate.parse("2017-01-08"), 8);
+-//        TimeEntry readEntry = repo.find(timeEntryId);
+-//        assertThat(readEntry).isEqualTo(expected);
+-//    }
+-//
+-//    @Test
+-//    public void find_MissingEntry() {
+-//        InMemoryTimeEntryRepository repo = new InMemoryTimeEntryRepository();
+-//
+-//        long timeEntryId = 1L;
+-//
+-//        TimeEntry readEntry = repo.find(timeEntryId);
+-//        assertThat(readEntry).isNull();
+-//    }
+-//
+-//    @Test
+-//    public void list() throws Exception {
+-//        InMemoryTimeEntryRepository repo = new InMemoryTimeEntryRepository();
+-//        repo.create(new TimeEntry(1L,123L, 456L, LocalDate.parse("2017-01-08"), 8));
+-//        repo.create(new TimeEntry(2L,789L, 654L, LocalDate.parse("2017-01-07"), 4));
+-//
+-//        List<TimeEntry> expected = asList(
+-//                new TimeEntry(1L, 123L, 456L, LocalDate.parse("2017-01-08"), 8),
+-//                new TimeEntry(2L, 789L, 654L, LocalDate.parse("2017-01-07"), 4)
+-//        );
+-//        assertThat(repo.list()).containsExactlyInAnyOrderElementsOf(expected);
+-//    }
+-//
+-//    @Test
+-//    public void update() throws Exception {
+-//        InMemoryTimeEntryRepository repo = new InMemoryTimeEntryRepository();
+-//        TimeEntry created = repo.create(new TimeEntry(123L, 456L, LocalDate.parse("2017-01-08"), 8));
+-//
+-//        TimeEntry updatedEntry = repo.update(
+-//                created.getId(),
+-//                new TimeEntry(321L, 654L, LocalDate.parse("2017-01-09"), 5));
+-//
+-//        TimeEntry expected = new TimeEntry(created.getId(), 321L, 654L, LocalDate.parse("2017-01-09"), 5);
+-//        assertThat(updatedEntry).isEqualTo(expected);
+-//        assertThat(repo.find(created.getId())).isEqualTo(expected);
+-//    }
+-//
+-//    @Test
+-//    public void update_MissingEntry() {
+-//        InMemoryTimeEntryRepository repo = new InMemoryTimeEntryRepository();
+-//
+-//        TimeEntry updatedEntry = repo.update(
+-//                1L,
+-//                new TimeEntry(321L, 654L, LocalDate.parse("2017-01-09"), 5));
+-//
+-//        assertThat(updatedEntry).isNull();
+-//    }
+-//
+-//    @Test
+-//    public void delete() throws Exception {
+-//        InMemoryTimeEntryRepository repo = new InMemoryTimeEntryRepository();
+-//
+-//        long projectId = 123L;
+-//        long userId = 456L;
+-//        TimeEntry created = repo.create(new TimeEntry(projectId, userId, LocalDate.parse("2017-01-08"), 8));
+-//
+-//        repo.delete(created.getId());
+-//        assertThat(repo.list()).isEmpty();
+-//    }
+-//
+-//    @Test
+-//    public void deleteKeepsTrackOfLatestIdProperly() {
+-//        InMemoryTimeEntryRepository repo = new InMemoryTimeEntryRepository();
+-//
+-//        long projectId = 123L;
+-//        long userId = 456L;
+-//        TimeEntry created = repo.create(new TimeEntry(projectId, userId, LocalDate.parse("2017-01-08"), 8));
+-//
+-//        assertThat(created.getId()).isEqualTo(1);
+-//
+-//        repo.delete(created.getId());
+-//
+-//        TimeEntry createdSecond = repo.create(new TimeEntry(projectId, userId, LocalDate.parse("2017-01-08"), 8));
+-//
+-//        assertThat(createdSecond.getId()).isEqualTo(2);
+-//    }
+-//}
+diff --git a/src/test/java/test/pivotal/pal/tracker/JdbcTimeEntryRepositoryTest.java b/src/test/java/test/pivotal/pal/tracker/JdbcTimeEntryRepositoryTest.java
+index 9eb2cce..ca61426 100644
+--- a/src/test/java/test/pivotal/pal/tracker/JdbcTimeEntryRepositoryTest.java
++++ b/src/test/java/test/pivotal/pal/tracker/JdbcTimeEntryRepositoryTest.java
+@@ -2,9 +2,9 @@
+ 
+ 
+ import com.mysql.cj.jdbc.MysqlDataSource;
+-import io.pivotal.pal.tracker.JdbcTimeEntryRepository;
+-import io.pivotal.pal.tracker.TimeEntry;
+-import io.pivotal.pal.tracker.TimeEntryRepository;
++import io.pivotal.pal.tracker.paltracker.JdbcTimeEntryRepository;
++import io.pivotal.pal.tracker.paltracker.TimeEntry;
++import io.pivotal.pal.tracker.paltracker.TimeEntryRepository;
+ import org.junit.Before;
+ import org.junit.Test;
+ import org.springframework.jdbc.core.JdbcTemplate;

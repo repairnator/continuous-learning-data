@@ -1,0 +1,9 @@
+@@ -132,7 +132,7 @@ public void setProductCategory(BankingProductCategory productCategory) {
+     }
+ 
+     /**
+-     * The unique identifier of the account as defined by the account holder (akin to model number for the account)
++     * The unique identifier of the account as defined by the data holder (akin to model number for the account)
+      * @return productName
+      */
+     public String getProductName() {

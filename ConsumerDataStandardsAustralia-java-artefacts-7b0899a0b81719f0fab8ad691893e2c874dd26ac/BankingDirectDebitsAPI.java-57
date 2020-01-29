@@ -1,0 +1,9 @@
+@@ -57,7 +57,7 @@ ResponseBankingDirectDebitAuthorisationList listDirectDebits(
+             reference = "ParamPage"
+         )
+         @CDSDataType(CustomDataType.PositiveInteger)
+-        Integer page, 
++        Integer page,
+         @Param(
+             name = "page-size",
+             description = "Page size to request. Default is 25 (standard pagination)",

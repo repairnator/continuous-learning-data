@@ -1,0 +1,1668 @@
+diff --git a/src/main/java/com/hubspot/jinjava/lib/filter/CapitalizeFilter.java b/src/main/java/com/hubspot/jinjava/lib/filter/CapitalizeFilter.java
+index aa2cde92..4a36dd6d 100644
+--- a/src/main/java/com/hubspot/jinjava/lib/filter/CapitalizeFilter.java
++++ b/src/main/java/com/hubspot/jinjava/lib/filter/CapitalizeFilter.java
+@@ -33,7 +33,7 @@ public Object filter(Object var, JinjavaInterpreter interpreter, String... args)
+       String value = (String) var;
+       return StringUtils.capitalize(value);
+     }
+-    return var;
++    return safeFilter(var, interpreter, args);
+   }
+ 
+ }
+diff --git a/src/main/java/com/hubspot/jinjava/lib/filter/CenterFilter.java b/src/main/java/com/hubspot/jinjava/lib/filter/CenterFilter.java
+index 8dbeeb5d..535a265a 100644
+--- a/src/main/java/com/hubspot/jinjava/lib/filter/CenterFilter.java
++++ b/src/main/java/com/hubspot/jinjava/lib/filter/CenterFilter.java
+@@ -41,7 +41,10 @@ public Object filter(Object var, JinjavaInterpreter interpreter, String... args)
+       size = NumberUtils.toInt(args[0], 80);
+     }
+ 
+-    return StringUtils.center(var.toString(), size);
++    if (var instanceof String) {
++      return StringUtils.center(var.toString(), size);
++    }
++    return safeFilter(var, interpreter, args);
+   }
+ 
+ }
+diff --git a/src/main/java/com/hubspot/jinjava/lib/filter/CutFilter.java b/src/main/java/com/hubspot/jinjava/lib/filter/CutFilter.java
+index 78ac7985..deb7115f 100644
+--- a/src/main/java/com/hubspot/jinjava/lib/filter/CutFilter.java
++++ b/src/main/java/com/hubspot/jinjava/lib/filter/CutFilter.java
+@@ -45,8 +45,11 @@ public Object filter(Object object, JinjavaInterpreter interpreter, String... ar
+       throw new TemplateSyntaxException(interpreter, getName(), "requires 1 argument (string to remove from target)");
+     }
+     String cutee = arg[0];
+-    String origin = Objects.toString(object, "");
+-    return StringUtils.replace(origin, cutee, "");
++    if (object instanceof String) {
++      String origin = Objects.toString(object, "");
++      return StringUtils.replace(origin, cutee, "");
++    }
++    return safeFilter(object, interpreter, arg);
+   }
+ 
+   @Override
+diff --git a/src/main/java/com/hubspot/jinjava/lib/filter/DivideFilter.java b/src/main/java/com/hubspot/jinjava/lib/filter/DivideFilter.java
+index 04c8e46c..983c0437 100644
+--- a/src/main/java/com/hubspot/jinjava/lib/filter/DivideFilter.java
++++ b/src/main/java/com/hubspot/jinjava/lib/filter/DivideFilter.java
+@@ -1,17 +1,17 @@
+ /**********************************************************************
+-Copyright (c) 2014 HubSpot Inc.
++ Copyright (c) 2014 HubSpot Inc.
+ 
+-Licensed under the Apache License, Version 2.0 (the "License");
+-you may not use this file except in compliance with the License.
+-You may obtain a copy of the License at
++ Licensed under the Apache License, Version 2.0 (the "License");
++ you may not use this file except in compliance with the License.
++ You may obtain a copy of the License at
+ 
+-http://www.apache.org/licenses/LICENSE-2.0
++ http://www.apache.org/licenses/LICENSE-2.0
+ 
+-Unless required by applicable law or agreed to in writing, software
+-distributed under the License is distributed on an "AS IS" BASIS,
+-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-See the License for the specific language governing permissions and
+-limitations under the License.
++ Unless required by applicable law or agreed to in writing, software
++ distributed under the License is distributed on an "AS IS" BASIS,
++ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ See the License for the specific language governing permissions and
++ limitations under the License.
+  **********************************************************************/
+ package com.hubspot.jinjava.lib.filter;
+ 
+@@ -87,7 +87,8 @@ public Object filter(Object object, JinjavaInterpreter interpreter, String... ar
+         throw new InvalidInputException(interpreter, this, InvalidReason.NUMBER_FORMAT, object.toString());
+       }
+     }
+-    return object;
++
++    return safeFilter(object, interpreter, arg);
+   }
+ 
+   @Override
+diff --git a/src/main/java/com/hubspot/jinjava/lib/filter/EscapeFilter.java b/src/main/java/com/hubspot/jinjava/lib/filter/EscapeFilter.java
+index 198514ee..2d5873cb 100644
+--- a/src/main/java/com/hubspot/jinjava/lib/filter/EscapeFilter.java
++++ b/src/main/java/com/hubspot/jinjava/lib/filter/EscapeFilter.java
+@@ -45,10 +45,10 @@
+   private static final String BSQ = "&#39;";
+   private static final String BDQ = "&quot;";
+ 
+-  private static final String[] TO_REPLACE = new String[] {
++  private static final String[] TO_REPLACE = new String[]{
+       SAMP, SGT, SLT, "'", "\""
+   };
+-  private static final String[] REPLACE_WITH = new String[] {
++  private static final String[] REPLACE_WITH = new String[]{
+       BAMP, BGT, BLT, BSQ, BDQ
+   };
+ 
+@@ -58,7 +58,10 @@ public static String escapeHtmlEntities(String input) {
+ 
+   @Override
+   public Object filter(Object object, JinjavaInterpreter interpreter, String... arg) {
+-    return escapeHtmlEntities(Objects.toString(object, ""));
++    if (object instanceof String) {
++      return escapeHtmlEntities(Objects.toString(object, ""));
++    }
++    return safeFilter(object, interpreter, arg);
+   }
+ 
+   @Override
+diff --git a/src/main/java/com/hubspot/jinjava/lib/filter/EscapeJinjavaFilter.java b/src/main/java/com/hubspot/jinjava/lib/filter/EscapeJinjavaFilter.java
+index d8bb71b0..ddcd6ac9 100644
+--- a/src/main/java/com/hubspot/jinjava/lib/filter/EscapeJinjavaFilter.java
++++ b/src/main/java/com/hubspot/jinjava/lib/filter/EscapeJinjavaFilter.java
+@@ -56,7 +56,10 @@ public static String escapeJinjavaEntities(String input) {
+ 
+   @Override
+   public Object filter(Object object, JinjavaInterpreter interpreter, String... arg) {
+-    return escapeJinjavaEntities(Objects.toString(object, ""));
++    if (object instanceof String) {
++      return escapeJinjavaEntities(Objects.toString(object, ""));
++    }
++    return safeFilter(object, interpreter, arg);
+   }
+ 
+   @Override
+diff --git a/src/main/java/com/hubspot/jinjava/lib/filter/EscapeJsFilter.java b/src/main/java/com/hubspot/jinjava/lib/filter/EscapeJsFilter.java
+index 6e386aed..90cc2bcf 100644
+--- a/src/main/java/com/hubspot/jinjava/lib/filter/EscapeJsFilter.java
++++ b/src/main/java/com/hubspot/jinjava/lib/filter/EscapeJsFilter.java
+@@ -36,11 +36,20 @@
+ 
+   @Override
+   public Object filter(Object objectToFilter, JinjavaInterpreter jinjavaInterpreter, String... strings) {
+-    String input = Objects.toString(objectToFilter, "");
+-    LengthLimitingStringBuilder builder = new LengthLimitingStringBuilder(jinjavaInterpreter.getConfig().getMaxOutputSize());
++    if (objectToFilter instanceof String) {
++      return escapeJsEntities(
++          Objects.toString(objectToFilter, ""),
++          jinjavaInterpreter.getConfig().getMaxOutputSize()
++      );
++    }
++    return safeFilter(objectToFilter, jinjavaInterpreter, strings);
++  }
+ 
+-    for (int i = 0; i < input.length(); i++) {
+-      char ch = input.charAt(i);
++  private String escapeJsEntities(String stringToFilter, long maxLength) {
++    LengthLimitingStringBuilder builder = new LengthLimitingStringBuilder(maxLength);
++
++    for (int i = 0; i < stringToFilter.length(); i++) {
++      char ch = stringToFilter.charAt(i);
+ 
+       if (ch > 0xfff) {
+         builder.append("\\u");
+@@ -53,22 +62,22 @@ public Object filter(Object objectToFilter, JinjavaInterpreter jinjavaInterprete
+         builder.append(toHex(ch));
+       } else if (ch < 32) {
+         switch (ch) {
+-          case '\b' :
++          case '\b':
+             builder.append("\\b");
+             break;
+-          case '\f' :
++          case '\f':
+             builder.append("\\f");
+             break;
+-          case '\n' :
++          case '\n':
+             builder.append("\\n");
+             break;
+-          case '\t' :
++          case '\t':
+             builder.append("\\t");
+             break;
+-          case '\r' :
++          case '\r':
+             builder.append("\\r");
+             break;
+-          default :
++          default:
+             if (ch > 0xf) {
+               builder.append("\\u00");
+               builder.append(toHex(ch));
+@@ -80,19 +89,18 @@ public Object filter(Object objectToFilter, JinjavaInterpreter jinjavaInterprete
+         }
+       } else {
+         switch (ch) {
+-          case '"' :
++          case '"':
+             builder.append("\\\"");
+             break;
+-          case '\\' :
++          case '\\':
+             builder.append("\\\\");
+             break;
+-          default :
++          default:
+             builder.append(ch);
+             break;
+         }
+       }
+     }
+-
+     return builder.toString();
+   }
+ 
+diff --git a/src/main/java/com/hubspot/jinjava/lib/filter/EscapeJsonFilter.java b/src/main/java/com/hubspot/jinjava/lib/filter/EscapeJsonFilter.java
+index f0fd7299..a065afb7 100644
+--- a/src/main/java/com/hubspot/jinjava/lib/filter/EscapeJsonFilter.java
++++ b/src/main/java/com/hubspot/jinjava/lib/filter/EscapeJsonFilter.java
+@@ -27,6 +27,9 @@ public String getName() {
+ 
+   @Override
+   public Object filter(Object var, JinjavaInterpreter interpreter, String... args) {
+-    return StringEscapeUtils.escapeJson(Objects.toString(var));
++    if (var instanceof String) {
++      return StringEscapeUtils.escapeJson(Objects.toString(var));
++    }
++    return safeFilter(var, interpreter, args);
+   }
+ }
+diff --git a/src/main/java/com/hubspot/jinjava/lib/filter/Filter.java b/src/main/java/com/hubspot/jinjava/lib/filter/Filter.java
+index 4be823fb..9b67afaa 100644
+--- a/src/main/java/com/hubspot/jinjava/lib/filter/Filter.java
++++ b/src/main/java/com/hubspot/jinjava/lib/filter/Filter.java
+@@ -24,6 +24,7 @@
+ 
+ import com.hubspot.jinjava.interpret.JinjavaInterpreter;
+ import com.hubspot.jinjava.lib.Importable;
++import com.hubspot.jinjava.objects.SafeString;
+ 
+ public interface Filter extends Importable {
+ 
+@@ -65,4 +66,22 @@ default Object filter(Object var, JinjavaInterpreter interpreter, Object[] args,
+ 
+     return filter(var, interpreter, filterArgs);
+   }
++
++  /**
++   *  Apply filtering to a SafeString object and return result as a SafeString
++   *
++   * @param var
++   *          the SafeString variable which this filter should operate on
++   * @param interpreter
++   *          current interpreter context
++   * @param args
++   *          any arguments passed to this filter invocation
++   * @return the filtered form of the given variable as a SafeString
++   */
++  default Object safeFilter(Object var, JinjavaInterpreter interpreter, String... args) {
++    if (var instanceof SafeString) {
++      return new SafeString(filter(var.toString(), interpreter, args).toString());
++    }
++    return var;
++  }
+ }
+diff --git a/src/main/java/com/hubspot/jinjava/lib/filter/ForceEscapeFilter.java b/src/main/java/com/hubspot/jinjava/lib/filter/ForceEscapeFilter.java
+index ca1bbe35..eef372d6 100644
+--- a/src/main/java/com/hubspot/jinjava/lib/filter/ForceEscapeFilter.java
++++ b/src/main/java/com/hubspot/jinjava/lib/filter/ForceEscapeFilter.java
+@@ -26,7 +26,10 @@ public String getName() {
+ 
+   @Override
+   public Object filter(Object var, JinjavaInterpreter interpreter, String... args) {
+-    return StringEscapeUtils.escapeHtml4(Objects.toString(var, ""));
++    if (var instanceof String) {
++      return StringEscapeUtils.escapeHtml4(Objects.toString(var, ""));
++    }
++    return safeFilter(var, interpreter, args);
+   }
+ 
+ }
+diff --git a/src/main/java/com/hubspot/jinjava/lib/filter/FormatFilter.java b/src/main/java/com/hubspot/jinjava/lib/filter/FormatFilter.java
+index f85a80c6..ff9389c2 100644
+--- a/src/main/java/com/hubspot/jinjava/lib/filter/FormatFilter.java
++++ b/src/main/java/com/hubspot/jinjava/lib/filter/FormatFilter.java
+@@ -7,6 +7,7 @@
+ import com.hubspot.jinjava.doc.annotations.JinjavaParam;
+ import com.hubspot.jinjava.doc.annotations.JinjavaSnippet;
+ import com.hubspot.jinjava.interpret.JinjavaInterpreter;
++import com.hubspot.jinjava.objects.SafeString;
+ 
+ @JinjavaDoc(
+     value = "Apply Python string formatting to an object.",
+@@ -28,6 +29,13 @@ public String getName() {
+ 
+   @Override
+   public Object filter(Object var, JinjavaInterpreter interpreter, Object[] args, Map<String, Object> kwargs) {
++    if (var instanceof SafeString) {
++      return new SafeString(format(var, args));
++    }
++    return format(var, args);
++  }
++
++  private String format(Object var, Object[] args) {
+     String fmt = Objects.toString(var, "");
+     return String.format(fmt, args);
+   }
+diff --git a/src/main/java/com/hubspot/jinjava/lib/filter/FromJsonFilter.java b/src/main/java/com/hubspot/jinjava/lib/filter/FromJsonFilter.java
+index 25c4f5f6..1dafb8d7 100644
+--- a/src/main/java/com/hubspot/jinjava/lib/filter/FromJsonFilter.java
++++ b/src/main/java/com/hubspot/jinjava/lib/filter/FromJsonFilter.java
+@@ -10,6 +10,7 @@
+ import com.hubspot.jinjava.interpret.InvalidInputException;
+ import com.hubspot.jinjava.interpret.InvalidReason;
+ import com.hubspot.jinjava.interpret.JinjavaInterpreter;
++import com.hubspot.jinjava.objects.SafeString;
+ 
+ @JinjavaDoc(
+     value = "Converts JSON string to Object",
+@@ -32,8 +33,8 @@ public Object filter(Object var, JinjavaInterpreter interpreter, String... args)
+ 
+     try {
+ 
+-      if (var instanceof String) {
+-        return OBJECT_MAPPER.readValue((String) var, HashMap.class);
++      if (var instanceof String || var instanceof SafeString) {
++        return OBJECT_MAPPER.readValue(var.toString(), HashMap.class);
+       } else {
+         throw new InvalidInputException(interpreter, this, InvalidReason.STRING);
+       }
+diff --git a/src/main/java/com/hubspot/jinjava/lib/filter/IndentFilter.java b/src/main/java/com/hubspot/jinjava/lib/filter/IndentFilter.java
+index 7892ff18..0691e80f 100644
+--- a/src/main/java/com/hubspot/jinjava/lib/filter/IndentFilter.java
++++ b/src/main/java/com/hubspot/jinjava/lib/filter/IndentFilter.java
+@@ -38,23 +38,25 @@ public String getName() {
+ 
+   @Override
+   public Object filter(Object var, JinjavaInterpreter interpreter, String... args) {
+-    int width = 4;
+-    if (args.length > 0) {
+-      width = NumberUtils.toInt(args[0], 4);
+-    }
++    if (var instanceof String) {
++      int width = 4;
++      if (args.length > 0) {
++        width = NumberUtils.toInt(args[0], 4);
++      }
+ 
+-    boolean indentFirst = false;
+-    if (args.length > 1) {
+-      indentFirst = BooleanUtils.toBoolean(args[1]);
+-    }
++      boolean indentFirst = false;
++      if (args.length > 1) {
++        indentFirst = BooleanUtils.toBoolean(args[1]);
++      }
+ 
+-    List<String> indentedLines = new ArrayList<>();
+-    for (String line : NEWLINE_SPLITTER.split(Objects.toString(var, ""))) {
+-      int thisWidth = indentedLines.size() == 0 && !indentFirst ? 0 : width;
+-      indentedLines.add(StringUtils.repeat(' ', thisWidth) + line);
++      List<String> indentedLines = new ArrayList<>();
++      for (String line : NEWLINE_SPLITTER.split(Objects.toString(var, ""))) {
++        int thisWidth = indentedLines.size() == 0 && !indentFirst ? 0 : width;
++        indentedLines.add(StringUtils.repeat(' ', thisWidth) + line);
++      }
++      return NEWLINE_JOINER.join(indentedLines);
+     }
+-
+-    return NEWLINE_JOINER.join(indentedLines);
++    return safeFilter(var, interpreter, args);
+   }
+ 
+   private static final Splitter NEWLINE_SPLITTER = Splitter.on('\n');
+diff --git a/src/main/java/com/hubspot/jinjava/lib/filter/IpAddrFilter.java b/src/main/java/com/hubspot/jinjava/lib/filter/IpAddrFilter.java
+index 9c0ef1f8..318927ee 100644
+--- a/src/main/java/com/hubspot/jinjava/lib/filter/IpAddrFilter.java
++++ b/src/main/java/com/hubspot/jinjava/lib/filter/IpAddrFilter.java
+@@ -13,6 +13,7 @@
+ import com.hubspot.jinjava.interpret.InvalidArgumentException;
+ import com.hubspot.jinjava.interpret.InvalidReason;
+ import com.hubspot.jinjava.interpret.JinjavaInterpreter;
++import com.hubspot.jinjava.objects.SafeString;
+ 
+ @JinjavaDoc(
+     value = "Evaluates to true if the value is a valid IPv4 or IPv6 address",
+@@ -47,10 +48,12 @@
+ 
+   @Override
+   public Object filter(Object object, JinjavaInterpreter interpreter, String... args) {
+-
+     if (object == null) {
+       return false;
+     }
++    if (object instanceof SafeString) {
++      object = object.toString();
++    }
+ 
+     if (args.length > 0) {
+       String function = args[0].trim();
+@@ -60,7 +63,6 @@ public Object filter(Object object, JinjavaInterpreter interpreter, String... ar
+     if (object instanceof String) {
+       return validIp(((String) object).trim());
+     }
+-
+     return false;
+   }
+ 
+@@ -70,7 +72,7 @@ private Object getFunctionValue(JinjavaInterpreter interpreter, String function,
+       return null;
+     }
+ 
+-    String fullAddress = ((String) object).trim();
++    String fullAddress = object.toString().trim();
+     List<String> parts = PREFIX_SPLITTER.splitToList(fullAddress);
+     if (parts.size() != 2) {
+       return null;
+diff --git a/src/main/java/com/hubspot/jinjava/lib/filter/LengthFilter.java b/src/main/java/com/hubspot/jinjava/lib/filter/LengthFilter.java
+index f020ef9a..11d1f0e5 100644
+--- a/src/main/java/com/hubspot/jinjava/lib/filter/LengthFilter.java
++++ b/src/main/java/com/hubspot/jinjava/lib/filter/LengthFilter.java
+@@ -24,6 +24,7 @@
+ import com.hubspot.jinjava.doc.annotations.JinjavaParam;
+ import com.hubspot.jinjava.doc.annotations.JinjavaSnippet;
+ import com.hubspot.jinjava.interpret.JinjavaInterpreter;
++import com.hubspot.jinjava.objects.SafeString;
+ 
+ @JinjavaDoc(
+     value = "Return the number of items of a sequence or mapping",
+@@ -73,9 +74,10 @@ public Object filter(Object object, JinjavaInterpreter interpreter, String... ar
+       return size;
+     }
+ 
+-    if (object instanceof String) {
+-      return ((String) object).length();
++    if (object instanceof String || object instanceof SafeString) {
++      return object.toString().length();
+     }
++
+     return 0;
+   }
+ 
+diff --git a/src/main/java/com/hubspot/jinjava/lib/filter/ListFilter.java b/src/main/java/com/hubspot/jinjava/lib/filter/ListFilter.java
+index 3983a624..5d417f67 100644
+--- a/src/main/java/com/hubspot/jinjava/lib/filter/ListFilter.java
++++ b/src/main/java/com/hubspot/jinjava/lib/filter/ListFilter.java
+@@ -9,6 +9,7 @@
+ import com.hubspot.jinjava.doc.annotations.JinjavaParam;
+ import com.hubspot.jinjava.doc.annotations.JinjavaSnippet;
+ import com.hubspot.jinjava.interpret.JinjavaInterpreter;
++import com.hubspot.jinjava.objects.SafeString;
+ 
+ @JinjavaDoc(
+     value = "Convert the value into a list. If it was a string the returned list will be a list of characters.",
+@@ -32,8 +33,8 @@ public String getName() {
+   public Object filter(Object var, JinjavaInterpreter interpreter, String... args) {
+     List<?> result;
+ 
+-    if (var instanceof String) {
+-      result = Chars.asList(((String) var).toCharArray());
++    if (var instanceof String || var instanceof SafeString) {
++      result = Chars.asList(var.toString().toCharArray());
+     } else if (Collection.class.isAssignableFrom(var.getClass())) {
+       result = Lists.newArrayList((Collection<?>) var);
+     } else {
+diff --git a/src/main/java/com/hubspot/jinjava/lib/filter/LogFilter.java b/src/main/java/com/hubspot/jinjava/lib/filter/LogFilter.java
+index a87f6447..8e049b5f 100644
+--- a/src/main/java/com/hubspot/jinjava/lib/filter/LogFilter.java
++++ b/src/main/java/com/hubspot/jinjava/lib/filter/LogFilter.java
+@@ -30,7 +30,6 @@
+ 
+   @Override
+   public Object filter(Object object, JinjavaInterpreter interpreter, String... args) {
+-
+     // default to e
+     Double root = null;
+     if (args.length > 0 && args[0] != null) {
+@@ -41,7 +40,6 @@ public Object filter(Object object, JinjavaInterpreter interpreter, String... ar
+ 
+       root = tryRoot;
+     }
+-
+     if (object instanceof Integer) {
+       return calculateLog(interpreter, (Integer) object, root);
+     }
+@@ -74,7 +72,7 @@ public Object filter(Object object, JinjavaInterpreter interpreter, String... ar
+       }
+     }
+ 
+-    return object;
++    return safeFilter(object, interpreter, args);
+   }
+ 
+   private double calculateLog(JinjavaInterpreter interpreter, double num, Double base) {
+diff --git a/src/main/java/com/hubspot/jinjava/lib/filter/LowerFilter.java b/src/main/java/com/hubspot/jinjava/lib/filter/LowerFilter.java
+index b75d7f0a..ad09144b 100644
+--- a/src/main/java/com/hubspot/jinjava/lib/filter/LowerFilter.java
++++ b/src/main/java/com/hubspot/jinjava/lib/filter/LowerFilter.java
+@@ -1,17 +1,17 @@
+ /**********************************************************************
+-Copyright (c) 2014 HubSpot Inc.
++ Copyright (c) 2014 HubSpot Inc.
+ 
+-Licensed under the Apache License, Version 2.0 (the "License");
+-you may not use this file except in compliance with the License.
+-You may obtain a copy of the License at
++ Licensed under the Apache License, Version 2.0 (the "License");
++ you may not use this file except in compliance with the License.
++ You may obtain a copy of the License at
+ 
+-http://www.apache.org/licenses/LICENSE-2.0
++ http://www.apache.org/licenses/LICENSE-2.0
+ 
+-Unless required by applicable law or agreed to in writing, software
+-distributed under the License is distributed on an "AS IS" BASIS,
+-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-See the License for the specific language governing permissions and
+-limitations under the License.
++ Unless required by applicable law or agreed to in writing, software
++ distributed under the License is distributed on an "AS IS" BASIS,
++ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ See the License for the specific language governing permissions and
++ limitations under the License.
+  **********************************************************************/
+ package com.hubspot.jinjava.lib.filter;
+ 
+@@ -34,7 +34,8 @@ public Object filter(Object object, JinjavaInterpreter interpreter, String... ar
+       String value = (String) object;
+       return value.toLowerCase();
+     }
+-    return object;
++
++    return safeFilter(object, interpreter, arg);
+   }
+ 
+   @Override
+diff --git a/src/main/java/com/hubspot/jinjava/lib/filter/Md5Filter.java b/src/main/java/com/hubspot/jinjava/lib/filter/Md5Filter.java
+index 820b7e97..55192f21 100644
+--- a/src/main/java/com/hubspot/jinjava/lib/filter/Md5Filter.java
++++ b/src/main/java/com/hubspot/jinjava/lib/filter/Md5Filter.java
+@@ -1,17 +1,17 @@
+ /**********************************************************************
+-Copyright (c) 2014 HubSpot Inc.
++ Copyright (c) 2014 HubSpot Inc.
+ 
+-Licensed under the Apache License, Version 2.0 (the "License");
+-you may not use this file except in compliance with the License.
+-You may obtain a copy of the License at
++ Licensed under the Apache License, Version 2.0 (the "License");
++ you may not use this file except in compliance with the License.
++ You may obtain a copy of the License at
+ 
+-http://www.apache.org/licenses/LICENSE-2.0
++ http://www.apache.org/licenses/LICENSE-2.0
+ 
+-Unless required by applicable law or agreed to in writing, software
+-distributed under the License is distributed on an "AS IS" BASIS,
+-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-See the License for the specific language governing permissions and
+-limitations under the License.
++ Unless required by applicable law or agreed to in writing, software
++ distributed under the License is distributed on an "AS IS" BASIS,
++ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ See the License for the specific language governing permissions and
++ limitations under the License.
+  **********************************************************************/
+ package com.hubspot.jinjava.lib.filter;
+ 
+@@ -25,6 +25,7 @@
+ import com.hubspot.jinjava.doc.annotations.JinjavaParam;
+ import com.hubspot.jinjava.doc.annotations.JinjavaSnippet;
+ import com.hubspot.jinjava.interpret.JinjavaInterpreter;
++import com.hubspot.jinjava.objects.SafeString;
+ 
+ @JinjavaDoc(
+     value = "Calculates the md5 hash of the given object",
+@@ -70,8 +71,8 @@ private String md5(String str, Charset encoding) {
+ 
+   @Override
+   public Object filter(Object object, JinjavaInterpreter interpreter, String... arg) {
+-    if (object instanceof String) {
+-      return md5((String) object, interpreter.getConfig().getCharset());
++    if (object instanceof String || object instanceof SafeString) {
++      return md5(object.toString(), interpreter.getConfig().getCharset());
+     }
+     return object;
+   }
+diff --git a/src/main/java/com/hubspot/jinjava/lib/filter/MultiplyFilter.java b/src/main/java/com/hubspot/jinjava/lib/filter/MultiplyFilter.java
+index 72777a7a..9c6aa945 100644
+--- a/src/main/java/com/hubspot/jinjava/lib/filter/MultiplyFilter.java
++++ b/src/main/java/com/hubspot/jinjava/lib/filter/MultiplyFilter.java
+@@ -1,17 +1,17 @@
+ /**********************************************************************
+-Copyright (c) 2014 HubSpot Inc.
++ Copyright (c) 2014 HubSpot Inc.
+ 
+-Licensed under the Apache License, Version 2.0 (the "License");
+-you may not use this file except in compliance with the License.
+-You may obtain a copy of the License at
++ Licensed under the Apache License, Version 2.0 (the "License");
++ you may not use this file except in compliance with the License.
++ You may obtain a copy of the License at
+ 
+-http://www.apache.org/licenses/LICENSE-2.0
++ http://www.apache.org/licenses/LICENSE-2.0
+ 
+-Unless required by applicable law or agreed to in writing, software
+-distributed under the License is distributed on an "AS IS" BASIS,
+-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-See the License for the specific language governing permissions and
+-limitations under the License.
++ Unless required by applicable law or agreed to in writing, software
++ distributed under the License is distributed on an "AS IS" BASIS,
++ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ See the License for the specific language governing permissions and
++ limitations under the License.
+  **********************************************************************/
+ package com.hubspot.jinjava.lib.filter;
+ 
+@@ -26,6 +26,7 @@
+ import com.hubspot.jinjava.interpret.InvalidReason;
+ import com.hubspot.jinjava.interpret.JinjavaInterpreter;
+ import com.hubspot.jinjava.interpret.TemplateSyntaxException;
++import com.hubspot.jinjava.objects.SafeString;
+ 
+ @JinjavaDoc(
+     value = "Multiplies the current object with the given multiplier",
+@@ -78,9 +79,9 @@ public Object filter(Object object, JinjavaInterpreter interpreter, String... ar
+     if (object instanceof Byte) {
+       return num.byteValue() * (Byte) object;
+     }
+-    if (object instanceof String) {
++    if (object instanceof String || object instanceof SafeString) {
+       try {
+-        return num.doubleValue() * Double.parseDouble((String) object);
++        return num.doubleValue() * Double.parseDouble(object.toString());
+       } catch (NumberFormatException e) {
+         throw new InvalidInputException(interpreter, this, InvalidReason.NUMBER_FORMAT, object.toString());
+       }
+diff --git a/src/main/java/com/hubspot/jinjava/lib/filter/RandomFilter.java b/src/main/java/com/hubspot/jinjava/lib/filter/RandomFilter.java
+index 724b19a8..379bd255 100644
+--- a/src/main/java/com/hubspot/jinjava/lib/filter/RandomFilter.java
++++ b/src/main/java/com/hubspot/jinjava/lib/filter/RandomFilter.java
+@@ -1,17 +1,17 @@
+ /**********************************************************************
+-Copyright (c) 2014 HubSpot Inc.
++ Copyright (c) 2014 HubSpot Inc.
+ 
+-Licensed under the Apache License, Version 2.0 (the "License");
+-you may not use this file except in compliance with the License.
+-You may obtain a copy of the License at
++ Licensed under the Apache License, Version 2.0 (the "License");
++ you may not use this file except in compliance with the License.
++ You may obtain a copy of the License at
+ 
+-http://www.apache.org/licenses/LICENSE-2.0
++ http://www.apache.org/licenses/LICENSE-2.0
+ 
+-Unless required by applicable law or agreed to in writing, software
+-distributed under the License is distributed on an "AS IS" BASIS,
+-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-See the License for the specific language governing permissions and
+-limitations under the License.
++ Unless required by applicable law or agreed to in writing, software
++ distributed under the License is distributed on an "AS IS" BASIS,
++ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++ See the License for the specific language governing permissions and
++ limitations under the License.
+  **********************************************************************/
+ package com.hubspot.jinjava.lib.filter;
+ 
+@@ -25,6 +25,7 @@
+ import com.hubspot.jinjava.doc.annotations.JinjavaParam;
+ import com.hubspot.jinjava.doc.annotations.JinjavaSnippet;
+ import com.hubspot.jinjava.interpret.JinjavaInterpreter;
++import com.hubspot.jinjava.objects.SafeString;
+ 
+ @JinjavaDoc(
+     value = "Return a random item from the sequence.",
+@@ -84,10 +85,10 @@ public Object filter(Object object, JinjavaInterpreter interpreter, String... ar
+     if (object instanceof Number) {
+       return interpreter.getRandom().nextInt(((Number) object).intValue());
+     }
+-    // string
+-    if (object instanceof String) {
++    // string or safe string
++    if (object instanceof String || object instanceof SafeString) {
+       try {
+-        return interpreter.getRandom().nextInt(new BigDecimal((String) object).intValue());
++        return interpreter.getRandom().nextInt(new BigDecimal(object.toString()).intValue());
+       } catch (Exception e) {
+         return 0;
+       }
+diff --git a/src/main/java/com/hubspot/jinjava/lib/filter/RegexReplaceFilter.java b/src/main/java/com/hubspot/jinjava/lib/filter/RegexReplaceFilter.java
+index 7cda384f..033c2fc1 100644
+--- a/src/main/java/com/hubspot/jinjava/lib/filter/RegexReplaceFilter.java
++++ b/src/main/java/com/hubspot/jinjava/lib/filter/RegexReplaceFilter.java
+@@ -11,55 +11,60 @@
+ import com.hubspot.jinjava.interpret.InvalidReason;
+ import com.hubspot.jinjava.interpret.JinjavaInterpreter;
+ import com.hubspot.jinjava.interpret.TemplateSyntaxException;
++import com.hubspot.jinjava.objects.SafeString;
+ 
+ @JinjavaDoc(
+-        value = "Return a copy of the value with all occurrences of a matched regular expression (Java RE2 syntax) " +
+-                "replaced with a new one. The first argument is the regular expression to be matched, the second " +
+-                "is the replacement string",
+-        input = @JinjavaParam(value = "s", desc = "Base string to find and replace within", required = true),
+-        params = {
+-                @JinjavaParam(value = "regex", desc = "The regular expression that you want to match and replace", required = true),
+-                @JinjavaParam(value = "new", desc = "The new string that you replace the matched substring", required = true)
+-        },
+-        snippets = {
+-                @JinjavaSnippet(
+-                        code = "{{ \"It costs $300\"|regex_replace(\"[^a-zA-Z]\", \"\") }}",
+-                        output = "Itcosts")
+-        })
++    value = "Return a copy of the value with all occurrences of a matched regular expression (Java RE2 syntax) " +
++        "replaced with a new one. The first argument is the regular expression to be matched, the second " +
++        "is the replacement string",
++    input = @JinjavaParam(value = "s", desc = "Base string to find and replace within", required = true),
++    params = {
++        @JinjavaParam(value = "regex", desc = "The regular expression that you want to match and replace", required = true),
++        @JinjavaParam(value = "new", desc = "The new string that you replace the matched substring", required = true)
++    },
++    snippets = {
++        @JinjavaSnippet(
++            code = "{{ \"It costs $300\"|regex_replace(\"[^a-zA-Z]\", \"\") }}",
++            output = "Itcosts")
++    })
+ public class RegexReplaceFilter implements Filter {
+ 
+-    @Override
+-    public String getName() {
+-        return "regex_replace";
+-    }
++  @Override
++  public String getName() {
++    return "regex_replace";
++  }
+ 
+-    @Override
+-    public Object filter(Object var, JinjavaInterpreter interpreter,
+-                         String... args) {
++  @Override
++  public Object filter(Object var, JinjavaInterpreter interpreter,
++                       String... args) {
+ 
+-        if (args.length < 2) {
+-            throw new TemplateSyntaxException(interpreter, getName(), "requires 2 arguments (regex string, replacement string)");
+-        }
++    if (args.length < 2) {
++      throw new TemplateSyntaxException(interpreter, getName(), "requires 2 arguments (regex string, replacement string)");
++    }
+ 
+-        if (var == null) {
+-            return null;
+-        }
++    if (var == null) {
++      return null;
++    }
++
++    if (var instanceof SafeString) {
++      return safeFilter(var, interpreter, args);
++    }
+ 
+-        if (var instanceof String) {
+-            String s = (String) var;
+-            String toReplace = args[0];
+-            String replaceWith = args[1];
++    if (var instanceof String) {
++      String s = (String) var;
++      String toReplace = args[0];
++      String replaceWith = args[1];
+ 
+-            try {
+-                Pattern p = Pattern.compile(toReplace);
+-                Matcher matcher = p.matcher(s);
++      try {
++        Pattern p = Pattern.compile(toReplace);
++        Matcher matcher = p.matcher(s);
+ 
+-                return matcher.replaceAll(replaceWith);
+-            } catch (PatternSyntaxException e) {
+-                throw new InvalidArgumentException(interpreter, this, InvalidReason.REGEX, 0, toReplace);
+-            }
+-        } else {
+-            throw new InvalidInputException(interpreter, this, InvalidReason.STRING);
+-        }
++        return matcher.replaceAll(replaceWith);
++      } catch (PatternSyntaxException e) {
++        throw new InvalidArgumentException(interpreter, this, InvalidReason.REGEX, 0, toReplace);
++      }
++    } else {
++      throw new InvalidInputException(interpreter, this, InvalidReason.STRING);
+     }
++  }
+ }
+diff --git a/src/main/java/com/hubspot/jinjava/lib/filter/ReplaceFilter.java b/src/main/java/com/hubspot/jinjava/lib/filter/ReplaceFilter.java
+index bd161448..9ac4c37d 100644
+--- a/src/main/java/com/hubspot/jinjava/lib/filter/ReplaceFilter.java
++++ b/src/main/java/com/hubspot/jinjava/lib/filter/ReplaceFilter.java
+@@ -35,8 +35,7 @@ public String getName() {
+   }
+ 
+   @Override
+-  public Object filter(Object var, JinjavaInterpreter interpreter,
+-      String... args) {
++  public Object filter(Object var, JinjavaInterpreter interpreter, String... args) {
+ 
+     if (var == null) {
+       return null;
+@@ -46,21 +45,23 @@ public Object filter(Object var, JinjavaInterpreter interpreter,
+           getName(),
+           "requires 2 arguments (substring to replace, replacement string) or 3 arguments (substring to replace, replacement string, number of occurrences to replace)");
+     }
++    if (var instanceof String) {
++      String s = (String) var;
++      String toReplace = args[0];
++      String replaceWith = args[1];
++      Integer count = null;
+ 
+-    String s = (String) var;
+-    String toReplace = args[0];
+-    String replaceWith = args[1];
+-    Integer count = null;
++      if (args.length > 2) {
++        count = NumberUtils.createInteger(args[2]);
++      }
+ 
+-    if (args.length > 2) {
+-      count = NumberUtils.createInteger(args[2]);
+-    }
+-
+-    if (count == null) {
+-      return StringUtils.replace(s, toReplace, replaceWith);
+-    } else {
+-      return StringUtils.replace(s, toReplace, replaceWith, count);
++      if (count == null) {
++        return StringUtils.replace(s, toReplace, replaceWith);
++      } else {
++        return StringUtils.replace(s, toReplace, replaceWith, count);
++      }
+     }
++    return safeFilter(var, interpreter, args);
+   }
+ 
+ }
+diff --git a/src/main/java/com/hubspot/jinjava/lib/filter/ReverseFilter.java b/src/main/java/com/hubspot/jinjava/lib/filter/ReverseFilter.java
+index cc01c40d..19ffbec4 100644
+--- a/src/main/java/com/hubspot/jinjava/lib/filter/ReverseFilter.java
++++ b/src/main/java/com/hubspot/jinjava/lib/filter/ReverseFilter.java
+@@ -73,7 +73,7 @@ public Object filter(Object object, JinjavaInterpreter interpreter, String... ar
+       return String.valueOf(res);
+     }
+ 
+-    return object;
++    return safeFilter(object, interpreter, arg);
+   }
+ 
+   @Override
+diff --git a/src/main/java/com/hubspot/jinjava/lib/filter/RootFilter.java b/src/main/java/com/hubspot/jinjava/lib/filter/RootFilter.java
+index c0325549..0b8d2e8a 100644
+--- a/src/main/java/com/hubspot/jinjava/lib/filter/RootFilter.java
++++ b/src/main/java/com/hubspot/jinjava/lib/filter/RootFilter.java
+@@ -12,6 +12,7 @@
+ import com.hubspot.jinjava.interpret.InvalidInputException;
+ import com.hubspot.jinjava.interpret.InvalidReason;
+ import com.hubspot.jinjava.interpret.JinjavaInterpreter;
++import com.hubspot.jinjava.objects.SafeString;
+ 
+ import ch.obermuhlner.math.big.BigDecimalMath;
+ 
+@@ -64,9 +65,9 @@ public Object filter(Object object, JinjavaInterpreter interpreter, String... ar
+     if (object instanceof BigInteger) {
+       return calculateBigRoot(interpreter, new BigDecimal((BigInteger) object), root);
+     }
+-    if (object instanceof String) {
++    if (object instanceof String || object instanceof SafeString) {
+       try {
+-        return calculateBigRoot(interpreter, new BigDecimal((String) object), root);
++        return calculateBigRoot(interpreter, new BigDecimal(object.toString()), root);
+       } catch (NumberFormatException e) {
+         throw new InvalidInputException(interpreter, this, InvalidReason.NUMBER_FORMAT, object.toString());
+       }
+diff --git a/src/main/java/com/hubspot/jinjava/lib/filter/SafeFilter.java b/src/main/java/com/hubspot/jinjava/lib/filter/SafeFilter.java
+index 112be2a9..fd48b13a 100644
+--- a/src/main/java/com/hubspot/jinjava/lib/filter/SafeFilter.java
++++ b/src/main/java/com/hubspot/jinjava/lib/filter/SafeFilter.java
+@@ -4,12 +4,10 @@
+ import com.hubspot.jinjava.doc.annotations.JinjavaParam;
+ import com.hubspot.jinjava.doc.annotations.JinjavaSnippet;
+ import com.hubspot.jinjava.interpret.JinjavaInterpreter;
++import com.hubspot.jinjava.objects.SafeString;
+ 
+ /**
+  * Mark the value as safe which means that in an environment with automatic escaping enabled this variable will not be escaped.
+- *
+- * This is currently implemented as a pass-through for the given variable.
+- *
+  */
+ @JinjavaDoc(
+     value = "Mark the value as safe, which means that in an environment with automatic escaping enabled this variable will not be escaped.",
+@@ -25,9 +23,15 @@ public String getName() {
+   }
+ 
+   @Override
+-  public Object filter(Object var, JinjavaInterpreter interpreter,
+-      String... args) {
+-    return var;
+-  }
++  public Object filter(Object var, JinjavaInterpreter interpreter, String... args) {
++    if (var == null) {
++      return null;
++    }
++
++    if (!(var instanceof String)) {
++      return var;
++    }
+ 
++    return new SafeString((String) var);
++  }
+ }
+diff --git a/src/main/java/com/hubspot/jinjava/lib/filter/StripTagsFilter.java b/src/main/java/com/hubspot/jinjava/lib/filter/StripTagsFilter.java
+index 09c2e09e..687728b6 100644
+--- a/src/main/java/com/hubspot/jinjava/lib/filter/StripTagsFilter.java
++++ b/src/main/java/com/hubspot/jinjava/lib/filter/StripTagsFilter.java
+@@ -27,15 +27,14 @@
+   @Override
+   public Object filter(Object object, JinjavaInterpreter interpreter, String... arg) {
+ 
+-    if (!(object instanceof String)) {
+-      return object;
+-    }
+-
+-    String val = interpreter.renderFlat((String) object);
+-    String strippedVal = Jsoup.parseBodyFragment(val).text();
+-    String normalizedVal = WHITESPACE.matcher(strippedVal).replaceAll(" ");
++    if (object instanceof String) {
++      String val = interpreter.renderFlat((String) object);
++      String strippedVal = Jsoup.parseBodyFragment(val).text();
++      String normalizedVal = WHITESPACE.matcher(strippedVal).replaceAll(" ");
+ 
+-    return normalizedVal;
++      return normalizedVal;
++    }
++    return safeFilter(object, interpreter, arg);
+   }
+ 
+   @Override
+diff --git a/src/main/java/com/hubspot/jinjava/lib/filter/TrimFilter.java b/src/main/java/com/hubspot/jinjava/lib/filter/TrimFilter.java
+index b7a74d6e..099ed41a 100644
+--- a/src/main/java/com/hubspot/jinjava/lib/filter/TrimFilter.java
++++ b/src/main/java/com/hubspot/jinjava/lib/filter/TrimFilter.java
+@@ -1,7 +1,5 @@
+ package com.hubspot.jinjava.lib.filter;
+ 
+-import java.util.Objects;
+-
+ import org.apache.commons.lang3.StringUtils;
+ 
+ import com.hubspot.jinjava.doc.annotations.JinjavaDoc;
+@@ -28,7 +26,9 @@ public String getName() {
+ 
+   @Override
+   public Object filter(Object var, JinjavaInterpreter interpreter, String... args) {
+-    return StringUtils.trim(Objects.toString(var));
++    if (var instanceof String) {
++      return StringUtils.trim((String) var);
++    }
++    return safeFilter(var, interpreter, args);
+   }
+-
+ }
+diff --git a/src/main/java/com/hubspot/jinjava/lib/filter/TruncateHtmlFilter.java b/src/main/java/com/hubspot/jinjava/lib/filter/TruncateHtmlFilter.java
+index 0a336d4e..cd092969 100644
+--- a/src/main/java/com/hubspot/jinjava/lib/filter/TruncateHtmlFilter.java
++++ b/src/main/java/com/hubspot/jinjava/lib/filter/TruncateHtmlFilter.java
+@@ -70,7 +70,7 @@ public Object filter(Object var, JinjavaInterpreter interpreter, String... args)
+       return dom.select("body").html();
+     }
+ 
+-    return var;
++    return safeFilter(var, interpreter, args);
+   }
+ 
+   private static class ContentTruncatingNodeVisitor implements NodeVisitor {
+diff --git a/src/main/java/com/hubspot/jinjava/lib/filter/UpperFilter.java b/src/main/java/com/hubspot/jinjava/lib/filter/UpperFilter.java
+index c53fd1b9..1b9bdddd 100644
+--- a/src/main/java/com/hubspot/jinjava/lib/filter/UpperFilter.java
++++ b/src/main/java/com/hubspot/jinjava/lib/filter/UpperFilter.java
+@@ -31,10 +31,9 @@
+   @Override
+   public Object filter(Object object, JinjavaInterpreter interpreter, String... arg) {
+     if (object instanceof String) {
+-      String value = (String) object;
+-      return value.toUpperCase();
++      return object.toString().toUpperCase();
+     }
+-    return object;
++    return safeFilter(object, interpreter, arg);
+   }
+ 
+   @Override
+diff --git a/src/main/java/com/hubspot/jinjava/lib/filter/UrlizeFilter.java b/src/main/java/com/hubspot/jinjava/lib/filter/UrlizeFilter.java
+index 7a50b1a5..20c3285c 100644
+--- a/src/main/java/com/hubspot/jinjava/lib/filter/UrlizeFilter.java
++++ b/src/main/java/com/hubspot/jinjava/lib/filter/UrlizeFilter.java
+@@ -38,45 +38,48 @@ public String getName() {
+ 
+   @Override
+   public Object filter(Object var, JinjavaInterpreter interpreter, String... args) {
+-    Matcher m = URL_RE.matcher(Objects.toString(var, ""));
+-    StringBuffer result = new StringBuffer();
++    if (var instanceof String) {
++      Matcher m = URL_RE.matcher(Objects.toString(var, ""));
++      StringBuffer result = new StringBuffer();
+ 
+-    int trimUrlLimit = Integer.MAX_VALUE;
+-    if (args.length > 0) {
+-      trimUrlLimit = NumberUtils.toInt(args[0], Integer.MAX_VALUE);
+-    }
++      int trimUrlLimit = Integer.MAX_VALUE;
++      if (args.length > 0) {
++        trimUrlLimit = NumberUtils.toInt(args[0], Integer.MAX_VALUE);
++      }
+ 
+-    String fmt = "<a href=\"%s\"";
++      String fmt = "<a href=\"%s\"";
+ 
+-    boolean nofollow = false;
+-    if (args.length > 1) {
+-      nofollow = BooleanUtils.toBoolean(args[1]);
+-    }
++      boolean nofollow = false;
++      if (args.length > 1) {
++        nofollow = BooleanUtils.toBoolean(args[1]);
++      }
+ 
+-    String target = "";
+-    if (args.length > 2) {
+-      target = args[2];
+-    }
++      String target = "";
++      if (args.length > 2) {
++        target = args[2];
++      }
+ 
+-    if (nofollow) {
+-      fmt += " rel=\"nofollow\"";
+-    }
++      if (nofollow) {
++        fmt += " rel=\"nofollow\"";
++      }
+ 
+-    if (StringUtils.isNotBlank(target)) {
+-      fmt += " target=\"" + target + "\"";
+-    }
++      if (StringUtils.isNotBlank(target)) {
++        fmt += " target=\"" + target + "\"";
++      }
+ 
+-    fmt += ">%s</a>";
++      fmt += ">%s</a>";
+ 
+-    while (m.find()) {
+-      String url = m.group();
+-      String urlShort = StringUtils.abbreviate(url, trimUrlLimit);
++      while (m.find()) {
++        String url = m.group();
++        String urlShort = StringUtils.abbreviate(url, trimUrlLimit);
+ 
+-      m.appendReplacement(result, String.format(fmt, url, urlShort));
+-    }
++        m.appendReplacement(result, String.format(fmt, url, urlShort));
++      }
+ 
+-    m.appendTail(result);
+-    return result.toString();
++      m.appendTail(result);
++      return result.toString();
++    }
++    return safeFilter(var, interpreter, args);
+   }
+ 
+   private static final Pattern URL_RE = Pattern.compile(
+diff --git a/src/main/java/com/hubspot/jinjava/lib/fn/Functions.java b/src/main/java/com/hubspot/jinjava/lib/fn/Functions.java
+index e6d7ceb4..a6c45344 100644
+--- a/src/main/java/com/hubspot/jinjava/lib/fn/Functions.java
++++ b/src/main/java/com/hubspot/jinjava/lib/fn/Functions.java
+@@ -25,6 +25,7 @@
+ import com.hubspot.jinjava.doc.annotations.JinjavaSnippet;
+ import com.hubspot.jinjava.interpret.InterpretException;
+ import com.hubspot.jinjava.interpret.JinjavaInterpreter;
++import com.hubspot.jinjava.objects.SafeString;
+ import com.hubspot.jinjava.objects.date.InvalidDateFormatException;
+ import com.hubspot.jinjava.objects.date.PyishDate;
+ import com.hubspot.jinjava.objects.date.StrftimeFormatter;
+@@ -234,6 +235,10 @@ public static Object truncate(Object var, Object... arg) {
+       }
+     }
+ 
++    if (var instanceof SafeString) {
++      return new SafeString(truncate(var.toString(), arg).toString());
++    }
++
+     return var;
+   }
+ 
+diff --git a/src/main/java/com/hubspot/jinjava/lib/fn/TypeFunction.java b/src/main/java/com/hubspot/jinjava/lib/fn/TypeFunction.java
+index aa97ffdb..2a327eb0 100644
+--- a/src/main/java/com/hubspot/jinjava/lib/fn/TypeFunction.java
++++ b/src/main/java/com/hubspot/jinjava/lib/fn/TypeFunction.java
+@@ -10,6 +10,7 @@
+ import com.hubspot.jinjava.el.ext.AstDict;
+ import com.hubspot.jinjava.el.ext.AstList;
+ import com.hubspot.jinjava.el.ext.AstTuple;
++import com.hubspot.jinjava.objects.SafeString;
+ import com.hubspot.jinjava.objects.date.PyishDate;
+ 
+ 
+@@ -35,6 +36,7 @@
+       .put(Long.class, "long")
+       .put(Map.class, "dict")
+       .put(String.class, "str")
++      .put(SafeString.class, "str")
+       .build();
+ 
+   public static String type(Object var) {
+diff --git a/src/main/java/com/hubspot/jinjava/objects/SafeString.java b/src/main/java/com/hubspot/jinjava/objects/SafeString.java
+new file mode 100644
+index 00000000..9e049978
+--- /dev/null
++++ b/src/main/java/com/hubspot/jinjava/objects/SafeString.java
+@@ -0,0 +1,15 @@
++package com.hubspot.jinjava.objects;
++
++public class SafeString {
++
++  private final String value;
++
++  public SafeString(String value) {
++    this.value = value;
++  }
++
++  @Override
++  public String toString() {
++    return value;
++  }
++}
+diff --git a/src/main/java/com/hubspot/jinjava/tree/ExpressionNode.java b/src/main/java/com/hubspot/jinjava/tree/ExpressionNode.java
+index 206064be..6ee5be79 100644
+--- a/src/main/java/com/hubspot/jinjava/tree/ExpressionNode.java
++++ b/src/main/java/com/hubspot/jinjava/tree/ExpressionNode.java
+@@ -22,6 +22,7 @@
+ import com.hubspot.jinjava.interpret.DeferredValueException;
+ import com.hubspot.jinjava.interpret.JinjavaInterpreter;
+ import com.hubspot.jinjava.lib.filter.EscapeFilter;
++import com.hubspot.jinjava.objects.SafeString;
+ import com.hubspot.jinjava.tree.output.OutputNode;
+ import com.hubspot.jinjava.tree.output.RenderedOutputNode;
+ import com.hubspot.jinjava.tree.parse.ExpressionToken;
+@@ -61,7 +62,7 @@ public OutputNode render(JinjavaInterpreter interpreter) {
+       }
+     }
+ 
+-    if (interpreter.getContext().isAutoEscape()) {
++    if (interpreter.getContext().isAutoEscape() && !(var instanceof SafeString)) {
+       result = EscapeFilter.escapeHtmlEntities(result);
+     }
+ 
+diff --git a/src/test/java/com/hubspot/jinjava/lib/filter/EscapeFilterTest.java b/src/test/java/com/hubspot/jinjava/lib/filter/EscapeFilterTest.java
+index d1459c76..19f33fee 100644
+--- a/src/test/java/com/hubspot/jinjava/lib/filter/EscapeFilterTest.java
++++ b/src/test/java/com/hubspot/jinjava/lib/filter/EscapeFilterTest.java
+@@ -7,6 +7,7 @@
+ import org.junit.Test;
+ 
+ import com.hubspot.jinjava.interpret.JinjavaInterpreter;
++import com.hubspot.jinjava.objects.SafeString;
+ 
+ public class EscapeFilterTest {
+ 
+@@ -24,7 +25,11 @@ public void testEscape() {
+     assertThat(f.filter("", interpreter)).isEqualTo("");
+     assertThat(f.filter("me & you", interpreter)).isEqualTo("me &amp; you");
+     assertThat(f.filter("jared's & ted's bogus journey", interpreter)).isEqualTo("jared&#39;s &amp; ted&#39;s bogus journey");
+-    assertThat(f.filter(1, interpreter)).isEqualTo("1");
+   }
+ 
++  @Test
++  public void testSafeStringCanBeEscaped() {
++    assertThat(f.filter(new SafeString("<a>Previously marked as safe<a/>"), interpreter).toString()).isEqualTo("&lt;a&gt;Previously marked as safe&lt;a/&gt;");
++    assertThat(f.filter(new SafeString("<a>Previously marked as safe<a/>"), interpreter)).isInstanceOf(SafeString.class);
++  }
+ }
+diff --git a/src/test/java/com/hubspot/jinjava/lib/filter/EscapeJinjavaFilterTest.java b/src/test/java/com/hubspot/jinjava/lib/filter/EscapeJinjavaFilterTest.java
+index 7a6add00..504a0941 100644
+--- a/src/test/java/com/hubspot/jinjava/lib/filter/EscapeJinjavaFilterTest.java
++++ b/src/test/java/com/hubspot/jinjava/lib/filter/EscapeJinjavaFilterTest.java
+@@ -7,6 +7,7 @@
+ import org.junit.Test;
+ 
+ import com.hubspot.jinjava.interpret.JinjavaInterpreter;
++import com.hubspot.jinjava.objects.SafeString;
+ 
+ public class EscapeJinjavaFilterTest {
+ 
+@@ -22,7 +23,14 @@ public void setup() {
+   @Test
+   public void testEscape() {
+     assertThat(f.filter("", interpreter)).isEqualTo("");
++    assertThat(f.filter("1", interpreter)).isEqualTo("1");
+     assertThat(f.filter("{{ me & you }}", interpreter)).isEqualTo("&lbrace;&lbrace; me & you &rbrace;&rbrace;");
+   }
+ 
++  @Test
++  public void testSafeStringCanBeEscaped() {
++    assertThat(f.filter("", interpreter)).isEqualTo("");
++    assertThat(f.filter(new SafeString("{{ me & you }}"), interpreter).toString()).isEqualTo("&lbrace;&lbrace; me & you &rbrace;&rbrace;");
++    assertThat(f.filter(new SafeString("{{ me & you }}"), interpreter)).isInstanceOf(SafeString.class);
++  }
+ }
+diff --git a/src/test/java/com/hubspot/jinjava/lib/filter/EscapeJsFilterTest.java b/src/test/java/com/hubspot/jinjava/lib/filter/EscapeJsFilterTest.java
+index ee9fa184..a545deb1 100644
+--- a/src/test/java/com/hubspot/jinjava/lib/filter/EscapeJsFilterTest.java
++++ b/src/test/java/com/hubspot/jinjava/lib/filter/EscapeJsFilterTest.java
+@@ -45,4 +45,8 @@ public void testHandlesDoubleQuotes() {
+     assertThat(jinjava.render("{{ 'Testing a \"quote for the week\"'|escapejs }}", new HashMap<>())).isEqualTo("Testing a \\\"quote for the week\\\"");
+   }
+ 
++  @Test
++  public void testSafeStringCanBeEscaped() {
++    assertThat(jinjava.render("{{ 'Testing\nlineb\"reak\n'|safe|escapejs }}", new HashMap<>())).isEqualTo("Testing\\nlineb\\\"reak\\n");
++  }
+ }
+diff --git a/src/test/java/com/hubspot/jinjava/lib/filter/EscapeJsonFilterTest.java b/src/test/java/com/hubspot/jinjava/lib/filter/EscapeJsonFilterTest.java
+index 514e3807..0490bb52 100644
+--- a/src/test/java/com/hubspot/jinjava/lib/filter/EscapeJsonFilterTest.java
++++ b/src/test/java/com/hubspot/jinjava/lib/filter/EscapeJsonFilterTest.java
+@@ -50,4 +50,8 @@ public void testHandleSingleQuote() {
+     Map<String, String> vars = ImmutableMap.of("string", "Testing a 'single quote' for the week");
+     assertThat(jinjava.render("{{ string|escapejson }}", vars)).isEqualTo("Testing a 'single quote' for the week");
+   }
++  @Test
++  public void testSafeStringCanBeEscaped() {
++    assertThat(jinjava.render("{{ 'Testing\nlineb\"reak\n'|safe|escapejs }}", new HashMap<>())).isEqualTo("Testing\\nlineb\\\"reak\\n");
++  }
+ }
+diff --git a/src/test/java/com/hubspot/jinjava/lib/filter/FromJsonFilterTest.java b/src/test/java/com/hubspot/jinjava/lib/filter/FromJsonFilterTest.java
+index fe6dca52..ec686b85 100644
+--- a/src/test/java/com/hubspot/jinjava/lib/filter/FromJsonFilterTest.java
++++ b/src/test/java/com/hubspot/jinjava/lib/filter/FromJsonFilterTest.java
+@@ -11,10 +11,12 @@
+ import com.hubspot.jinjava.Jinjava;
+ import com.hubspot.jinjava.interpret.InvalidInputException;
+ import com.hubspot.jinjava.interpret.JinjavaInterpreter;
++import com.hubspot.jinjava.objects.SafeString;
+ 
+ 
+ public class FromJsonFilterTest {
+ 
++  private static final String NESTED_JSON = "{\"first\":[1,2,3],\"nested\":{\"second\":\"string\",\"third\":4}}";
+   private JinjavaInterpreter interpreter;
+   private FromJsonFilter filter;
+ 
+@@ -26,20 +28,12 @@ public void setup() {
+ 
+   @Test
+   public void itReadsStringAsObject() {
+-
+-    String nestedJson = "{\"first\":[1,2,3],\"nested\":{\"second\":\"string\",\"third\":4}}";
+-
+-    HashMap<String, Object> node = (HashMap<String, Object>) filter.filter(nestedJson, interpreter);
+-    assertThat(node.get("first")).isEqualTo(Arrays.asList(1, 2, 3));
+-
+-    HashMap<String, Object> nested = (HashMap<String, Object>) node.get("nested");
+-    assertThat(nested.get("second")).isEqualTo("string");
+-    assertThat(nested.get("third")).isEqualTo(4);
++    HashMap<String, Object> node = (HashMap<String, Object>) filter.filter(NESTED_JSON, interpreter);
++    checkedNestJson(node);
+   }
+ 
+   @Test(expected = InvalidInputException.class)
+   public void itFailsWhenStringIsNotJson() {
+-
+     String nestedJson = "blah";
+ 
+     filter.filter(nestedJson, interpreter);
+@@ -47,9 +41,23 @@ public void itFailsWhenStringIsNotJson() {
+ 
+   @Test(expected = InvalidInputException.class)
+   public void itFailsWhenParameterIsNotString() {
+-
+     Integer nestedJson = 456;
+ 
+     filter.filter(nestedJson, interpreter);
+   }
++
++  @Test
++  public void itReadsSafeStringAsObject() {
++    SafeString nestedJson = new SafeString(NESTED_JSON);
++    HashMap<String, Object> node = (HashMap<String, Object>) filter.filter(nestedJson, interpreter);
++    checkedNestJson(node);
++  }
++
++  private void checkedNestJson(HashMap<String, Object> node) {
++    assertThat(node.get("first")).isEqualTo(Arrays.asList(1, 2, 3));
++
++    HashMap<String, Object> nested = (HashMap<String, Object>) node.get("nested");
++    assertThat(nested.get("second")).isEqualTo("string");
++    assertThat(nested.get("third")).isEqualTo(4);
++  }
+ }
+diff --git a/src/test/java/com/hubspot/jinjava/lib/filter/IpAddrFilterTest.java b/src/test/java/com/hubspot/jinjava/lib/filter/IpAddrFilterTest.java
+index 86205deb..ae2d3489 100644
+--- a/src/test/java/com/hubspot/jinjava/lib/filter/IpAddrFilterTest.java
++++ b/src/test/java/com/hubspot/jinjava/lib/filter/IpAddrFilterTest.java
+@@ -3,6 +3,7 @@
+ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+ import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
+ 
++import org.assertj.core.api.Assertions;
+ import org.junit.Before;
+ import org.junit.Test;
+ 
+@@ -88,4 +89,18 @@ public void itAddsErrorOnInvalidFunctionName() {
+     assertThatThrownBy(() -> ipAddrFilter.filter("192.168.0.1/20", interpreter, "notAFunction"))
+         .hasMessageContaining("must be one of");
+   }
++
++  @Test
++  public void itWorksWithSafeFilters() throws Exception {
++    String ipAddress = "192.168.0.1";
++    String broadcastIpAddress = "192.168.0.1/20";
++    String invalidIpAddress = "192.168.0.999";
++    interpreter.getContext().put("safe_ip", ipAddress);
++    interpreter.getContext().put("invalid_ip", invalidIpAddress);
++    interpreter.getContext().put("broadcast_ip", broadcastIpAddress);
++    Assertions.assertThat(interpreter.renderFlat("{{ safe_ip|safe|ipaddr }}")).isEqualTo(String.valueOf(true));
++    Assertions.assertThat(interpreter.renderFlat("{{ broadcast_ip|safe|ipaddr('broadcast')}}")).isEqualTo("192.168.15.255");
++    Assertions.assertThat(interpreter.renderFlat("{{ invalid_ip|safe|ipaddr }}")).isEqualTo(String.valueOf(false));
++    Assertions.assertThat(interpreter.renderFlat("{{ safe_ip|ipaddr }}")).isEqualTo(String.valueOf(true));
++  }
+ }
+diff --git a/src/test/java/com/hubspot/jinjava/lib/filter/RegexReplaceFilterTest.java b/src/test/java/com/hubspot/jinjava/lib/filter/RegexReplaceFilterTest.java
+index 43c8a43b..18da1de4 100644
+--- a/src/test/java/com/hubspot/jinjava/lib/filter/RegexReplaceFilterTest.java
++++ b/src/test/java/com/hubspot/jinjava/lib/filter/RegexReplaceFilterTest.java
+@@ -9,34 +9,42 @@
+ import com.hubspot.jinjava.interpret.InterpretException;
+ import com.hubspot.jinjava.interpret.InvalidArgumentException;
+ import com.hubspot.jinjava.interpret.JinjavaInterpreter;
++import com.hubspot.jinjava.objects.SafeString;
+ 
+ public class RegexReplaceFilterTest {
+ 
+-    JinjavaInterpreter interpreter;
+-    RegexReplaceFilter filter;
+-
+-    @Before
+-    public void setup() {
+-        interpreter = new Jinjava().newInterpreter();
+-        filter = new RegexReplaceFilter();
+-    }
+-
+-    @Test(expected = InterpretException.class)
+-    public void expects2Args() {
+-        filter.filter("foo", interpreter);
+-    }
+-
+-    public void noopOnNullExpr() {
+-        assertThat(filter.filter(null, interpreter, "foo", "bar")).isNull();
+-    }
+-
+-    @Test
+-    public void itMatchesRegexAndReplacesString() {
+-        assertThat(filter.filter("It costs $300", interpreter, "[^a-zA-Z]", "")).isEqualTo("Itcosts");
+-    }
+-
+-    @Test(expected = InvalidArgumentException.class)
+-    public void isThrowsExceptionOnInvalidRegex() {
+-        filter.filter("It costs $300", interpreter, "[", "");
+-    }
++  JinjavaInterpreter interpreter;
++  RegexReplaceFilter filter;
++
++  @Before
++  public void setup() {
++    interpreter = new Jinjava().newInterpreter();
++    filter = new RegexReplaceFilter();
++  }
++
++  @Test(expected = InterpretException.class)
++  public void expects2Args() {
++    filter.filter("foo", interpreter);
++  }
++
++  @Test
++  public void noopOnNullExpr() {
++    assertThat(filter.filter(null, interpreter, "foo", "bar")).isNull();
++  }
++
++  @Test
++  public void itMatchesRegexAndReplacesString() {
++    assertThat(filter.filter("It costs $300", interpreter, "[^a-zA-Z]", "")).isEqualTo("Itcosts");
++  }
++
++  @Test(expected = InvalidArgumentException.class)
++  public void isThrowsExceptionOnInvalidRegex() {
++    filter.filter("It costs $300", interpreter, "[", "");
++  }
++
++  @Test
++  public void itMatchesRegexAndReplacesStringForSafeString() {
++    assertThat(filter.filter(new SafeString("It costs $300"), interpreter, "[^a-zA-Z]", "").toString()).isEqualTo("Itcosts");
++  }
++
+ }
+diff --git a/src/test/java/com/hubspot/jinjava/lib/filter/ReplaceFilterTest.java b/src/test/java/com/hubspot/jinjava/lib/filter/ReplaceFilterTest.java
+index 483db778..0ae29b4b 100644
+--- a/src/test/java/com/hubspot/jinjava/lib/filter/ReplaceFilterTest.java
++++ b/src/test/java/com/hubspot/jinjava/lib/filter/ReplaceFilterTest.java
+@@ -8,6 +8,7 @@
+ import com.hubspot.jinjava.Jinjava;
+ import com.hubspot.jinjava.interpret.InterpretException;
+ import com.hubspot.jinjava.interpret.JinjavaInterpreter;
++import com.hubspot.jinjava.objects.SafeString;
+ 
+ public class ReplaceFilterTest {
+ 
+@@ -25,6 +26,7 @@ public void expectsAtLeast2Args() {
+     filter.filter("foo", interpreter);
+   }
+ 
++  @Test
+   public void noopOnNullExpr() {
+     assertThat(filter.filter(null, interpreter, "foo", "bar")).isNull();
+   }
+@@ -39,4 +41,8 @@ public void replaceWithCount() {
+     assertThat(filter.filter("aaaaargh", interpreter, "a", "d'oh, ", "2")).isEqualTo("d'oh, d'oh, aaargh");
+   }
+ 
++  @Test
++  public void replaceSafeStringWithCount() {
++    assertThat(filter.filter(new SafeString("aaaaargh"), interpreter, "a", "d'oh, ", "2").toString()).isEqualTo("d'oh, d'oh, aaargh");
++  }
+ }
+diff --git a/src/test/java/com/hubspot/jinjava/lib/filter/SafeFilterTest.java b/src/test/java/com/hubspot/jinjava/lib/filter/SafeFilterTest.java
+new file mode 100644
+index 00000000..a350a7fd
+--- /dev/null
++++ b/src/test/java/com/hubspot/jinjava/lib/filter/SafeFilterTest.java
+@@ -0,0 +1,76 @@
++package com.hubspot.jinjava.lib.filter;
++
++import static org.assertj.core.api.Assertions.assertThat;
++
++import java.util.List;
++
++import org.junit.After;
++import org.junit.Before;
++import org.junit.Test;
++
++import com.google.common.collect.ImmutableList;
++import com.hubspot.jinjava.Jinjava;
++import com.hubspot.jinjava.interpret.JinjavaInterpreter;
++
++public class SafeFilterTest {
++
++  private static final String HTML = "<a>Link</a>";
++  private static final List<Integer> TEST_NUMBERS = ImmutableList.of(43, 1, 24);
++  private static final List<String> TEST_STRINGS = ImmutableList.of("-100","1000", "short", "WeIrD", "The quick Brown fox Jumped Over The Lazy Dog.", "  some whitespace here  ");
++  private static final List<String> STRING_FILTERS = ImmutableList.of("ipaddr", "length", "lower", "upper", "md5", "reverse", "trim", "capitalize", "cut('a')", "center");
++  private static final List<String> NUMBER_FILTERS = ImmutableList.of("divide('5')", "ipaddr", "length", "log", "lower", "upper", "md5", "multiply('9')", "reverse", "root");
++
++  private JinjavaInterpreter interpreter;
++
++  @Before
++  public void setup() {
++    interpreter = new Jinjava().newInterpreter();
++    interpreter.getContext().setAutoEscape(true);
++  }
++
++  @After
++  public void tearDown() throws Exception {
++    assertThat(interpreter.getErrorsCopy()).isEmpty();
++  }
++
++  @Test
++  public void itDoesNotEscapeStringMarkedAsSafe() throws Exception {
++    interpreter.getContext().put("html", HTML);
++    assertThat(interpreter.renderFlat("{{ html|safe }}")).isEqualTo(HTML);
++  }
++
++  @Test
++  public void itPassesVarThroughIfNotInstanceOfString() throws Exception {
++    interpreter.getContext().put("number", -3);
++    assertThat(interpreter.renderFlat("{{ number|safe|abs }}")).isEqualTo("3");
++  }
++
++  @Test
++  public void itWorksWhenChainingFilters() throws Exception {
++    interpreter.getContext().put("safe_html", HTML);
++    assertThat(interpreter.renderFlat("{{ safe_html|safe|upper }}")).isEqualTo(HTML.toUpperCase());
++    assertThat(interpreter.renderFlat("{{ safe_html|upper|safe }}")).isEqualTo(HTML.toUpperCase());
++    assertThat(interpreter.renderFlat("{{ safe_html|safe|length }}")).isEqualTo(String.valueOf(HTML.length()));
++    assertThat(interpreter.renderFlat("{{ safe_html|safe|length|safe }}")).isEqualTo(String.valueOf(HTML.length()));
++    assertThat(interpreter.renderFlat("{{ safe_html|length }}")).isEqualTo(String.valueOf(HTML.length()));
++  }
++
++  @Test
++  public void itWorksForAllRelevantFilters() throws Exception {
++    for (String testFilter : STRING_FILTERS) {
++      for (String testString : TEST_STRINGS ) {
++        interpreter.getContext().put("string_under_test", testString);
++        assertThat(interpreter.renderFlat("{{ string_under_test|safe|" + testFilter + "|safe }}")).as("Testing behaviour of filter with and without safe filter: " + testFilter + " on string " + testString)
++            .isEqualTo(interpreter.renderFlat("{{ string_under_test|" + testFilter + " }}"));
++      }
++    }
++    for (String testFilter : NUMBER_FILTERS) {
++      for (Integer testInt : TEST_NUMBERS ) {
++        interpreter.getContext().put("string_under_test", testInt);
++        assertThat(interpreter.renderFlat("{{ string_under_test|safe|" + testFilter + " }}")).as("Testing behaviour of filter with and without safe filter: " + testFilter + " on string " + testInt)
++            .isEqualTo(interpreter.renderFlat("{{ string_under_test|" + testFilter + " }}"));
++      }
++    }
++    assertThat(interpreter.renderFlat("{{ 1|safe|random }}")).isEqualTo("0");
++  }
++}
+diff --git a/src/test/java/com/hubspot/jinjava/lib/filter/StripTagsFilterTest.java b/src/test/java/com/hubspot/jinjava/lib/filter/StripTagsFilterTest.java
+index a3209b0f..39d20c1f 100644
+--- a/src/test/java/com/hubspot/jinjava/lib/filter/StripTagsFilterTest.java
++++ b/src/test/java/com/hubspot/jinjava/lib/filter/StripTagsFilterTest.java
+@@ -13,6 +13,7 @@
+ import org.mockito.runners.MockitoJUnitRunner;
+ 
+ import com.hubspot.jinjava.interpret.JinjavaInterpreter;
++import com.hubspot.jinjava.objects.SafeString;
+ 
+ @RunWith(MockitoJUnitRunner.class)
+ public class StripTagsFilterTest {
+@@ -52,4 +53,9 @@ public void itStripsTagsFromHtml() throws Exception {
+     assertThat(filter.filter("foo <b>bar</b> other", interpreter)).isEqualTo("foo bar other");
+   }
+ 
++  @Test
++  public void itStripsTagsFromSafeStringWithHtml() throws Exception {
++    assertThat(filter.filter(new SafeString("foo <b>bar</b> other"), interpreter).toString()).isEqualTo("foo bar other");
++  }
++
+ }
+diff --git a/src/test/java/com/hubspot/jinjava/lib/filter/TrimFilterTest.java b/src/test/java/com/hubspot/jinjava/lib/filter/TrimFilterTest.java
+index 26c867b9..dba08a57 100644
+--- a/src/test/java/com/hubspot/jinjava/lib/filter/TrimFilterTest.java
++++ b/src/test/java/com/hubspot/jinjava/lib/filter/TrimFilterTest.java
+@@ -7,6 +7,7 @@
+ 
+ import com.hubspot.jinjava.Jinjava;
+ import com.hubspot.jinjava.interpret.JinjavaInterpreter;
++import com.hubspot.jinjava.objects.SafeString;
+ 
+ public class TrimFilterTest {
+ 
+@@ -24,4 +25,10 @@ public void testTrim() {
+     assertThat(filter.filter(" foo  ", interpreter)).isEqualTo("foo");
+   }
+ 
++  @Test
++  public void testTrimSafeString() {
++    assertThat(filter.filter(new SafeString(" foo  "), interpreter).toString()).isEqualTo("foo");
++    assertThat(filter.filter(new SafeString(" foo  "), interpreter)).isInstanceOf(SafeString.class);
++  }
++
+ }
+diff --git a/src/test/java/com/hubspot/jinjava/lib/filter/TruncateHtmlFilterTest.java b/src/test/java/com/hubspot/jinjava/lib/filter/TruncateHtmlFilterTest.java
+index d40ca451..1d3597fa 100644
+--- a/src/test/java/com/hubspot/jinjava/lib/filter/TruncateHtmlFilterTest.java
++++ b/src/test/java/com/hubspot/jinjava/lib/filter/TruncateHtmlFilterTest.java
+@@ -11,6 +11,7 @@
+ 
+ import com.google.common.io.Resources;
+ import com.hubspot.jinjava.interpret.JinjavaInterpreter;
++import com.hubspot.jinjava.objects.SafeString;
+ 
+ public class TruncateHtmlFilterTest {
+ 
+@@ -38,6 +39,13 @@ public void itDoesntChopWordsWhenSpecified() {
+     assertThat(result).isEqualTo("<h1>HTML Ipsum Presents</h1> \n<p><strong>Pellentesque ha...</strong></p>");
+   }
+ 
++  @Test
++  public void itWorksForSafeString() {
++    Object result = filter.filter(new SafeString(fixture("filter/truncatehtml/long-content-with-tags.html")), interpreter, "33");
++    assertThat(result.toString()).isEqualTo("<h1>HTML Ipsum Presents</h1> \n<p><strong>Pellentesque...</strong></p>");
++    assertThat(result).isInstanceOf(SafeString.class);
++  }
++
+   private static String fixture(String name) {
+     try {
+       return Resources.toString(Resources.getResource(name), StandardCharsets.UTF_8);
+diff --git a/src/test/java/com/hubspot/jinjava/lib/filter/UrlizeFilterTest.java b/src/test/java/com/hubspot/jinjava/lib/filter/UrlizeFilterTest.java
+index 0f4dcffc..224167a9 100644
+--- a/src/test/java/com/hubspot/jinjava/lib/filter/UrlizeFilterTest.java
++++ b/src/test/java/com/hubspot/jinjava/lib/filter/UrlizeFilterTest.java
+@@ -20,16 +20,22 @@
+   @Before
+   public void setup() throws Exception {
+     jinjava = new Jinjava();
++    jinjava.getGlobalContext().setAutoEscape(true); // Ensure that autoescape does not affect generated HTML
+     jinjava.getGlobalContext().put("txt", Resources.toString(Resources.getResource("filter/urlize.txt"), StandardCharsets.UTF_8));
+   }
+ 
+   @Test
+-  public void urlizeText() {
+-    Document dom = Jsoup.parseBodyFragment(jinjava.render("{{ txt|urlize }}", new HashMap<String, Object>()));
++  public void urlizeTextWorksWhenSafe() {
++    Document dom = Jsoup.parseBodyFragment(jinjava.render("{{ txt|urlize|safe }}", new HashMap<String, Object>()));
+     assertThat(dom.select("a")).hasSize(3);
+     assertThat(dom.select("a").get(0).attr("href")).isEqualTo("http://www.espn.com");
+     assertThat(dom.select("a").get(1).attr("href")).isEqualTo("http://yahoo.com");
+     assertThat(dom.select("a").get(2).attr("href")).isEqualTo("https://hubspot.com");
+   }
+ 
++  @Test
++  public void urlizeTextIsEscaped() {
++    String rendered = jinjava.render("{{ txt|urlize }}", new HashMap<String, Object>());
++    assertThat(rendered).doesNotContain("<a>").doesNotContain("</a>");
++  }
+ }
+diff --git a/src/test/java/com/hubspot/jinjava/lib/fn/TypeFunctionTest.java b/src/test/java/com/hubspot/jinjava/lib/fn/TypeFunctionTest.java
+index 510e0cae..462ffb52 100644
+--- a/src/test/java/com/hubspot/jinjava/lib/fn/TypeFunctionTest.java
++++ b/src/test/java/com/hubspot/jinjava/lib/fn/TypeFunctionTest.java
+@@ -6,21 +6,12 @@
+ import java.util.ArrayList;
+ import java.util.HashMap;
+ 
+-import org.junit.Before;
+ import org.junit.Test;
+ 
+-import com.hubspot.jinjava.Jinjava;
+-import com.hubspot.jinjava.interpret.JinjavaInterpreter;
++import com.hubspot.jinjava.objects.SafeString;
+ 
+ public class TypeFunctionTest {
+ 
+-  private JinjavaInterpreter interpreter;
+-
+-  @Before
+-  public void setup() {
+-    interpreter = new Jinjava().newInterpreter();
+-  }
+-
+   @Test
+   public void testString() {
+     assertThat(TypeFunction.type(" foo  ")).isEqualTo("str");
+@@ -60,4 +51,10 @@ public void testDict() {
+   public void testBool() {
+     assertThat(TypeFunction.type(Boolean.FALSE)).isEqualTo("bool");
+   }
++
++  @Test
++  public void testSafeString() {
++    assertThat(TypeFunction.type(new SafeString("test safe string"))).isEqualTo("str");
++  }
++
+ }

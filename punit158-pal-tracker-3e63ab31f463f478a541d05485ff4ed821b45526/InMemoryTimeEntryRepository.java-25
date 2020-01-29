@@ -1,0 +1,9 @@
+@@ -25,7 +25,7 @@ public TimeEntry create(TimeEntry timeEntry) {
+                 timeEntry.getProjectId(),timeEntry.getUserId(),timeEntry.getDate(),timeEntry.getHours());
+ 
+         if(newTimeEntry != null) {
+-            timeEntyMap.put(newTimeEntry.getId(), newTimeEntry);
++            timeEntyMap.put(id, newTimeEntry);
+         }
+ 
+         return (TimeEntry) timeEntyMap.get(newTimeEntry.getId());

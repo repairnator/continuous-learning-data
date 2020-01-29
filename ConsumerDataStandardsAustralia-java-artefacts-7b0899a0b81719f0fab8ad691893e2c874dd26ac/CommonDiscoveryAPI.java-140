@@ -1,0 +1,9 @@
+@@ -140,7 +140,7 @@ public ResponseDiscoveryOutagesList getOutages() throws ApiException {
+      * http.response.details
+      * <table summary="Response Details" border="1">
+      *   <tr><td> Status Code </td><td> Description </td><td> Response Headers </td></tr>
+-     *   <tr><td> ResponseCode.OK </td><td> Success </td><td>  -  </td></tr>
++     *   <tr><td> 200 </td><td> Success </td><td>  * x-v - The [version](#response-headers) of the API end point that the data holder has responded with. <br>  </td></tr>
+      * </table>
+      */
+     public okhttp3.Call getStatusCall(final ApiCallback _callback) throws ApiException {

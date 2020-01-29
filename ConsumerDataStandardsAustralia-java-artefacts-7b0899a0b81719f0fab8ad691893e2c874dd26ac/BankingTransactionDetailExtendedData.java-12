@@ -1,0 +1,9 @@
+@@ -12,7 +12,7 @@
+ public class BankingTransactionDetailExtendedData {
+ 
+     public enum ExtensionUType {
+-        x2p101Payload
++        X2P101PAYLOAD
+     }
+ 
+     public enum Service {

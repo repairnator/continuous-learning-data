@@ -1,0 +1,9 @@
+@@ -291,7 +291,7 @@ ResponseBankingScheduledPaymentsList listScheduledPaymentsSpecificAccounts(
+             description = "Array of specific accountIds to obtain scheduled payments for.  The accounts specified are the source of funds for the payments returned",
+             in = ParamLocation.BODY
+         )
+-        RequestAccountIds accountIds, 
++        RequestAccountIds accountIds,
+         @Param(
+             name = "page",
+             description = "Page of results to request (standard pagination)",

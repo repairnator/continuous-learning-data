@@ -1,0 +1,9 @@
+@@ -291,7 +291,7 @@ ResponseBankingDirectDebitAuthorisationList listDirectDebitsSpecificAccounts(
+             description = "Array of specific accountIds to obtain authorisations for",
+             in = ParamLocation.BODY
+         )
+-        RequestAccountIds accountIds, 
++        RequestAccountIds accountIds,
+         @Param(
+             name = "page",
+             description = "Page of results to request (standard pagination)",

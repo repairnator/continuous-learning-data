@@ -1,0 +1,9 @@
+@@ -34,7 +34,7 @@ public SystemContext() {
+     }
+ 
+     public SystemContext(Map<? extends String, ? extends Serializable> map) {
+-        this.contextMap = new HashMap<>(map);
++        this.contextMap = new UnifiedMap<>(map);
+     }
+ 
+     @Override

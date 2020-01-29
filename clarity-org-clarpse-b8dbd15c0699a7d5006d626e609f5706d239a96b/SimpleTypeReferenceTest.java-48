@@ -1,0 +1,9 @@
+@@ -48,7 +48,7 @@ public void testClassExpressionsNotCountedAsTypeDeclaration() throws Exception {
+         rawData.insertFile(new RawFile("file2", code));
+         final ClarpseProject parseService = new ClarpseProject(rawData);
+         OOPSourceCodeModel generatedSourceModel = parseService.result();
+-        assertTrue(generatedSourceModel.getComponent("Test.log").get().componentInvocations(ComponentInvocations.DECLARATION)
++        assertTrue(generatedSourceModel.getComponent("Test.log").get().references(TypeReferences.SIMPLE)
+                 .size() == 1);
+     }
+ 

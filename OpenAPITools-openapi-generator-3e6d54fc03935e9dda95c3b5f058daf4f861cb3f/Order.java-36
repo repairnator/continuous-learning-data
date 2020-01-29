@@ -1,0 +1,9 @@
+@@ -36,7 +36,7 @@ public String toString() {
+     }
+   }
+ 
+-  private StatusEnum status = null;
++  private StatusEnum status;
+   private Boolean complete = false;
+ 
+   public Order () {

@@ -1,0 +1,9 @@
+@@ -67,7 +67,7 @@
+ import org.apache.cloudstack.storage.configdrive.ConfigDriveBuilder;
+ import org.apache.cloudstack.storage.template.DownloadManager;
+ import org.apache.cloudstack.storage.template.DownloadManagerImpl;
+-import org.apache.cloudstack.storage.template.DownloadManagerImpl.ZfsPathParser;
++import org.apache.cloudstack.storage.NfsMountManagerImpl.NfsPathParser;
+ import org.apache.cloudstack.storage.template.UploadEntity;
+ import org.apache.cloudstack.storage.template.UploadManager;
+ import org.apache.cloudstack.storage.template.UploadManagerImpl;

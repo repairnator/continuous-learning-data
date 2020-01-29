@@ -1,0 +1,9 @@
+@@ -26,7 +26,7 @@ public void onEnable() {
+         }
+         if (properties.getProperty("version").contains("DEVELOPMENT")) {
+             System.out.println("!!! WARNING !!!");
+-            System.out.println("!!! EMERGPROXY DEVELOPMENT VERSION " + properties.getProperty("version") + " DETECTED !!!");
++            System.out.println("!!! AMBOSS DEVELOPMENT VERSION " + properties.getProperty("version") + " DETECTED !!!");
+             System.out.println("!!! THIS VERSION IS NOT MEANT FOR PRODUCTION USE, PROCEED AT YOUR OWN RISK !!!");
+         } else {
+             System.out.println(properties.getProperty("artifactId") + " version " + properties.getProperty("version") + "starting up.");

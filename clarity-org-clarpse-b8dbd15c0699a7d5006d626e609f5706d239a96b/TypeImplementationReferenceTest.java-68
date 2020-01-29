@@ -1,0 +1,9 @@
+@@ -68,7 +68,7 @@ public void testAccurateMultipleImplementedTypesSize() throws Exception {
+         rawData.insertFile(new RawFile("file1", code));
+         final ClarpseProject parseService = new ClarpseProject(rawData);
+         generatedSourceModel = parseService.result();
+-        assertTrue(generatedSourceModel.getComponent("com.ClassA").get().componentInvocations().size() == 2);
++        assertTrue(generatedSourceModel.getComponent("com.ClassA").get().references().size() == 2);
+     }
+ 
+     @Test

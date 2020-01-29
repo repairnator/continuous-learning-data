@@ -1,0 +1,9 @@
+@@ -166,7 +166,7 @@ private DefaultStreamExcelBuilder(Class<T> dataType, Workbook workbook) {
+         if (workbook != null) {
+             throw new IllegalArgumentException("Workbook type confirmed, not modifiable");
+         }
+-        this.workbookType = workbookType;
++        globalSetting.setWorkbookType(workbookType);
+         return this;
+     }
+ 

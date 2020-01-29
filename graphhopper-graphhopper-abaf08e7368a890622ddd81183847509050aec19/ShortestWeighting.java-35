@@ -1,0 +1,9 @@
+@@ -35,7 +35,7 @@ public ShortestWeighting(FlagEncoder flagEncoder) {
+     }
+ 
+     public ShortestWeighting(FlagEncoder flagEncoder, TurnCostProvider turnCostProvider) {
+-        super(flagEncoder, turnCostProvider);
++        super("shortest", flagEncoder, turnCostProvider);
+     }
+ 
+     @Override

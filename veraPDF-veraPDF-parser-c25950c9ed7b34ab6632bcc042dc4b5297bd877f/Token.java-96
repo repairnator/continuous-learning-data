@@ -1,0 +1,9 @@
+@@ -96,7 +96,7 @@ public void clearValue() {
+ 		KW_F,
+ 		KW_XREF,
+ 		KW_STARTXREF,
+-		KW_TRAILER
++		KW_TRAILER,
+ 	}
+ 
+ 	private static final Map<String, Keyword> KEYWORDS = new HashMap<>();

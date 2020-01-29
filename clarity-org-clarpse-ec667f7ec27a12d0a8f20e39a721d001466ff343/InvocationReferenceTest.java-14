@@ -1,0 +1,9 @@
+@@ -14,7 +14,7 @@
+  * Ensure component invocations for a given component are inherited by its
+  * parents.
+  */
+-public class InvocationInheritanceTest {
++public class InvocationReferenceTest {
+ 
+     @Test
+     public void testClassInheritsFieldInvocations() throws Exception {

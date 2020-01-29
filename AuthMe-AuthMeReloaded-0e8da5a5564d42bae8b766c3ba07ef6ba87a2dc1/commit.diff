@@ -1,0 +1,13 @@
+diff --git a/src/main/java/fr/xephi/authme/service/GeoIpService.java b/src/main/java/fr/xephi/authme/service/GeoIpService.java
+index b4d42d136..091faa4e9 100644
+--- a/src/main/java/fr/xephi/authme/service/GeoIpService.java
++++ b/src/main/java/fr/xephi/authme/service/GeoIpService.java
+@@ -151,7 +151,7 @@ private void updateDatabase() {
+             // MD5 checksum verification
+             verifyChecksum(Hashing.md5(), tempFile, expectedChecksum);
+ 
+-            Files.copy(tempFile, dataFile);
++            Files.copy(tempFile, dataFile, StandardCopyOption.REPLACE_EXISTING);
+ 
+             //only set this value to false on success otherwise errors could lead to endless download triggers
+             logger.info("Successfully downloaded new GEO IP database to " + dataFile);

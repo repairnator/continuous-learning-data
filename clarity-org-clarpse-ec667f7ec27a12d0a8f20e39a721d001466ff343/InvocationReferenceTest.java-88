@@ -1,0 +1,9 @@
+@@ -88,7 +88,7 @@ public void testInterfaceInheritsFieldInvocations() throws Exception {
+         rawData.insertFile(new RawFile("file2", code));
+         final ClarpseProject parseService = new ClarpseProject(rawData);
+         final OOPSourceCodeModel generatedSourceModel = parseService.result();
+-        assertTrue(((ComponentInvocation) generatedSourceModel.getComponent("Test").get().invocations().toArray()[0])
++        assertTrue(((ComponentReference) generatedSourceModel.getComponent("Test").get().references().toArray()[0])
+                 .invokedComponent().equals("java.lang.String"));
+     }
+ 

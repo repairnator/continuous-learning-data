@@ -1,0 +1,1643 @@
+diff --git a/backend/plugins/com.eclipsesource.coffee.codegen.java.application/.classpath b/backend/plugins/com.eclipsesource.coffee.codegen.java.application/.classpath
+index 43b9862..685a699 100644
+--- a/backend/plugins/com.eclipsesource.coffee.codegen.java.application/.classpath
++++ b/backend/plugins/com.eclipsesource.coffee.codegen.java.application/.classpath
+@@ -1,6 +1,10 @@
+ <?xml version="1.0" encoding="UTF-8"?>
+ <classpath>
+-	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.8"/>
++	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-11">
++		<attributes>
++			<attribute name="module" value="true"/>
++		</attributes>
++	</classpathentry>
+ 	<classpathentry kind="con" path="org.eclipse.pde.core.requiredPlugins"/>
+ 	<classpathentry kind="src" path="src"/>
+ 	<classpathentry kind="output" path="target/classes"/>
+diff --git a/backend/plugins/com.eclipsesource.coffee.codegen.java.application/.settings/org.eclipse.jdt.core.prefs b/backend/plugins/com.eclipsesource.coffee.codegen.java.application/.settings/org.eclipse.jdt.core.prefs
+index 0c68a61..7adc0fb 100644
+--- a/backend/plugins/com.eclipsesource.coffee.codegen.java.application/.settings/org.eclipse.jdt.core.prefs
++++ b/backend/plugins/com.eclipsesource.coffee.codegen.java.application/.settings/org.eclipse.jdt.core.prefs
+@@ -1,7 +1,10 @@
+ eclipse.preferences.version=1
+ org.eclipse.jdt.core.compiler.codegen.inlineJsrBytecode=enabled
+-org.eclipse.jdt.core.compiler.codegen.targetPlatform=1.8
+-org.eclipse.jdt.core.compiler.compliance=1.8
++org.eclipse.jdt.core.compiler.codegen.targetPlatform=11
++org.eclipse.jdt.core.compiler.compliance=11
+ org.eclipse.jdt.core.compiler.problem.assertIdentifier=error
++org.eclipse.jdt.core.compiler.problem.enablePreviewFeatures=disabled
+ org.eclipse.jdt.core.compiler.problem.enumIdentifier=error
+-org.eclipse.jdt.core.compiler.source=1.8
++org.eclipse.jdt.core.compiler.problem.reportPreviewFeatures=warning
++org.eclipse.jdt.core.compiler.release=enabled
++org.eclipse.jdt.core.compiler.source=11
+diff --git a/backend/plugins/com.eclipsesource.coffee.codegen.java.application/META-INF/MANIFEST.MF b/backend/plugins/com.eclipsesource.coffee.codegen.java.application/META-INF/MANIFEST.MF
+index 1f96af0..dd6678b 100644
+--- a/backend/plugins/com.eclipsesource.coffee.codegen.java.application/META-INF/MANIFEST.MF
++++ b/backend/plugins/com.eclipsesource.coffee.codegen.java.application/META-INF/MANIFEST.MF
+@@ -7,9 +7,8 @@ Bundle-Vendor: EclipseSource
+ Require-Bundle: com.eclipsesource.workflow.generator.java,
+  org.eclipse.equinox.app,
+  org.eclipse.emf.ecore,
+- com.eclipsesource.modelserver.coffee.model;bundle-version="0.0.1",
+- com.eclipsesource.modelserver.client;bundle-version="0.0.1",
+- com.eclipsesource.coffee.common;bundle-version="0.1.0"
++ com.eclipsesource.coffee.common;bundle-version="0.1.0",
++ com.eclipsesource.modelserver.coffee.model;bundle-version="0.0.1"
+ Automatic-Module-Name: com.eclipsesource.codegen
+-Bundle-RequiredExecutionEnvironment: JavaSE-1.8
++Bundle-RequiredExecutionEnvironment: JavaSE-11
+ Export-Package: com.eclipsesource.coffee.codegen.java
+diff --git a/backend/plugins/com.eclipsesource.coffee.common/.project b/backend/plugins/com.eclipsesource.coffee.common/.project
+index d950b76..0933112 100644
+--- a/backend/plugins/com.eclipsesource.coffee.common/.project
++++ b/backend/plugins/com.eclipsesource.coffee.common/.project
+@@ -20,8 +20,14 @@
+ 			<arguments>
+ 			</arguments>
+ 		</buildCommand>
++		<buildCommand>
++			<name>org.eclipse.m2e.core.maven2Builder</name>
++			<arguments>
++			</arguments>
++		</buildCommand>
+ 	</buildSpec>
+ 	<natures>
++		<nature>org.eclipse.m2e.core.maven2Nature</nature>
+ 		<nature>org.eclipse.pde.PluginNature</nature>
+ 		<nature>org.eclipse.jdt.core.javanature</nature>
+ 	</natures>
+diff --git a/backend/plugins/com.eclipsesource.coffee.common/.settings/org.eclipse.jdt.core.prefs b/backend/plugins/com.eclipsesource.coffee.common/.settings/org.eclipse.jdt.core.prefs
+index 0c68a61..cd8d089 100644
+--- a/backend/plugins/com.eclipsesource.coffee.common/.settings/org.eclipse.jdt.core.prefs
++++ b/backend/plugins/com.eclipsesource.coffee.common/.settings/org.eclipse.jdt.core.prefs
+@@ -1,7 +1,15 @@
+ eclipse.preferences.version=1
+ org.eclipse.jdt.core.compiler.codegen.inlineJsrBytecode=enabled
+-org.eclipse.jdt.core.compiler.codegen.targetPlatform=1.8
+-org.eclipse.jdt.core.compiler.compliance=1.8
++org.eclipse.jdt.core.compiler.codegen.methodParameters=do not generate
++org.eclipse.jdt.core.compiler.codegen.targetPlatform=11
++org.eclipse.jdt.core.compiler.codegen.unusedLocal=preserve
++org.eclipse.jdt.core.compiler.compliance=11
++org.eclipse.jdt.core.compiler.debug.lineNumber=generate
++org.eclipse.jdt.core.compiler.debug.localVariable=generate
++org.eclipse.jdt.core.compiler.debug.sourceFile=generate
+ org.eclipse.jdt.core.compiler.problem.assertIdentifier=error
++org.eclipse.jdt.core.compiler.problem.enablePreviewFeatures=disabled
+ org.eclipse.jdt.core.compiler.problem.enumIdentifier=error
+-org.eclipse.jdt.core.compiler.source=1.8
++org.eclipse.jdt.core.compiler.problem.reportPreviewFeatures=warning
++org.eclipse.jdt.core.compiler.release=disabled
++org.eclipse.jdt.core.compiler.source=11
+diff --git a/backend/plugins/com.eclipsesource.coffee.common/META-INF/MANIFEST.MF b/backend/plugins/com.eclipsesource.coffee.common/META-INF/MANIFEST.MF
+index 0148e62..5fd5c80 100644
+--- a/backend/plugins/com.eclipsesource.coffee.common/META-INF/MANIFEST.MF
++++ b/backend/plugins/com.eclipsesource.coffee.common/META-INF/MANIFEST.MF
+@@ -6,6 +6,7 @@ Bundle-Version: 0.1.0.qualifier
+ Bundle-Vendor: EclipseSource
+ Automatic-Module-Name: com.eclipsesource.coffee.common
+ Bundle-RequiredExecutionEnvironment: JavaSE-11
+-Require-Bundle: com.eclipsesource.modelserver.client;bundle-version="0.0.1",
+- com.eclipsesource.modelserver.common;bundle-version="0.0.1"
++Require-Bundle: org.eclipse.emfcloud.modelserver.client;bundle-version="0.7.0",
++ org.eclipse.emfcloud.modelserver.common;bundle-version="0.7.0",
++ org.eclipse.emf.ecore;bundle-version="2.20.0"
+ Export-Package: com.eclipsesource.coffee.common
+diff --git a/backend/plugins/com.eclipsesource.coffee.common/src/com/eclipsesource/coffee/common/ModelServerClientUtil.java b/backend/plugins/com.eclipsesource.coffee.common/src/com/eclipsesource/coffee/common/ModelServerClientUtil.java
+index 61f037e..2f920f2 100644
+--- a/backend/plugins/com.eclipsesource.coffee.common/src/com/eclipsesource/coffee/common/ModelServerClientUtil.java
++++ b/backend/plugins/com.eclipsesource.coffee.common/src/com/eclipsesource/coffee/common/ModelServerClientUtil.java
+@@ -6,7 +6,7 @@
+ 
+ import org.eclipse.emf.ecore.EObject;
+ 
+-import com.eclipsesource.modelserver.client.ModelServerClient;
++import org.eclipse.emfcloud.modelserver.client.ModelServerClient;
+ 
+ public final class ModelServerClientUtil {
+ 	private static final String FORMAT = "xmi";
+diff --git a/backend/plugins/com.eclipsesource.coffee.workflow.analyzer.application/.classpath b/backend/plugins/com.eclipsesource.coffee.workflow.analyzer.application/.classpath
+index 43b9862..685a699 100644
+--- a/backend/plugins/com.eclipsesource.coffee.workflow.analyzer.application/.classpath
++++ b/backend/plugins/com.eclipsesource.coffee.workflow.analyzer.application/.classpath
+@@ -1,6 +1,10 @@
+ <?xml version="1.0" encoding="UTF-8"?>
+ <classpath>
+-	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.8"/>
++	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-11">
++		<attributes>
++			<attribute name="module" value="true"/>
++		</attributes>
++	</classpathentry>
+ 	<classpathentry kind="con" path="org.eclipse.pde.core.requiredPlugins"/>
+ 	<classpathentry kind="src" path="src"/>
+ 	<classpathentry kind="output" path="target/classes"/>
+diff --git a/backend/plugins/com.eclipsesource.coffee.workflow.analyzer.application/.settings/org.eclipse.jdt.core.prefs b/backend/plugins/com.eclipsesource.coffee.workflow.analyzer.application/.settings/org.eclipse.jdt.core.prefs
+index 0c68a61..7adc0fb 100644
+--- a/backend/plugins/com.eclipsesource.coffee.workflow.analyzer.application/.settings/org.eclipse.jdt.core.prefs
++++ b/backend/plugins/com.eclipsesource.coffee.workflow.analyzer.application/.settings/org.eclipse.jdt.core.prefs
+@@ -1,7 +1,10 @@
+ eclipse.preferences.version=1
+ org.eclipse.jdt.core.compiler.codegen.inlineJsrBytecode=enabled
+-org.eclipse.jdt.core.compiler.codegen.targetPlatform=1.8
+-org.eclipse.jdt.core.compiler.compliance=1.8
++org.eclipse.jdt.core.compiler.codegen.targetPlatform=11
++org.eclipse.jdt.core.compiler.compliance=11
+ org.eclipse.jdt.core.compiler.problem.assertIdentifier=error
++org.eclipse.jdt.core.compiler.problem.enablePreviewFeatures=disabled
+ org.eclipse.jdt.core.compiler.problem.enumIdentifier=error
+-org.eclipse.jdt.core.compiler.source=1.8
++org.eclipse.jdt.core.compiler.problem.reportPreviewFeatures=warning
++org.eclipse.jdt.core.compiler.release=enabled
++org.eclipse.jdt.core.compiler.source=11
+diff --git a/backend/plugins/com.eclipsesource.coffee.workflow.analyzer.application/META-INF/MANIFEST.MF b/backend/plugins/com.eclipsesource.coffee.workflow.analyzer.application/META-INF/MANIFEST.MF
+index 287e258..4c8295b 100644
+--- a/backend/plugins/com.eclipsesource.coffee.workflow.analyzer.application/META-INF/MANIFEST.MF
++++ b/backend/plugins/com.eclipsesource.coffee.workflow.analyzer.application/META-INF/MANIFEST.MF
+@@ -7,12 +7,12 @@ Bundle-Vendor: EclipseSource
+ Require-Bundle: org.eclipse.core.runtime,
+  com.google.gson;bundle-version="2.7.0",
+  org.eclipse.lsp4j.jsonrpc,
+- com.eclipsesource.modelserver.client,
++ org.eclipse.emfcloud.modelserver.client;bundle-version="0.7.0",
+  com.eclipsesource.coffee.workflow.analyzer.coffee,
+  com.eclipsesource.coffee.common,
+  com.eclipsesource.modelserver.coffee.model
+ Automatic-Module-Name: com.eclipsesource.workflow.analyzer.application
+-Bundle-RequiredExecutionEnvironment: JavaSE-1.8
++Bundle-RequiredExecutionEnvironment: JavaSE-11
+ Export-Package: com.eclipsesource.workflow.analyzer.application
+ Import-Package: org.apache.commons.logging,
+  org.apache.log4j;version="1.2.15"
+diff --git a/backend/plugins/com.eclipsesource.workflow.analyzer.coffee/.classpath b/backend/plugins/com.eclipsesource.workflow.analyzer.coffee/.classpath
+index c93a9d1..20daebd 100644
+--- a/backend/plugins/com.eclipsesource.workflow.analyzer.coffee/.classpath
++++ b/backend/plugins/com.eclipsesource.workflow.analyzer.coffee/.classpath
+@@ -2,6 +2,10 @@
+ <classpath>
+ 	<classpathentry kind="con" path="org.eclipse.pde.core.requiredPlugins"/>
+ 	<classpathentry kind="src" path="src"/>
+-	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
++	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-11">
++		<attributes>
++			<attribute name="module" value="true"/>
++		</attributes>
++	</classpathentry>
+ 	<classpathentry kind="output" path="target/classes"/>
+ </classpath>
+diff --git a/backend/plugins/com.eclipsesource.workflow.analyzer.coffee/.settings/org.eclipse.jdt.core.prefs b/backend/plugins/com.eclipsesource.workflow.analyzer.coffee/.settings/org.eclipse.jdt.core.prefs
+index 0c68a61..7adc0fb 100644
+--- a/backend/plugins/com.eclipsesource.workflow.analyzer.coffee/.settings/org.eclipse.jdt.core.prefs
++++ b/backend/plugins/com.eclipsesource.workflow.analyzer.coffee/.settings/org.eclipse.jdt.core.prefs
+@@ -1,7 +1,10 @@
+ eclipse.preferences.version=1
+ org.eclipse.jdt.core.compiler.codegen.inlineJsrBytecode=enabled
+-org.eclipse.jdt.core.compiler.codegen.targetPlatform=1.8
+-org.eclipse.jdt.core.compiler.compliance=1.8
++org.eclipse.jdt.core.compiler.codegen.targetPlatform=11
++org.eclipse.jdt.core.compiler.compliance=11
+ org.eclipse.jdt.core.compiler.problem.assertIdentifier=error
++org.eclipse.jdt.core.compiler.problem.enablePreviewFeatures=disabled
+ org.eclipse.jdt.core.compiler.problem.enumIdentifier=error
+-org.eclipse.jdt.core.compiler.source=1.8
++org.eclipse.jdt.core.compiler.problem.reportPreviewFeatures=warning
++org.eclipse.jdt.core.compiler.release=enabled
++org.eclipse.jdt.core.compiler.source=11
+diff --git a/backend/plugins/com.eclipsesource.workflow.dsl.ide/.classpath b/backend/plugins/com.eclipsesource.workflow.dsl.ide/.classpath
+index 0377d77..f208d6d 100644
+--- a/backend/plugins/com.eclipsesource.workflow.dsl.ide/.classpath
++++ b/backend/plugins/com.eclipsesource.workflow.dsl.ide/.classpath
+@@ -1,9 +1,13 @@
+ <?xml version="1.0" encoding="UTF-8"?>
+ <classpath>
+-	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.8"/>
++	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-11">
++		<attributes>
++			<attribute name="module" value="true"/>
++		</attributes>
++	</classpathentry>
+ 	<classpathentry kind="con" path="org.eclipse.pde.core.requiredPlugins"/>
+-	<classpathentry kind="src" path="src/"/>
+-	<classpathentry kind="src" path="src-gen/"/>
+-	<classpathentry kind="src" path="xtend-gen/"/>
++	<classpathentry kind="src" path="src"/>
++	<classpathentry kind="src" path="src-gen"/>
++	<classpathentry kind="src" path="xtend-gen"/>
+ 	<classpathentry kind="output" path="target/classes"/>
+ </classpath>
+diff --git a/backend/plugins/com.eclipsesource.workflow.dsl.ide/.settings/org.eclipse.jdt.core.prefs b/backend/plugins/com.eclipsesource.workflow.dsl.ide/.settings/org.eclipse.jdt.core.prefs
+index 0c68a61..7adc0fb 100644
+--- a/backend/plugins/com.eclipsesource.workflow.dsl.ide/.settings/org.eclipse.jdt.core.prefs
++++ b/backend/plugins/com.eclipsesource.workflow.dsl.ide/.settings/org.eclipse.jdt.core.prefs
+@@ -1,7 +1,10 @@
+ eclipse.preferences.version=1
+ org.eclipse.jdt.core.compiler.codegen.inlineJsrBytecode=enabled
+-org.eclipse.jdt.core.compiler.codegen.targetPlatform=1.8
+-org.eclipse.jdt.core.compiler.compliance=1.8
++org.eclipse.jdt.core.compiler.codegen.targetPlatform=11
++org.eclipse.jdt.core.compiler.compliance=11
+ org.eclipse.jdt.core.compiler.problem.assertIdentifier=error
++org.eclipse.jdt.core.compiler.problem.enablePreviewFeatures=disabled
+ org.eclipse.jdt.core.compiler.problem.enumIdentifier=error
+-org.eclipse.jdt.core.compiler.source=1.8
++org.eclipse.jdt.core.compiler.problem.reportPreviewFeatures=warning
++org.eclipse.jdt.core.compiler.release=enabled
++org.eclipse.jdt.core.compiler.source=11
+diff --git a/backend/plugins/com.eclipsesource.workflow.dsl.ide/META-INF/MANIFEST.MF b/backend/plugins/com.eclipsesource.workflow.dsl.ide/META-INF/MANIFEST.MF
+index 8ceab6f..8c68290 100644
+--- a/backend/plugins/com.eclipsesource.workflow.dsl.ide/META-INF/MANIFEST.MF
++++ b/backend/plugins/com.eclipsesource.workflow.dsl.ide/META-INF/MANIFEST.MF
+@@ -16,9 +16,9 @@ Require-Bundle: com.eclipsesource.workflow.dsl,
+  org.eclipse.equinox.app,
+  org.apache.commons.io;bundle-version="2.2.0",
+  com.eclipsesource.modelserver.coffee.model;bundle-version="0.0.1",
+- com.eclipsesource.modelserver.client;bundle-version="0.0.1",
++ org.eclipse.emfcloud.modelserver.client;bundle-version="0.7.0",
+  com.eclipsesource.coffee.common
+-Bundle-RequiredExecutionEnvironment: JavaSE-1.8
++Bundle-RequiredExecutionEnvironment: JavaSE-11
+ Export-Package: com.eclipsesource.workflow.dsl.ide,
+  com.eclipsesource.workflow.dsl.ide.contentassist,
+  com.eclipsesource.workflow.dsl.ide.contentassist.antlr,
+diff --git a/backend/plugins/com.eclipsesource.workflow.dsl/.classpath b/backend/plugins/com.eclipsesource.workflow.dsl/.classpath
+index 0377d77..f208d6d 100644
+--- a/backend/plugins/com.eclipsesource.workflow.dsl/.classpath
++++ b/backend/plugins/com.eclipsesource.workflow.dsl/.classpath
+@@ -1,9 +1,13 @@
+ <?xml version="1.0" encoding="UTF-8"?>
+ <classpath>
+-	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.8"/>
++	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-11">
++		<attributes>
++			<attribute name="module" value="true"/>
++		</attributes>
++	</classpathentry>
+ 	<classpathentry kind="con" path="org.eclipse.pde.core.requiredPlugins"/>
+-	<classpathentry kind="src" path="src/"/>
+-	<classpathentry kind="src" path="src-gen/"/>
+-	<classpathentry kind="src" path="xtend-gen/"/>
++	<classpathentry kind="src" path="src"/>
++	<classpathentry kind="src" path="src-gen"/>
++	<classpathentry kind="src" path="xtend-gen"/>
+ 	<classpathentry kind="output" path="target/classes"/>
+ </classpath>
+diff --git a/backend/plugins/com.eclipsesource.workflow.dsl/.settings/org.eclipse.jdt.core.prefs b/backend/plugins/com.eclipsesource.workflow.dsl/.settings/org.eclipse.jdt.core.prefs
+index 0c68a61..7adc0fb 100644
+--- a/backend/plugins/com.eclipsesource.workflow.dsl/.settings/org.eclipse.jdt.core.prefs
++++ b/backend/plugins/com.eclipsesource.workflow.dsl/.settings/org.eclipse.jdt.core.prefs
+@@ -1,7 +1,10 @@
+ eclipse.preferences.version=1
+ org.eclipse.jdt.core.compiler.codegen.inlineJsrBytecode=enabled
+-org.eclipse.jdt.core.compiler.codegen.targetPlatform=1.8
+-org.eclipse.jdt.core.compiler.compliance=1.8
++org.eclipse.jdt.core.compiler.codegen.targetPlatform=11
++org.eclipse.jdt.core.compiler.compliance=11
+ org.eclipse.jdt.core.compiler.problem.assertIdentifier=error
++org.eclipse.jdt.core.compiler.problem.enablePreviewFeatures=disabled
+ org.eclipse.jdt.core.compiler.problem.enumIdentifier=error
+-org.eclipse.jdt.core.compiler.source=1.8
++org.eclipse.jdt.core.compiler.problem.reportPreviewFeatures=warning
++org.eclipse.jdt.core.compiler.release=enabled
++org.eclipse.jdt.core.compiler.source=11
+diff --git a/backend/plugins/com.eclipsesource.workflow.dsl/META-INF/MANIFEST.MF b/backend/plugins/com.eclipsesource.workflow.dsl/META-INF/MANIFEST.MF
+index 66b2854..2f7f25f 100644
+--- a/backend/plugins/com.eclipsesource.workflow.dsl/META-INF/MANIFEST.MF
++++ b/backend/plugins/com.eclipsesource.workflow.dsl/META-INF/MANIFEST.MF
+@@ -15,7 +15,7 @@ Require-Bundle: org.eclipse.xtext,
+  org.eclipse.xtend.lib;bundle-version="2.13.0",
+  org.eclipse.emf.common,
+  com.eclipsesource.modelserver.coffee.model;bundle-version="0.0.1"
+-Bundle-RequiredExecutionEnvironment: JavaSE-1.8
++Bundle-RequiredExecutionEnvironment: JavaSE-11
+ Export-Package: com.eclipsesource.workflow.dsl,
+  com.eclipsesource.workflow.dsl.formatting2,
+  com.eclipsesource.workflow.dsl.generator,
+diff --git a/backend/plugins/com.eclipsesource.workflow.generator.java/.classpath b/backend/plugins/com.eclipsesource.workflow.generator.java/.classpath
+index 2e65423..2ef19a5 100644
+--- a/backend/plugins/com.eclipsesource.workflow.generator.java/.classpath
++++ b/backend/plugins/com.eclipsesource.workflow.generator.java/.classpath
+@@ -1,12 +1,13 @@
+ <?xml version="1.0" encoding="UTF-8"?>
+ <classpath>
+-	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.8">
++	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-11">
+ 		<attributes>
++			<attribute name="module" value="true"/>
+ 			<attribute name="maven.pomderived" value="true"/>
+ 		</attributes>
+ 	</classpathentry>
+ 	<classpathentry kind="con" path="org.eclipse.pde.core.requiredPlugins"/>
+-	<classpathentry kind="src" path="src/"/>
+-	<classpathentry kind="src" path="target/xtend-gen/main/"/>
++	<classpathentry kind="src" path="src"/>
++	<classpathentry kind="src" path="target/xtend-gen/main"/>
+ 	<classpathentry kind="output" path="target/classes"/>
+ </classpath>
+diff --git a/backend/plugins/com.eclipsesource.workflow.generator.java/.settings/org.eclipse.jdt.core.prefs b/backend/plugins/com.eclipsesource.workflow.generator.java/.settings/org.eclipse.jdt.core.prefs
+index 6e80039..e8c450c 100644
+--- a/backend/plugins/com.eclipsesource.workflow.generator.java/.settings/org.eclipse.jdt.core.prefs
++++ b/backend/plugins/com.eclipsesource.workflow.generator.java/.settings/org.eclipse.jdt.core.prefs
+@@ -1,8 +1,11 @@
+ eclipse.preferences.version=1
+ org.eclipse.jdt.core.compiler.codegen.inlineJsrBytecode=enabled
+-org.eclipse.jdt.core.compiler.codegen.targetPlatform=1.8
+-org.eclipse.jdt.core.compiler.compliance=1.8
++org.eclipse.jdt.core.compiler.codegen.targetPlatform=11
++org.eclipse.jdt.core.compiler.compliance=11
+ org.eclipse.jdt.core.compiler.problem.assertIdentifier=error
++org.eclipse.jdt.core.compiler.problem.enablePreviewFeatures=disabled
+ org.eclipse.jdt.core.compiler.problem.enumIdentifier=error
+ org.eclipse.jdt.core.compiler.problem.forbiddenReference=warning
+-org.eclipse.jdt.core.compiler.source=1.8
++org.eclipse.jdt.core.compiler.problem.reportPreviewFeatures=warning
++org.eclipse.jdt.core.compiler.release=enabled
++org.eclipse.jdt.core.compiler.source=11
+diff --git a/backend/plugins/com.eclipsesource.workflow.generator.java/META-INF/MANIFEST.MF b/backend/plugins/com.eclipsesource.workflow.generator.java/META-INF/MANIFEST.MF
+index 501fe43..871fac8 100644
+--- a/backend/plugins/com.eclipsesource.workflow.generator.java/META-INF/MANIFEST.MF
++++ b/backend/plugins/com.eclipsesource.workflow.generator.java/META-INF/MANIFEST.MF
+@@ -4,7 +4,7 @@ Bundle-Name: Workflow Java Code Generator
+ Bundle-SymbolicName: com.eclipsesource.workflow.generator.java
+ Bundle-Version: 0.1.0.qualifier
+ Bundle-Vendor: EclipseSource
+-Bundle-RequiredExecutionEnvironment: JavaSE-1.8
++Bundle-RequiredExecutionEnvironment: JavaSE-11
+ Require-Bundle: org.eclipse.xtext.xbase.lib;bundle-version="2.14.0",
+  com.eclipsesource.modelserver.coffee.model;bundle-version="0.0.1"
+ Export-Package: com.eclipsesource.workflow.generator,
+diff --git a/backend/plugins/com.eclipsesource.workflow.generator/.classpath b/backend/plugins/com.eclipsesource.workflow.generator/.classpath
+index 43b9862..685a699 100644
+--- a/backend/plugins/com.eclipsesource.workflow.generator/.classpath
++++ b/backend/plugins/com.eclipsesource.workflow.generator/.classpath
+@@ -1,6 +1,10 @@
+ <?xml version="1.0" encoding="UTF-8"?>
+ <classpath>
+-	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.8"/>
++	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-11">
++		<attributes>
++			<attribute name="module" value="true"/>
++		</attributes>
++	</classpathentry>
+ 	<classpathentry kind="con" path="org.eclipse.pde.core.requiredPlugins"/>
+ 	<classpathentry kind="src" path="src"/>
+ 	<classpathentry kind="output" path="target/classes"/>
+diff --git a/backend/plugins/com.eclipsesource.workflow.generator/.settings/org.eclipse.jdt.core.prefs b/backend/plugins/com.eclipsesource.workflow.generator/.settings/org.eclipse.jdt.core.prefs
+index 0c68a61..7adc0fb 100644
+--- a/backend/plugins/com.eclipsesource.workflow.generator/.settings/org.eclipse.jdt.core.prefs
++++ b/backend/plugins/com.eclipsesource.workflow.generator/.settings/org.eclipse.jdt.core.prefs
+@@ -1,7 +1,10 @@
+ eclipse.preferences.version=1
+ org.eclipse.jdt.core.compiler.codegen.inlineJsrBytecode=enabled
+-org.eclipse.jdt.core.compiler.codegen.targetPlatform=1.8
+-org.eclipse.jdt.core.compiler.compliance=1.8
++org.eclipse.jdt.core.compiler.codegen.targetPlatform=11
++org.eclipse.jdt.core.compiler.compliance=11
+ org.eclipse.jdt.core.compiler.problem.assertIdentifier=error
++org.eclipse.jdt.core.compiler.problem.enablePreviewFeatures=disabled
+ org.eclipse.jdt.core.compiler.problem.enumIdentifier=error
+-org.eclipse.jdt.core.compiler.source=1.8
++org.eclipse.jdt.core.compiler.problem.reportPreviewFeatures=warning
++org.eclipse.jdt.core.compiler.release=enabled
++org.eclipse.jdt.core.compiler.source=11
+diff --git a/backend/plugins/com.eclipsesource.workflow.generator/META-INF/MANIFEST.MF b/backend/plugins/com.eclipsesource.workflow.generator/META-INF/MANIFEST.MF
+index 9c2e5e6..ea7283b 100644
+--- a/backend/plugins/com.eclipsesource.workflow.generator/META-INF/MANIFEST.MF
++++ b/backend/plugins/com.eclipsesource.workflow.generator/META-INF/MANIFEST.MF
+@@ -4,6 +4,6 @@ Bundle-Name: Workflow Code Generator Model
+ Bundle-SymbolicName: com.eclipsesource.workflow.generator
+ Bundle-Version: 0.1.0.qualifier
+ Bundle-Vendor: EclipseSource
+-Bundle-RequiredExecutionEnvironment: JavaSE-1.8
++Bundle-RequiredExecutionEnvironment: JavaSE-11
+ Export-Package: com.eclipsesource.workflow.generator.impl
+ Automatic-Module-Name: com.eclipsesource.workflow.generator
+diff --git a/backend/plugins/com.eclipsesource.workflow.glsp.server/pom.xml b/backend/plugins/com.eclipsesource.workflow.glsp.server/pom.xml
+index 700077f..c67d8d1 100644
+--- a/backend/plugins/com.eclipsesource.workflow.glsp.server/pom.xml
++++ b/backend/plugins/com.eclipsesource.workflow.glsp.server/pom.xml
+@@ -14,50 +14,49 @@
+ 	<properties>
+ 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+ 	</properties>
++	<repositories>
++		<repository>
++
++			<id>sonatype</id>
++			<name>Sonatype</name>
++			<url>https://oss.sonatype.org/content/groups/public</url>
++		</repository>
++
++	</repositories>
+ 	<dependencies>
+-		<dependency>
+-			<groupId>com.eclipsesource.glsp</groupId>
+-			<artifactId>glsp-api</artifactId>
+-			<version>1.2.1-SNAPSHOT</version>
+-		</dependency>
+ 		<dependency>
+ 			<groupId>com.google.inject</groupId>
+ 			<artifactId>guice</artifactId>
+ 		</dependency>
+ 		<dependency>
+-			<groupId>com.eclipsesource.glsp</groupId>
+-			<artifactId>glsp-server</artifactId>
+-			<version>1.2.1-SNAPSHOT</version>
++			<groupId>org.eclipse.glsp</groupId>
++			<artifactId>org.eclipse.glsp.server</artifactId>
++			<version>0.7.0-RC-01</version>
+ 		</dependency>
+ 		<dependency>
+-			<groupId>com.eclipsesource.glsp</groupId>
+-			<artifactId>glsp-graph</artifactId>
+-			<version>1.2.1-SNAPSHOT</version>
++			<groupId>org.eclipse.glsp</groupId>
++			<artifactId>org.eclipse.glsp.layout</artifactId>
++			<version>0.7.0-RC-01</version>
+ 		</dependency>
+ 		<dependency>
+-			<groupId>com.eclipsesource.glsp</groupId>
+-			<artifactId>glsp-server-websocket</artifactId>
+-			<version>1.2.1-SNAPSHOT</version>
++			<groupId>org.eclipse.glsp.example</groupId>
++			<artifactId>org.eclipse.glsp.example.workflow</artifactId>
++			<version>0.7.0-SNAPSHOT</version>
+ 		</dependency>
+-		<dependency>
+-			<groupId>com.eclipsesource.glsp</groupId>
+-			<artifactId>glsp-layout</artifactId>
+-			<version>1.2.1-SNAPSHOT</version>
+-		</dependency>
+-		<dependency>
+-			<groupId>com.eclipsesource.glsp</groupId>
+-			<artifactId>workflow-example</artifactId>
+-			<version>1.2.1-SNAPSHOT</version>
+-		</dependency>
+-		<dependency>
+-			<groupId>com.eclipsesource.modelserver</groupId>
+-			<artifactId>com.eclipsesource.modelserver.coffee.model</artifactId>
+-			<version>0.0.1-SNAPSHOT</version>
++<!-- 		<dependency> -->
++<!-- 			<groupId>com.eclipsesource.coffee</groupId> -->
++<!-- 			<artifactId>com.eclipsesource.coffee.model</artifactId> -->
++<!-- 			<version>0.1.0-SNAPSHOT</version> -->
++<!-- 		</dependency> -->
++<dependency>
++			<groupId>org.eclipse.emfcloud.modelserver</groupId>
++			<artifactId>org.eclipse.emfcloud.modelserver.coffee.model</artifactId>
++			<version>0.7.0-SNAPSHOT</version>
+ 		</dependency>
+ 		<dependency>
+-			<groupId>com.eclipsesource.modelserver</groupId>
+-			<artifactId>com.eclipsesource.modelserver.client</artifactId>
+-			<version>0.0.1-SNAPSHOT</version>
++			<groupId>org.eclipse.emfcloud.modelserver</groupId>
++			<artifactId>org.eclipse.emfcloud.modelserver.client</artifactId>
++			<version>0.7.0-SNAPSHOT</version>
+ 		</dependency>
+ 		<dependency>
+ 			<groupId>org.apache.commons</groupId>
+diff --git a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/ModelServerClientProvider.java b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/ModelServerClientProvider.java
+index 73e4ccc..1cea853 100644
+--- a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/ModelServerClientProvider.java
++++ b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/ModelServerClientProvider.java
+@@ -17,7 +17,7 @@
+ 
+ import java.util.Optional;
+ 
+-import com.eclipsesource.modelserver.client.ModelServerClient;
++import org.eclipse.emfcloud.modelserver.client.ModelServerClient;
+ import com.google.inject.Singleton;
+ 
+ @Singleton
+diff --git a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/WorfklowDiagramNotationConfiguration.java b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/WorfklowDiagramNotationConfiguration.java
+index c0f10e5..fdb296e 100644
+--- a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/WorfklowDiagramNotationConfiguration.java
++++ b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/WorfklowDiagramNotationConfiguration.java
+@@ -15,9 +15,9 @@
+  ******************************************************************************/
+ package com.eclipsesource.glsp.example.modelserver.workflow;
+ 
+-import com.eclipsesource.glsp.example.workflow.WorfklowDiagramConfiguration;
++import org.eclipse.glsp.example.workflow.WorkflowDiagramConfiguration;
+ 
+-public class WorfklowDiagramNotationConfiguration extends WorfklowDiagramConfiguration {
++public class WorfklowDiagramNotationConfiguration extends WorkflowDiagramConfiguration {
+ 
+ 	@Override
+ 	public String getDiagramType() {
+diff --git a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/WorkflowModelServerGLSPModule.java b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/WorkflowModelServerGLSPModule.java
+index 6ca5f0f..5a66345 100644
+--- a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/WorkflowModelServerGLSPModule.java
++++ b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/WorkflowModelServerGLSPModule.java
+@@ -22,12 +22,12 @@
+ import org.eclipse.emf.common.notify.AdapterFactory;
+ import org.eclipse.emf.edit.provider.ComposedAdapterFactory;
+ 
+-import com.eclipsesource.glsp.api.diagram.DiagramConfiguration;
+-import com.eclipsesource.glsp.api.factory.ModelFactory;
+-import com.eclipsesource.glsp.api.handler.ActionHandler;
+-import com.eclipsesource.glsp.api.handler.OperationHandler;
+-import com.eclipsesource.glsp.api.jsonrpc.GLSPServer;
+-import com.eclipsesource.glsp.api.model.ModelStateProvider;
++import org.eclipse.glsp.api.diagram.DiagramConfiguration;
++import org.eclipse.glsp.api.factory.ModelFactory;
++import org.eclipse.glsp.api.handler.ActionHandler;
++import org.eclipse.glsp.api.handler.OperationHandler;
++import org.eclipse.glsp.api.jsonrpc.GLSPServer;
++import org.eclipse.glsp.api.model.ModelStateProvider;
+ import com.eclipsesource.glsp.example.modelserver.workflow.handler.ApplyLabelEditOperationHandler;
+ import com.eclipsesource.glsp.example.modelserver.workflow.handler.ChangeBoundsOperationHandler;
+ import com.eclipsesource.glsp.example.modelserver.workflow.handler.CreateAutomatedTaskHandler;
+@@ -43,12 +43,12 @@
+ import com.eclipsesource.glsp.example.modelserver.workflow.handler.RerouteEdgeHandler;
+ import com.eclipsesource.glsp.example.modelserver.workflow.model.ModelServerAwareModelStateProvider;
+ import com.eclipsesource.glsp.example.modelserver.workflow.model.WorkflowModelServerModelFactory;
+-import com.eclipsesource.glsp.example.workflow.WorkflowGLSPModule;
+-import com.eclipsesource.glsp.server.actionhandler.OperationActionHandler;
+-import com.eclipsesource.glsp.server.actionhandler.SaveModelActionHandler;
+-import com.eclipsesource.glsp.server.actionhandler.UndoRedoActionHandler;
+-import com.eclipsesource.modelserver.edit.CommandCodec;
+-import com.eclipsesource.modelserver.edit.DefaultCommandCodec;
++import org.eclipse.glsp.example.workflow.WorkflowGLSPModule;
++import org.eclipse.glsp.server.actionhandler.OperationActionHandler;
++import org.eclipse.glsp.server.actionhandler.SaveModelActionHandler;
++import org.eclipse.glsp.server.actionhandler.UndoRedoActionHandler;
++import org.eclipse.emfcloud.modelserver.edit.CommandCodec;
++import org.eclipse.emfcloud.modelserver.edit.DefaultCommandCodec;
+ 
+ @SuppressWarnings("serial")
+ public class WorkflowModelServerGLSPModule extends WorkflowGLSPModule {
+diff --git a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/WorkflowModelServerGLSPServer.java b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/WorkflowModelServerGLSPServer.java
+index 78dd408..de6ab95 100644
+--- a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/WorkflowModelServerGLSPServer.java
++++ b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/WorkflowModelServerGLSPServer.java
+@@ -22,9 +22,9 @@
+ 
+ import com.eclipsesource.glsp.example.modelserver.workflow.WorkflowModelServerGLSPServer.InitializeOptions;
+ import com.eclipsesource.glsp.example.modelserver.workflow.model.ModelServerAwareModelState;
+-import com.eclipsesource.glsp.server.jsonrpc.DefaultGLSPServer;
+-import com.eclipsesource.modelserver.client.ModelServerClient;
+-import com.eclipsesource.modelserver.client.Response;
++import org.eclipse.glsp.server.jsonrpc.DefaultGLSPServer;
++import org.eclipse.emfcloud.modelserver.client.ModelServerClient;
++import org.eclipse.emfcloud.modelserver.client.Response;
+ import com.google.inject.Inject;
+ 
+ public class WorkflowModelServerGLSPServer extends DefaultGLSPServer<InitializeOptions> {
+diff --git a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/WorkflowModelServerGLSPServerLauncher.java b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/WorkflowModelServerGLSPServerLauncher.java
+index eba88e8..c6741c8 100644
+--- a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/WorkflowModelServerGLSPServerLauncher.java
++++ b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/WorkflowModelServerGLSPServerLauncher.java
+@@ -18,10 +18,10 @@
+ import org.apache.log4j.BasicConfigurator;
+ import org.eclipse.elk.alg.layered.options.LayeredMetaDataProvider;
+ 
+-import com.eclipsesource.glsp.layout.ElkLayoutEngine;
+-import com.eclipsesource.glsp.server.launch.DefaultGLSPServerLauncher;
+-import com.eclipsesource.glsp.server.launch.GLSPServerLauncher;
+-import com.eclipsesource.modelserver.command.CCommandPackage;
++import org.eclipse.glsp.layout.ElkLayoutEngine;
++import org.eclipse.glsp.server.launch.DefaultGLSPServerLauncher;
++import org.eclipse.glsp.server.launch.GLSPServerLauncher;
++import org.eclipse.emfcloud.modelserver.command.CCommandPackage;
+ 
+ public class WorkflowModelServerGLSPServerLauncher {
+ 	public static void main(String[] args) {
+diff --git a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/AbstractCreateEdgeHandler.java b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/AbstractCreateEdgeHandler.java
+index 78a135d..43e9f76 100644
+--- a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/AbstractCreateEdgeHandler.java
++++ b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/AbstractCreateEdgeHandler.java
+@@ -19,18 +19,18 @@
+ import org.eclipse.emf.ecore.EClass;
+ import org.eclipse.emf.edit.command.AddCommand;
+ 
+-import com.eclipsesource.glsp.api.action.Action;
+-import com.eclipsesource.glsp.api.action.kind.AbstractOperationAction;
+-import com.eclipsesource.glsp.api.action.kind.CreateConnectionOperationAction;
+-import com.eclipsesource.glsp.api.model.GraphicalModelState;
++import org.eclipse.glsp.api.action.Action;
++import org.eclipse.glsp.api.action.kind.AbstractOperationAction;
++import org.eclipse.glsp.api.action.kind.CreateConnectionOperationAction;
++import org.eclipse.glsp.api.model.GraphicalModelState;
+ import com.eclipsesource.glsp.example.modelserver.workflow.model.WorkflowFacade;
+ import com.eclipsesource.glsp.example.modelserver.workflow.model.WorkflowModelServerAccess;
+ import com.eclipsesource.glsp.example.modelserver.workflow.wfnotation.Edge;
+ import com.eclipsesource.glsp.example.modelserver.workflow.wfnotation.WfnotationFactory;
+-import com.eclipsesource.modelserver.coffee.model.coffee.CoffeeFactory;
+-import com.eclipsesource.modelserver.coffee.model.coffee.CoffeePackage;
+-import com.eclipsesource.modelserver.coffee.model.coffee.Flow;
+-import com.eclipsesource.modelserver.coffee.model.coffee.Workflow;
++import org.eclipse.emfcloud.modelserver.coffee.model.coffee.CoffeeFactory;
++import org.eclipse.emfcloud.modelserver.coffee.model.coffee.CoffeePackage;
++import org.eclipse.emfcloud.modelserver.coffee.model.coffee.Flow;
++import org.eclipse.emfcloud.modelserver.coffee.model.coffee.Workflow;
+ 
+ public abstract class AbstractCreateEdgeHandler implements ModelStateAwareOperationHandler {
+ 
+diff --git a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/AbstractCreateNodeHandler.java b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/AbstractCreateNodeHandler.java
+index b3be1ad..475b029 100644
+--- a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/AbstractCreateNodeHandler.java
++++ b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/AbstractCreateNodeHandler.java
+@@ -19,19 +19,19 @@
+ import org.eclipse.emf.ecore.EClass;
+ import org.eclipse.emf.edit.command.AddCommand;
+ 
+-import com.eclipsesource.glsp.api.action.Action;
+-import com.eclipsesource.glsp.api.action.kind.AbstractOperationAction;
+-import com.eclipsesource.glsp.api.action.kind.CreateNodeOperationAction;
+-import com.eclipsesource.glsp.api.model.GraphicalModelState;
++import org.eclipse.glsp.api.action.Action;
++import org.eclipse.glsp.api.action.kind.AbstractOperationAction;
++import org.eclipse.glsp.api.action.kind.CreateNodeOperationAction;
++import org.eclipse.glsp.api.model.GraphicalModelState;
+ import com.eclipsesource.glsp.example.modelserver.workflow.model.ShapeUtil;
+ import com.eclipsesource.glsp.example.modelserver.workflow.model.WorkflowFacade;
+ import com.eclipsesource.glsp.example.modelserver.workflow.model.WorkflowModelServerAccess;
+ import com.eclipsesource.glsp.example.modelserver.workflow.wfnotation.Shape;
+ import com.eclipsesource.glsp.example.modelserver.workflow.wfnotation.WfnotationFactory;
+-import com.eclipsesource.modelserver.coffee.model.coffee.CoffeeFactory;
+-import com.eclipsesource.modelserver.coffee.model.coffee.CoffeePackage;
+-import com.eclipsesource.modelserver.coffee.model.coffee.Node;
+-import com.eclipsesource.modelserver.coffee.model.coffee.Workflow;
++import org.eclipse.emfcloud.modelserver.coffee.model.coffee.CoffeeFactory;
++import org.eclipse.emfcloud.modelserver.coffee.model.coffee.CoffeePackage;
++import org.eclipse.emfcloud.modelserver.coffee.model.coffee.Node;
++import org.eclipse.emfcloud.modelserver.coffee.model.coffee.Workflow;
+ 
+ public abstract class AbstractCreateNodeHandler implements ModelStateAwareOperationHandler {
+ 
+diff --git a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/AbstractCreateTaskHandler.java b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/AbstractCreateTaskHandler.java
+index 842cae5..e77d339 100644
+--- a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/AbstractCreateTaskHandler.java
++++ b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/AbstractCreateTaskHandler.java
+@@ -17,10 +17,10 @@
+ 
+ import org.eclipse.emf.ecore.EClass;
+ 
+-import com.eclipsesource.glsp.api.action.kind.AbstractOperationAction;
+-import com.eclipsesource.glsp.api.model.GraphicalModelState;
+-import com.eclipsesource.modelserver.coffee.model.coffee.Node;
+-import com.eclipsesource.modelserver.coffee.model.coffee.Task;
++import org.eclipse.glsp.api.action.kind.AbstractOperationAction;
++import org.eclipse.glsp.api.model.GraphicalModelState;
++import org.eclipse.emfcloud.modelserver.coffee.model.coffee.Node;
++import org.eclipse.emfcloud.modelserver.coffee.model.coffee.Task;
+ import com.google.common.base.Preconditions;
+ 
+ public abstract class AbstractCreateTaskHandler extends AbstractCreateNodeHandler {
+diff --git a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/ApplyLabelEditOperationHandler.java b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/ApplyLabelEditOperationHandler.java
+index a69dd57..f5c63e4 100644
+--- a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/ApplyLabelEditOperationHandler.java
++++ b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/ApplyLabelEditOperationHandler.java
+@@ -21,17 +21,17 @@
+ import org.eclipse.emf.ecore.EObject;
+ import org.eclipse.emf.edit.command.SetCommand;
+ 
+-import com.eclipsesource.glsp.api.action.Action;
+-import com.eclipsesource.glsp.api.action.kind.AbstractOperationAction;
+-import com.eclipsesource.glsp.api.action.kind.ApplyLabelEditOperationAction;
+-import com.eclipsesource.glsp.api.model.GraphicalModelState;
++import org.eclipse.glsp.api.action.Action;
++import org.eclipse.glsp.api.action.kind.AbstractOperationAction;
++import org.eclipse.glsp.api.action.kind.ApplyLabelEditOperationAction;
++import org.eclipse.glsp.api.model.GraphicalModelState;
+ import com.eclipsesource.glsp.example.modelserver.workflow.model.WorkflowModelServerAccess;
+-import com.eclipsesource.glsp.graph.GLabel;
+-import com.eclipsesource.glsp.graph.GModelElement;
+-import com.eclipsesource.glsp.graph.GNode;
+-import com.eclipsesource.modelserver.coffee.model.coffee.CoffeePackage;
+-import com.eclipsesource.modelserver.coffee.model.coffee.Node;
+-import com.eclipsesource.modelserver.coffee.model.coffee.Task;
++import org.eclipse.glsp.graph.GLabel;
++import org.eclipse.glsp.graph.GModelElement;
++import org.eclipse.glsp.graph.GNode;
++import org.eclipse.emfcloud.modelserver.coffee.model.coffee.CoffeePackage;
++import org.eclipse.emfcloud.modelserver.coffee.model.coffee.Node;
++import org.eclipse.emfcloud.modelserver.coffee.model.coffee.Task;
+ 
+ public class ApplyLabelEditOperationHandler implements ModelStateAwareOperationHandler {
+ 
+diff --git a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/ChangeBoundsOperationHandler.java b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/ChangeBoundsOperationHandler.java
+index 52d6762..35d8602 100644
+--- a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/ChangeBoundsOperationHandler.java
++++ b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/ChangeBoundsOperationHandler.java
+@@ -17,19 +17,19 @@
+ 
+ import java.util.Optional;
+ 
+-import com.eclipsesource.glsp.api.action.Action;
+-import com.eclipsesource.glsp.api.action.kind.AbstractOperationAction;
+-import com.eclipsesource.glsp.api.action.kind.ChangeBoundsOperationAction;
+-import com.eclipsesource.glsp.api.handler.OperationHandler;
+-import com.eclipsesource.glsp.api.model.GraphicalModelState;
+-import com.eclipsesource.glsp.api.types.ElementAndBounds;
++import org.eclipse.emfcloud.modelserver.coffee.model.coffee.Node;
++import org.eclipse.glsp.api.action.Action;
++import org.eclipse.glsp.api.action.kind.AbstractOperationAction;
++import org.eclipse.glsp.api.action.kind.ChangeBoundsOperationAction;
++import org.eclipse.glsp.api.handler.OperationHandler;
++import org.eclipse.glsp.api.model.GraphicalModelState;
++import org.eclipse.glsp.api.types.ElementAndBounds;
++
+ import com.eclipsesource.glsp.example.modelserver.workflow.model.ModelServerAwareModelState;
+ import com.eclipsesource.glsp.example.modelserver.workflow.model.ShapeUtil;
+ import com.eclipsesource.glsp.example.modelserver.workflow.model.WorkflowModelServerAccess;
+ import com.eclipsesource.glsp.example.modelserver.workflow.wfnotation.DiagramElement;
+ import com.eclipsesource.glsp.example.modelserver.workflow.wfnotation.Shape;
+-import com.eclipsesource.glsp.graph.GBounds;
+-import com.eclipsesource.modelserver.coffee.model.coffee.Node;
+ 
+ public class ChangeBoundsOperationHandler implements OperationHandler {
+ 
+@@ -47,21 +47,21 @@ public String getLabel(AbstractOperationAction action) {
+ 	public void execute(AbstractOperationAction action, GraphicalModelState modelState) {
+ 		ChangeBoundsOperationAction changeBoundsAction = (ChangeBoundsOperationAction) action;
+ 		for (ElementAndBounds element : changeBoundsAction.getNewBounds()) {
+-			changeElementBounds(element.getElementId(), element.getNewBounds(), modelState);
++			changeElementBounds(element, modelState);
+ 		}
+ 	}
+ 
+-	private void changeElementBounds(String elementId, GBounds newBounds, GraphicalModelState modelState) {
++	private void changeElementBounds(ElementAndBounds element, GraphicalModelState modelState) {
+ 		WorkflowModelServerAccess modelAccess = ModelServerAwareModelState.getModelAccess(modelState);
+-		Node node = modelAccess.getNodeById(elementId);
+-		Optional<DiagramElement> element = modelAccess.getWorkflowFacade().findDiagramElement(node);
+-		if (element.isEmpty() || !(element.get() instanceof Shape)) {
+-			throw new IllegalArgumentException("Could not find shape for node " + elementId);
++		Node node = modelAccess.getNodeById(element.getElementId());
++		Optional<DiagramElement> diagramElement = modelAccess.getWorkflowFacade().findDiagramElement(node);
++		if (diagramElement.isEmpty() || !(diagramElement.get() instanceof Shape)) {
++			throw new IllegalArgumentException("Could not find shape for node " + element.getElementId());
+ 		}
+ 
+-		Shape shape = (Shape) element.get();
+-		shape.setPosition(ShapeUtil.point(newBounds.getX(), newBounds.getY()));
+-		shape.setSize(ShapeUtil.dimension(newBounds.getWidth(), newBounds.getHeight()));
++		Shape shape = (Shape) diagramElement.get();
++		shape.setPosition(ShapeUtil.point(element.getNewPosition().getX(), element.getNewPosition().getY()));
++		shape.setSize(ShapeUtil.dimension(element.getNewSize().getWidth(), element.getNewSize().getHeight()));
+ 	}
+ 
+ }
+diff --git a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/CreateAutomatedTaskHandler.java b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/CreateAutomatedTaskHandler.java
+index c646768..15dc807 100644
+--- a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/CreateAutomatedTaskHandler.java
++++ b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/CreateAutomatedTaskHandler.java
+@@ -15,8 +15,8 @@
+  ******************************************************************************/
+ package com.eclipsesource.glsp.example.modelserver.workflow.handler;
+ 
+-import com.eclipsesource.glsp.example.workflow.utils.ModelTypes;
+-import com.eclipsesource.modelserver.coffee.model.coffee.CoffeePackage;
++import org.eclipse.glsp.example.workflow.utils.ModelTypes;
++import org.eclipse.emfcloud.modelserver.coffee.model.coffee.CoffeePackage;
+ 
+ public class CreateAutomatedTaskHandler extends AbstractCreateTaskHandler {
+ 
+diff --git a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/CreateDecisionNodeHandler.java b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/CreateDecisionNodeHandler.java
+index b37f9d7..585faee 100644
+--- a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/CreateDecisionNodeHandler.java
++++ b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/CreateDecisionNodeHandler.java
+@@ -15,8 +15,8 @@
+  ******************************************************************************/
+ package com.eclipsesource.glsp.example.modelserver.workflow.handler;
+ 
+-import com.eclipsesource.glsp.example.workflow.utils.ModelTypes;
+-import com.eclipsesource.modelserver.coffee.model.coffee.CoffeePackage;
++import org.eclipse.glsp.example.workflow.utils.ModelTypes;
++import org.eclipse.emfcloud.modelserver.coffee.model.coffee.CoffeePackage;
+ 
+ public class CreateDecisionNodeHandler extends AbstractCreateNodeHandler {
+ 
+diff --git a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/CreateFlowHandler.java b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/CreateFlowHandler.java
+index 58eb239..8454b7e 100644
+--- a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/CreateFlowHandler.java
++++ b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/CreateFlowHandler.java
+@@ -15,8 +15,8 @@
+  ******************************************************************************/
+ package com.eclipsesource.glsp.example.modelserver.workflow.handler;
+ 
+-import com.eclipsesource.glsp.graph.DefaultTypes;
+-import com.eclipsesource.modelserver.coffee.model.coffee.CoffeePackage;
++import org.eclipse.glsp.graph.DefaultTypes;
++import org.eclipse.emfcloud.modelserver.coffee.model.coffee.CoffeePackage;
+ 
+ public class CreateFlowHandler extends AbstractCreateEdgeHandler {
+ 
+diff --git a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/CreateManualTaskHandler.java b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/CreateManualTaskHandler.java
+index e5a1ef9..5e3c19f 100644
+--- a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/CreateManualTaskHandler.java
++++ b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/CreateManualTaskHandler.java
+@@ -15,8 +15,8 @@
+  ******************************************************************************/
+ package com.eclipsesource.glsp.example.modelserver.workflow.handler;
+ 
+-import com.eclipsesource.glsp.example.workflow.utils.ModelTypes;
+-import com.eclipsesource.modelserver.coffee.model.coffee.CoffeePackage;
++import org.eclipse.glsp.example.workflow.utils.ModelTypes;
++import org.eclipse.emfcloud.modelserver.coffee.model.coffee.CoffeePackage;
+ 
+ public class CreateManualTaskHandler extends AbstractCreateTaskHandler {
+ 
+diff --git a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/CreateMergeNodeHandler.java b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/CreateMergeNodeHandler.java
+index 01c7cca..2bcc5a8 100644
+--- a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/CreateMergeNodeHandler.java
++++ b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/CreateMergeNodeHandler.java
+@@ -15,8 +15,8 @@
+  ******************************************************************************/
+ package com.eclipsesource.glsp.example.modelserver.workflow.handler;
+ 
+-import com.eclipsesource.glsp.example.workflow.utils.ModelTypes;
+-import com.eclipsesource.modelserver.coffee.model.coffee.CoffeePackage;
++import org.eclipse.glsp.example.workflow.utils.ModelTypes;
++import org.eclipse.emfcloud.modelserver.coffee.model.coffee.CoffeePackage;
+ 
+ public class CreateMergeNodeHandler extends AbstractCreateNodeHandler {
+ 
+diff --git a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/CreateWeightedFlowHandler.java b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/CreateWeightedFlowHandler.java
+index 1a9cb05..5aa6069 100644
+--- a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/CreateWeightedFlowHandler.java
++++ b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/CreateWeightedFlowHandler.java
+@@ -15,8 +15,8 @@
+  ******************************************************************************/
+ package com.eclipsesource.glsp.example.modelserver.workflow.handler;
+ 
+-import com.eclipsesource.glsp.example.workflow.utils.ModelTypes;
+-import com.eclipsesource.modelserver.coffee.model.coffee.CoffeePackage;
++import org.eclipse.glsp.example.workflow.utils.ModelTypes;
++import org.eclipse.emfcloud.modelserver.coffee.model.coffee.CoffeePackage;
+ 
+ public class CreateWeightedFlowHandler extends AbstractCreateEdgeHandler {
+ 
+diff --git a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/DeleteOperationHandler.java b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/DeleteOperationHandler.java
+index b281295..569a995 100644
+--- a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/DeleteOperationHandler.java
++++ b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/DeleteOperationHandler.java
+@@ -22,19 +22,19 @@
+ import org.eclipse.emf.ecore.EObject;
+ import org.eclipse.emf.ecore.util.EcoreUtil;
+ 
+-import com.eclipsesource.glsp.api.action.kind.AbstractOperationAction;
+-import com.eclipsesource.glsp.api.action.kind.DeleteOperationAction;
+-import com.eclipsesource.glsp.api.handler.OperationHandler;
+-import com.eclipsesource.glsp.api.model.GraphicalModelState;
++import org.eclipse.glsp.api.action.kind.AbstractOperationAction;
++import org.eclipse.glsp.api.action.kind.DeleteOperationAction;
++import org.eclipse.glsp.api.handler.OperationHandler;
++import org.eclipse.glsp.api.model.GraphicalModelState;
+ import com.eclipsesource.glsp.example.modelserver.workflow.model.ModelServerAwareModelState;
+ import com.eclipsesource.glsp.example.modelserver.workflow.model.WorkflowModelServerAccess;
+ import com.eclipsesource.glsp.example.modelserver.workflow.wfnotation.DiagramElement;
+ import com.eclipsesource.glsp.example.modelserver.workflow.wfnotation.Shape;
+-import com.eclipsesource.glsp.graph.GEdge;
+-import com.eclipsesource.glsp.graph.GModelElement;
+-import com.eclipsesource.glsp.graph.GNode;
+-import com.eclipsesource.modelserver.coffee.model.coffee.Flow;
+-import com.eclipsesource.modelserver.coffee.model.coffee.Node;
++import org.eclipse.glsp.graph.GEdge;
++import org.eclipse.glsp.graph.GModelElement;
++import org.eclipse.glsp.graph.GNode;
++import org.eclipse.emfcloud.modelserver.coffee.model.coffee.Flow;
++import org.eclipse.emfcloud.modelserver.coffee.model.coffee.Node;
+ 
+ public class DeleteOperationHandler implements OperationHandler {
+ 
+diff --git a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/ModelServerAwareOperationActionHandler.java b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/ModelServerAwareOperationActionHandler.java
+index 519c8a0..511e82e 100644
+--- a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/ModelServerAwareOperationActionHandler.java
++++ b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/ModelServerAwareOperationActionHandler.java
+@@ -15,16 +15,18 @@
+  ******************************************************************************/
+ package com.eclipsesource.glsp.example.modelserver.workflow.handler;
+ 
+-import java.util.Optional;
++import java.util.Collections;
++import java.util.List;
++
++import org.eclipse.glsp.api.action.Action;
++import org.eclipse.glsp.api.action.kind.AbstractOperationAction;
++import org.eclipse.glsp.api.handler.OperationHandler;
++import org.eclipse.glsp.api.model.GraphicalModelState;
++import org.eclipse.glsp.api.provider.OperationHandlerProvider;
++import org.eclipse.glsp.server.actionhandler.OperationActionHandler;
+ 
+-import com.eclipsesource.glsp.api.action.Action;
+-import com.eclipsesource.glsp.api.action.kind.AbstractOperationAction;
+-import com.eclipsesource.glsp.api.handler.OperationHandler;
+-import com.eclipsesource.glsp.api.model.GraphicalModelState;
+-import com.eclipsesource.glsp.api.provider.OperationHandlerProvider;
+ import com.eclipsesource.glsp.example.modelserver.workflow.model.ModelServerAwareModelState;
+ import com.eclipsesource.glsp.example.modelserver.workflow.model.WorkflowModelServerAccess;
+-import com.eclipsesource.glsp.server.actionhandler.OperationActionHandler;
+ import com.google.inject.Inject;
+ 
+ public class ModelServerAwareOperationActionHandler extends OperationActionHandler {
+@@ -33,7 +35,7 @@
+ 	private OperationHandlerProvider operationHandlerProvider;
+ 
+ 	@Override
+-	public Optional<Action> doHandle(AbstractOperationAction action, GraphicalModelState modelState) {
++	public List<Action> doHandle(AbstractOperationAction action, GraphicalModelState modelState) {
+ 		if (operationHandlerProvider.isHandled(action)) {
+ 			OperationHandler handler = operationHandlerProvider.getHandler(action).get();
+ 			handler.execute(action, modelState);
+@@ -44,6 +46,6 @@
+ 				modelAccess.update();				
+ 			}
+ 		}
+-		return Optional.empty();
++		return Collections.emptyList();
+ 	}
+ }
+diff --git a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/ModelServerAwareSaveActionHandler.java b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/ModelServerAwareSaveActionHandler.java
+index daac548..359ec5f 100644
+--- a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/ModelServerAwareSaveActionHandler.java
++++ b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/ModelServerAwareSaveActionHandler.java
+@@ -1,15 +1,17 @@
+ package com.eclipsesource.glsp.example.modelserver.workflow.handler;
+ 
+-import java.util.Optional;
++import java.util.Collections;
++import java.util.List;
+ import java.util.concurrent.ExecutionException;
+ 
+-import com.eclipsesource.glsp.api.action.Action;
+-import com.eclipsesource.glsp.api.action.kind.SaveModelAction;
+-import com.eclipsesource.glsp.api.jsonrpc.GLSPServerException;
+-import com.eclipsesource.glsp.api.model.GraphicalModelState;
++import org.eclipse.glsp.api.action.Action;
++import org.eclipse.glsp.api.action.kind.SaveModelAction;
++import org.eclipse.glsp.api.jsonrpc.GLSPServerException;
++import org.eclipse.glsp.api.model.GraphicalModelState;
++import org.eclipse.glsp.server.actionhandler.AbstractActionHandler;
++
+ import com.eclipsesource.glsp.example.modelserver.workflow.model.ModelServerAwareModelState;
+ import com.eclipsesource.glsp.example.modelserver.workflow.model.WorkflowModelServerAccess;
+-import com.eclipsesource.glsp.server.actionhandler.AbstractActionHandler;
+ 
+ public class ModelServerAwareSaveActionHandler extends AbstractActionHandler {
+ 
+@@ -20,7 +22,7 @@ public boolean handles(Action action) {
+ 	}
+ 
+ 	@Override
+-	protected Optional<Action> execute(Action action, GraphicalModelState modelState) {
++	protected List<Action> execute(Action action, GraphicalModelState modelState) {
+ 		try {
+ 			if (action instanceof SaveModelAction) {
+ 				SaveModelAction saveAction = (SaveModelAction) action;
+@@ -37,7 +39,7 @@ public boolean handles(Action action) {
+ 		} catch (ExecutionException | InterruptedException e) {
+ 			throw new GLSPServerException("Could not execute save action: " + action.toString(), e);
+ 		}
+-		return Optional.empty();
++		return Collections.emptyList();
+ 	}
+ 
+ }
+diff --git a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/ModelStateAwareOperationHandler.java b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/ModelStateAwareOperationHandler.java
+index 6d2d0b2..02d2faa 100644
+--- a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/ModelStateAwareOperationHandler.java
++++ b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/ModelStateAwareOperationHandler.java
+@@ -15,9 +15,9 @@
+  ******************************************************************************/
+ package com.eclipsesource.glsp.example.modelserver.workflow.handler;
+ 
+-import com.eclipsesource.glsp.api.action.kind.AbstractOperationAction;
+-import com.eclipsesource.glsp.api.handler.OperationHandler;
+-import com.eclipsesource.glsp.api.model.GraphicalModelState;
++import org.eclipse.glsp.api.action.kind.AbstractOperationAction;
++import org.eclipse.glsp.api.handler.OperationHandler;
++import org.eclipse.glsp.api.model.GraphicalModelState;
+ import com.eclipsesource.glsp.example.modelserver.workflow.model.ModelServerAwareModelState;
+ import com.eclipsesource.glsp.example.modelserver.workflow.model.WorkflowModelServerAccess;
+ 
+diff --git a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/ReconnectFlowHandler.java b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/ReconnectFlowHandler.java
+index 108b651..7b64479 100644
+--- a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/ReconnectFlowHandler.java
++++ b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/ReconnectFlowHandler.java
+@@ -17,17 +17,17 @@
+ 
+ import java.util.Optional;
+ 
+-import com.eclipsesource.glsp.api.action.Action;
+-import com.eclipsesource.glsp.api.action.kind.AbstractOperationAction;
+-import com.eclipsesource.glsp.api.action.kind.ReconnectConnectionOperationAction;
+-import com.eclipsesource.glsp.api.handler.OperationHandler;
+-import com.eclipsesource.glsp.api.model.GraphicalModelState;
++import org.eclipse.glsp.api.action.Action;
++import org.eclipse.glsp.api.action.kind.AbstractOperationAction;
++import org.eclipse.glsp.api.action.kind.ReconnectConnectionOperationAction;
++import org.eclipse.glsp.api.handler.OperationHandler;
++import org.eclipse.glsp.api.model.GraphicalModelState;
+ import com.eclipsesource.glsp.example.modelserver.workflow.model.ModelServerAwareModelState;
+ import com.eclipsesource.glsp.example.modelserver.workflow.model.WorkflowModelServerAccess;
+-import com.eclipsesource.glsp.graph.GEdge;
+-import com.eclipsesource.glsp.graph.GModelElement;
+-import com.eclipsesource.modelserver.coffee.model.coffee.Flow;
+-import com.eclipsesource.modelserver.coffee.model.coffee.Node;
++import org.eclipse.glsp.graph.GEdge;
++import org.eclipse.glsp.graph.GModelElement;
++import org.eclipse.emfcloud.modelserver.coffee.model.coffee.Flow;
++import org.eclipse.emfcloud.modelserver.coffee.model.coffee.Node;
+ 
+ public class ReconnectFlowHandler implements OperationHandler {
+ 
+diff --git a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/RerouteEdgeHandler.java b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/RerouteEdgeHandler.java
+index d5f77af..d2ccd02 100644
+--- a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/RerouteEdgeHandler.java
++++ b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/handler/RerouteEdgeHandler.java
+@@ -15,30 +15,35 @@
+  ******************************************************************************/
+ package com.eclipsesource.glsp.example.modelserver.workflow.handler;
+ 
++import static org.eclipse.glsp.api.jsonrpc.GLSPServerException.getOrThrow;
++
+ import java.util.List;
+ import java.util.Optional;
+ import java.util.stream.Collectors;
+ 
+-import com.eclipsesource.glsp.api.action.kind.AbstractOperationAction;
+-import com.eclipsesource.glsp.api.action.kind.RerouteConnectionOperationAction;
+-import com.eclipsesource.glsp.api.handler.OperationHandler;
+-import com.eclipsesource.glsp.api.model.GraphicalModelState;
++import org.checkerframework.checker.units.qual.m;
++import org.eclipse.emfcloud.modelserver.coffee.model.coffee.Flow;
++import org.eclipse.emfcloud.modelserver.coffee.model.coffee.Node;
++import org.eclipse.glsp.api.action.kind.AbstractOperationAction;
++import org.eclipse.glsp.api.action.kind.ChangeRoutingPointsOperationAction;
++import org.eclipse.glsp.api.handler.OperationHandler;
++import org.eclipse.glsp.api.model.GraphicalModelState;
++import org.eclipse.glsp.api.types.ElementAndRoutingPoints;
++import org.eclipse.glsp.graph.GEdge;
++import org.eclipse.glsp.graph.GModelIndex;
++
+ import com.eclipsesource.glsp.example.modelserver.workflow.model.ModelServerAwareModelState;
+ import com.eclipsesource.glsp.example.modelserver.workflow.model.ShapeUtil;
+ import com.eclipsesource.glsp.example.modelserver.workflow.model.WorkflowModelServerAccess;
+ import com.eclipsesource.glsp.example.modelserver.workflow.wfnotation.DiagramElement;
+ import com.eclipsesource.glsp.example.modelserver.workflow.wfnotation.Edge;
+ import com.eclipsesource.glsp.example.modelserver.workflow.wfnotation.Point;
+-import com.eclipsesource.glsp.graph.GEdge;
+-import com.eclipsesource.glsp.graph.GModelIndex;
+-import com.eclipsesource.modelserver.coffee.model.coffee.Flow;
+-import com.eclipsesource.modelserver.coffee.model.coffee.Node;
+ 
+ public class RerouteEdgeHandler implements OperationHandler {
+ 
+ 	@Override
+ 	public Class<?> handlesActionType() {
+-		return RerouteConnectionOperationAction.class;
++		return ChangeRoutingPointsOperationAction.class;
+ 	}
+ 
+ 	@Override
+@@ -48,37 +53,29 @@ public String getLabel(AbstractOperationAction action) {
+ 
+ 	@Override
+ 	public void execute(AbstractOperationAction operationAction, GraphicalModelState modelState) {
+-		if (!(operationAction instanceof RerouteConnectionOperationAction)) {
++		if (!(operationAction instanceof ChangeRoutingPointsOperationAction)) {
+ 			throw new IllegalArgumentException("Unexpected action " + operationAction);
+ 		}
+ 
+-		// check for null-values
+-		final RerouteConnectionOperationAction action = (RerouteConnectionOperationAction) operationAction;
+-		if (action.getConnectionElementId() == null || action.getRoutingPoints() == null) {
+-			throw new IllegalArgumentException("Incomplete reconnect connection action");
+-		}
+-
+-		// check for existence of matching elements
++		final ChangeRoutingPointsOperationAction action = (ChangeRoutingPointsOperationAction) operationAction;
+ 		GModelIndex index = modelState.getIndex();
+-		Optional<GEdge> gEdge = index.findElementByClass(action.getConnectionElementId(), GEdge.class);
+-		if (!gEdge.isPresent()) {
+-			throw new IllegalArgumentException("Invalid edge: edge ID " + action.getConnectionElementId());
+-		}
++		action.getNewRoutingPoints().forEach(ear-> applyRoutingPointsChange(ear,modelState));
++	}
+ 
++	private void applyRoutingPointsChange(ElementAndRoutingPoints ear, GraphicalModelState modelState) {
++		GEdge gEdge = getOrThrow(modelState.getIndex().findElementByClass(ear.getElementId(), GEdge.class),
++				"Invalid edge: edge ID " + ear.getElementId());
+ 		// reroute
+ 		WorkflowModelServerAccess modelAccess = ModelServerAwareModelState.getModelAccess(modelState);
+-		Node sourceNode = modelAccess.getNodeById(gEdge.get().getSourceId());
+-		Node targetNode = modelAccess.getNodeById(gEdge.get().getTargetId());
++		Node sourceNode = modelAccess.getNodeById(gEdge.getSourceId());
++		Node targetNode = modelAccess.getNodeById(gEdge.getTargetId());
+ 		Optional<Flow> flow = modelAccess.getFlow(sourceNode, targetNode);
+-		Optional<DiagramElement> maybeEdge = flow.flatMap(f -> modelAccess.getWorkflowFacade().findDiagramElement(f));
+-		if (maybeEdge.isEmpty() || !(maybeEdge.get() instanceof Edge)) {
+-			throw new IllegalArgumentException("Cannot find edge for GEdge ID " + action.getConnectionElementId());
+-		}
++		Edge edge = getOrThrow(flow.flatMap(f -> modelAccess.getWorkflowFacade().findDiagramElement(f, Edge.class)),
++				"Cannot find edge for GEdge ID " + ear.getElementId());
+ 
+-		Edge edge2 = (Edge) maybeEdge.get();
+-		List<Point> bendPoints = action.getRoutingPoints().stream().map(ShapeUtil::point).collect(Collectors.toList());
+-		edge2.getBendPoints().clear();
+-		edge2.getBendPoints().addAll(bendPoints);
++		List<Point> bendPoints = ear.getNewRoutingPoints().stream().map(ShapeUtil::point).collect(Collectors.toList());
++		edge.getBendPoints().clear();
++		edge.getBendPoints().addAll(bendPoints);
+ 	}
+ 
+ }
+diff --git a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/model/CoffeeTypeUtil.java b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/model/CoffeeTypeUtil.java
+index e039cc3..d01cb68 100644
+--- a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/model/CoffeeTypeUtil.java
++++ b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/model/CoffeeTypeUtil.java
+@@ -15,14 +15,14 @@
+  ******************************************************************************/
+ package com.eclipsesource.glsp.example.modelserver.workflow.model;
+ 
+-import com.eclipsesource.glsp.example.workflow.utils.ModelTypes;
+-import com.eclipsesource.modelserver.coffee.model.coffee.AutomaticTask;
+-import com.eclipsesource.modelserver.coffee.model.coffee.Decision;
+-import com.eclipsesource.modelserver.coffee.model.coffee.Fork;
+-import com.eclipsesource.modelserver.coffee.model.coffee.Join;
+-import com.eclipsesource.modelserver.coffee.model.coffee.ManualTask;
+-import com.eclipsesource.modelserver.coffee.model.coffee.Merge;
+-import com.eclipsesource.modelserver.coffee.model.coffee.Node;
++import org.eclipse.glsp.example.workflow.utils.ModelTypes;
++import org.eclipse.emfcloud.modelserver.coffee.model.coffee.AutomaticTask;
++import org.eclipse.emfcloud.modelserver.coffee.model.coffee.Decision;
++import org.eclipse.emfcloud.modelserver.coffee.model.coffee.Fork;
++import org.eclipse.emfcloud.modelserver.coffee.model.coffee.Join;
++import org.eclipse.emfcloud.modelserver.coffee.model.coffee.ManualTask;
++import org.eclipse.emfcloud.modelserver.coffee.model.coffee.Merge;
++import org.eclipse.emfcloud.modelserver.coffee.model.coffee.Node;
+ 
+ public final class CoffeeTypeUtil {
+ 	public static final String FORK_NODE = "activityNode:fork";
+diff --git a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/model/MappedGModelRoot.java b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/model/MappedGModelRoot.java
+index 024f273..44bf52f 100644
+--- a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/model/MappedGModelRoot.java
++++ b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/model/MappedGModelRoot.java
+@@ -17,9 +17,9 @@
+ 
+ import java.util.Map;
+ 
+-import com.eclipsesource.glsp.graph.GModelRoot;
+-import com.eclipsesource.glsp.graph.GNode;
+-import com.eclipsesource.modelserver.coffee.model.coffee.Node;
++import org.eclipse.glsp.graph.GModelRoot;
++import org.eclipse.glsp.graph.GNode;
++import org.eclipse.emfcloud.modelserver.coffee.model.coffee.Node;
+ 
+ public class MappedGModelRoot {
+ 
+diff --git a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/model/ModelServerAwareModelState.java b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/model/ModelServerAwareModelState.java
+index 02e0fd1..7242547 100644
+--- a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/model/ModelServerAwareModelState.java
++++ b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/model/ModelServerAwareModelState.java
+@@ -15,8 +15,8 @@
+  ******************************************************************************/
+ package com.eclipsesource.glsp.example.modelserver.workflow.model;
+ 
+-import com.eclipsesource.glsp.api.model.GraphicalModelState;
+-import com.eclipsesource.glsp.server.model.ModelStateImpl;
++import org.eclipse.glsp.api.model.GraphicalModelState;
++import org.eclipse.glsp.server.model.ModelStateImpl;
+ 
+ public class ModelServerAwareModelState extends ModelStateImpl {
+ 
+diff --git a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/model/ModelServerAwareModelStateProvider.java b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/model/ModelServerAwareModelStateProvider.java
+index e55abdf..aa53224 100644
+--- a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/model/ModelServerAwareModelStateProvider.java
++++ b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/model/ModelServerAwareModelStateProvider.java
+@@ -15,8 +15,8 @@
+  ******************************************************************************/
+ package com.eclipsesource.glsp.example.modelserver.workflow.model;
+ 
+-import com.eclipsesource.glsp.api.model.GraphicalModelState;
+-import com.eclipsesource.glsp.server.model.DefaultModelStateProvider;
++import org.eclipse.glsp.api.model.GraphicalModelState;
++import org.eclipse.glsp.server.model.DefaultModelStateProvider;
+ import com.google.inject.Singleton;
+ 
+ @Singleton
+diff --git a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/model/ShapeUtil.java b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/model/ShapeUtil.java
+index 7016673..3b1c36e 100644
+--- a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/model/ShapeUtil.java
++++ b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/model/ShapeUtil.java
+@@ -3,7 +3,7 @@
+ import com.eclipsesource.glsp.example.modelserver.workflow.wfnotation.Dimension;
+ import com.eclipsesource.glsp.example.modelserver.workflow.wfnotation.Point;
+ import com.eclipsesource.glsp.example.modelserver.workflow.wfnotation.WfnotationFactory;
+-import com.eclipsesource.glsp.graph.GPoint;
++import org.eclipse.glsp.graph.GPoint;
+ 
+ public class ShapeUtil {
+ 
+diff --git a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/model/WorkflowFacade.java b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/model/WorkflowFacade.java
+index f4fb3bc..274f8f5 100644
+--- a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/model/WorkflowFacade.java
++++ b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/model/WorkflowFacade.java
+@@ -28,10 +28,10 @@
+ import com.eclipsesource.glsp.example.modelserver.workflow.wfnotation.SemanticProxy;
+ import com.eclipsesource.glsp.example.modelserver.workflow.wfnotation.Shape;
+ import com.eclipsesource.glsp.example.modelserver.workflow.wfnotation.WfnotationFactory;
+-import com.eclipsesource.modelserver.coffee.model.coffee.Flow;
+-import com.eclipsesource.modelserver.coffee.model.coffee.Machine;
+-import com.eclipsesource.modelserver.coffee.model.coffee.Node;
+-import com.eclipsesource.modelserver.coffee.model.coffee.Workflow;
++import org.eclipse.emfcloud.modelserver.coffee.model.coffee.Flow;
++import org.eclipse.emfcloud.modelserver.coffee.model.coffee.Machine;
++import org.eclipse.emfcloud.modelserver.coffee.model.coffee.Node;
++import org.eclipse.emfcloud.modelserver.coffee.model.coffee.Workflow;
+ 
+ public class WorkflowFacade {
+ 
+diff --git a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/model/WorkflowModelServerAccess.java b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/model/WorkflowModelServerAccess.java
+index 5586c54..ecc1896 100644
+--- a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/model/WorkflowModelServerAccess.java
++++ b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/model/WorkflowModelServerAccess.java
+@@ -39,18 +39,18 @@
+ import org.eclipse.emf.edit.domain.AdapterFactoryEditingDomain;
+ import org.eclipse.emf.edit.domain.EditingDomain;
+ 
+-import com.eclipsesource.glsp.api.jsonrpc.GLSPServerException;
++import org.eclipse.glsp.api.jsonrpc.GLSPServerException;
+ import com.eclipsesource.glsp.example.modelserver.workflow.wfnotation.WfnotationPackage;
+-import com.eclipsesource.glsp.graph.GNode;
+-import com.eclipsesource.modelserver.client.ModelServerClient;
+-import com.eclipsesource.modelserver.client.Response;
+-import com.eclipsesource.modelserver.client.NotificationSubscriptionListener;
+-import com.eclipsesource.modelserver.coffee.model.coffee.CoffeePackage;
+-import com.eclipsesource.modelserver.coffee.model.coffee.Flow;
+-import com.eclipsesource.modelserver.coffee.model.coffee.Node;
+-import com.eclipsesource.modelserver.command.CCommand;
+-import com.eclipsesource.modelserver.common.codecs.EncodingException;
+-import com.eclipsesource.modelserver.edit.CommandCodec;
++import org.eclipse.glsp.graph.GNode;
++import org.eclipse.emfcloud.modelserver.client.ModelServerClient;
++import org.eclipse.emfcloud.modelserver.client.Response;
++import org.eclipse.emfcloud.modelserver.client.NotificationSubscriptionListener;
++import org.eclipse.emfcloud.modelserver.coffee.model.coffee.CoffeePackage;
++import org.eclipse.emfcloud.modelserver.coffee.model.coffee.Flow;
++import org.eclipse.emfcloud.modelserver.coffee.model.coffee.Node;
++import org.eclipse.emfcloud.modelserver.command.CCommand;
++import org.eclipse.emfcloud.modelserver.common.codecs.EncodingException;
++import org.eclipse.emfcloud.modelserver.edit.CommandCodec;
+ import com.google.common.base.Preconditions;
+ 
+ public class WorkflowModelServerAccess {
+diff --git a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/model/WorkflowModelServerModelFactory.java b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/model/WorkflowModelServerModelFactory.java
+index bbb2d28..d3f61b0 100644
+--- a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/model/WorkflowModelServerModelFactory.java
++++ b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/model/WorkflowModelServerModelFactory.java
+@@ -22,35 +22,35 @@
+ import org.apache.log4j.Logger;
+ import org.eclipse.emf.common.notify.AdapterFactory;
+ 
+-import com.eclipsesource.glsp.api.action.ActionProcessor;
+-import com.eclipsesource.glsp.api.action.kind.RequestModelAction;
+-import com.eclipsesource.glsp.api.factory.ModelFactory;
+-import com.eclipsesource.glsp.api.model.GraphicalModelState;
+-import com.eclipsesource.glsp.api.utils.ClientOptions;
++import org.eclipse.glsp.api.action.ActionProcessor;
++import org.eclipse.glsp.api.action.kind.RequestModelAction;
++import org.eclipse.glsp.api.factory.ModelFactory;
++import org.eclipse.glsp.api.model.GraphicalModelState;
++import org.eclipse.glsp.api.utils.ClientOptions;
+ import com.eclipsesource.glsp.example.modelserver.workflow.ModelServerClientProvider;
+ import com.eclipsesource.glsp.example.modelserver.workflow.wfnotation.DiagramElement;
+ import com.eclipsesource.glsp.example.modelserver.workflow.wfnotation.Edge;
+ import com.eclipsesource.glsp.example.modelserver.workflow.wfnotation.Shape;
+-import com.eclipsesource.glsp.example.workflow.utils.WorkflowBuilder.ActivityNodeBuilder;
+-import com.eclipsesource.glsp.example.workflow.utils.WorkflowBuilder.TaskNodeBuilder;
+-import com.eclipsesource.glsp.example.workflow.utils.WorkflowBuilder.WeightedEdgeBuilder;
+-import com.eclipsesource.glsp.example.workflow.wfgraph.ActivityNode;
+-import com.eclipsesource.glsp.example.workflow.wfgraph.TaskNode;
+-import com.eclipsesource.glsp.example.workflow.wfgraph.WeightedEdge;
+-import com.eclipsesource.glsp.graph.DefaultTypes;
+-import com.eclipsesource.glsp.graph.GEdge;
+-import com.eclipsesource.glsp.graph.GModelRoot;
+-import com.eclipsesource.glsp.graph.GNode;
+-import com.eclipsesource.glsp.graph.builder.impl.GEdgeBuilder;
+-import com.eclipsesource.glsp.graph.builder.impl.GGraphBuilder;
+-import com.eclipsesource.modelserver.client.ModelServerClient;
+-import com.eclipsesource.modelserver.coffee.model.coffee.Flow;
+-import com.eclipsesource.modelserver.coffee.model.coffee.Machine;
+-import com.eclipsesource.modelserver.coffee.model.coffee.Node;
+-import com.eclipsesource.modelserver.coffee.model.coffee.Task;
+-import com.eclipsesource.modelserver.coffee.model.coffee.WeightedFlow;
+-import com.eclipsesource.modelserver.coffee.model.coffee.Workflow;
+-import com.eclipsesource.modelserver.edit.CommandCodec;
++import org.eclipse.glsp.example.workflow.utils.WorkflowBuilder.ActivityNodeBuilder;
++import org.eclipse.glsp.example.workflow.utils.WorkflowBuilder.TaskNodeBuilder;
++import org.eclipse.glsp.example.workflow.utils.WorkflowBuilder.WeightedEdgeBuilder;
++import org.eclipse.glsp.example.workflow.wfgraph.ActivityNode;
++import org.eclipse.glsp.example.workflow.wfgraph.TaskNode;
++import org.eclipse.glsp.example.workflow.wfgraph.WeightedEdge;
++import org.eclipse.glsp.graph.DefaultTypes;
++import org.eclipse.glsp.graph.GEdge;
++import org.eclipse.glsp.graph.GModelRoot;
++import org.eclipse.glsp.graph.GNode;
++import org.eclipse.glsp.graph.builder.impl.GEdgeBuilder;
++import org.eclipse.glsp.graph.builder.impl.GGraphBuilder;
++import org.eclipse.emfcloud.modelserver.client.ModelServerClient;
++import org.eclipse.emfcloud.modelserver.coffee.model.coffee.Flow;
++import org.eclipse.emfcloud.modelserver.coffee.model.coffee.Machine;
++import org.eclipse.emfcloud.modelserver.coffee.model.coffee.Node;
++import org.eclipse.emfcloud.modelserver.coffee.model.coffee.Task;
++import org.eclipse.emfcloud.modelserver.coffee.model.coffee.WeightedFlow;
++import org.eclipse.emfcloud.modelserver.coffee.model.coffee.Workflow;
++import org.eclipse.emfcloud.modelserver.edit.CommandCodec;
+ import com.google.inject.Inject;
+ 
+ public class WorkflowModelServerModelFactory implements ModelFactory {
+diff --git a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/model/WorkflowModelServerSubscriptionListener.java b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/model/WorkflowModelServerSubscriptionListener.java
+index b9a942f..b0c6fb0 100644
+--- a/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/model/WorkflowModelServerSubscriptionListener.java
++++ b/backend/plugins/com.eclipsesource.workflow.glsp.server/src/main/java/com/eclipsesource/glsp/example/modelserver/workflow/model/WorkflowModelServerSubscriptionListener.java
+@@ -15,7 +15,7 @@
+  ******************************************************************************/
+ package com.eclipsesource.glsp.example.modelserver.workflow.model;
+ 
+-import static com.eclipsesource.glsp.api.utils.ServerStatusUtil.getDetails;
++import static org.eclipse.glsp.api.utils.ServerStatusUtil.getDetails;
+ import static com.eclipsesource.glsp.example.modelserver.workflow.model.WorkflowModelServerModelFactory.OPTION_WORKFLOW_INDEX;
+ import static com.eclipsesource.glsp.example.modelserver.workflow.model.WorkflowModelServerModelFactory.WORKFLOW_INDEX_DEFAULT;
+ 
+@@ -30,20 +30,20 @@
+ import org.eclipse.emf.edit.domain.EditingDomain;
+ import org.jetbrains.annotations.NotNull;
+ 
+-import com.eclipsesource.glsp.api.action.ActionProcessor;
+-import com.eclipsesource.glsp.api.action.kind.RequestBoundsAction;
+-import com.eclipsesource.glsp.api.action.kind.ServerStatusAction;
+-import com.eclipsesource.glsp.api.model.GraphicalModelState;
+-import com.eclipsesource.glsp.api.types.ServerStatus;
+-import com.eclipsesource.glsp.api.types.ServerStatus.Severity;
+-import com.eclipsesource.glsp.api.utils.ClientOptions;
++import org.eclipse.glsp.api.action.ActionProcessor;
++import org.eclipse.glsp.api.action.kind.RequestBoundsAction;
++import org.eclipse.glsp.api.action.kind.ServerStatusAction;
++import org.eclipse.glsp.api.model.GraphicalModelState;
++import org.eclipse.glsp.api.types.ServerStatus;
++import org.eclipse.glsp.api.types.ServerStatus.Severity;
++import org.eclipse.glsp.api.utils.ClientOptions;
+ import com.eclipsesource.glsp.example.modelserver.workflow.wfnotation.DiagramElement;
+-import com.eclipsesource.modelserver.client.ModelServerNotification;
+-import com.eclipsesource.modelserver.client.Response;
+-import com.eclipsesource.modelserver.client.XmiToEObjectSubscriptionListener;
+-import com.eclipsesource.modelserver.coffee.model.coffee.Machine;
+-import com.eclipsesource.modelserver.command.CCommand;
+-import com.eclipsesource.modelserver.common.codecs.DecodingException;
++import org.eclipse.emfcloud.modelserver.client.ModelServerNotification;
++import org.eclipse.emfcloud.modelserver.client.Response;
++import org.eclipse.emfcloud.modelserver.client.XmiToEObjectSubscriptionListener;
++import org.eclipse.emfcloud.modelserver.coffee.model.coffee.Machine;
++import org.eclipse.emfcloud.modelserver.command.CCommand;
++import org.eclipse.emfcloud.modelserver.common.codecs.DecodingException;
+ import com.google.common.collect.Lists;
+ 
+ public class WorkflowModelServerSubscriptionListener extends XmiToEObjectSubscriptionListener {
+diff --git a/backend/releng/com.eclipsesource.coffee.parent/pom.xml b/backend/releng/com.eclipsesource.coffee.parent/pom.xml
+index afe8e06..f2dc96e 100644
+--- a/backend/releng/com.eclipsesource.coffee.parent/pom.xml
++++ b/backend/releng/com.eclipsesource.coffee.parent/pom.xml
+@@ -241,10 +241,10 @@
+ 		<module>../com.eclipsesource.coffee.target</module>
+ 		<module>../com.eclipsesource.coffee.product</module>
+ 		<module>../../plugins/com.eclipsesource.workflow</module>
+-		<module>../../plugins/com.eclipsesource.coffee.codegen.java.application</module>
+-		<module>../../plugins/com.eclipsesource.coffee.common</module>
+ 		<module>../../plugins/com.eclipsesource.workflow.generator</module>
+ 		<module>../../plugins/com.eclipsesource.workflow.generator.java</module>
++		<module>../../plugins/com.eclipsesource.coffee.codegen.java.application</module>
++		<module>../../plugins/com.eclipsesource.coffee.common</module>
+ 		<module>../../plugins/com.eclipsesource.coffee.workflow.analyzer.application</module>
+ 		<module>../../plugins/com.eclipsesource.workflow.analyzer</module>
+ 		<module>../../plugins/com.eclipsesource.workflow.analyzer.coffee</module>
+diff --git a/backend/releng/com.eclipsesource.coffee.product/codegen.product b/backend/releng/com.eclipsesource.coffee.product/codegen.product
+index 92f6b0c..5005efe 100644
+--- a/backend/releng/com.eclipsesource.coffee.product/codegen.product
++++ b/backend/releng/com.eclipsesource.coffee.product/codegen.product
+@@ -26,10 +26,7 @@
+    <plugins>
+       <plugin id="com.eclipsesource.coffee.codegen.java.application"/>
+       <plugin id="com.eclipsesource.coffee.common"/>
+-      <plugin id="com.eclipsesource.modelserver.client"/>
+       <plugin id="com.eclipsesource.modelserver.coffee.model"/>
+-      <plugin id="com.eclipsesource.modelserver.common"/>
+-      <plugin id="com.eclipsesource.modelserver.edit"/>
+       <plugin id="com.eclipsesource.workflow.generator"/>
+       <plugin id="com.eclipsesource.workflow.generator.java"/>
+       <plugin id="com.fasterxml.jackson.core.jackson-annotations"/>
+@@ -38,7 +35,6 @@
+       <plugin id="com.google.gson"/>
+       <plugin id="com.google.guava"/>
+       <plugin id="com.google.inject"/>
+-      <plugin id="com.squareup.okhttp3"/>
+       <plugin id="javax.inject"/>
+       <plugin id="org.apache.commons.lang"/>
+       <plugin id="org.apache.log4j"/>
+@@ -49,6 +45,10 @@
+       <plugin id="org.eclipse.emf.ecore"/>
+       <plugin id="org.eclipse.emf.ecore.xmi"/>
+       <plugin id="org.eclipse.emf.edit"/>
++      <plugin id="org.eclipse.emfcloud.modelserver.client"/>
++      <plugin id="org.eclipse.emfcloud.modelserver.common"/>
++      <plugin id="org.eclipse.emfcloud.modelserver.edit"/>
++      <plugin id="org.eclipse.emfcloud.modelserver.lib"/>
+       <plugin id="org.eclipse.equinox.app"/>
+       <plugin id="org.eclipse.equinox.common"/>
+       <plugin id="org.eclipse.equinox.launcher"/>
+diff --git a/backend/releng/com.eclipsesource.coffee.product/workflowanalyzer.product b/backend/releng/com.eclipsesource.coffee.product/workflowanalyzer.product
+index bc1af84..ad865da 100644
+--- a/backend/releng/com.eclipsesource.coffee.product/workflowanalyzer.product
++++ b/backend/releng/com.eclipsesource.coffee.product/workflowanalyzer.product
+@@ -28,10 +28,7 @@
+       <plugin id="com.eclipsesource.coffee.workflow.analyzer"/>
+       <plugin id="com.eclipsesource.coffee.workflow.analyzer.application"/>
+       <plugin id="com.eclipsesource.coffee.workflow.analyzer.coffee"/>
+-      <plugin id="com.eclipsesource.modelserver.client"/>
+       <plugin id="com.eclipsesource.modelserver.coffee.model"/>
+-      <plugin id="com.eclipsesource.modelserver.common"/>
+-      <plugin id="com.eclipsesource.modelserver.edit"/>
+       <plugin id="com.eclipsesource.workflow"/>
+       <plugin id="com.eclipsesource.workflow.dsl"/>
+       <plugin id="com.fasterxml.jackson.core.jackson-annotations"/>
+@@ -40,7 +37,6 @@
+       <plugin id="com.google.gson"/>
+       <plugin id="com.google.guava"/>
+       <plugin id="com.google.inject"/>
+-      <plugin id="com.squareup.okhttp3"/>
+       <plugin id="javax.annotation"/>
+       <plugin id="javax.inject"/>
+       <plugin id="org.antlr.runtime"/>
+@@ -55,6 +51,10 @@
+       <plugin id="org.eclipse.emf.ecore"/>
+       <plugin id="org.eclipse.emf.ecore.xmi"/>
+       <plugin id="org.eclipse.emf.edit"/>
++      <plugin id="org.eclipse.emfcloud.modelserver.client"/>
++      <plugin id="org.eclipse.emfcloud.modelserver.common"/>
++      <plugin id="org.eclipse.emfcloud.modelserver.edit"/>
++      <plugin id="org.eclipse.emfcloud.modelserver.lib"/>
+       <plugin id="org.eclipse.equinox.app"/>
+       <plugin id="org.eclipse.equinox.common"/>
+       <plugin id="org.eclipse.equinox.launcher"/>
+diff --git a/backend/releng/com.eclipsesource.coffee.product/workflowdsl.product b/backend/releng/com.eclipsesource.coffee.product/workflowdsl.product
+index aa564c5..64a55ad 100755
+--- a/backend/releng/com.eclipsesource.coffee.product/workflowdsl.product
++++ b/backend/releng/com.eclipsesource.coffee.product/workflowdsl.product
+@@ -27,10 +27,7 @@
+ 
+    <plugins>
+       <plugin id="com.eclipsesource.coffee.common"/>
+-      <plugin id="com.eclipsesource.modelserver.client"/>
+       <plugin id="com.eclipsesource.modelserver.coffee.model"/>
+-      <plugin id="com.eclipsesource.modelserver.common"/>
+-      <plugin id="com.eclipsesource.modelserver.edit"/>
+       <plugin id="com.eclipsesource.workflow"/>
+       <plugin id="com.eclipsesource.workflow.dsl"/>
+       <plugin id="com.eclipsesource.workflow.dsl.ide"/>
+@@ -40,7 +37,6 @@
+       <plugin id="com.google.gson"/>
+       <plugin id="com.google.guava"/>
+       <plugin id="com.google.inject"/>
+-      <plugin id="com.squareup.okhttp3"/>
+       <plugin id="javax.annotation"/>
+       <plugin id="javax.inject"/>
+       <plugin id="org.antlr.runtime"/>
+@@ -61,6 +57,10 @@
+       <plugin id="org.eclipse.emf.ecore.change"/>
+       <plugin id="org.eclipse.emf.ecore.xmi"/>
+       <plugin id="org.eclipse.emf.edit"/>
++      <plugin id="org.eclipse.emfcloud.modelserver.client"/>
++      <plugin id="org.eclipse.emfcloud.modelserver.common"/>
++      <plugin id="org.eclipse.emfcloud.modelserver.edit"/>
++      <plugin id="org.eclipse.emfcloud.modelserver.lib"/>
+       <plugin id="org.eclipse.equinox.app"/>
+       <plugin id="org.eclipse.equinox.common"/>
+       <plugin id="org.eclipse.equinox.launcher"/>
+diff --git a/backend/releng/com.eclipsesource.coffee.target/com.eclipsesource.coffee.target.target b/backend/releng/com.eclipsesource.coffee.target/com.eclipsesource.coffee.target.target
+index 0a22e79..0949fdb 100644
+--- a/backend/releng/com.eclipsesource.coffee.target/com.eclipsesource.coffee.target.target
++++ b/backend/releng/com.eclipsesource.coffee.target/com.eclipsesource.coffee.target.target
+@@ -1,46 +1,48 @@
+-<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+-<?pde?>
+-<!-- generated with https://github.com/eclipse-cbi/targetplatform-dsl -->
+-<target name="Coffee 2019-12" sequenceNumber="1579983691">
+-  <locations>
+-    <location includeMode="planner" includeAllPlatforms="false" includeSource="true" includeConfigurePhase="false" type="InstallableUnit">
+-      <unit id="com.google.gson" version="2.7.0.v20170129-0911"/>
+-      <unit id="org.apache.commons.lang" version="2.6.0.v201404270220"/>
+-      <unit id="org.apache.commons.io" version="2.2.0.v201405211200"/>
+-      <repository id="orbit-release" location="http://download.eclipse.org/tools/orbit/R-builds/R20190226160451/repository"/>
+-    </location>
+-    <location includeMode="planner" includeAllPlatforms="false" includeSource="true" includeConfigurePhase="false" type="InstallableUnit">
+-      <unit id="org.eclipse.jdt.feature.group" version="3.18.200.v20191210-0610"/>
+-      <unit id="org.eclipse.platform.feature.group" version="4.14.0.v20191210-0610"/>
+-      <unit id="org.eclipse.pde.feature.group" version="3.14.200.v20191210-0610"/>
+-      <unit id="org.eclipse.draw2d.feature.group" version="3.10.100.201606061308"/>
+-      <unit id="org.eclipse.emf.sdk.feature.group" version="2.20.0.v20191028-0905"/>
+-      <unit id="org.eclipse.xpand" version="2.2.0.v201605260315"/>
+-      <unit id="org.eclipse.xtend" version="2.2.0.v201605260315"/>
+-      <unit id="org.eclipse.xtend.typesystem.emf" version="2.2.0.v201605260315"/>
+-      <unit id="org.eclipse.emf.mwe2.launcher.feature.group" version="2.11.1.v20191121-1148"/>
+-      <unit id="org.eclipse.xtext.sdk.feature.group" version="2.20.0.v20191202-1256"/>
+-      <repository id="eclipse-2019-12" location="http://download.eclipse.org/releases/2019-12/"/>
+-    </location>
+-    <location includeMode="planner" includeAllPlatforms="false" includeSource="true" includeConfigurePhase="false" type="InstallableUnit">
+-      <unit id="org.eclipse.e4.rcp.feature.group" version="0.0.0"/>
+-      <unit id="org.eclipse.equinox.executable.feature.group" version="0.0.0"/>
+-      <repository id="eclipse-4.14" location="http://download.eclipse.org/eclipse/updates/4.14/"/>
+-    </location>
+-    <location includeMode="planner" includeAllPlatforms="false" includeSource="true" includeConfigurePhase="false" type="InstallableUnit">
+-      <unit id="org.eclipse.lsp4j.sdk.feature.group" version="0.8.0.v20190822-0801"/>
+-      <repository location="http://download.eclipse.org/lsp4j/updates/releases/"/>
+-    </location>
+-    <location includeMode="planner" includeAllPlatforms="false" includeSource="true" includeConfigurePhase="false" type="InstallableUnit">
+-      <unit id="com.eclipsesource.modelserver.coffee.model" version="0.0.0"/>
+-      <unit id="com.eclipsesource.modelserver.client" version="0.0.0"/>
+-      <unit id="com.eclipsesource.modelserver.common" version="0.0.0"/>
+-      <unit id="com.squareup.okhttp3" version="0.0.1.201912301217"/>
+-      <repository location="https://dl.bintray.com/eclipsesource/modelserver/nightly/"/>
+-    </location>
+-    <location includeMode="planner" includeAllPlatforms="false" includeSource="true" includeConfigurePhase="false" type="InstallableUnit">
+-      <unit id="org.emfjson.jackson" version="1.2.0"/>
+-      <repository location="http://ghillairet.github.io/p2"/>
+-    </location>
+-  </locations>
+-</target>
++<?xml version="1.0" encoding="UTF-8" standalone="no"?>
++<?pde?>
++<!-- generated with https://github.com/eclipse-cbi/targetplatform-dsl -->
++<target name="Coffee 2019-12" sequenceNumber="1580294188">
++  <locations>
++    <location includeMode="planner" includeAllPlatforms="false" includeSource="true" includeConfigurePhase="false" type="InstallableUnit">
++      <unit id="com.google.gson" version="2.7.0.v20170129-0911"/>
++      <unit id="org.apache.commons.lang" version="2.6.0.v201404270220"/>
++      <unit id="org.apache.commons.io" version="2.2.0.v201405211200"/>
++      <repository id="orbit-release" location="http://download.eclipse.org/tools/orbit/R-builds/R20190226160451/repository"/>
++    </location>
++    <location includeMode="planner" includeAllPlatforms="false" includeSource="true" includeConfigurePhase="false" type="InstallableUnit">
++      <unit id="org.eclipse.jdt.feature.group" version="3.18.200.v20191210-0610"/>
++      <unit id="org.eclipse.platform.feature.group" version="4.14.0.v20191210-0610"/>
++      <unit id="org.eclipse.pde.feature.group" version="3.14.200.v20191210-0610"/>
++      <unit id="org.eclipse.draw2d.feature.group" version="3.10.100.201606061308"/>
++      <unit id="org.eclipse.emf.sdk.feature.group" version="2.20.0.v20191028-0905"/>
++      <unit id="org.eclipse.xpand" version="2.2.0.v201605260315"/>
++      <unit id="org.eclipse.xtend" version="2.2.0.v201605260315"/>
++      <unit id="org.eclipse.xtend.typesystem.emf" version="2.2.0.v201605260315"/>
++      <unit id="org.eclipse.emf.mwe2.launcher.feature.group" version="2.11.1.v20191121-1148"/>
++      <unit id="org.eclipse.xtext.sdk.feature.group" version="2.20.0.v20191202-1256"/>
++      <repository id="eclipse-2019-12" location="http://download.eclipse.org/releases/2019-12/"/>
++    </location>
++    <location includeMode="planner" includeAllPlatforms="false" includeSource="true" includeConfigurePhase="false" type="InstallableUnit">
++      <unit id="org.eclipse.e4.rcp.feature.group" version="0.0.0"/>
++      <unit id="org.eclipse.equinox.executable.feature.group" version="0.0.0"/>
++      <repository id="eclipse-4.14" location="http://download.eclipse.org/eclipse/updates/4.14/"/>
++    </location>
++    <location includeMode="planner" includeAllPlatforms="false" includeSource="true" includeConfigurePhase="false" type="InstallableUnit">
++      <unit id="org.eclipse.lsp4j.sdk.feature.group" version="0.8.0.v20190822-0801"/>
++      <repository location="http://download.eclipse.org/lsp4j/updates/releases/"/>
++    </location>
++    <location includeMode="planner" includeAllPlatforms="false" includeSource="true" includeConfigurePhase="false" type="InstallableUnit">
++      <unit id="org.eclipse.emfcloud.modelserver.client" version="0.0.0"/>
++      <unit id="org.eclipse.emfcloud.modelserver.common" version="0.0.0"/>
++      <repository location="https://download.eclipse.org/emfcloud/modelserver/p2/nightly/"/>
++    </location>
++    <location includeMode="planner" includeAllPlatforms="false" includeSource="true" includeConfigurePhase="false" type="InstallableUnit">
++      <unit id="org.emfjson.jackson" version="1.2.0"/>
++      <repository location="http://ghillairet.github.io/p2"/>
++    </location>
++    <location includeMode="planner" includeAllPlatforms="false" includeSource="true" includeConfigurePhase="false" type="InstallableUnit">
++      <unit id="com.eclipsesource.modelserver.coffee.model" version="0.0.0"/>
++      <repository location="http://dl.bintray.com/eclipsesource/modelserver/snapshots/0.0.1.20190927.153154-70/"/>
++    </location>
++  </locations>
++</target>
+diff --git a/backend/releng/com.eclipsesource.coffee.target/com.eclipsesource.coffee.target.tpd b/backend/releng/com.eclipsesource.coffee.target/com.eclipsesource.coffee.target.tpd
+index 37d1b7c..6d411f0 100644
+--- a/backend/releng/com.eclipsesource.coffee.target/com.eclipsesource.coffee.target.tpd
++++ b/backend/releng/com.eclipsesource.coffee.target/com.eclipsesource.coffee.target.tpd
+@@ -28,12 +28,13 @@ location "http://download.eclipse.org/eclipse/updates/4.14/" eclipse-4.14 {
+ location "http://download.eclipse.org/lsp4j/updates/releases/" {
+ 	org.eclipse.lsp4j.sdk.feature.group
+ }
+-location "https://dl.bintray.com/eclipsesource/modelserver/nightly/" {
+-	com.eclipsesource.modelserver.coffee.model lazy
+-	com.eclipsesource.modelserver.client lazy
+-	com.eclipsesource.modelserver.common lazy
+-	com.squareup.okhttp3
++location "https://download.eclipse.org/emfcloud/modelserver/p2/nightly/" {
++	org.eclipse.emfcloud.modelserver.client lazy
++	org.eclipse.emfcloud.modelserver.common lazy
+ }
+ location "http://ghillairet.github.io/p2" {
+ 	org.emfjson.jackson
++}
++location "http://dl.bintray.com/eclipsesource/modelserver/snapshots/0.0.1.20190927.153154-70/" {
++	com.eclipsesource.modelserver.coffee.model lazy
+ }
+\ No newline at end of file

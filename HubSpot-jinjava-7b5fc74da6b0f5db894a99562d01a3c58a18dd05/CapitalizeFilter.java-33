@@ -1,0 +1,9 @@
+@@ -33,7 +33,7 @@ public Object filter(Object var, JinjavaInterpreter interpreter, String... args)
+       String value = (String) var;
+       return StringUtils.capitalize(value);
+     }
+-    return var;
++    return safeFilter(var, interpreter, args);
+   }
+ 
+ }

@@ -1,0 +1,9 @@
+@@ -11,7 +11,7 @@
+     )
+     @CDSDataType(CustomDataType.Amount)
+     String amount;
+-    
++
+     @Property(
+         description = "If not present assumes AUD",
+         required = false

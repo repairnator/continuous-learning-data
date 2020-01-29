@@ -1,0 +1,9 @@
+@@ -78,7 +78,7 @@ public void testClassDoesNotInheritExtendsAndImplementsInvocations() throws Exce
+         rawData.insertFile(new RawFile("file2", code));
+         final ClarpseProject parseService = new ClarpseProject(rawData);
+         final OOPSourceCodeModel generatedSourceModel = parseService.result();
+-        assertTrue(generatedSourceModel.getComponent("Test").get().invocations().isEmpty());
++        assertTrue(generatedSourceModel.getComponent("Test").get().references().isEmpty());
+     }
+ 
+     @Test

@@ -1,0 +1,6 @@
+@@ -1,4 +1,4 @@
+-package au.org.consumerdatastandards.api.banking.models;
++package au.org.consumerdatastandards.api.v1_0_0.banking.models;
+ 
+ import au.org.consumerdatastandards.support.data.*;
+ 

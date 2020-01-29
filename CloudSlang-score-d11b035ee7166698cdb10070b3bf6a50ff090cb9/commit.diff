@@ -1,0 +1,186 @@
+diff --git a/engine/orchestrator/score-orchestrator-api/pom.xml b/engine/orchestrator/score-orchestrator-api/pom.xml
+index 68d5db8e8..4f85a3958 100644
+--- a/engine/orchestrator/score-orchestrator-api/pom.xml
++++ b/engine/orchestrator/score-orchestrator-api/pom.xml
+@@ -46,6 +46,14 @@
+             <artifactId>querydsl-apt</artifactId>
+             <scope>provided</scope>
+         </dependency>
++        <dependency>
++            <groupId>org.eclipse.collections</groupId>
++            <artifactId>eclipse-collections</artifactId>
++        </dependency>
++        <dependency>
++            <groupId>org.eclipse.collections</groupId>
++            <artifactId>eclipse-collections-api</artifactId>
++        </dependency>
+     </dependencies>
+ 
+ </project>
+\ No newline at end of file
+diff --git a/engine/orchestrator/score-orchestrator-api/src/main/java/io/cloudslang/orchestrator/entities/BranchContexts.java b/engine/orchestrator/score-orchestrator-api/src/main/java/io/cloudslang/orchestrator/entities/BranchContexts.java
+index eb27540c5..b23b2bf3a 100644
+--- a/engine/orchestrator/score-orchestrator-api/src/main/java/io/cloudslang/orchestrator/entities/BranchContexts.java
++++ b/engine/orchestrator/score-orchestrator-api/src/main/java/io/cloudslang/orchestrator/entities/BranchContexts.java
+@@ -22,8 +22,8 @@
+ 
+ import java.io.Serializable;
+ import java.util.Collections;
+-import java.util.HashMap;
+ import java.util.Map;
++import org.eclipse.collections.impl.map.mutable.UnifiedMap;
+ 
+ public class BranchContexts implements Serializable {
+     private boolean isBranchCancelled;
+@@ -35,8 +35,8 @@ public BranchContexts(boolean isBranchCancelled, Map<String, Serializable> conte
+         Validate.notNull(systemContext);
+ 
+         this.isBranchCancelled = isBranchCancelled;
+-        this.contexts = new HashMap<>(contexts);
+-        this.systemContext = new HashMap<>(systemContext);
++        this.contexts = new UnifiedMap<>(contexts);
++        this.systemContext = new UnifiedMap<>(systemContext);
+     }
+ 
+     public boolean isBranchCancelled() {
+diff --git a/pom.xml b/pom.xml
+index 8c3ddbb56..71002bfd1 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -64,6 +64,7 @@
+         <maven.compiler.source>1.8</maven.compiler.source>
+         <maven.compiler.target>1.8</maven.compiler.target>
+         <custom.nexus>overwriten_by_ci</custom.nexus>
++        <eclipse-collections.version>10.1.0</eclipse-collections.version>
+     </properties>
+ 
+     <distributionManagement>
+@@ -213,6 +214,16 @@
+                 <artifactId>javax.el-api</artifactId>
+                 <version>2.2.5</version>
+             </dependency>
++            <dependency>
++                <groupId>org.eclipse.collections</groupId>
++                <artifactId>eclipse-collections</artifactId>
++                <version>${eclipse-collections.version}</version>
++            </dependency>
++            <dependency>
++                <groupId>org.eclipse.collections</groupId>
++                <artifactId>eclipse-collections-api</artifactId>
++                <version>${eclipse-collections.version}</version>
++            </dependency>
+             <!-- spring artifacts -->
+             <dependency>
+                 <groupId>org.springframework</groupId>
+diff --git a/score-api/pom.xml b/score-api/pom.xml
+index 29f98483e..b17cbcc1f 100644
+--- a/score-api/pom.xml
++++ b/score-api/pom.xml
+@@ -33,6 +33,14 @@
+             <groupId>commons-lang</groupId>
+             <artifactId>commons-lang</artifactId>
+         </dependency>
++        <dependency>
++            <groupId>org.eclipse.collections</groupId>
++            <artifactId>eclipse-collections</artifactId>
++        </dependency>
++        <dependency>
++            <groupId>org.eclipse.collections</groupId>
++            <artifactId>eclipse-collections-api</artifactId>
++        </dependency>
+         <dependency>
+             <groupId>org.mockito</groupId>
+             <artifactId>mockito-all</artifactId>
+diff --git a/score-api/src/main/java/io/cloudslang/score/api/EndBranchDataContainer.java b/score-api/src/main/java/io/cloudslang/score/api/EndBranchDataContainer.java
+index 6af6a4815..13054efbd 100644
+--- a/score-api/src/main/java/io/cloudslang/score/api/EndBranchDataContainer.java
++++ b/score-api/src/main/java/io/cloudslang/score/api/EndBranchDataContainer.java
+@@ -25,8 +25,8 @@
+ import java.lang.Override;
+ import java.lang.String;
+ import java.util.Collections;
+-import java.util.HashMap;
+ import java.util.Map;
++import org.eclipse.collections.impl.map.mutable.UnifiedMap;
+ 
+ /**
+  * A POJO which serves as an holder for the contexts and exception (if exists) of a finished branch
+@@ -40,8 +40,8 @@ public EndBranchDataContainer(Map<String, Serializable> contexts, Map<String, Se
+         Validate.notNull(contexts);
+         Validate.notNull(systemContext);
+ 
+-        this.contexts = new HashMap<>(contexts);
+-        this.systemContext = new HashMap<>(systemContext);
++        this.contexts = new UnifiedMap<>(contexts);
++        this.systemContext = new UnifiedMap<>(systemContext);
+         this.exception = exception;
+     }
+ 
+diff --git a/score-api/src/main/java/io/cloudslang/score/api/StartBranchDataContainer.java b/score-api/src/main/java/io/cloudslang/score/api/StartBranchDataContainer.java
+index 3b6d45381..543892cc7 100644
+--- a/score-api/src/main/java/io/cloudslang/score/api/StartBranchDataContainer.java
++++ b/score-api/src/main/java/io/cloudslang/score/api/StartBranchDataContainer.java
+@@ -23,8 +23,8 @@
+ 
+ import java.io.Serializable;
+ import java.util.Collections;
+-import java.util.HashMap;
+ import java.util.Map;
++import org.eclipse.collections.impl.map.mutable.UnifiedMap;
+ 
+ /**
+  * A POJO containing all the data necessary to create a new branch
+@@ -44,7 +44,7 @@ public StartBranchDataContainer(Long startPosition, Long executionPlanId, Map<St
+         this.startPosition = startPosition;
+         this.executionPlanId = executionPlanId;
+         this.systemContext = new SystemContext(systemContext);
+-        this.contexts = new HashMap<>();
++        this.contexts = new UnifiedMap<>();
+ 
+         for (String name : contexts.keySet()) {
+             this.contexts.put(name, contexts.get(name));
+diff --git a/score-api/src/main/java/io/cloudslang/score/lang/ExecutionRuntimeServices.java b/score-api/src/main/java/io/cloudslang/score/lang/ExecutionRuntimeServices.java
+index 8be3b8d40..d55b9d4eb 100644
+--- a/score-api/src/main/java/io/cloudslang/score/lang/ExecutionRuntimeServices.java
++++ b/score-api/src/main/java/io/cloudslang/score/lang/ExecutionRuntimeServices.java
+@@ -33,6 +33,7 @@
+ import java.util.List;
+ import java.util.Map;
+ import java.util.Queue;
++import org.eclipse.collections.impl.map.mutable.UnifiedMap;
+ 
+ import static java.lang.Boolean.TRUE;
+ 
+@@ -99,7 +100,7 @@
+ 
+     public static final String ENTERPRISE_MODE = "ENTERPRISE_MODE";
+ 
+-    protected Map<String, Serializable> contextMap = new HashMap<>();
++    protected Map<String, Serializable> contextMap = new UnifiedMap<>();
+ 
+     public ExecutionRuntimeServices() {
+     }
+diff --git a/score-api/src/main/java/io/cloudslang/score/lang/SystemContext.java b/score-api/src/main/java/io/cloudslang/score/lang/SystemContext.java
+index c15999bee..8f0ed0a04 100644
+--- a/score-api/src/main/java/io/cloudslang/score/lang/SystemContext.java
++++ b/score-api/src/main/java/io/cloudslang/score/lang/SystemContext.java
+@@ -18,9 +18,9 @@
+ 
+ import java.io.Serializable;
+ import java.util.Collection;
+-import java.util.HashMap;
+ import java.util.Map;
+ import java.util.Set;
++import org.eclipse.collections.impl.map.mutable.UnifiedMap;
+ 
+ /**
+  * User:
+@@ -34,7 +34,7 @@ public SystemContext() {
+     }
+ 
+     public SystemContext(Map<? extends String, ? extends Serializable> map) {
+-        this.contextMap = new HashMap<>(map);
++        this.contextMap = new UnifiedMap<>(map);
+     }
+ 
+     @Override

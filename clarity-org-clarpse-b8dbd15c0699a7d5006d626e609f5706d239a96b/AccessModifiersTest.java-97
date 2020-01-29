@@ -1,0 +1,9 @@
+@@ -97,7 +97,7 @@ public void testFieldVarLevelModifier() throws Exception {
+     }
+ 
+     @Test
+-    public void testLocalVarLevelModifier() throws Exception {
++    public void testMethodParamLevelModifier() throws Exception {
+ 
+         final String code = "public class Test { Test(final String str){} }";
+         final SourceFiles rawData = new SourceFiles(Lang.JAVA);

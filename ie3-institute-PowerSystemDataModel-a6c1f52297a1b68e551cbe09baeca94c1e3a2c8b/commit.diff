@@ -1,0 +1,955 @@
+diff --git a/build.gradle b/build.gradle
+index 88b74ef..5157c9e 100644
+--- a/build.gradle
++++ b/build.gradle
+@@ -1,6 +1,7 @@
+ plugins {
+ 	id "com.jfrog.artifactory" version "4.9.7"
+ 	id 'java' //java support
++	id 'groovy' // groovy support
+ 	id 'maven-publish'
+ 	id 'signing'
+ 	id 'pmd' // code check, working on source code
+@@ -47,6 +48,9 @@ dependencies {
+ 	compile "tec.uom:uom-se:$unitsOfMeasurementVersion"
+ 
+ 	compile 'com.vividsolutions:jts:1.13' //JTS Topology Suite for GeoPositions, License: EPL 1.0 / EDL 1.0
++
++	// testing
++	testCompile 'org.spockframework:spock-core:2.0-M1-groovy-2.5'
+ }
+ 
+ wrapper {
+diff --git a/gradle/scripts/tests.gradle b/gradle/scripts/tests.gradle
+index ad902f0..3433a6d 100644
+--- a/gradle/scripts/tests.gradle
++++ b/gradle/scripts/tests.gradle
+@@ -3,13 +3,33 @@ test {
+ 	filter {
+ 		excludeTestsMatching '*IT'
+ 	}
++	useJUnitPlatform()
++	testLogging {
++		events "passed", "skipped", "failed"
++	}
+ }
+ 
++task integrationTest(type: Test) {
++	description 'executes only the integration tests'
++	filter {
++		excludeTestsMatching '*Test*.*'
++		includeTestsMatching '*IT'
++	}
++	mustRunAfter test
++}
++integrationTest.dependsOn(test)
++
+ task allTests(type: Test) {
+ 	description 'executes all tests'
++
++	useJUnitPlatform()
++	testLogging {
++		events "passed", "skipped", "failed"
++	}
++
+ 	filter {
+-		includeTestsMatching '*Test*.*'
+-		includeTestsMatching '*IT'
++//		includeTestsMatching '*Test*.*'
++//		includeTestsMatching '*IT'
+ 	}
+ 	mustRunAfter test
+ }
+diff --git a/src/main/java/edu/ie3/exceptions/FactoryException.java b/src/main/java/edu/ie3/exceptions/FactoryException.java
+new file mode 100644
+index 0000000..acaa922
+--- /dev/null
++++ b/src/main/java/edu/ie3/exceptions/FactoryException.java
+@@ -0,0 +1,21 @@
++/*
++ * © 2020. TU Dortmund University,
++ * Institute of Energy Systems, Energy Efficiency and Energy Economics,
++ * Research group Distribution grid planning and operation
++*/
++package edu.ie3.exceptions;
++
++/** Is thrown, when an something went wrong during entity creation process in a EntityFactory */
++public class FactoryException extends RuntimeException {
++  public FactoryException(final String message, final Throwable cause) {
++    super(message, cause);
++  }
++
++  public FactoryException(final Throwable cause) {
++    super(cause);
++  }
++
++  public FactoryException(final String message) {
++    super(message);
++  }
++}
+diff --git a/src/main/java/edu/ie3/models/validation/InvalidEntityException.java b/src/main/java/edu/ie3/exceptions/InvalidEntityException.java
+similarity index 93%
+rename from src/main/java/edu/ie3/models/validation/InvalidEntityException.java
+rename to src/main/java/edu/ie3/exceptions/InvalidEntityException.java
+index 8e399df..d7b7bb5 100644
+--- a/src/main/java/edu/ie3/models/validation/InvalidEntityException.java
++++ b/src/main/java/edu/ie3/exceptions/InvalidEntityException.java
+@@ -3,7 +3,7 @@
+  * Institute of Energy Systems, Energy Efficiency and Energy Economics,
+  * Research group Distribution grid planning and operation
+ */
+-package edu.ie3.models.validation;
++package edu.ie3.exceptions;
+ 
+ import edu.ie3.models.UniqueEntity;
+ 
+diff --git a/src/main/java/edu/ie3/models/validation/UnsafeEntityException.java b/src/main/java/edu/ie3/exceptions/UnsafeEntityException.java
+similarity index 93%
+rename from src/main/java/edu/ie3/models/validation/UnsafeEntityException.java
+rename to src/main/java/edu/ie3/exceptions/UnsafeEntityException.java
+index 07b42a9..f15c68f 100644
+--- a/src/main/java/edu/ie3/models/validation/UnsafeEntityException.java
++++ b/src/main/java/edu/ie3/exceptions/UnsafeEntityException.java
+@@ -3,7 +3,7 @@
+  * Institute of Energy Systems, Energy Efficiency and Energy Economics,
+  * Research group Distribution grid planning and operation
+ */
+-package edu.ie3.models.validation;
++package edu.ie3.exceptions;
+ 
+ import edu.ie3.models.UniqueEntity;
+ 
+diff --git a/src/main/java/edu/ie3/io/factory/EntityData.java b/src/main/java/edu/ie3/io/factory/EntityData.java
+new file mode 100644
+index 0000000..6b8bcb1
+--- /dev/null
++++ b/src/main/java/edu/ie3/io/factory/EntityData.java
+@@ -0,0 +1,35 @@
++/*
++ * © 2020. TU Dortmund University,
++ * Institute of Energy Systems, Energy Efficiency and Energy Economics,
++ * Research group Distribution grid planning and operation
++*/
++package edu.ie3.io.factory;
++
++import edu.ie3.models.UniqueEntity;
++import java.util.Map;
++
++/**
++ * Internal API Contains data that is needed by an {@link EntityFactory} to generate an entity
++ *
++ * @version 0.1
++ * @since 28.01.20
++ */
++abstract class EntityData {
++
++  private final Map<String, String> fieldsToAttributes;
++  private final Class<? extends UniqueEntity> entityClass;
++
++  public EntityData(
++      Map<String, String> fieldsToAttributes, Class<? extends UniqueEntity> entityClass) {
++    this.fieldsToAttributes = fieldsToAttributes;
++    this.entityClass = entityClass;
++  }
++
++  public Map<String, String> getFieldsToAttributes() {
++    return fieldsToAttributes;
++  }
++
++  public Class<? extends UniqueEntity> getEntityClass() {
++    return entityClass;
++  }
++}
+diff --git a/src/main/java/edu/ie3/io/factory/EntityFactory.java b/src/main/java/edu/ie3/io/factory/EntityFactory.java
+new file mode 100644
+index 0000000..3c0d036
+--- /dev/null
++++ b/src/main/java/edu/ie3/io/factory/EntityFactory.java
+@@ -0,0 +1,26 @@
++/*
++ * © 2020. TU Dortmund University,
++ * Institute of Energy Systems, Energy Efficiency and Energy Economics,
++ * Research group Distribution grid planning and operation
++*/
++package edu.ie3.io.factory;
++
++import edu.ie3.models.UniqueEntity;
++import java.util.Optional;
++
++/**
++ * Internal API Interface for EntityFactories
++ *
++ * @version 0.1
++ * @since 28.01.20
++ */
++interface EntityFactory<T extends Enum<T>> {
++
++  Class<? extends UniqueEntity>[] classes();
++
++  Class<T> getDeclaringClass();
++
++  T getRaw();
++
++  Optional<? extends UniqueEntity> getEntity(EntityData entityData);
++}
+diff --git a/src/main/java/edu/ie3/io/factory/EntityFactoryUtils.java b/src/main/java/edu/ie3/io/factory/EntityFactoryUtils.java
+new file mode 100644
+index 0000000..5264039
+--- /dev/null
++++ b/src/main/java/edu/ie3/io/factory/EntityFactoryUtils.java
+@@ -0,0 +1,38 @@
++/*
++ * © 2020. TU Dortmund University,
++ * Institute of Energy Systems, Energy Efficiency and Energy Economics,
++ * Research group Distribution grid planning and operation
++*/
++package edu.ie3.io.factory;
++
++import edu.ie3.models.UniqueEntity;
++import java.util.Arrays;
++import java.util.Optional;
++
++/** Utility class that supports retrieving information for entity factories */
++public class EntityFactoryUtils {
++
++  private EntityFactoryUtils() {
++    throw new IllegalStateException("This is an Utility Class and not meant to be instantiated");
++  }
++
++  /**
++   * Search the factory for an entity based on its class
++   *
++   * @param clazz the class a factory is needed for
++   * @param emClasses the enum classes which should be included in the search for the factory
++   * @return {@link Optional< EntityFactory >} either empty or with the factory (if located in the
++   *     provided enums)
++   */
++  public static Optional<EntityFactory<?>> getFactory(
++      Class<? extends UniqueEntity> clazz, Class<? extends EntityFactory<?>>... emClasses) {
++    for (Class<? extends EntityFactory<?>> entityMapperClass : emClasses) {
++      for (EntityFactory<?> emc : entityMapperClass.getEnumConstants()) {
++        if (Arrays.asList(emc.classes()).contains(clazz)) {
++          return Optional.of(emc);
++        }
++      }
++    }
++    return Optional.empty();
++  }
++}
+diff --git a/src/main/java/edu/ie3/io/factory/OperatorEntityData.java b/src/main/java/edu/ie3/io/factory/OperatorEntityData.java
+new file mode 100644
+index 0000000..ebafbdd
+--- /dev/null
++++ b/src/main/java/edu/ie3/io/factory/OperatorEntityData.java
+@@ -0,0 +1,35 @@
++/*
++ * © 2020. TU Dortmund University,
++ * Institute of Energy Systems, Energy Efficiency and Energy Economics,
++ * Research group Distribution grid planning and operation
++*/
++package edu.ie3.io.factory;
++
++import edu.ie3.models.UniqueEntity;
++import edu.ie3.models.input.OperatorInput;
++import java.util.Map;
++
++/**
++ * Data used by {@link OperatorEntityFactory} to create an instance of an entity that needs
++ * additional information about the {@link OperatorInput} and cannot be created based only on a
++ * mapping of fieldName -> value
++ *
++ * @version 0.1
++ * @since 28.01.20
++ */
++public class OperatorEntityData extends EntityData {
++
++  private final OperatorInput operatorInput;
++
++  public OperatorEntityData(
++      Map<String, String> fieldsToAttributes,
++      Class<? extends UniqueEntity> clazz,
++      OperatorInput operatorInput) {
++    super(fieldsToAttributes, clazz);
++    this.operatorInput = operatorInput;
++  }
++
++  public OperatorInput getOperatorInput() {
++    return operatorInput;
++  }
++}
+diff --git a/src/main/java/edu/ie3/io/factory/OperatorEntityFactory.java b/src/main/java/edu/ie3/io/factory/OperatorEntityFactory.java
+new file mode 100644
+index 0000000..65c502f
+--- /dev/null
++++ b/src/main/java/edu/ie3/io/factory/OperatorEntityFactory.java
+@@ -0,0 +1,68 @@
++/*
++ * © 2020. TU Dortmund University,
++ * Institute of Energy Systems, Energy Efficiency and Energy Economics,
++ * Research group Distribution grid planning and operation
++*/
++package edu.ie3.io.factory;
++
++import edu.ie3.models.UniqueEntity;
++import edu.ie3.models.input.NodeInput;
++import edu.ie3.models.input.OperatorInput;
++import java.util.Map;
++import java.util.Optional;
++
++/**
++ * Enum containing all {@link EntityFactory}s that can be used to create an instance of an {@link
++ * UniqueEntity} based on {@link OperatorEntityData}
++ *
++ * @version 0.1
++ * @since 28.01.20
++ */
++public enum OperatorEntityFactory implements EntityFactory<OperatorEntityFactory> {
++  NodeInputFactory(NodeInput.class) {
++    @Override
++    public Class<? extends UniqueEntity>[] classes() {
++      return new Class[0]; // todo fix
++    }
++
++    @Override
++    public Optional<NodeInput> getEntity(EntityData entityData) {
++
++      OperatorEntityData operatorEntityData =
++          OperatorEntityFactory.getOperatorEntityData(entityData);
++      Map<String, String> fieldsToAttributes = operatorEntityData.getFieldsToAttributes();
++      OperatorInput operatorInput = operatorEntityData.getOperatorInput();
++
++      // todo sanity check
++
++      return Optional.empty();
++    }
++  };
++
++  OperatorEntityFactory(Class<? extends UniqueEntity>... classes) {
++    this.classes = classes;
++  }
++
++  private final Class<? extends UniqueEntity>[] classes;
++
++  @Override
++  public Class<? extends UniqueEntity>[] classes() {
++    return classes;
++  }
++
++  @Override
++  public OperatorEntityFactory getRaw() {
++    return this;
++  }
++
++  @Override
++  public abstract Optional<? extends UniqueEntity> getEntity(EntityData metaData);
++
++  private static OperatorEntityData getOperatorEntityData(EntityData entityData) {
++    if (!(entityData instanceof OperatorEntityData)) {
++      throw new RuntimeException("Invalid"); // todo
++    } else {
++      return (OperatorEntityData) entityData;
++    }
++  }
++}
+diff --git a/src/main/java/edu/ie3/io/factory/SimpleEntityData.java b/src/main/java/edu/ie3/io/factory/SimpleEntityData.java
+new file mode 100644
+index 0000000..52f753c
+--- /dev/null
++++ b/src/main/java/edu/ie3/io/factory/SimpleEntityData.java
+@@ -0,0 +1,24 @@
++/*
++ * © 2020. TU Dortmund University,
++ * Institute of Energy Systems, Energy Efficiency and Energy Economics,
++ * Research group Distribution grid planning and operation
++*/
++package edu.ie3.io.factory;
++
++import edu.ie3.models.UniqueEntity;
++import java.util.Map;
++
++/**
++ * Data used by {@link SimpleEntityFactory} to create an instance of an entity than can be created
++ * based only on a mapping of fieldName -> value
++ *
++ * @version 0.1
++ * @since 28.01.20
++ */
++public class SimpleEntityData extends EntityData {
++
++  public SimpleEntityData(
++      Map<String, String> fieldsToAttributes, Class<? extends UniqueEntity> clazz) {
++    super(fieldsToAttributes, clazz);
++  }
++}
+diff --git a/src/main/java/edu/ie3/io/factory/SimpleEntityFactory.java b/src/main/java/edu/ie3/io/factory/SimpleEntityFactory.java
+new file mode 100644
+index 0000000..807f4ec
+--- /dev/null
++++ b/src/main/java/edu/ie3/io/factory/SimpleEntityFactory.java
+@@ -0,0 +1,239 @@
++/*
++ * © 2020. TU Dortmund University,
++ * Institute of Energy Systems, Energy Efficiency and Energy Economics,
++ * Research group Distribution grid planning and operation
++*/
++package edu.ie3.io.factory;
++
++import edu.ie3.exceptions.FactoryException;
++import edu.ie3.models.StandardUnits;
++import edu.ie3.models.UniqueEntity;
++import edu.ie3.models.input.system.ChpInput;
++import edu.ie3.models.result.system.*;
++import edu.ie3.util.TimeTools;
++import java.time.ZonedDateTime;
++import java.util.*;
++import java.util.stream.Collectors;
++import java.util.stream.Stream;
++import javax.measure.Quantity;
++import javax.measure.quantity.Dimensionless;
++import javax.measure.quantity.Power;
++import org.apache.logging.log4j.LogManager;
++import org.apache.logging.log4j.Logger;
++import tec.uom.se.quantity.Quantities;
++import tec.uom.se.unit.Units;
++
++/**
++ * Enum containing all {@link EntityFactory}s that can be used to create an instance of an {@link
++ * UniqueEntity} based on {@link SimpleEntityData}
++ *
++ * @version 0.1
++ * @since 28.01.20
++ */
++public enum SimpleEntityFactory implements EntityFactory<SimpleEntityFactory> {
++  SystemParticipantResultFactory(
++      LoadResult.class,
++      FixedFeedInResult.class,
++      BmResult.class,
++      PvResult.class,
++      ChpInput.class,
++      WecResult.class,
++      StorageResult.class,
++      EvcsResult.class) {
++
++    public final transient Logger log = LogManager.getLogger(this.getClass());
++
++    private static final String entityUuid = "uuid";
++    private static final String timestamp = "timestamp";
++    private static final String inputModel = "inputModel";
++    private static final String power = "p";
++    private static final String reactivePower = "q";
++    private static final String soc = "soc";
++
++    @Override
++    public Optional<? extends SystemParticipantResult> getEntity(EntityData entityData) {
++
++      if (!Arrays.asList(classes()).contains(entityData.getEntityClass()))
++        throw new FactoryException(
++            "Cannot process "
++                + entityData.getEntityClass().getSimpleName()
++                + ".class with this factory!");
++
++      // sanity checks
++      /// all result models have the same constructor except StorageResult
++      Set<String> minConstructorParams =
++          new HashSet<>(Arrays.asList(timestamp, inputModel, power, reactivePower));
++      Set<String> optionalFields1 =
++          Stream.concat(
++                  new HashSet<>(Collections.singletonList(entityUuid)).stream(),
++                  minConstructorParams.stream())
++              .collect(Collectors.toSet());
++
++      if (entityData.getEntityClass().equals(StorageResult.class)) {
++        minConstructorParams =
++            new HashSet<>(Arrays.asList(timestamp, inputModel, power, reactivePower, soc));
++        optionalFields1 =
++            Stream.concat(
++                    new HashSet<>(Collections.singletonList(entityUuid)).stream(),
++                    minConstructorParams.stream())
++                .collect(Collectors.toSet());
++      }
++
++      List<Set<String>> allFields = new ArrayList<>();
++      allFields.add(minConstructorParams);
++      allFields.add(optionalFields1);
++
++      SimpleEntityData simpleEntityData = getSimpleEntityData(entityData);
++      validParameters(simpleEntityData, allFields.toArray(Set[]::new));
++
++      // build the model
++      Optional<? extends SystemParticipantResult> result = Optional.empty();
++      try {
++
++        result = Optional.of(buildModel(simpleEntityData));
++
++      } catch (Exception e) {
++        log.error(
++            "An error occurred when creating instance of "
++                + entityData.getEntityClass().getSimpleName()
++                + ".class.",
++            e);
++      }
++      return result;
++    }
++
++    private SystemParticipantResult buildModel(SimpleEntityData simpleEntityData) {
++      Map<String, String> fieldsToAttributes = simpleEntityData.getFieldsToAttributes();
++      Class<? extends UniqueEntity> clazz = simpleEntityData.getEntityClass();
++
++      ZonedDateTime zdtTimestamp = TimeTools.toZonedDateTime(fieldsToAttributes.get(timestamp));
++      UUID inputModelUuid = UUID.fromString(fieldsToAttributes.get(inputModel));
++      Quantity<Power> p =
++          Quantities.getQuantity(
++              Double.parseDouble(fieldsToAttributes.get(power)), StandardUnits.ACTIVE_POWER_OUT);
++      Quantity<Power> q =
++          Quantities.getQuantity(
++              Double.parseDouble(fieldsToAttributes.get(reactivePower)),
++              StandardUnits.REACTIVE_POWER_OUT);
++      Optional<UUID> uuidOpt =
++          fieldsToAttributes.containsKey(entityUuid)
++              ? Optional.of(UUID.fromString(fieldsToAttributes.get(entityUuid)))
++              : Optional.empty();
++
++      if (clazz.equals(LoadResult.class)) {
++        return uuidOpt
++            .map(uuid -> new LoadResult(uuid, zdtTimestamp, inputModelUuid, p, q))
++            .orElseGet(() -> new LoadResult(zdtTimestamp, inputModelUuid, p, q));
++      } else if (clazz.equals(FixedFeedInResult.class)) {
++        return uuidOpt
++            .map(uuid -> new FixedFeedInResult(uuid, zdtTimestamp, inputModelUuid, p, q))
++            .orElseGet(() -> new FixedFeedInResult(zdtTimestamp, inputModelUuid, p, q));
++      } else if (clazz.equals(BmResult.class)) {
++        return uuidOpt
++            .map(uuid -> new BmResult(uuid, zdtTimestamp, inputModelUuid, p, q))
++            .orElseGet(() -> new BmResult(zdtTimestamp, inputModelUuid, p, q));
++      } else if (clazz.equals(PvResult.class)) {
++        return uuidOpt
++            .map(uuid -> new PvResult(uuid, zdtTimestamp, inputModelUuid, p, q))
++            .orElseGet(() -> new PvResult(zdtTimestamp, inputModelUuid, p, q));
++      } else if (clazz.equals(EvcsResult.class)) {
++        return uuidOpt
++            .map(uuid -> new EvcsResult(uuid, zdtTimestamp, inputModelUuid, p, q))
++            .orElseGet(() -> new EvcsResult(zdtTimestamp, inputModelUuid, p, q));
++      } else if (clazz.equals(ChpResult.class)) {
++        return uuidOpt
++            .map(uuid -> new ChpResult(uuid, zdtTimestamp, inputModelUuid, p, q))
++            .orElseGet(() -> new ChpResult(zdtTimestamp, inputModelUuid, p, q));
++      } else if (clazz.equals(WecResult.class)) {
++        return uuidOpt
++            .map(uuid -> new WecResult(uuid, zdtTimestamp, inputModelUuid, p, q))
++            .orElseGet(() -> new WecResult(zdtTimestamp, inputModelUuid, p, q));
++      } else if (clazz.equals(StorageResult.class)) {
++
++        Quantity<Dimensionless> quantSoc =
++            Quantities.getQuantity(Double.parseDouble(fieldsToAttributes.get(soc)), Units.PERCENT);
++
++        return uuidOpt
++            .map(uuid -> new StorageResult(uuid, zdtTimestamp, inputModelUuid, p, q, quantSoc))
++            .orElseGet(() -> new StorageResult(zdtTimestamp, inputModelUuid, p, q, quantSoc));
++      } else {
++        throw new FactoryException("Cannot process " + clazz.getSimpleName() + ".class.");
++      }
++    }
++  };
++
++  SimpleEntityFactory(Class<? extends UniqueEntity>... classes) {
++    this.classes = classes;
++  }
++
++  private final Class<? extends UniqueEntity>[] classes;
++
++  @Override
++  public Class<? extends UniqueEntity>[] classes() {
++    return classes;
++  }
++
++  @Override
++  public SimpleEntityFactory getRaw() {
++    return this;
++  }
++
++  @Override
++  public abstract Optional<? extends UniqueEntity> getEntity(EntityData metaData);
++
++  private static SimpleEntityData getSimpleEntityData(EntityData entityData) {
++    if (!(entityData instanceof SimpleEntityData)) {
++      throw new FactoryException(
++          "Invalid entity data "
++              + entityData.getClass().getSimpleName()
++              + " provided. Please use 'SimpleEntityData' for 'SimpleEntityFactory'!");
++    } else {
++      return (SimpleEntityData) entityData;
++    }
++  }
++
++  private static int validParameters(SimpleEntityData simpleEntityData, Set<String>... fieldSets) {
++
++    Map<String, String> fieldsToAttributes = simpleEntityData.getFieldsToAttributes();
++
++    // get all sets that match the fields to attributes
++    List<Set<String>> validFieldSets =
++        Arrays.stream(fieldSets)
++            .filter(x -> x.equals(fieldsToAttributes.keySet()))
++            .collect(Collectors.toList());
++
++    if (validFieldSets.size() == 1) {
++      // if we can identify a unique parameter set for a constructor, we take it and return the
++      // index
++      Set<String> validFieldSet = validFieldSets.get(0);
++      return Arrays.asList(fieldSets).indexOf(validFieldSet);
++    } else {
++      // build the exception string with extensive debug information
++      String providedFieldMapString =
++          fieldsToAttributes.keySet().stream()
++              .map(key -> key + " -> " + fieldsToAttributes.get(key))
++              .collect(Collectors.joining(","));
++
++      String providedKeysString = "[" + String.join(", ", fieldsToAttributes.keySet()) + "]";
++
++      StringBuilder possibleOptions = new StringBuilder();
++      for (int i = 0; i < fieldSets.length; i++) {
++        Set<String> fieldSet = fieldSets[i];
++        String option = i + ": [" + String.join(", ", fieldSet) + "]\n";
++        possibleOptions.append(option);
++      }
++      throw new FactoryException(
++          "The provided fields "
++              + providedKeysString
++              + " with data {"
++              + providedFieldMapString
++              + "}"
++              + " are invalid for instance of "
++              + simpleEntityData.getEntityClass().getSimpleName()
++              + ". \nThe following fields to be passed to a constructor of "
++              + simpleEntityData.getEntityClass().getSimpleName()
++              + " are possible:\n"
++              + possibleOptions.toString());
++    }
++  }
++}
+diff --git a/src/main/java/edu/ie3/models/input/aggregated/AggregatedEntities.java b/src/main/java/edu/ie3/models/input/aggregated/AggregatedEntities.java
+index 143c82d..3ba5f51 100644
+--- a/src/main/java/edu/ie3/models/input/aggregated/AggregatedEntities.java
++++ b/src/main/java/edu/ie3/models/input/aggregated/AggregatedEntities.java
+@@ -6,6 +6,7 @@
+ package edu.ie3.models.input.aggregated;
+ 
+ import edu.ie3.models.UniqueEntity;
++import edu.ie3.utils.ValidationUtils;
+ import java.util.Collection;
+ import java.util.List;
+ 
+@@ -28,6 +29,6 @@ default void addAll(Collection<? extends UniqueEntity> entities) {
+   /** @return unmodifiable List of all entities */
+   List<UniqueEntity> allEntitiesAsList();
+ 
+-  /** checks all values using {@link edu.ie3.models.validation.ValidationTools} */
++  /** checks all values using {@link ValidationUtils} */
+   boolean areValuesValid();
+ }
+diff --git a/src/main/java/edu/ie3/models/input/aggregated/AggregatedGridInput.java b/src/main/java/edu/ie3/models/input/aggregated/AggregatedGridInput.java
+index d70f7d3..5b21964 100644
+--- a/src/main/java/edu/ie3/models/input/aggregated/AggregatedGridInput.java
++++ b/src/main/java/edu/ie3/models/input/aggregated/AggregatedGridInput.java
+@@ -7,7 +7,7 @@
+ 
+ import edu.ie3.models.UniqueEntity;
+ import edu.ie3.models.input.MeasurementUnitInput;
+-import edu.ie3.models.validation.ValidationTools;
++import edu.ie3.utils.ValidationUtils;
+ import java.util.Collections;
+ import java.util.LinkedList;
+ import java.util.List;
+@@ -73,7 +73,7 @@ public boolean areValuesValid() {
+     if (!systemParticipants.areValuesValid()) return false;
+     if (!graphics.areValuesValid()) return false;
+     for (MeasurementUnitInput measurementUnit : measurementUnits) {
+-      if (!ValidationTools.checkMeasurementUnit(measurementUnit)) return false;
++      if (!ValidationUtils.checkMeasurementUnit(measurementUnit)) return false;
+     }
+     return true;
+   }
+diff --git a/src/main/java/edu/ie3/models/input/aggregated/AggregatedRawGridInput.java b/src/main/java/edu/ie3/models/input/aggregated/AggregatedRawGridInput.java
+index 069d3f1..bfd7fe7 100644
+--- a/src/main/java/edu/ie3/models/input/aggregated/AggregatedRawGridInput.java
++++ b/src/main/java/edu/ie3/models/input/aggregated/AggregatedRawGridInput.java
+@@ -11,7 +11,7 @@
+ import edu.ie3.models.input.connector.SwitchInput;
+ import edu.ie3.models.input.connector.Transformer2WInput;
+ import edu.ie3.models.input.connector.Transformer3WInput;
+-import edu.ie3.models.validation.ValidationTools;
++import edu.ie3.utils.ValidationUtils;
+ import java.util.Collections;
+ import java.util.LinkedList;
+ import java.util.List;
+@@ -55,19 +55,19 @@ public void add(UniqueEntity entity) {
+   @Override
+   public boolean areValuesValid() {
+     for (NodeInput node : nodes) {
+-      if (!ValidationTools.checkNode(node)) return false;
++      if (!ValidationUtils.checkNode(node)) return false;
+     }
+     for (LineInput line : lines) {
+-      if (!ValidationTools.checkLine(line)) return false;
++      if (!ValidationUtils.checkLine(line)) return false;
+     }
+     for (Transformer2WInput transformer2W : transformer2Ws) {
+-      if (!ValidationTools.checkTransformer2W(transformer2W)) return false;
++      if (!ValidationUtils.checkTransformer2W(transformer2W)) return false;
+     }
+     for (Transformer3WInput transformer3W : transformer3Ws) {
+-      if (!ValidationTools.checkTransformer3W(transformer3W)) return false;
++      if (!ValidationUtils.checkTransformer3W(transformer3W)) return false;
+     }
+     for (SwitchInput switchInput : switches) {
+-      if (!ValidationTools.checkConnector(switchInput)) return false;
++      if (!ValidationUtils.checkConnector(switchInput)) return false;
+     }
+     return true;
+   }
+diff --git a/src/main/java/edu/ie3/models/validation/ValidationTools.java b/src/main/java/edu/ie3/utils/ValidationUtils.java
+similarity index 94%
+rename from src/main/java/edu/ie3/models/validation/ValidationTools.java
+rename to src/main/java/edu/ie3/utils/ValidationUtils.java
+index b6056dd..33861de 100644
+--- a/src/main/java/edu/ie3/models/validation/ValidationTools.java
++++ b/src/main/java/edu/ie3/utils/ValidationUtils.java
+@@ -3,8 +3,10 @@
+  * Institute of Energy Systems, Energy Efficiency and Energy Economics,
+  * Research group Distribution grid planning and operation
+ */
+-package edu.ie3.models.validation;
++package edu.ie3.utils;
+ 
++import edu.ie3.exceptions.InvalidEntityException;
++import edu.ie3.exceptions.UnsafeEntityException;
+ import edu.ie3.models.UniqueEntity;
+ import edu.ie3.models.input.MeasurementUnitInput;
+ import edu.ie3.models.input.NodeInput;
+@@ -17,10 +19,10 @@
+ import edu.ie3.models.input.connector.type.Transformer3WTypeInput;
+ 
+ /** Basic Sanity validation tools for entities */
+-public class ValidationTools {
++public class ValidationUtils {
+ 
+   /** Private Constructor as this class is not meant to be instantiated */
+-  private ValidationTools() {
++  private ValidationUtils() {
+     throw new IllegalStateException("Don't try and instantiate a Utility class.");
+   }
+ 
+@@ -77,8 +79,8 @@ public static boolean checkConnector(ConnectorInput connector) {
+    * Validates a line if: <br>
+    * - it is not null <br>
+    * - line type is not null <br>
+-   * - {@link ValidationTools#checkLineType(LineTypeInput)} and {@link
+-   * ValidationTools#checkConnector(ConnectorInput)} confirm a valid type and valid connector
++   * - {@link ValidationUtils#checkLineType(LineTypeInput)} and {@link
++   * ValidationUtils#checkConnector(ConnectorInput)} confirm a valid type and valid connector
+    * properties
+    */
+   public static boolean checkLine(LineInput line) {
+@@ -116,8 +118,8 @@ public static boolean checkLineType(LineTypeInput lineType) {
+    * Validates a transformer if: <br>
+    * - it is not null <br>
+    * - transformer type is not null <br>
+-   * - {@link ValidationTools#checkTransformer2WType(Transformer2WTypeInput)} and {@link
+-   * ValidationTools#checkConnector(ConnectorInput)} confirm a valid type and valid connector
++   * - {@link ValidationUtils#checkTransformer2WType(Transformer2WTypeInput)} and {@link
++   * ValidationUtils#checkConnector(ConnectorInput)} confirm a valid type and valid connector
+    * properties
+    */
+   public static boolean checkTransformer2W(Transformer2WInput trafo) {
+@@ -161,8 +163,8 @@ public static boolean checkTransformer2WType(Transformer2WTypeInput trafoType) {
+    * Validates a transformer if: <br>
+    * - it is not null <br>
+    * - transformer type is not null <br>
+-   * - {@link ValidationTools#checkTransformer3WType(Transformer3WTypeInput)} and {@link
+-   * ValidationTools#checkConnector(ConnectorInput)} confirm a valid type and valid connector
++   * - {@link ValidationUtils#checkTransformer3WType(Transformer3WTypeInput)} and {@link
++   * ValidationUtils#checkConnector(ConnectorInput)} confirm a valid type and valid connector
+    * properties
+    */
+   public static boolean checkTransformer3W(Transformer3WInput trafo) {
+diff --git a/src/test/groovy/edu/ie3/io/factory/EntityFactoryUtilsTest.groovy b/src/test/groovy/edu/ie3/io/factory/EntityFactoryUtilsTest.groovy
+new file mode 100644
+index 0000000..e70dd30
+--- /dev/null
++++ b/src/test/groovy/edu/ie3/io/factory/EntityFactoryUtilsTest.groovy
+@@ -0,0 +1,34 @@
++package edu.ie3.io.factory
++
++import edu.ie3.models.input.NodeInput
++import edu.ie3.models.input.system.ChpInput
++import edu.ie3.models.result.system.BmResult
++import edu.ie3.models.result.system.EvcsResult
++import edu.ie3.models.result.system.FixedFeedInResult
++import edu.ie3.models.result.system.LoadResult
++import edu.ie3.models.result.system.PvResult
++import edu.ie3.models.result.system.StorageResult
++import edu.ie3.models.result.system.WecResult
++import spock.lang.Specification
++
++
++class EntityFactoryUtilsTest extends Specification {
++    def "EntityFactorUtils should list exactly all known factories when requested to do so"() {
++        given: "all known factory enums as we as all classes we have factories for"
++        def knownClasses = [LoadResult.class,
++                            FixedFeedInResult.class,
++                            BmResult.class,
++                            PvResult.class,
++                            ChpInput.class,
++                            WecResult.class,
++                            StorageResult.class,
++                            EvcsResult.class]
++        def knownFactoryEnums = [SimpleEntityFactory.class, OperatorEntityFactory.class]
++
++        expect:
++        knownClasses.forEach({ x ->
++            assert (EntityFactoryUtils.getFactory(x, knownFactoryEnums.toArray(new Class<? extends EntityFactory>[knownFactoryEnums.size()])).isPresent())
++        })
++
++    }
++}
+diff --git a/src/test/groovy/edu/ie3/io/factory/SimpleEntityFactoryTest.groovy b/src/test/groovy/edu/ie3/io/factory/SimpleEntityFactoryTest.groovy
+new file mode 100644
+index 0000000..f66a73a
+--- /dev/null
++++ b/src/test/groovy/edu/ie3/io/factory/SimpleEntityFactoryTest.groovy
+@@ -0,0 +1,98 @@
++package edu.ie3.io.factory
++
++import edu.ie3.exceptions.FactoryException
++import edu.ie3.models.StandardUnits
++import edu.ie3.models.input.system.ChpInput
++import edu.ie3.models.result.system.BmResult
++import edu.ie3.models.result.system.EvcsResult
++import edu.ie3.models.result.system.FixedFeedInResult
++import edu.ie3.models.result.system.LoadResult
++import edu.ie3.models.result.system.PvResult
++import edu.ie3.models.result.system.StorageResult
++import edu.ie3.models.result.system.SystemParticipantResult
++import edu.ie3.models.result.system.WecResult
++import edu.ie3.util.TimeTools
++import spock.lang.Specification
++import tec.uom.se.quantity.Quantities
++import tec.uom.se.unit.Units
++
++
++class SimpleEntityFactoryTest extends Specification {
++
++    def "A SystemParticipantResultFactory should contain all expected classes for parsing"() {
++        given:
++        def resultFactory = SimpleEntityFactory.SystemParticipantResultFactory
++        def expectedClasses = [LoadResult.class, FixedFeedInResult.class, BmResult.class, PvResult.class,
++                               ChpInput.class, WecResult.class, StorageResult.class, EvcsResult.class]
++
++        expect:
++        resultFactory.classes() == expectedClasses.toArray()
++    }
++
++    def "A SystemParticipantResultFactory should parse a WecResult correctly"() {
++        given: "a system participant factory and model data"
++        def resultFactory = SimpleEntityFactory.SystemParticipantResultFactory
++        HashMap<String, String> parameterMap = new HashMap<>();
++        parameterMap.put("timestamp", "16/01/2010 17:27:46");
++        parameterMap.put("inputModel", "91ec3bcf-1777-4d38-af67-0bf7c9fa73c7");
++        parameterMap.put("p", "2");
++        parameterMap.put("q", "2");
++
++        when:
++        Optional<? extends SystemParticipantResult> result = resultFactory.getEntity(new SimpleEntityData(parameterMap, WecResult.class))
++
++        then:
++        result.isPresent()
++        result.get().getClass() == WecResult.class
++        result.get().p == Quantities.getQuantity(Double.parseDouble(parameterMap.get("p")), StandardUnits.ACTIVE_POWER_OUT)
++        result.get().q == Quantities.getQuantity(Double.parseDouble(parameterMap.get("q")), StandardUnits.REACTIVE_POWER_OUT)
++        result.get().timestamp == TimeTools.toZonedDateTime(parameterMap.get("timestamp"))
++        result.get().inputModel == UUID.fromString(parameterMap.get("inputModel"))
++
++    }
++
++    def "A SystemParticipantResultFactory should parse a StorageResult correctly"() {
++        given: "a system participant factory and model data"
++        def resultFactory = SimpleEntityFactory.SystemParticipantResultFactory
++        HashMap<String, String> parameterMap = new HashMap<>();
++        parameterMap.put("timestamp", "16/01/2010 17:27:46");
++        parameterMap.put("inputModel", "91ec3bcf-1777-4d38-af67-0bf7c9fa73c7");
++        parameterMap.put("soc", "20")
++        parameterMap.put("p", "2");
++        parameterMap.put("q", "2");
++
++        when:
++        Optional<? extends SystemParticipantResult> result = resultFactory.getEntity(new SimpleEntityData(parameterMap, StorageResult.class))
++
++        then:
++        result.isPresent()
++        result.get().getClass() == StorageResult.class
++        result.get().p == Quantities.getQuantity(Double.parseDouble(parameterMap.get("p")), StandardUnits.ACTIVE_POWER_OUT)
++        result.get().q == Quantities.getQuantity(Double.parseDouble(parameterMap.get("q")), StandardUnits.REACTIVE_POWER_OUT)
++        ((StorageResult) result.get()).soc == Quantities.getQuantity(Double.parseDouble(parameterMap.get("soc")), Units.PERCENT)
++        result.get().timestamp == TimeTools.toZonedDateTime(parameterMap.get("timestamp"))
++        result.get().inputModel == UUID.fromString(parameterMap.get("inputModel"))
++
++    }
++
++    def "A SystemParticipantResultFactory should throw an exception on invalid or incomplete data"() {
++        given: "a system participant factory and model data"
++        def resultFactory = SimpleEntityFactory.SystemParticipantResultFactory
++        HashMap<String, String> parameterMap = new HashMap<>();
++        parameterMap.put("timestamp", "16/01/2010 17:27:46");
++        parameterMap.put("inputModel", "91ec3bcf-1777-4d38-af67-0bf7c9fa73c7");
++        parameterMap.put("q", "2");
++
++        when:
++        Optional<? extends SystemParticipantResult> result = resultFactory.getEntity(new SimpleEntityData(parameterMap, WecResult.class))
++
++        then:
++        FactoryException ex = thrown()
++        ex.message == "The provided fields [q, inputModel, timestamp] with data {q -> 2,inputModel -> 91ec3bcf-1777-4d38-af67-0bf7c9fa73c7,timestamp -> 16/01/2010 17:27:46} are invalid for instance of WecResult. \n" +
++                "The following fields to be passed to a constructor of WecResult are possible:\n" +
++                "0: [p, q, inputModel, timestamp]\n" +
++                "1: [p, q, inputModel, uuid, timestamp]\n"
++
++    }
++
++}
+diff --git a/src/test/resources/log4j2-test.xml b/src/test/resources/log4j2-test.xml
+new file mode 100644
+index 0000000..569cc29
+--- /dev/null
++++ b/src/test/resources/log4j2-test.xml
+@@ -0,0 +1,32 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<!--
++  ~ Copyright (c) 2019. TU Dortmund University,
++  ~ Institute of Energy Systems, Energy Efficiency and Energy Economics,
++  ~ Research group Distribution grid planning and operation
++  -->
++
++<Configuration>
++    <Appenders>
++        <Console name="Console" target="SYSTEM_OUT">
++            <PatternLayout pattern="%highlight{%d{HH:mm:ss.SSS} %-5level - %msg%n}{FATAL=red blink, ERROR=red, WARN=yellow bright, INFO=black, DEBUG=cyan, TRACE=blue}"/>
++        </Console>
++        <RollingRandomAccessFile name="RF" fileName="testLogs/datamodel/datamodel.log"
++                                 filePattern="testLogs/datamodel/archive/datamodel-%d{yyyyMMdd-HHmmss}.log">
++            <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"/>
++            <Policies>
++                <OnStartupTriggeringPolicy minSize="2 MB"/>
++            </Policies>
++            <DefaultRolloverStrategy>
++                <Delete basePath="testLogs/datamodel/archive" maxDepth="1">
++                    <IfAccumulatedFileCount exceeds="10"/>
++                </Delete>
++            </DefaultRolloverStrategy>
++        </RollingRandomAccessFile>
++    </Appenders>
++    <Loggers>
++        <asyncRoot level="debug">
++            <AppenderRef ref="Console" level="debug"/>
++        </asyncRoot>
++    </Loggers>
++
++</Configuration>

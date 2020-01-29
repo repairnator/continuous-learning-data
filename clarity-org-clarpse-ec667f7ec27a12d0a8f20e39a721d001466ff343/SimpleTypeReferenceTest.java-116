@@ -1,0 +1,8 @@
+@@ -116,6 +116,6 @@ public void TypeDeclarationArrayList() throws Exception {
+         reqCon.insertFile(file);
+         reqCons.add(reqCon);
+         final OOPSourceCodeModel codeModel = new ClarpseProject(reqCon).result();
+-        assertTrue(codeModel.getComponent("com.sample.ClassA.b").get().invocations().size() == 4);
++        assertTrue(codeModel.getComponent("com.sample.ClassA.b").get().references().size() == 4);
+     }
+ }

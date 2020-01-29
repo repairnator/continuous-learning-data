@@ -1,0 +1,441 @@
+diff --git a/build.gradle b/build.gradle
+index 7e34a062..48e8f2e2 100644
+--- a/build.gradle
++++ b/build.gradle
+@@ -6,7 +6,7 @@ plugins {
+   id 'jacoco'
+   id 'info.solidsoft.pitest' version '1.4.5'
+   id 'io.spring.dependency-management' version '1.0.8.RELEASE'
+-  id 'org.springframework.boot' version '2.1.9.RELEASE'
++  id 'org.springframework.boot' version '2.2.4.RELEASE'
+   id 'org.owasp.dependencycheck' version '5.2.4'
+   id 'com.github.ben-manes.versions' version '0.25.0'
+ }
+@@ -202,17 +202,20 @@ dependencies {
+   compile group: 'uk.gov.hmcts.reform', name: 'logging', version: versions.reformLogging
+   compile group: 'uk.gov.hmcts.reform', name: 'logging-appinsights', version: versions.reformLogging
+   compile group: 'uk.gov.hmcts.reform', name: 'service-auth-provider-client', version: '3.0.0'
+-
+-  compile group: 'uk.gov.hmcts.reform', name: 'sscs-common', version: '3.1.16'
++  compile group: 'uk.gov.hmcts.reform', name: 'sscs-common', version: '3.1.17'
+ 
+   compile group: 'com.microsoft.azure', name: 'applicationinsights-logging-logback', version: '2.5.0'
+   compile group: 'com.microsoft.azure', name: 'applicationinsights-spring-boot-starter', version: '2.5.0'
+ 
+   compileOnly group: 'org.projectlombok', name: 'lombok', version: versions.lombok
+-  testCompileOnly group: 'org.projectlombok', name: 'lombok', version: versions.lombok
+   annotationProcessor group: 'org.projectlombok', name: 'lombok', version: versions.lombok
++
++  testCompileOnly group: 'org.projectlombok', name: 'lombok', version: versions.lombok
+   testAnnotationProcessor group: 'org.projectlombok', name: 'lombok', version: versions.lombok
+ 
++  functionalTestCompileOnly group: 'org.projectlombok', name: 'lombok', version: versions.lombok
++  functionalTestAnnotationProcessor group: 'org.projectlombok', name: 'lombok', version: versions.lombok
++
+   testCompile (group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: versions.springBoot) {
+     exclude group: "com.vaadin.external.google", module:"android-json"
+   }
+diff --git a/config/owasp/suppressions.xml b/config/owasp/suppressions.xml
+index 3093c269..58760b52 100644
+--- a/config/owasp/suppressions.xml
++++ b/config/owasp/suppressions.xml
+@@ -165,4 +165,29 @@
+     <cve>CVE-2019-12418</cve>
+     <cve>CVE-2019-17563</cve>
+   </suppress>
++  <suppress>
++    <notes><![CDATA[
++   file name: org.apache.sling.javax.activation-0.1.0.jar
++   suppress vulnerabilities because the is no other versions of the affected package
++   org.apache.sling.javax.activation
++   ]]></notes>
++    <packageUrl regex="true">^pkg:maven/org\.apache\.sling/org\.apache\.sling\.javax\.activation@.*$</packageUrl>
++    <cve>CVE-2016-5394</cve>
++  </suppress>
++  <suppress>
++    <notes><![CDATA[
++   file name: org.apache.sling.javax.activation-0.1.0.jar
++   suppress vulnerabilities because the is no other versions of the affected package
++   org.apache.sling.javax.activation
++   ]]></notes>
++    <packageUrl regex="true">^pkg:maven/org\.apache\.sling/org\.apache\.sling\.javax\.activation@.*$</packageUrl>
++    <cve>CVE-2016-6798</cve>
++  </suppress>
++  <suppress>
++    <notes><![CDATA[
++   file name: handlebars-4.1.2.jar: handlebars-v4.0.4.js
++   ]]></notes>
++    <packageUrl regex="true">^pkg:javascript/handlebars\.js@.*$</packageUrl>
++    <vulnerabilityName>Prototype pollution</vulnerabilityName>
++  </suppress>
+ </suppressions>
+diff --git a/src/functionalTest/java/uk/gov/hmcts/reform/sscs/functional/SscsBulkScanFunctionalTest.java b/src/functionalTest/java/uk/gov/hmcts/reform/sscs/functional/SscsBulkScanFunctionalTest.java
+index 6316ea1a..ac36e8d8 100644
+--- a/src/functionalTest/java/uk/gov/hmcts/reform/sscs/functional/SscsBulkScanFunctionalTest.java
++++ b/src/functionalTest/java/uk/gov/hmcts/reform/sscs/functional/SscsBulkScanFunctionalTest.java
+@@ -19,7 +19,11 @@
+ import java.util.Objects;
+ import junitparams.JUnitParamsRunner;
+ import junitparams.Parameters;
+-import org.junit.*;
++import lombok.extern.slf4j.Slf4j;
++import org.junit.Before;
++import org.junit.ClassRule;
++import org.junit.Rule;
++import org.junit.Test;
+ import org.junit.runner.RunWith;
+ import org.springframework.beans.factory.annotation.Autowired;
+ import org.springframework.beans.factory.annotation.Value;
+@@ -37,6 +41,7 @@
+ @SpringBootTest
+ @TestPropertySource(locations = "classpath:application_e2e.yaml")
+ @RunWith(JUnitParamsRunner.class)
++@Slf4j
+ public class SscsBulkScanFunctionalTest {
+ 
+     @ClassRule
+@@ -62,9 +67,9 @@
+     public void setup() {
+         RestAssured.baseURI = testUrl;
+         idamTokens = idamService.getIdamTokens();
+-        System.out.println("idamTokens.getUserId()" + idamTokens.getUserId());
+-        System.out.println("idamTokens.getServiceAuthorization()" + idamTokens.getServiceAuthorization());
+-        System.out.println("idamTokens.getIdamOauth2Token()" + idamTokens.getIdamOauth2Token());
++        log.info("idamTokens.getUserId()" + idamTokens.getUserId());
++        log.info("idamTokens.getServiceAuthorization()" + idamTokens.getServiceAuthorization());
++        log.info("idamTokens.getIdamOauth2Token()" + idamTokens.getIdamOauth2Token());
+     }
+ 
+     @Test
+@@ -75,7 +80,11 @@ public void create_appeal_created_case_when_all_fields_entered() throws IOExcept
+ 
+         //Due to the async service bus hitting the evidence share service, we can't be sure what the state will be...
+         List<String> possibleStates = new ArrayList<>(Arrays.asList("validAppeal", "withDwp"));
+-        assertTrue(possibleStates.contains(findCaseInCcd(response).getState()));
++
++        SscsCaseDetails caseInCcd = findCaseInCcd(response);
++        log.info("Functional test(create_appeal_created_case_when_all_fields_entered), ccdId: {}, state: {}",
++            caseInCcd.getData().getCcdCaseId(), caseInCcd.getState());
++        assertTrue(possibleStates.contains(caseInCcd.getState()));
+     }
+ 
+     @Test
+@@ -178,6 +187,7 @@ private void createCase() {
+ 
+     private SscsCaseDetails findCaseInCcd(Response response) {
+         JsonPath jsonPathEvaluator = response.jsonPath();
++        @SuppressWarnings("rawtypes")
+         Long caseRef = Long.parseLong(((HashMap) jsonPathEvaluator.get("data")).get("caseReference").toString());
+         return ccdService.getByCaseId(caseRef, idamTokens);
+     }
+diff --git a/src/integrationTest/java/uk/gov/hmcts/reform/sscs/controllers/SscsBulkScanExceptionRecordCallback.java b/src/integrationTest/java/uk/gov/hmcts/reform/sscs/controllers/SscsBulkScanExceptionRecordCallback.java
+index d42363d5..158d03da 100644
+--- a/src/integrationTest/java/uk/gov/hmcts/reform/sscs/controllers/SscsBulkScanExceptionRecordCallback.java
++++ b/src/integrationTest/java/uk/gov/hmcts/reform/sscs/controllers/SscsBulkScanExceptionRecordCallback.java
+@@ -63,7 +63,7 @@ public void should_handle_callback_and_return_caseid_and_state_case_created_in_e
+ 
+         AboutToStartOrSubmitCallbackResponse callbackResponse = result.getBody();
+ 
+-        assertThat(callbackResponse.getErrors()).isNull();
++        assertThat(Objects.requireNonNull(callbackResponse).getErrors()).isNull();
+         assertThat(callbackResponse.getWarnings()).isEmpty();
+         assertThat(callbackResponse.getData()).contains(
+             entry("caseReference", "1539878003972756"),
+@@ -207,7 +207,7 @@ public void should_create_non_compliant_case_when_mrn_date_greater_than_13_month
+ 
+         AboutToStartOrSubmitCallbackResponse callbackResponse = result.getBody();
+ 
+-        assertThat(callbackResponse.getErrors()).isNull();
++        assertThat(Objects.requireNonNull(callbackResponse).getErrors()).isNull();
+         assertThat(callbackResponse.getData()).contains(
+             entry("caseReference", "1539878003972756"),
+             entry("state", "ScannedRecordCaseCreated")
+@@ -604,7 +604,7 @@ private void submitForCaseworkerStub(String eventId) throws Exception {
+         ccdServer.stubFor(post(concat(SUBMIT_EVENT_URL))
+             .withHeader(AUTHORIZATION, equalTo(USER_AUTH_TOKEN))
+             .withHeader(SERVICE_AUTHORIZATION_HEADER_KEY, equalTo(SERVICE_AUTH_TOKEN))
+-            .withHeader(CONTENT_TYPE, equalTo(MediaType.APPLICATION_JSON_UTF8_VALUE))
++            .withHeader(CONTENT_TYPE, equalTo(MediaType.APPLICATION_JSON_VALUE))
+             .withRequestBody(equalToJson(createCaseRequest, false, true))
+             .willReturn(aResponse()
+                 .withHeader(CONTENT_TYPE, APPLICATION_JSON_VALUE)
+@@ -624,7 +624,7 @@ private void submitEventForCaseworkerStub(String eventId) throws Exception {
+         ccdServer.stubFor(post(concat(SUBMIT_UPDATE_EVENT_URL))
+             .withHeader(AUTHORIZATION, equalTo(USER_AUTH_TOKEN))
+             .withHeader(SERVICE_AUTHORIZATION_HEADER_KEY, equalTo(SERVICE_AUTH_TOKEN))
+-            .withHeader(CONTENT_TYPE, equalTo(MediaType.APPLICATION_JSON_UTF8_VALUE))
++            .withHeader(CONTENT_TYPE, equalTo(MediaType.APPLICATION_JSON_VALUE))
+             .withRequestBody(equalToJson(createCaseRequest, false, true))
+             .willReturn(aResponse()
+                 .withHeader(CONTENT_TYPE, APPLICATION_JSON_VALUE)
+diff --git a/src/integrationTest/resources/mappings/create-case-200-response.json b/src/integrationTest/resources/mappings/create-case-200-response.json
+index f83c25e3..8002dd6b 100644
+--- a/src/integrationTest/resources/mappings/create-case-200-response.json
++++ b/src/integrationTest/resources/mappings/create-case-200-response.json
+@@ -11,7 +11,7 @@
+ 
+     "appeal": {
+       "mrnDetails": {
+-        "mrnDate": "2018-02-01"
++        "mrnDate": "2019-02-01"
+       },
+       "appellant": {
+         "name": {
+diff --git a/src/integrationTest/resources/mappings/exception/case-creation-request.json b/src/integrationTest/resources/mappings/exception/case-creation-request.json
+index c830a397..7d5aa73b 100644
+--- a/src/integrationTest/resources/mappings/exception/case-creation-request.json
++++ b/src/integrationTest/resources/mappings/exception/case-creation-request.json
+@@ -8,7 +8,7 @@
+     "appeal": {
+       "mrnDetails": {
+         "dwpIssuingOffice": "Balham DRT",
+-        "mrnDate": "2018-12-09",
++        "mrnDate": "2019-12-09",
+         "mrnLateReason": null,
+         "mrnMissingReason": null
+       },
+diff --git a/src/integrationTest/resources/mappings/exception/case-non-compliant-creation-request.json b/src/integrationTest/resources/mappings/exception/case-non-compliant-creation-request.json
+index bc6b4937..5f01a8ec 100644
+--- a/src/integrationTest/resources/mappings/exception/case-non-compliant-creation-request.json
++++ b/src/integrationTest/resources/mappings/exception/case-non-compliant-creation-request.json
+@@ -92,17 +92,18 @@
+       "representativeSubscription" : null,
+       "appointeeSubscription" : null
+     },
+-    "region" : "BIRMINGHAM",
++    "region" : "BRADFORD",
+     "regionalProcessingCenter" : {
+-      "faxNumber" : "0126 434 7983",
+-      "address4" : "PO Box 14620",
++      "name" : "BRADFORD",
++      "address1": "HM Courts & Tribunals Service",
++      "address2": "Social Security & Child Support Appeals",
++      "address3": "Phoenix House",
++      "address4": "Rushton Avenue",
++      "city": "BRADFORD",
++      "postcode": "BD3 7BH",
+       "phoneNumber" : "0300 123 1142",
+-      "name" : "BIRMINGHAM",
+-      "address1" : "HM Courts & Tribunals Service",
+-      "address2" : "Social Security & Child Support Appeals",
+-      "address3" : "Administrative Support Centre",
+-      "postcode" : "B16 6FR",
+-      "city" : "BIRMINGHAM"
++      "faxNumber" : "0126 434 7983",
++      "email" : "SSCS_Bradford@justice.gov.uk"
+     },
+     "generatedNino" : "BB000000B",
+     "generatedSurname" : "Smith",
+diff --git a/src/integrationTest/resources/mappings/exception/valid-appeal-request.json b/src/integrationTest/resources/mappings/exception/valid-appeal-request.json
+index 9dfe73b4..7ffc8691 100644
+--- a/src/integrationTest/resources/mappings/exception/valid-appeal-request.json
++++ b/src/integrationTest/resources/mappings/exception/valid-appeal-request.json
+@@ -91,17 +91,18 @@
+       "representativeSubscription" : null,
+       "appointeeSubscription" : null
+     },
+-    "region" : "BIRMINGHAM",
+-    "regionalProcessingCenter" : {
+-      "faxNumber" : "0126 434 7983",
+-      "address4" : "PO Box 14620",
+-      "phoneNumber" : "0300 123 1142",
+-      "name" : "BIRMINGHAM",
+-      "address1" : "HM Courts & Tribunals Service",
+-      "address2" : "Social Security & Child Support Appeals",
+-      "address3" : "Administrative Support Centre",
+-      "postcode" : "B16 6FR",
+-      "city" : "BIRMINGHAM"
++    "region": "BRADFORD",
++    "regionalProcessingCenter": {
++      "name": "BRADFORD",
++      "address1": "HM Courts & Tribunals Service",
++      "address2": "Social Security & Child Support Appeals",
++      "address3": "Phoenix House",
++      "address4": "Rushton Avenue",
++      "city": "BRADFORD",
++      "postcode": "BD3 7BH",
++      "phoneNumber": "0300 123 1142",
++      "faxNumber": "0126 434 7983",
++      "email": "SSCS_Bradford@justice.gov.uk"
+     },
+     "generatedNino" : "BB000000B",
+     "generatedSurname" : "Smith",
+diff --git a/src/integrationTest/resources/mappings/update-case-request.json b/src/integrationTest/resources/mappings/update-case-request.json
+index 8b8d35d4..3c36a6f4 100644
+--- a/src/integrationTest/resources/mappings/update-case-request.json
++++ b/src/integrationTest/resources/mappings/update-case-request.json
+@@ -92,17 +92,18 @@
+       "representativeSubscription" : null,
+       "appointeeSubscription" : null
+     },
+-    "region" : "BIRMINGHAM",
+-    "regionalProcessingCenter" : {
+-      "faxNumber" : "0126 434 7983",
+-      "address4" : "PO Box 14620",
++    "region" : "BRADFORD",
++    "regionalProcessingCenter": {
++      "name" : "BRADFORD",
++      "address1": "HM Courts & Tribunals Service",
++      "address2": "Social Security & Child Support Appeals",
++      "address3": "Phoenix House",
++      "address4": "Rushton Avenue",
++      "city": "BRADFORD",
++      "postcode": "BD3 7BH",
+       "phoneNumber" : "0300 123 1142",
+-      "name" : "BIRMINGHAM",
+-      "address1" : "HM Courts & Tribunals Service",
+-      "address2" : "Social Security & Child Support Appeals",
+-      "address3" : "Administrative Support Centre",
+-      "postcode" : "B16 6FR",
+-      "city" : "BIRMINGHAM"
++      "faxNumber" : "0126 434 7983",
++      "email" : "SSCS_Bradford@justice.gov.uk"
+     },
+     "generatedNino" : "BB000000B",
+     "generatedSurname" : "Smith",
+diff --git a/src/main/java/uk/gov/hmcts/reform/sscs/bulkscancore/handlers/CcdCallbackHandler.java b/src/main/java/uk/gov/hmcts/reform/sscs/bulkscancore/handlers/CcdCallbackHandler.java
+index d94da250..1bb3ffdf 100644
+--- a/src/main/java/uk/gov/hmcts/reform/sscs/bulkscancore/handlers/CcdCallbackHandler.java
++++ b/src/main/java/uk/gov/hmcts/reform/sscs/bulkscancore/handlers/CcdCallbackHandler.java
+@@ -3,7 +3,11 @@
+ import static uk.gov.hmcts.reform.sscs.service.CaseCodeService.*;
+ 
+ import com.fasterxml.jackson.databind.ObjectMapper;
+-import java.util.*;
++import java.util.ArrayList;
++import java.util.HashMap;
++import java.util.List;
++import java.util.Map;
++import java.util.Optional;
+ import lombok.extern.slf4j.Slf4j;
+ import org.springframework.beans.factory.annotation.Value;
+ import org.springframework.stereotype.Component;
+@@ -95,7 +99,8 @@ public CallbackResponse handle(ExceptionCaseData exceptionCaseData, Token token)
+                 }
+             }
+             log.info("Exception record id {} validated successfully", exceptionRecordId);
+-            return update(exceptionCaseData, caseValidationResponse, exceptionCaseData.isIgnoreWarnings(), token, exceptionRecordId, exceptionCaseData.getCaseDetails().getCaseData());
++            return update(exceptionCaseData, caseValidationResponse, exceptionCaseData.isIgnoreWarnings(), token,
++                exceptionRecordId, exceptionCaseData.getCaseDetails().getCaseData());
+         }
+     }
+ 
+diff --git a/src/main/java/uk/gov/hmcts/reform/sscs/transformers/SscsCaseTransformer.java b/src/main/java/uk/gov/hmcts/reform/sscs/transformers/SscsCaseTransformer.java
+index 5c62d3be..b8c48840 100644
+--- a/src/main/java/uk/gov/hmcts/reform/sscs/transformers/SscsCaseTransformer.java
++++ b/src/main/java/uk/gov/hmcts/reform/sscs/transformers/SscsCaseTransformer.java
+@@ -1,14 +1,53 @@
+ package uk.gov.hmcts.reform.sscs.transformers;
+ 
+ import static uk.gov.hmcts.reform.sscs.ccd.service.SscsCcdConvertService.normaliseNino;
+-import static uk.gov.hmcts.reform.sscs.constants.SscsConstants.*;
++import static uk.gov.hmcts.reform.sscs.constants.SscsConstants.AGREE_LESS_HEARING_NOTICE_LITERAL;
++import static uk.gov.hmcts.reform.sscs.constants.SscsConstants.APPEAL_GROUNDS;
++import static uk.gov.hmcts.reform.sscs.constants.SscsConstants.BENEFIT_TYPE_DESCRIPTION;
++import static uk.gov.hmcts.reform.sscs.constants.SscsConstants.DEFAULT_SIGN_LANGUAGE;
++import static uk.gov.hmcts.reform.sscs.constants.SscsConstants.HEARING_OPTIONS_ACCESSIBLE_HEARING_ROOMS_LITERAL;
++import static uk.gov.hmcts.reform.sscs.constants.SscsConstants.HEARING_OPTIONS_DIALECT_LITERAL;
++import static uk.gov.hmcts.reform.sscs.constants.SscsConstants.HEARING_OPTIONS_EXCLUDE_DATES_LITERAL;
++import static uk.gov.hmcts.reform.sscs.constants.SscsConstants.HEARING_OPTIONS_HEARING_LOOP_LITERAL;
++import static uk.gov.hmcts.reform.sscs.constants.SscsConstants.HEARING_OPTIONS_LANGUAGE_TYPE_LITERAL;
++import static uk.gov.hmcts.reform.sscs.constants.SscsConstants.HEARING_OPTIONS_SIGN_LANGUAGE_INTERPRETER_LITERAL;
++import static uk.gov.hmcts.reform.sscs.constants.SscsConstants.HEARING_OPTIONS_SIGN_LANGUAGE_TYPE_LITERAL;
++import static uk.gov.hmcts.reform.sscs.constants.SscsConstants.HEARING_SUPPORT_ARRANGEMENTS_LITERAL;
++import static uk.gov.hmcts.reform.sscs.constants.SscsConstants.HEARING_TYPE_ORAL;
++import static uk.gov.hmcts.reform.sscs.constants.SscsConstants.HEARING_TYPE_PAPER;
++import static uk.gov.hmcts.reform.sscs.constants.SscsConstants.IS_BENEFIT_TYPE_ESA;
++import static uk.gov.hmcts.reform.sscs.constants.SscsConstants.IS_BENEFIT_TYPE_PIP;
++import static uk.gov.hmcts.reform.sscs.constants.SscsConstants.IS_HEARING_TYPE_ORAL_LITERAL;
++import static uk.gov.hmcts.reform.sscs.constants.SscsConstants.IS_HEARING_TYPE_PAPER_LITERAL;
++import static uk.gov.hmcts.reform.sscs.constants.SscsConstants.NO_LITERAL;
++import static uk.gov.hmcts.reform.sscs.constants.SscsConstants.PERSON1_VALUE;
++import static uk.gov.hmcts.reform.sscs.constants.SscsConstants.PERSON2_VALUE;
++import static uk.gov.hmcts.reform.sscs.constants.SscsConstants.REPRESENTATIVE_VALUE;
++import static uk.gov.hmcts.reform.sscs.constants.SscsConstants.YES_LITERAL;
+ import static uk.gov.hmcts.reform.sscs.model.AllowedFileTypes.getContentTypeForFileName;
+-import static uk.gov.hmcts.reform.sscs.util.SscsOcrDataUtil.*;
++import static uk.gov.hmcts.reform.sscs.util.SscsOcrDataUtil.areBooleansValid;
++import static uk.gov.hmcts.reform.sscs.util.SscsOcrDataUtil.checkBooleanValue;
++import static uk.gov.hmcts.reform.sscs.util.SscsOcrDataUtil.convertBooleanToYesNoString;
++import static uk.gov.hmcts.reform.sscs.util.SscsOcrDataUtil.doValuesContradict;
++import static uk.gov.hmcts.reform.sscs.util.SscsOcrDataUtil.findBooleanExists;
++import static uk.gov.hmcts.reform.sscs.util.SscsOcrDataUtil.generateDateForCcd;
++import static uk.gov.hmcts.reform.sscs.util.SscsOcrDataUtil.getBoolean;
++import static uk.gov.hmcts.reform.sscs.util.SscsOcrDataUtil.getDateForCcd;
++import static uk.gov.hmcts.reform.sscs.util.SscsOcrDataUtil.getField;
++import static uk.gov.hmcts.reform.sscs.util.SscsOcrDataUtil.hasPerson;
+ import static uk.gov.hmcts.reform.sscs.utility.AppealNumberGenerator.generateAppealNumber;
+ 
+ import java.time.LocalDateTime;
+-import java.util.*;
+-import java.util.stream.Collectors;
++import java.util.ArrayList;
++import java.util.Arrays;
++import java.util.Collections;
++import java.util.HashMap;
++import java.util.HashSet;
++import java.util.List;
++import java.util.Map;
++import java.util.Optional;
++import java.util.Set;
++import java.util.StringJoiner;
+ import lombok.extern.slf4j.Slf4j;
+ import org.apache.commons.lang3.BooleanUtils;
+ import org.apache.commons.lang3.StringUtils;
+@@ -22,7 +61,27 @@
+ import uk.gov.hmcts.reform.sscs.bulkscancore.domain.ScannedData;
+ import uk.gov.hmcts.reform.sscs.bulkscancore.domain.ScannedRecord;
+ import uk.gov.hmcts.reform.sscs.bulkscancore.transformers.CaseTransformer;
+-import uk.gov.hmcts.reform.sscs.ccd.domain.*;
++import uk.gov.hmcts.reform.sscs.ccd.domain.Address;
++import uk.gov.hmcts.reform.sscs.ccd.domain.Appeal;
++import uk.gov.hmcts.reform.sscs.ccd.domain.AppealReason;
++import uk.gov.hmcts.reform.sscs.ccd.domain.AppealReasonDetails;
++import uk.gov.hmcts.reform.sscs.ccd.domain.AppealReasons;
++import uk.gov.hmcts.reform.sscs.ccd.domain.Appellant;
++import uk.gov.hmcts.reform.sscs.ccd.domain.Appointee;
++import uk.gov.hmcts.reform.sscs.ccd.domain.Benefit;
++import uk.gov.hmcts.reform.sscs.ccd.domain.BenefitType;
++import uk.gov.hmcts.reform.sscs.ccd.domain.Contact;
++import uk.gov.hmcts.reform.sscs.ccd.domain.DateRange;
++import uk.gov.hmcts.reform.sscs.ccd.domain.ExcludeDate;
++import uk.gov.hmcts.reform.sscs.ccd.domain.HearingOptions;
++import uk.gov.hmcts.reform.sscs.ccd.domain.Identity;
++import uk.gov.hmcts.reform.sscs.ccd.domain.MrnDetails;
++import uk.gov.hmcts.reform.sscs.ccd.domain.Name;
++import uk.gov.hmcts.reform.sscs.ccd.domain.Representative;
++import uk.gov.hmcts.reform.sscs.ccd.domain.SscsDocument;
++import uk.gov.hmcts.reform.sscs.ccd.domain.SscsDocumentDetails;
++import uk.gov.hmcts.reform.sscs.ccd.domain.Subscription;
++import uk.gov.hmcts.reform.sscs.ccd.domain.Subscriptions;
+ import uk.gov.hmcts.reform.sscs.exception.UnknownFileTypeException;
+ import uk.gov.hmcts.reform.sscs.helper.SscsDataHelper;
+ import uk.gov.hmcts.reform.sscs.json.SscsJsonExtractor;
+@@ -86,7 +145,7 @@ public CaseResponse transformExceptionRecordToCase(CaseDetails caseDetails) {
+ 
+         log.info("Transformation complete for exception record id {}, caseCreated field set to {}", caseId, caseCreated);
+ 
+-        return CaseResponse.builder().transformedCase(transformed).errors(errors.stream().collect(Collectors.toList())).build();
++        return CaseResponse.builder().transformedCase(transformed).errors(new ArrayList<>(errors)).build();
+     }
+ 
+     private String extractOpeningDate(CaseDetails caseDetails) {
+diff --git a/src/test/java/uk/gov/hmcts/reform/sscs/service/bulkscan/CcdCallbackHandlerTest.java b/src/test/java/uk/gov/hmcts/reform/sscs/service/bulkscan/CcdCallbackHandlerTest.java
+index 35cfb123..b8321032 100644
+--- a/src/test/java/uk/gov/hmcts/reform/sscs/service/bulkscan/CcdCallbackHandlerTest.java
++++ b/src/test/java/uk/gov/hmcts/reform/sscs/service/bulkscan/CcdCallbackHandlerTest.java
+@@ -61,9 +61,12 @@
+     @Before
+     public void setUp() {
+         sscsDataHelper = new SscsDataHelper(null, new ArrayList<>(), dwpAddressLookupService);
+-        ccdCallbackHandler = new CcdCallbackHandler(caseTransformer, caseValidator, caseDataHandler, sscsDataHelper, dwpAddressLookupService);
++        ccdCallbackHandler = new CcdCallbackHandler(caseTransformer, caseValidator, caseDataHandler, sscsDataHelper,
++            dwpAddressLookupService);
+         ReflectionTestUtils.setField(ccdCallbackHandler, "debugJson", false);
+-        given(dwpAddressLookupService.getDwpMappingByOffice("PIP", "3")).willReturn(Optional.of(OfficeMapping.builder().mapping(Mapping.builder().dwpRegionCentre("Springburn").build()).build()));
++        given(dwpAddressLookupService.getDwpMappingByOffice("PIP", "3"))
++            .willReturn(Optional.of(OfficeMapping.builder().mapping(Mapping.builder().dwpRegionCentre("Springburn")
++                .build()).build()));
+     }
+ 
+     @Test

@@ -1,0 +1,311 @@
+diff --git a/control-base/src/main/java/fi/nls/oskari/control/layer/DataProviderHandler.java b/control-base/src/main/java/fi/nls/oskari/control/layer/DataProviderHandler.java
+index 2fdaf3803..6242a8fd1 100644
+--- a/control-base/src/main/java/fi/nls/oskari/control/layer/DataProviderHandler.java
++++ b/control-base/src/main/java/fi/nls/oskari/control/layer/DataProviderHandler.java
+@@ -1,13 +1,21 @@
+ package fi.nls.oskari.control.layer;
+ 
++import java.util.List;
++
++import org.oskari.log.AuditLog;
+ import org.oskari.service.util.ServiceFactory;
+ 
+ import fi.nls.oskari.annotation.OskariActionRoute;
++import fi.nls.oskari.control.ActionDeniedException;
+ import fi.nls.oskari.control.ActionException;
+ import fi.nls.oskari.control.ActionParameters;
++import fi.nls.oskari.control.ActionParamsException;
+ import fi.nls.oskari.control.RestActionHandler;
+ import fi.nls.oskari.domain.map.DataProvider;
++import fi.nls.oskari.domain.map.OskariLayer;
+ import fi.nls.oskari.map.layer.DataProviderService;
++import fi.nls.oskari.map.layer.OskariLayerService;
++import fi.nls.oskari.util.PropertyUtil;
+ import fi.nls.oskari.util.ResponseHelper;
+ 
+ /**
+@@ -17,19 +25,97 @@
+ public class DataProviderHandler extends RestActionHandler {
+ 
+ 	private static final String PARAM_ID = "id";
++	private static final String PARAM_DELETE_LAYERS = "deleteLayers";
+ 
+-	private DataProviderService service = ServiceFactory.getDataProviderService();
++	private DataProviderService dataProviderService = ServiceFactory.getDataProviderService();
++	private OskariLayerService mapLayerService = ServiceFactory.getMapLayerService();
+ 
+ 	@Override
+ 	public void handleGet(ActionParameters params) throws ActionException {
+-		
++
+ 		final int id = params.getRequiredParamInt(PARAM_ID);
+-		
++
+ 		try {
+-			DataProvider d = service.find(id);
++			DataProvider d = dataProviderService.find(id);
+ 			ResponseHelper.writeResponse(params, d.getAsJSON());
+ 		} catch (Exception e) {
+ 			throw new ActionException("Data provider query failed", e);
+ 		}
+ 	}
++
++	@Override
++	public void handleDelete(ActionParameters params) throws ActionException {
++
++		final int id = params.getRequiredParamInt(PARAM_ID);
++		final boolean deleteLayers = params.getRequiredParamBoolean(PARAM_DELETE_LAYERS);
++
++		if (!dataProviderService.hasPermissionToUpdate(params.getUser(), id)) {
++			throw new ActionDeniedException("Unauthorized user tried to remove data provider id=" + id);
++		}
++
++		if (deleteLayers) {
++			deleteDataProviderAndLayers(id, params);
++		} else {
++			deleteDataProvider(id, params);
++		}
++	}
++
++	/**
++	 * Method deletes data provider. Data provider is removed from map layers
++	 * belonging to the data provider prior delete.
++	 *
++	 * @param int              id
++	 * @param ActionParameters params
++	 * @throws ActionException
++	 */
++	private void deleteDataProvider(int id, ActionParameters params) throws ActionException {
++		try {
++			DataProvider dataProvider = dataProviderService.find(id);
++			if (dataProvider == null) {
++				throw new ActionParamsException("Dataprovider not found with id " + id);
++			}
++			List<OskariLayer> layers = mapLayerService.findByDataProviderId(id);
++			layers.stream().forEach(layer -> {
++				layer.removeDataprovider(id);
++				mapLayerService.update(layer);
++			});
++			dataProviderService.delete(id);
++			AuditLog.user(params.getClientIp(), params.getUser()).withParam("id", dataProvider.getId())
++					.withParam("name", dataProvider.getName(PropertyUtil.getDefaultLanguage()))
++					.deleted(AuditLog.ResourceType.DATAPROVIDER);
++
++			// write deleted organization as response
++			ResponseHelper.writeResponse(params, dataProvider.getAsJSON());
++		} catch (Exception e) {
++			throw new ActionException("Couldn't delete data provider with id:" + id, e);
++		}
++	}
++
++	/**
++	 * Method deletes data provider and map layers which belong to the data
++	 * provider.
++	 *
++	 * @param int              id
++	 * @param ActionParameters params
++	 * @throws ActionException
++	 */
++	private void deleteDataProviderAndLayers(int id, ActionParameters params) throws ActionException {
++		try {
++			DataProvider organization = dataProviderService.find(id);
++			if (organization == null) {
++				throw new ActionParamsException("Dataprovider not found with id " + id);
++			}
++			// cascade in db will handle that layers are deleted
++			dataProviderService.delete(id);
++
++			AuditLog.user(params.getClientIp(), params.getUser()).withParam("id", organization.getId())
++					.withParam("name", organization.getName(PropertyUtil.getDefaultLanguage()))
++					.deleted(AuditLog.ResourceType.DATAPROVIDER);
++
++			// write deleted organization as response
++			ResponseHelper.writeResponse(params, organization.getAsJSON());
++		} catch (Exception e) {
++			throw new ActionException("Couldn't delete data provider and its map layers - id:" + id, e);
++		}
++	}
+ }
+diff --git a/control-base/src/main/java/fi/nls/oskari/control/layer/DeleteOrganizationHandler.java b/control-base/src/main/java/fi/nls/oskari/control/layer/DeleteOrganizationHandler.java
+index ff526abc4..85d72341e 100755
+--- a/control-base/src/main/java/fi/nls/oskari/control/layer/DeleteOrganizationHandler.java
++++ b/control-base/src/main/java/fi/nls/oskari/control/layer/DeleteOrganizationHandler.java
+@@ -13,7 +13,9 @@
+ import static fi.nls.oskari.control.ActionConstants.PARAM_ID;
+ 
+ /**
+- * For deleting a dataprovider/organization
++ * For deleting a data provider/organization
++ *
++ * @deprecated As of release 1.55.0, use fi.nls.oskari.control.layer.DataProvider action route instead
+  */
+ @OskariActionRoute("DeleteOrganization")
+ public class DeleteOrganizationHandler extends RestActionHandler {
+diff --git a/service-base/src/main/java/fi/nls/oskari/domain/map/OskariLayer.java b/service-base/src/main/java/fi/nls/oskari/domain/map/OskariLayer.java
+index c49b9d3a1..12d85de2b 100755
+--- a/service-base/src/main/java/fi/nls/oskari/domain/map/OskariLayer.java
++++ b/service-base/src/main/java/fi/nls/oskari/domain/map/OskariLayer.java
+@@ -28,7 +28,7 @@
+ 
+     private boolean isBaseMap = false;
+     private boolean isInternal = false;
+-    private int dataproviderId;
++    private Integer dataproviderId;
+ 
+     private String name;
+     private String url;
+@@ -92,6 +92,10 @@ public void addDataprovider(final DataProvider dataProvider) {
+             setDataproviderId(dataProvider.getId());
+         }
+     }
++    public void removeDataprovider(final int id) {
++        dataProviders.removeIf(d -> d.getId() == id);
++        setDataproviderId(null);
++    }
+ 
+     public int compareTo(OskariLayer l) {
+         String defaultLang = PropertyUtil.getDefaultLanguage();
+@@ -243,11 +247,11 @@ public void setInternal(boolean internal) {
+         isInternal = internal;
+     }
+ 
+-    public int getDataproviderId() {
++    public Integer getDataproviderId() {
+         return dataproviderId;
+     }
+ 
+-    public void setDataproviderId(int dataproviderId) {
++    public void setDataproviderId(Integer dataproviderId) {
+         this.dataproviderId = dataproviderId;
+     }
+ 
+diff --git a/service-control/src/main/java/fi/nls/oskari/control/ActionParameters.java b/service-control/src/main/java/fi/nls/oskari/control/ActionParameters.java
+index f155a473d..8276f3304 100755
+--- a/service-control/src/main/java/fi/nls/oskari/control/ActionParameters.java
++++ b/service-control/src/main/java/fi/nls/oskari/control/ActionParameters.java
+@@ -150,6 +150,22 @@ public double getRequiredParamDouble(final String key) throws ActionParamsExcept
+             throw new ActionParamsException(errMsg);
+         }
+     }
++    /**
++     * Returns a cleaned up (think XSS) value for the requested parameter
++     * @param key parameter name
++     * @return cleaned up value for the parameter as boolean
++     * @throws ActionParamsException if parameter is not found, is empty or can't be parsed as double
++     */
++    public boolean getRequiredParamBoolean(final String key) throws ActionParamsException {
++        final String errMsg = "Required parameter '" + key + "' missing!";
++        final String val = getRequiredParam(key, errMsg);
++
++        try {
++            return Boolean.parseBoolean(val);
++        } catch (Exception e) {
++            throw new ActionParamsException(errMsg);
++        }
++    }
+ 
+ 
+     /**
+diff --git a/service-map/src/main/java/fi/nls/oskari/map/layer/OskariLayerMapper.java b/service-map/src/main/java/fi/nls/oskari/map/layer/OskariLayerMapper.java
+index 130cf5b26..de30ff7ad 100644
+--- a/service-map/src/main/java/fi/nls/oskari/map/layer/OskariLayerMapper.java
++++ b/service-map/src/main/java/fi/nls/oskari/map/layer/OskariLayerMapper.java
+@@ -19,6 +19,8 @@
+     List<Map<String,Object>> findAllWithPositiveUpdateRateSec();
+     @Select ("select id, name from oskari_maplayer where type = #{type} and url like #{url} ||'%'")
+     List<Map<String,Object>> findIdAndNameByUrl(@Param("url") final String url, @Param("type") final String type);
++    @Select ("select * from oskari_maplayer where dataprovider_id = #{dataProviderId}")
++    List<Map<String,Object>> findByDataProviderId(@Param("dataProviderId") final int dataProviderId);
+     int update(final OskariLayer layer);
+     void insert(final OskariLayer layer);
+     int delete(final int layerId);
+diff --git a/service-map/src/main/java/fi/nls/oskari/map/layer/OskariLayerService.java b/service-map/src/main/java/fi/nls/oskari/map/layer/OskariLayerService.java
+index 738b122e2..29a87dd02 100755
+--- a/service-map/src/main/java/fi/nls/oskari/map/layer/OskariLayerService.java
++++ b/service-map/src/main/java/fi/nls/oskari/map/layer/OskariLayerService.java
+@@ -14,6 +14,7 @@
+     public abstract List<OskariLayer> findByUrlAndName(final String url, final String name);
+     public abstract List<OskariLayer> findByMetadataId(String uuid);
+     public abstract List<OskariLayer> findAllWithPositiveUpdateRateSec();
++    public abstract List<OskariLayer> findByDataProviderId(final int dataProviderId);
+     public abstract Map<String, List<Integer>> findNamesAndIdsByUrl(final String url, final String type);
+     public abstract int insert(final OskariLayer layer);
+     public abstract void update(final OskariLayer layer);
+diff --git a/service-map/src/main/java/fi/nls/oskari/map/layer/OskariLayerServiceMybatisImpl.java b/service-map/src/main/java/fi/nls/oskari/map/layer/OskariLayerServiceMybatisImpl.java
+index a81c71de4..f2ef3aa9a 100644
+--- a/service-map/src/main/java/fi/nls/oskari/map/layer/OskariLayerServiceMybatisImpl.java
++++ b/service-map/src/main/java/fi/nls/oskari/map/layer/OskariLayerServiceMybatisImpl.java
+@@ -1,5 +1,23 @@
+ package fi.nls.oskari.map.layer;
+ 
++import java.util.ArrayList;
++import java.util.Collections;
++import java.util.Date;
++import java.util.HashMap;
++import java.util.List;
++import java.util.Map;
++import java.util.TreeMap;
++
++import javax.sql.DataSource;
++
++import org.apache.ibatis.mapping.Environment;
++import org.apache.ibatis.session.Configuration;
++import org.apache.ibatis.session.SqlSession;
++import org.apache.ibatis.session.SqlSessionFactory;
++import org.apache.ibatis.session.SqlSessionFactoryBuilder;
++import org.apache.ibatis.transaction.TransactionFactory;
++import org.apache.ibatis.transaction.jdbc.JdbcTransactionFactory;
++
+ import fi.nls.oskari.annotation.Oskari;
+ import fi.nls.oskari.db.DatasourceHelper;
+ import fi.nls.oskari.domain.map.DataProvider;
+@@ -9,17 +27,6 @@
+ import fi.nls.oskari.mybatis.JSONObjectMybatisTypeHandler;
+ import fi.nls.oskari.util.ConversionHelper;
+ import fi.nls.oskari.util.JSONHelper;
+-import org.apache.ibatis.mapping.Environment;
+-import org.apache.ibatis.session.Configuration;
+-import org.apache.ibatis.session.SqlSession;
+-import org.apache.ibatis.session.SqlSessionFactory;
+-import org.apache.ibatis.session.SqlSessionFactoryBuilder;
+-import org.apache.ibatis.transaction.TransactionFactory;
+-import org.apache.ibatis.transaction.jdbc.JdbcTransactionFactory;
+-
+-import javax.sql.DataSource;
+-import java.util.*;
+-import java.util.stream.Collectors;
+ 
+ @Oskari("OskariLayerService")
+ public class OskariLayerServiceMybatisImpl extends OskariLayerService {
+@@ -303,6 +310,23 @@ public OskariLayer find(int id) {
+         }
+         return Collections.emptyList();
+     }
++    
++    @Override
++	public List<OskariLayer> findByDataProviderId(int dataProviderId) {
++    	LOG.debug("Find by data provider id: " + dataProviderId);
++        final SqlSession session = factory.openSession();
++        try {
++            final OskariLayerMapper mapper = session.getMapper(OskariLayerMapper.class);
++            List<Map<String,Object>> result = mapper.findByDataProviderId(dataProviderId);
++            return mapDataList(result);
++        } catch (Exception e) {
++            LOG.warn(e, "Exception while getting oskari layers with dataprovider id");
++        } finally {
++            session.close();
++        }
++        return Collections.emptyList();
++	}
++    
+     public Map<String, List<Integer>> findNamesAndIdsByUrl (final String url, final String type) {
+         final SqlSession session = factory.openSession();
+         try {
+@@ -369,5 +393,4 @@ public void delete(int id) {
+     public void delete(Map<String, String> parameterMap) {
+         delete(ConversionHelper.getInt(parameterMap.get("id"), -1));
+     }
+-
+-}
+\ No newline at end of file
++}

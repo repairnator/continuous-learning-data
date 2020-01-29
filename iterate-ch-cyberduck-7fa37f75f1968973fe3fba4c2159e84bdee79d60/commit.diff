@@ -1,0 +1,52 @@
+diff --git a/cli/osx/pom.xml b/cli/osx/pom.xml
+index 85b2c712b1..a520f1638f 100644
+--- a/cli/osx/pom.xml
++++ b/cli/osx/pom.xml
+@@ -117,7 +117,7 @@
+                                             <groupId>net.adoptopenjdk</groupId>
+                                             <artifactId>jre</artifactId>
+                                             <type>zip</type>
+-                                            <version>12.0.2</version>
++                                            <version>13.0.2</version>
+                                         </artifactItem>
+                                     </artifactItems>
+                                     <outputDirectory>${project.build.directory}</outputDirectory>
+diff --git a/core/src/main/java/ch/cyberduck/core/preferences/Preferences.java b/core/src/main/java/ch/cyberduck/core/preferences/Preferences.java
+index d6ca667369..fe18951319 100755
+--- a/core/src/main/java/ch/cyberduck/core/preferences/Preferences.java
++++ b/core/src/main/java/ch/cyberduck/core/preferences/Preferences.java
+@@ -996,7 +996,7 @@ Integrated Windows Authentication (IWA)
+             log.info(String.format("Install provider %s at position %d", provider, position));
+         }
+         Security.insertProviderAt(provider, position);
+-        this.setDefault("connection.ssl.protocols", "TLSv1.2,TLSv1.1,TLSv1");
++        this.setDefault("connection.ssl.protocols", "TLSv1.3,TLSv1.2,TLSv1.1,TLSv1");
+         this.setDefault("connection.ssl.cipher.blacklist", StringUtils.EMPTY);
+ 
+         this.setDefault("connection.ssl.x509.revocation.online", String.valueOf(false));
+diff --git a/osx/pom.xml b/osx/pom.xml
+index f0d311986b..9fbf6b2fe6 100644
+--- a/osx/pom.xml
++++ b/osx/pom.xml
+@@ -133,7 +133,7 @@
+                                             <groupId>net.adoptopenjdk</groupId>
+                                             <artifactId>jre</artifactId>
+                                             <type>zip</type>
+-                                            <version>12.0.2</version>
++                                            <version>13.0.2</version>
+                                         </artifactItem>
+                                     </artifactItems>
+                                     <outputDirectory>${project.build.directory}</outputDirectory>
+diff --git a/runtime.xml b/runtime.xml
+index 5d77f8db5f..7bbbd41d7e 100644
+--- a/runtime.xml
++++ b/runtime.xml
+@@ -2,7 +2,7 @@
+ 
+ <project name="Java Runtime" basedir=".">
+ 
+-    <property name="runtime.dependency" value="${build}/jdk-12.0.2+10-jre"/>
++    <property name="runtime.dependency" value="${build}/jdk-13.0.2+8-jre"/>
+ 
+     <property name="bundle.runtime" value="${bundle.plugins}/Runtime.jre"/>
+     <property name="bundle.runtime.lib"

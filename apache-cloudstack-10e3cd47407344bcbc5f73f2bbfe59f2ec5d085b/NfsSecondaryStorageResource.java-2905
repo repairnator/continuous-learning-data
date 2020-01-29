@@ -1,0 +1,9 @@
+@@ -2905,7 +2905,7 @@ protected boolean mountExists(String localRootPath, URI uri) {
+         script = new Script(!_inSystemVM, "mount", _timeout, s_logger);
+ 
+         List<String> res = new ArrayList<String>();
+-        ZfsPathParser parser = new ZfsPathParser(localRootPath);
++        NfsPathParser parser = new NfsPathParser(localRootPath);
+         script.execute(parser);
+         res.addAll(parser.getPaths());
+         for (String s : res) {

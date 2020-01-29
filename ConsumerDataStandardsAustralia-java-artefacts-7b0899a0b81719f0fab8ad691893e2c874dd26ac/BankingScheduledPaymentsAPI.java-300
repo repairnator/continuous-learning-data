@@ -1,0 +1,9 @@
+@@ -300,7 +300,7 @@ ResponseBankingScheduledPaymentsList listScheduledPaymentsSpecificAccounts(
+             reference = "ParamPage"
+         )
+         @CDSDataType(CustomDataType.PositiveInteger)
+-        Integer page, 
++        Integer page,
+         @Param(
+             name = "page-size",
+             description = "Page size to request. Default is 25 (standard pagination)",

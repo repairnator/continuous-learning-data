@@ -1,0 +1,460 @@
+diff --git a/de.uhd.ifi.se.decision.management.eclipse.tests/src/de/uhd/ifi/se/decision/management/eclipse/model/TestLink.java b/de.uhd.ifi.se.decision.management.eclipse.tests/src/de/uhd/ifi/se/decision/management/eclipse/model/TestLink.java
+index df6e52e..82808fb 100644
+--- a/de.uhd.ifi.se.decision.management.eclipse.tests/src/de/uhd/ifi/se/decision/management/eclipse/model/TestLink.java
++++ b/de.uhd.ifi.se.decision.management.eclipse.tests/src/de/uhd/ifi/se/decision/management/eclipse/model/TestLink.java
+@@ -9,7 +9,6 @@
+ import org.junit.Test;
+ 
+ import de.uhd.ifi.se.decision.management.eclipse.model.impl.ChangedFileImpl;
+-import de.uhd.ifi.se.decision.management.eclipse.model.impl.DecisionKnowledgeElementImpl;
+ import de.uhd.ifi.se.decision.management.eclipse.model.impl.LinkImpl;
+ 
+ public class TestLink {
+@@ -45,10 +44,8 @@ public void testConstructorNull() {
+ 	
+ 	@Test
+ 	public void testGetSetNode() {
+-		DecisionKnowledgeElement node1 = new DecisionKnowledgeElementImpl(KnowledgeType.ISSUE,
+-				"This is a decision!");
+-        DecisionKnowledgeElement node2 = new DecisionKnowledgeElementImpl(KnowledgeType.ISSUE,
+-				"This is also a decision!");
++		ChangedFile node1 = new ChangedFileImpl(new Path("./file1"));
++		ChangedFile node2 = new ChangedFileImpl(new Path("./file2"));
+         
+         Link link = new LinkImpl();
+         
+@@ -72,30 +69,24 @@ public void testGetSetNodeNull() {
+ 	
+ 	@Test
+ 	public void testGetNodeID() {
+-		DecisionKnowledgeElement node1 = new DecisionKnowledgeElementImpl(KnowledgeType.ISSUE,
+-				"This is a decision!");
+-        DecisionKnowledgeElement node2 = new DecisionKnowledgeElementImpl(KnowledgeType.ISSUE,
+-				"This is also a decision!");
++		ChangedFile node1 = new ChangedFileImpl(new Path("./file1"));
++		ChangedFile node2 = new ChangedFileImpl(new Path("./file2"));
+         
+         Link link = new LinkImpl();
+         
+         link.setSourceNode(node1);
+         link.setTargetNode(node2);
+         
+-        assertTrue(link.getSourceId().contains("This is a decision!"));
+-        assertTrue(link.getTargetId().contains("This is also a decision!"));
++        assertTrue(link.getSourceId().contains("file1"));
++        assertTrue(link.getTargetId().contains("file2"));
+ 	}
+ 	
+ 	@Test
+ 	public void testEqualsTrue() {
+-		DecisionKnowledgeElement node1 = new DecisionKnowledgeElementImpl(KnowledgeType.ISSUE,
+-				"Node1");
+-        DecisionKnowledgeElement node2 = new DecisionKnowledgeElementImpl(KnowledgeType.ISSUE,
+-				"Node2");
+-        DecisionKnowledgeElement node3 = new DecisionKnowledgeElementImpl(KnowledgeType.ISSUE,
+-				"Node1");
+-        DecisionKnowledgeElement node4 = new DecisionKnowledgeElementImpl(KnowledgeType.ISSUE,
+-				"Node2");
++		ChangedFile node1 = new ChangedFileImpl(new Path("./file1"));
++		ChangedFile node2 = new ChangedFileImpl(new Path("./file2"));
++		ChangedFile node3 = new ChangedFileImpl(new Path("./file1"));
++		ChangedFile node4 = new ChangedFileImpl(new Path("./file2"));
+         
+         Link link1 = new LinkImpl();
+         Link link2 = new LinkImpl();
+@@ -110,14 +101,10 @@ public void testEqualsTrue() {
+ 	
+ 	@Test
+ 	public void testEqualsFalse() {
+-		DecisionKnowledgeElement node1 = new DecisionKnowledgeElementImpl(KnowledgeType.ISSUE,
+-				"Node1");
+-        DecisionKnowledgeElement node2 = new DecisionKnowledgeElementImpl(KnowledgeType.ISSUE,
+-				"Node2");
+-        DecisionKnowledgeElement node3 = new DecisionKnowledgeElementImpl(KnowledgeType.ISSUE,
+-				"Node3");
+-        DecisionKnowledgeElement node4 = new DecisionKnowledgeElementImpl(KnowledgeType.ISSUE,
+-				"Node4");
++		ChangedFile node1 = new ChangedFileImpl(new Path("./file1"));
++		ChangedFile node2 = new ChangedFileImpl(new Path("./file2"));
++		ChangedFile node3 = new ChangedFileImpl(new Path("./file3"));
++		ChangedFile node4 = new ChangedFileImpl(new Path("./file4"));
+         
+         Link link1 = new LinkImpl();
+         Link link2 = new LinkImpl();
+@@ -133,12 +120,9 @@ public void testEqualsFalse() {
+ 	@SuppressWarnings("unlikely-arg-type")
+ 	@Test
+ 	public void testEqualsNolink() {
+-		DecisionKnowledgeElement node1 = new DecisionKnowledgeElementImpl(KnowledgeType.ISSUE,
+-				"Node1");
+-        DecisionKnowledgeElement node2 = new DecisionKnowledgeElementImpl(KnowledgeType.ISSUE,
+-				"Node2");
+-        DecisionKnowledgeElement node3 = new DecisionKnowledgeElementImpl(KnowledgeType.ISSUE,
+-				"Node3");
++		ChangedFile node1 = new ChangedFileImpl(new Path("./file1"));
++		ChangedFile node2 = new ChangedFileImpl(new Path("./file2"));
++		ChangedFile node3 = new ChangedFileImpl(new Path("./file3"));
+         
+         Link link1 = new LinkImpl();
+         
+diff --git a/de.uhd.ifi.se.decision.management.eclipse/src/de/uhd/ifi/se/decision/management/eclipse/model/KnowledgeGraph.java b/de.uhd.ifi.se.decision.management.eclipse/src/de/uhd/ifi/se/decision/management/eclipse/model/KnowledgeGraph.java
+index a923e5e..2553011 100644
+--- a/de.uhd.ifi.se.decision.management.eclipse/src/de/uhd/ifi/se/decision/management/eclipse/model/KnowledgeGraph.java
++++ b/de.uhd.ifi.se.decision.management.eclipse/src/de/uhd/ifi/se/decision/management/eclipse/model/KnowledgeGraph.java
+@@ -71,6 +71,16 @@
+ 	 */
+ 	void insertLink(Node node1, Node node2);
+ 	
++	/**
++	 * Removes an edge from node node1 to node node2
++	 * 
++	 * @param node1
++	 * 		source node
++	 * @param node2
++	 * 		target node
++	 */
++	void removeLink(Node node1, Node node2);
++	
+ 	/**
+ 	 * Inserts the link into the knowledge graph.
+ 	 * 
+@@ -79,6 +89,14 @@
+ 	 */
+ 	void insertLink(Link link);
+ 	
++	/**
++	 * Removes the link from the knowledge graph.
++	 * 
++	 * @param link
++	 * 		the link to be deleted
++	 */
++	void removeLink(Link link);
++	
+ 	/**
+ 	 * Checks whether a link between node1 and node2 exists.
+ 	 * 
+diff --git a/de.uhd.ifi.se.decision.management.eclipse/src/de/uhd/ifi/se/decision/management/eclipse/model/impl/DecisionKnowledgeElementImpl.java b/de.uhd.ifi.se.decision.management.eclipse/src/de/uhd/ifi/se/decision/management/eclipse/model/impl/DecisionKnowledgeElementImpl.java
+index fd3fb7a..9c1e50d 100644
+--- a/de.uhd.ifi.se.decision.management.eclipse/src/de/uhd/ifi/se/decision/management/eclipse/model/impl/DecisionKnowledgeElementImpl.java
++++ b/de.uhd.ifi.se.decision.management.eclipse/src/de/uhd/ifi/se/decision/management/eclipse/model/impl/DecisionKnowledgeElementImpl.java
+@@ -87,6 +87,6 @@ public void setCommit(GitCommit commit) {
+ 	
+ 	@Override
+ 	public String getNodeId() {
+-		return commit.getNodeId();
++		return "DKE: " + type.getName() + " " + commit.getNodeId();
+ 	}
+ }
+diff --git a/de.uhd.ifi.se.decision.management.eclipse/src/de/uhd/ifi/se/decision/management/eclipse/model/impl/KnowledgeGraphImpl.java b/de.uhd.ifi.se.decision.management.eclipse/src/de/uhd/ifi/se/decision/management/eclipse/model/impl/KnowledgeGraphImpl.java
+index 18649a9..17cfebe 100644
+--- a/de.uhd.ifi.se.decision.management.eclipse/src/de/uhd/ifi/se/decision/management/eclipse/model/impl/KnowledgeGraphImpl.java
++++ b/de.uhd.ifi.se.decision.management.eclipse/src/de/uhd/ifi/se/decision/management/eclipse/model/impl/KnowledgeGraphImpl.java
+@@ -319,11 +319,21 @@ public void insertLink(Node node1, Node node2) {
+ 		this.addEdge(node1, node2);
+ 	}
+ 	
++	@Override
++	public void removeLink(Node node1, Node node2) {
++		this.removeAllEdges(node1, node2);
++	}
++	
+ 	@Override
+ 	public void insertLink(Link link) {
+ 		this.addEdge(link.getSourceNode(), link.getTargetNode());
+ 	}
+ 	
++	@Override
++	public void removeLink(Link link) {
++		this.removeAllEdges(link.getSourceNode(), link.getTargetNode());
++	}
++	
+ 	@Override
+ 	public boolean linkExists(Node node1, Node node2) {
+ 		return this.containsEdge(node1, node2);
+diff --git a/de.uhd.ifi.se.decision.management.eclipse/src/de/uhd/ifi/se/decision/management/eclipse/model/impl/LinkImpl.java b/de.uhd.ifi.se.decision.management.eclipse/src/de/uhd/ifi/se/decision/management/eclipse/model/impl/LinkImpl.java
+index 33cb62a..d1fea38 100644
+--- a/de.uhd.ifi.se.decision.management.eclipse/src/de/uhd/ifi/se/decision/management/eclipse/model/impl/LinkImpl.java
++++ b/de.uhd.ifi.se.decision.management.eclipse/src/de/uhd/ifi/se/decision/management/eclipse/model/impl/LinkImpl.java
+@@ -53,7 +53,7 @@ public Node getSourceNode() {
+ 	public void setSourceNode(Node source) {
+ 		this.sourceNode = source;
+ 		if (sourceNode != null) {
+-			sourceId = sourceNode.toString();
++			sourceId = sourceNode.getNodeId();
+ 		}
+ 	}
+ 
+@@ -80,7 +80,7 @@ public Node getTargetNode() {
+ 	public void setTargetNode(Node target) {
+ 		this.targetNode = target;
+ 		if (targetNode != null) {
+-			targetId = targetNode.toString();
++			targetId = targetNode.getNodeId();
+ 		}
+ 	}
+ 	
+@@ -95,13 +95,20 @@ public void setTargetId(String targetId) {
+ 	
+ 	@Override
+ 	public boolean equals(Object other) {
+-	    if (!(other instanceof Link)) {
+-	        return false;
++		if (!(other instanceof Link)) {
++			return false;
+ 	    }
+ 
+ 	    Link that = (Link) other;
+ 
+-	    return this.getSourceId().equals(that.getSourceId())
+-	        && this.getTargetId().equals(that.getTargetId());
++	    if (this.getSourceId() != null && this.getTargetId() != null &&
++	    		that.getSourceId() != null && that.getTargetId() != null) {
++	    	return this.getSourceId().equals(that.getSourceId())
++	    	        && this.getTargetId().equals(that.getTargetId());
++	    }
++	    else {
++	    	return this.getSource().equals(that.getSource())
++	    	        && this.getTarget().equals(that.getTarget());
++	    }
+ 	}
+ }
+\ No newline at end of file
+diff --git a/de.uhd.ifi.se.decision.management.eclipse/src/de/uhd/ifi/se/decision/management/eclipse/persistence/KnowledgePersistenceManager.java b/de.uhd.ifi.se.decision.management.eclipse/src/de/uhd/ifi/se/decision/management/eclipse/persistence/KnowledgePersistenceManager.java
+index c4ada64..0fd3f19 100644
+--- a/de.uhd.ifi.se.decision.management.eclipse/src/de/uhd/ifi/se/decision/management/eclipse/persistence/KnowledgePersistenceManager.java
++++ b/de.uhd.ifi.se.decision.management.eclipse/src/de/uhd/ifi/se/decision/management/eclipse/persistence/KnowledgePersistenceManager.java
+@@ -92,22 +92,61 @@ private static void insertLinkJSON(de.uhd.ifi.se.decision.management.eclipse.mod
+     	
+     	List<Link> links = readJSONFile();
+     	
+-    	try {
+-			if (!links.contains(newLink)) {
+-				File folder = new File(KNOWLEDGE_LOCATION_FOLDER);
+-		    	File file = new File(folder, KNOWLEDGE_LOCATION_FILE);
+-		    	
+-		    	ObjectMapper mapper = new ObjectMapper();
+-				
+-				links.add(newLink);
+-				mapper.writeValue(file, links);
+-			}
+-		} catch (JsonGenerationException e) {
+-			e.printStackTrace();
+-		} catch (JsonMappingException e) {
+-			e.printStackTrace();
+-		} catch (IOException e) {
+-			e.printStackTrace();
++		if (!links.contains(newLink)) {
++			links.add(newLink);
++			writeJSONFile(links);
++		}
++    }
++    
++    /**
++     * Removes the link between the source node and the target node, if sourceNode and targetNode exist.
++     *
++     * @param sourceNode
++	 * 		the source node
++	 * @param targetNode
++	 * 		the target node
++     */
++    public static boolean removeLink(Node sourceNode, Node targetNode) {
++    	KnowledgeGraph knowledgeGraph = KnowledgeGraphImpl.getInstance();
++    	knowledgeGraph.updateWithPersistanceData();
++    	KnowledgeGraphView knowledgeGraphView = KnowledgeGraphViewImpl.getInstance(knowledgeGraph);
++    	
++    	de.uhd.ifi.se.decision.management.eclipse.model.Node sourceKnowledgeNode = NodeUtils.convertNode(sourceNode);
++    	de.uhd.ifi.se.decision.management.eclipse.model.Node targetKnowledgeNode = NodeUtils.convertNode(targetNode);
++    	
++    	
++    	if (((sourceNode != null) && targetNode != null) &&
++    			(knowledgeGraph.linkExists(sourceKnowledgeNode, targetKnowledgeNode)) &&
++    			!(sourceKnowledgeNode.getNodeId().equals(targetKnowledgeNode.getNodeId()))) {
++    		knowledgeGraph.removeLink(sourceKnowledgeNode, targetKnowledgeNode);
++    		removeLinkJSON(sourceKnowledgeNode, targetKnowledgeNode);
++    	    	
++    	    knowledgeGraphView.update(knowledgeGraph);
++    	    
++    	    return true;
++		}
++    	
++    	return false;
++    }
++    
++    /**
++     * Removes tue link between the source node and the target node and removes it from the JSON file
++     * storing the knowledge persistence data.
++     * 
++     * @param sourceNode
++     * 		the source node
++     * @param targetNode
++     * 		the target node
++     */
++    private static void removeLinkJSON(de.uhd.ifi.se.decision.management.eclipse.model.Node sourceNode, 
++    		de.uhd.ifi.se.decision.management.eclipse.model.Node targetNode) {
++    	Link newLink = new LinkImpl(sourceNode, targetNode);
++    	
++    	List<Link> links = readJSONFile();
++    	
++		if (links.contains(newLink)) {
++			links.remove(newLink);
++			writeJSONFile(links);
+ 		}
+     }
+     
+@@ -143,6 +182,29 @@ private static void insertLinkJSON(de.uhd.ifi.se.decision.management.eclipse.mod
+ 		return new ArrayList<Link>();
+     }
+     
++    /**
++     * Writes a list of JSON-objects to a JSON-file.
++     * If no JSON-file exists, one is created.
++     */
++    private static void writeJSONFile(List<Link> links) {
++    	File folder = new File(KNOWLEDGE_LOCATION_FOLDER);
++    	File file = new File(folder, KNOWLEDGE_LOCATION_FILE);
++    	
++    	openJSONFile(folder, file);
++    	
++		ObjectMapper mapper = new ObjectMapper();
++
++		try {
++			mapper.writeValue(file, links);
++		} catch (JsonGenerationException e) {
++			e.printStackTrace();
++		} catch (JsonMappingException e) {
++			e.printStackTrace();
++		} catch (IOException e) {
++			e.printStackTrace();
++		}
++    }
++    
+     /**
+      * Converts all the links in the list to fully working links by expanding the node ids to full nodes.
+      * 
+diff --git a/de.uhd.ifi.se.decision.management.eclipse/src/de/uhd/ifi/se/decision/management/eclipse/view/PopupMenu.java b/de.uhd.ifi.se.decision.management.eclipse/src/de/uhd/ifi/se/decision/management/eclipse/view/PopupMenu.java
+index 270a708..9dd4bfa 100755
+--- a/de.uhd.ifi.se.decision.management.eclipse/src/de/uhd/ifi/se/decision/management/eclipse/view/PopupMenu.java
++++ b/de.uhd.ifi.se.decision.management.eclipse/src/de/uhd/ifi/se/decision/management/eclipse/view/PopupMenu.java
+@@ -9,7 +9,6 @@
+ import org.gephi.graph.api.Node;
+ 
+ import de.uhd.ifi.se.decision.management.eclipse.event.JumpToUtils;
+-import de.uhd.ifi.se.decision.management.eclipse.event.NodeUtils;
+ import de.uhd.ifi.se.decision.management.eclipse.model.ChangedFile;
+ import de.uhd.ifi.se.decision.management.eclipse.model.CodeMethod;
+ import de.uhd.ifi.se.decision.management.eclipse.model.DecisionKnowledgeElement;
+@@ -34,6 +33,7 @@ public PopupMenu(Node selectedNode) {
+     	
+ 		JMenuItem jumpTo = new JMenuItem("Jump to");
+ 		JMenuItem createLink = new JMenuItem("Create link to");
++		JMenuItem removeLink = new JMenuItem("Remove link to");
+     	
+     	de.uhd.ifi.se.decision.management.eclipse.model.Node node = convertNode(selectedNode);
+     		
+@@ -52,9 +52,23 @@ public void actionPerformed(ActionEvent e) {
+         		}
+         	});
+     		
+-    		if (!(node instanceof CodeMethod)) {
+-    			add(createLink);
+-    		}
++    		//if (!(node instanceof CodeMethod)) {
++    		//	add(createLink);
++    		//}
++    		
++    		add(createLink);
++    		
++    		removeLink.addActionListener(new ActionListener() {
++        		public void actionPerformed(ActionEvent e) {
++        			PreviewSketch.removeLink = true;
++        		}
++        	});
++    		
++    		//if (!(node instanceof CodeMethod)) {
++    		//	add(removeLink);
++    		//}
++    		
++    		add(removeLink);
+     	}
+     }
+     
+diff --git a/de.uhd.ifi.se.decision.management.eclipse/src/de/uhd/ifi/se/decision/management/eclipse/view/PreviewSketch.java b/de.uhd.ifi.se.decision.management.eclipse/src/de/uhd/ifi/se/decision/management/eclipse/view/PreviewSketch.java
+index 40b8bc0..5a1c01e 100755
+--- a/de.uhd.ifi.se.decision.management.eclipse/src/de/uhd/ifi/se/decision/management/eclipse/view/PreviewSketch.java
++++ b/de.uhd.ifi.se.decision.management.eclipse/src/de/uhd/ifi/se/decision/management/eclipse/view/PreviewSketch.java
+@@ -50,6 +50,7 @@
+ 	private final boolean isRetina;
+ 	// MouseListener
+ 	public static boolean createLink = false;
++	public static boolean removeLink = false;
+ 	private static Node sourceNode = null;
+ 	private static Node targetNode = null;
+ 
+@@ -274,11 +275,9 @@ public void mouseMoved(MouseEvent e) {
+      * 		the mouse event containing the mouse click
+      * @param popupTrigger
+      * 		true if the event is a popup-trigger, false if not
+-     * @return
+-     * 		true, if the graph was interacted with
+      */
+-	private boolean mouseEvent(PreviewMouseEvent event, boolean popupTrigger) {
+-		if (!createLink) {
++	private void mouseEvent(PreviewMouseEvent event, boolean popupTrigger) {
++		if (!createLink && !removeLink) {
+ 			if (popupTrigger) {
+ 				createPopupMenu(event);
+ 				sourceNode = getClickedNode(event);
+@@ -287,17 +286,28 @@ private boolean mouseEvent(PreviewMouseEvent event, boolean popupTrigger) {
+ 		else if (createLink) {
+ 			targetNode = getClickedNode(event);
+ 			
+-			if (!(NodeUtils.convertNode(sourceNode) instanceof CodeMethod) 
+-					&& !(NodeUtils.convertNode(targetNode) instanceof CodeMethod)) {
+-				KnowledgePersistenceManager.insertLink(sourceNode, targetNode);
+-			}
++			//if (!(NodeUtils.convertNode(sourceNode) instanceof CodeMethod) 
++			//		&& !(NodeUtils.convertNode(targetNode) instanceof CodeMethod)) {
++			//	KnowledgePersistenceManager.insertLink(sourceNode, targetNode);
++			//}
++			
++			KnowledgePersistenceManager.insertLink(sourceNode, targetNode);
+ 			
+ 			createLink = false;
++			removeLink = false;
++			sourceNode = null;
++			targetNode = null;
++		}
++		else if (removeLink) {
++			targetNode = getClickedNode(event);
++			
++			KnowledgePersistenceManager.removeLink(sourceNode, targetNode);
++			
++			createLink = false;
++			removeLink = false;
+ 			sourceNode = null;
+ 			targetNode = null;
+ 		}
+-		
+-		return true;
+ 	}
+ 	
+ 	/**
+@@ -321,17 +331,13 @@ private Node getClickedNode(PreviewMouseEvent event) {
+      * Creates a popup menu if a node was right clicked
+      * @param event
+      * 		the mouse event containing the mouse click
+-     * @return
+-     * 		true, if a popup-menu was created
+      */
+-    private boolean createPopupMenu(PreviewMouseEvent event) {
++    private void createPopupMenu(PreviewMouseEvent event) {
+     	Node selectedNode = getClickedNode(event);
+ 		PopupMenu popup = new PopupMenu(selectedNode);
+ 		Component component = event.keyEvent.getComponent();
+ 		Point point = component.getMousePosition();
+ 		popup.show(component, point.x, point.y);
+-		
+-        return true;
+     }
+ 	
+ }

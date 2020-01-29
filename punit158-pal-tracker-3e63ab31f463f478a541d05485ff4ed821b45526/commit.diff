@@ -1,0 +1,13 @@
+diff --git a/src/main/java/io/pivotal/pal/tracker/paltracker/InMemoryTimeEntryRepository.java b/src/main/java/io/pivotal/pal/tracker/paltracker/InMemoryTimeEntryRepository.java
+index f300aa6..de54b4d 100644
+--- a/src/main/java/io/pivotal/pal/tracker/paltracker/InMemoryTimeEntryRepository.java
++++ b/src/main/java/io/pivotal/pal/tracker/paltracker/InMemoryTimeEntryRepository.java
+@@ -25,7 +25,7 @@ public TimeEntry create(TimeEntry timeEntry) {
+                 timeEntry.getProjectId(),timeEntry.getUserId(),timeEntry.getDate(),timeEntry.getHours());
+ 
+         if(newTimeEntry != null) {
+-            timeEntyMap.put(newTimeEntry.getId(), newTimeEntry);
++            timeEntyMap.put(id, newTimeEntry);
+         }
+ 
+         return (TimeEntry) timeEntyMap.get(newTimeEntry.getId());

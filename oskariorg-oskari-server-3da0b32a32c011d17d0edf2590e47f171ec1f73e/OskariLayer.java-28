@@ -1,0 +1,9 @@
+@@ -28,7 +28,7 @@
+ 
+     private boolean isBaseMap = false;
+     private boolean isInternal = false;
+-    private int dataproviderId;
++    private Integer dataproviderId;
+ 
+     private String name;
+     private String url;

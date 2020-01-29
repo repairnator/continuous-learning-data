@@ -1,0 +1,9 @@
+@@ -13,7 +13,7 @@
+ 
+ public interface PetApi  {
+     //addPet
+-    public Completable addPet(Pet pet);
++    public Completable addPet(Pet body);
+     
+     //deletePet
+     public Completable deletePet(Long petId,String apiKey);

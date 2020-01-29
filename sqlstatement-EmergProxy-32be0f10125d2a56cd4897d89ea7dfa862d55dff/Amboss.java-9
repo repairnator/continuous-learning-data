@@ -1,0 +1,9 @@
+@@ -9,7 +9,7 @@
+ import java.util.Objects;
+ import java.util.Properties;
+ 
+-public final class EmergProxy extends Plugin {
++public final class Amboss extends Plugin {
+     final static Map<String, String> keyMap = new HashMap<>();
+     static Command ValidateCommand = new ValidateCommand();
+     static Command OverrideCommand = new OverrideCommand();

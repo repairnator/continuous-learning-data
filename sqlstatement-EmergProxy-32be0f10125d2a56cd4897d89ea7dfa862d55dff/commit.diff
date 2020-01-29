@@ -1,0 +1,157 @@
+diff --git a/.gitignore b/.gitignore
+index c1dc4ff..e783dc6 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -7,7 +7,7 @@
+ # BlueJ files
+ *.ctxt
+ 
+-#IntelliJ IDEA folder
++# IntelliJ IDEA folder
+ .idea/
+ 
+ # Mobile Tools for Java (J2ME)
+diff --git a/EmergProxy.iml b/Amboss.iml
+similarity index 100%
+rename from EmergProxy.iml
+rename to Amboss.iml
+diff --git a/pom.xml b/pom.xml
+index 8ac19fb..63b82a3 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -5,11 +5,11 @@
+     <modelVersion>4.0.0</modelVersion>
+ 
+     <groupId>de.sqlstatement</groupId>
+-    <artifactId>EmergProxy</artifactId>
++    <artifactId>Amboss</artifactId>
+     <version>1.0</version>
+     <packaging>jar</packaging>
+ 
+-    <name>EmergProxy</name>
++    <name>Amboss</name>
+ 
+     <properties>
+         <java.version>1.8</java.version>
+diff --git a/src/main/java/de/sqlstatement/emergproxy/EmergProxy.java b/src/main/java/de/sqlstatement/amboss/Amboss.java
+similarity index 89%
+rename from src/main/java/de/sqlstatement/emergproxy/EmergProxy.java
+rename to src/main/java/de/sqlstatement/amboss/Amboss.java
+index ef7827a..1bf03c8 100644
+--- a/src/main/java/de/sqlstatement/emergproxy/EmergProxy.java
++++ b/src/main/java/de/sqlstatement/amboss/Amboss.java
+@@ -1,4 +1,4 @@
+-package de.sqlstatement.emergproxy;
++package de.sqlstatement.amboss;
+ 
+ import net.md_5.bungee.api.plugin.Command;
+ import net.md_5.bungee.api.plugin.Plugin;
+@@ -9,7 +9,7 @@
+ import java.util.Objects;
+ import java.util.Properties;
+ 
+-public final class EmergProxy extends Plugin {
++public final class Amboss extends Plugin {
+     final static Map<String, String> keyMap = new HashMap<>();
+     static Command ValidateCommand = new ValidateCommand();
+     static Command OverrideCommand = new OverrideCommand();
+@@ -26,7 +26,7 @@ public void onEnable() {
+         }
+         if (properties.getProperty("version").contains("DEVELOPMENT")) {
+             System.out.println("!!! WARNING !!!");
+-            System.out.println("!!! EMERGPROXY DEVELOPMENT VERSION " + properties.getProperty("version") + " DETECTED !!!");
++            System.out.println("!!! AMBOSS DEVELOPMENT VERSION " + properties.getProperty("version") + " DETECTED !!!");
+             System.out.println("!!! THIS VERSION IS NOT MEANT FOR PRODUCTION USE, PROCEED AT YOUR OWN RISK !!!");
+         } else {
+             System.out.println(properties.getProperty("artifactId") + " version " + properties.getProperty("version") + "starting up.");
+diff --git a/src/main/java/de/sqlstatement/emergproxy/NetworkStopCommand.java b/src/main/java/de/sqlstatement/amboss/NetworkStopCommand.java
+similarity index 97%
+rename from src/main/java/de/sqlstatement/emergproxy/NetworkStopCommand.java
+rename to src/main/java/de/sqlstatement/amboss/NetworkStopCommand.java
+index 0a6854c..2091c10 100644
+--- a/src/main/java/de/sqlstatement/emergproxy/NetworkStopCommand.java
++++ b/src/main/java/de/sqlstatement/amboss/NetworkStopCommand.java
+@@ -1,4 +1,4 @@
+-package de.sqlstatement.emergproxy;
++package de.sqlstatement.amboss;
+ 
+ import net.md_5.bungee.api.ChatColor;
+ import net.md_5.bungee.api.CommandSender;
+diff --git a/src/main/java/de/sqlstatement/emergproxy/OverrideCommand.java b/src/main/java/de/sqlstatement/amboss/OverrideCommand.java
+similarity index 81%
+rename from src/main/java/de/sqlstatement/emergproxy/OverrideCommand.java
+rename to src/main/java/de/sqlstatement/amboss/OverrideCommand.java
+index 76af1e9..f0bbbe7 100644
+--- a/src/main/java/de/sqlstatement/emergproxy/OverrideCommand.java
++++ b/src/main/java/de/sqlstatement/amboss/OverrideCommand.java
+@@ -1,4 +1,4 @@
+-package de.sqlstatement.emergproxy;
++package de.sqlstatement.amboss;
+ 
+ import net.md_5.bungee.api.ChatColor;
+ import net.md_5.bungee.api.CommandSender;
+@@ -15,10 +15,10 @@ public OverrideCommand() {
+     public void execute(CommandSender sender, String[] args) {
+         if (sender.hasPermission("authenticated.override")) {
+             sender.sendMessage(new TextComponent(ChatColor.GREEN + "Successfully activated override."));
+-            ProxyServer.getInstance().getPluginManager().unregisterCommand(EmergProxy.ValidateCommand);
+-            ProxyServer.getInstance().getPluginManager().unregisterCommand(EmergProxy.OverrideCommand);
+-            ProxyServer.getInstance().getPluginManager().unregisterCommand(EmergProxy.NetworkStopCommand);
+-            new EmergProxy().onDisable();
++            ProxyServer.getInstance().getPluginManager().unregisterCommand(Amboss.ValidateCommand);
++            ProxyServer.getInstance().getPluginManager().unregisterCommand(Amboss.OverrideCommand);
++            ProxyServer.getInstance().getPluginManager().unregisterCommand(Amboss.NetworkStopCommand);
++            new Amboss().onDisable();
+         } else {
+             sender.sendMessage(new TextComponent(ChatColor.RED + "Override denied."));
+         }
+diff --git a/src/main/java/de/sqlstatement/emergproxy/ValidateCommand.java b/src/main/java/de/sqlstatement/amboss/ValidateCommand.java
+similarity index 97%
+rename from src/main/java/de/sqlstatement/emergproxy/ValidateCommand.java
+rename to src/main/java/de/sqlstatement/amboss/ValidateCommand.java
+index 7fbc7bd..2f334a4 100644
+--- a/src/main/java/de/sqlstatement/emergproxy/ValidateCommand.java
++++ b/src/main/java/de/sqlstatement/amboss/ValidateCommand.java
+@@ -1,4 +1,4 @@
+-package de.sqlstatement.emergproxy;
++package de.sqlstatement.amboss;
+ 
+ import net.md_5.bungee.api.ChatColor;
+ import net.md_5.bungee.api.CommandSender;
+diff --git a/src/main/java/de/sqlstatement/emergproxy/YubiOTPHandler.java b/src/main/java/de/sqlstatement/amboss/YubiOTPHandler.java
+similarity index 92%
+rename from src/main/java/de/sqlstatement/emergproxy/YubiOTPHandler.java
+rename to src/main/java/de/sqlstatement/amboss/YubiOTPHandler.java
+index b16b455..4669b08 100644
+--- a/src/main/java/de/sqlstatement/emergproxy/YubiOTPHandler.java
++++ b/src/main/java/de/sqlstatement/amboss/YubiOTPHandler.java
+@@ -1,4 +1,4 @@
+-package de.sqlstatement.emergproxy;
++package de.sqlstatement.amboss;
+ 
+ import com.yubico.client.v2.VerificationResponse;
+ import com.yubico.client.v2.YubicoClient;
+@@ -45,8 +45,8 @@ boolean isAllowed(String otp) {
+                 String yubikeyId = YubicoClient.getPublicId(otp);
+                 System.out.println("WARNING! Key validation passed with valid OTP");
+                 System.out.println("WARNING! Key identifier is " + yubikeyId);
+-                if (EmergProxy.keyMap.containsKey(yubikeyId)) {
+-                    System.out.println(EmergProxy.keyMap.get(yubikeyId) + " authenticated");
++                if (Amboss.keyMap.containsKey(yubikeyId)) {
++                    System.out.println(Amboss.keyMap.get(yubikeyId) + " authenticated");
+                     return true;
+                 } else {
+                     System.out.println("Disregarding key with identifier " + yubikeyId);
+diff --git a/src/main/resources/plugin.yml b/src/main/resources/plugin.yml
+index 5089bd5..f209c51 100644
+--- a/src/main/resources/plugin.yml
++++ b/src/main/resources/plugin.yml
+@@ -1,6 +1,6 @@
+-name: EmergProxy
++name: Amboss
+ version: ${project.version}
+-main: de.sqlstatement.emergproxy.EmergProxy
++main: de.sqlstatement.amboss.Amboss
+ author: sqlstatement
+ commands:
+   override:

@@ -1,0 +1,9 @@
+@@ -14,7 +14,7 @@
+ public class TimeEntryController {
+ 
+     @Autowired
+-    InMemoryTimeEntryRepository repository;
++    JdbcTimeEntryRepository repository;
+ 
+ 
+     public TimeEntryController(TimeEntryRepository timeEntryRepository) {

@@ -1,0 +1,9 @@
+@@ -28,7 +28,7 @@
+     public Single<Pet> getPetById(Long petId);
+     
+     //updatePet
+-    public Completable updatePet(Pet pet);
++    public Completable updatePet(Pet body);
+     
+     //updatePetWithForm
+     public Completable updatePetWithForm(Long petId,String name,String status);

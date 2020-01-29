@@ -1,0 +1,13 @@
+diff --git a/src/main/java/org/jboss/xavier/integrations/route/MainRouteBuilder.java b/src/main/java/org/jboss/xavier/integrations/route/MainRouteBuilder.java
+index 3b203288..4bd40f1f 100644
+--- a/src/main/java/org/jboss/xavier/integrations/route/MainRouteBuilder.java
++++ b/src/main/java/org/jboss/xavier/integrations/route/MainRouteBuilder.java
+@@ -121,7 +121,7 @@ public void configure() throws Exception {
+                         .throwException(org.apache.commons.httpclient.HttpException.class, "Unsuccessful response from Insights Upload Service")
+                 .end();
+ 
+-        from("kafka:" + kafkaHost + "?topic={{insights.kafka.upload.topic}}&brokers=" + kafkaHost + "&autoOffsetReset=earliest&autoCommitEnable=true")
++        from("kafka:" + kafkaHost + "?topic={{insights.kafka.upload.topic}}&brokers=" + kafkaHost + "&autoOffsetReset=latest&autoCommitEnable=true")
+                 .routeId("kafka-upload-message")
+                 .unmarshal().json(JsonLibrary.Jackson, FilePersistedNotification.class)
+                 .filter(simple("'{{insights.service}}' == ${body.getService}"))

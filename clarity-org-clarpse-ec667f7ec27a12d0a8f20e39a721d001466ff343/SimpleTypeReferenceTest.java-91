@@ -1,0 +1,9 @@
+@@ -91,7 +91,7 @@ public void testMethodLocalVarTypeDeclaration() throws Exception {
+         final ClarpseProject parseService = new ClarpseProject(rawData);
+         OOPSourceCodeModel generatedSourceModel = parseService.result();
+         assertTrue(generatedSourceModel.getComponent("Test.method().s")
+-                .get().componentInvocations(ComponentInvocations.DECLARATION).get(0).invokedComponent()
++                .get().references(TypeReferences.SIMPLE).get(0).invokedComponent()
+                 .equals("java.lang.String"));
+     }
+ 

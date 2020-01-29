@@ -1,0 +1,585 @@
+diff --git a/lilach-client/src/main/java/org/cshaifasweng/winter/CatalogController.java b/lilach-client/src/main/java/org/cshaifasweng/winter/CatalogController.java
+index 4cebf16..875c5c1 100644
+--- a/lilach-client/src/main/java/org/cshaifasweng/winter/CatalogController.java
++++ b/lilach-client/src/main/java/org/cshaifasweng/winter/CatalogController.java
+@@ -114,12 +114,19 @@ public void pageNumChanged() {
+         }
+     }
+ 
++    private void updateBuyButtons() {
++        boolean isLoggedIn = APIAccess.getCurrentUser() != null;
++        customItemButton.setVisible(isLoggedIn);
++        cartButton.setVisible(isLoggedIn);
++    }
++
+     @Subscribe(threadMode = ThreadMode.MAIN)
+     public void handleLogin(LoginChangeEvent changeEvent) {
+         User user = APIAccess.getCurrentUser();
+         if (user == null || user instanceof Employee)
+             return;
+         Customer customer = (Customer) APIAccess.getCurrentUser();
++        updateBuyButtons();
+         service.getStoresByCustomer(customer.getId()).enqueue(new Callback<List<Store>>() {
+             @Override
+             public void onResponse(Call<List<Store>> call, Response<List<Store>> response) {
+@@ -278,6 +285,7 @@ public void onFailure(Call<List<CatalogItem>> call, Throwable throwable) {
+ 
+     @Override
+     public void refresh() {
++        updateBuyButtons();
+         cart = new ArrayList<>();
+ 
+         EventBus.getDefault().register(this);
+diff --git a/lilach-client/src/main/java/org/cshaifasweng/winter/CatalogItemViewController.java b/lilach-client/src/main/java/org/cshaifasweng/winter/CatalogItemViewController.java
+index d6b6939..e5952b7 100644
+--- a/lilach-client/src/main/java/org/cshaifasweng/winter/CatalogItemViewController.java
++++ b/lilach-client/src/main/java/org/cshaifasweng/winter/CatalogItemViewController.java
+@@ -3,12 +3,14 @@
+ import javafx.css.PseudoClass;
+ import javafx.fxml.FXML;
+ import javafx.fxml.Initializable;
++import javafx.scene.control.Button;
+ import javafx.scene.control.Label;
+ import javafx.scene.control.TextField;
+ import javafx.scene.image.Image;
+ import javafx.scene.image.ImageView;
+ import org.cshaifasweng.winter.events.CatalogItemBuyEvent;
+ import org.cshaifasweng.winter.models.CatalogItem;
++import org.cshaifasweng.winter.web.APIAccess;
+ import org.greenrobot.eventbus.EventBus;
+ 
+ import java.net.URL;
+@@ -30,6 +32,18 @@
+     @FXML
+     private TextField quantityField;
+ 
++    @FXML
++    private Label quantityLabel;
++
++    @FXML
++    private Button minusButton;
++
++    @FXML
++    private Button plusButton;
++
++    @FXML
++    private Button buyButton;
++
+     private int quantity = 1;
+ 
+     private PseudoClass strikethrough;
+@@ -61,6 +75,14 @@ void buyItem() {
+     @Override
+     public void initialize(URL url, ResourceBundle resourceBundle) {
+         strikethrough = PseudoClass.getPseudoClass("strikethrough");
++
++        boolean showBuyFields = APIAccess.getCurrentUser() != null;
++
++        quantityField.setVisible(showBuyFields);
++        minusButton.setVisible(showBuyFields);
++        quantityLabel.setVisible(showBuyFields);
++        plusButton.setVisible(showBuyFields);
++        buyButton.setVisible(showBuyFields);
+     }
+ 
+     public void setItemLabel(String itemLabel) {
+diff --git a/lilach-client/src/main/java/org/cshaifasweng/winter/DashboardController.java b/lilach-client/src/main/java/org/cshaifasweng/winter/DashboardController.java
+index ac4f5c3..14288c2 100644
+--- a/lilach-client/src/main/java/org/cshaifasweng/winter/DashboardController.java
++++ b/lilach-client/src/main/java/org/cshaifasweng/winter/DashboardController.java
+@@ -2,15 +2,26 @@
+ 
+ import javafx.application.Platform;
+ import javafx.event.ActionEvent;
++import javafx.event.EventHandler;
+ import javafx.fxml.FXML;
+ import javafx.fxml.Initializable;
++import javafx.geometry.Insets;
++import javafx.scene.Node;
+ import javafx.scene.Parent;
+ import javafx.scene.Scene;
++import javafx.scene.control.Button;
+ import javafx.scene.control.Label;
++import javafx.scene.control.ScrollPane;
++import javafx.scene.layout.Priority;
++import javafx.scene.layout.VBox;
++import javafx.stage.Stage;
+ import javafx.util.Pair;
++import org.cshaifasweng.winter.events.CustomerSendEvent;
+ import org.cshaifasweng.winter.events.DashboardSwitchEvent;
+ import org.cshaifasweng.winter.events.LoginChangeEvent;
+ import org.cshaifasweng.winter.events.TokenSetEvent;
++import org.cshaifasweng.winter.models.Customer;
++import org.cshaifasweng.winter.models.Employee;
+ import org.cshaifasweng.winter.models.User;
+ import org.cshaifasweng.winter.web.APIAccess;
+ import org.cshaifasweng.winter.web.LilachService;
+@@ -22,23 +33,119 @@
+ 
+ import java.io.IOException;
+ import java.net.URL;
++import java.util.ArrayList;
++import java.util.Collections;
++import java.util.List;
+ import java.util.ResourceBundle;
+ import java.util.logging.Logger;
++import java.util.stream.Collectors;
+ 
+ 
+ public class DashboardController implements Initializable {
+     protected static final Logger log = Logger.getLogger(DashboardController.class.getName());
+ 
+     @FXML
+-    private DashboardPane containerPane;
++    private ScrollPane containerPane;
+ 
+     @FXML
+     private Label welcomeLabel;
+ 
++    @FXML
++    private VBox menuBox;
++
+     private Pair<Parent, Object> currentWindow;
+ 
++    private List<Pair<Node, EventHandler<ActionEvent>>> menu = Collections.synchronizedList(new ArrayList<>());
++
+     private Scene scene;
+ 
++    Button buttonCatalog = new Button("Catalog");
++    Button customerServiceButton = new Button("Customer service");
++    Button loginButton = new Button("Login");
++    Button createAccountButton = new Button("Create account");
++    Button cartButton = new Button("Cart");
++    Button myOrdersButton = new Button("My orders");
++    Button complaintsButton = new Button("Complaints");
++    Button catalogEditButton = new Button("Edit catalog");
++    Button changeDetailsButton = new Button("Change details");
++    Button userListButton = new Button("Users list");
++
++    EventHandler<ActionEvent> callbackCatalog = actionEvent -> {
++        EventBus.getDefault().post(new DashboardSwitchEvent("catalog"));
++    };
++
++    EventHandler<ActionEvent> loginCallback = actionEvent -> {
++        if (APIAccess.getCurrentUser() == null) {
++            EventBus.getDefault().post(new DashboardSwitchEvent("login_screen"));
++        } else {
++            logout(actionEvent);
++        }
++    };
++
++    EventHandler<ActionEvent> createAccountCallback = actionEvent -> {
++        EventBus.getDefault().post(new DashboardSwitchEvent("createaccount"));
++    };
++
++    EventHandler<ActionEvent> changeDetailsCallback = actionEvent -> {
++        Stage stage = new Stage();
++        try {
++            stage.setScene(new Scene(LayoutManager.getInstance().getFXML("edit_customer").getKey()));
++            stage.show();
++            EventBus.getDefault().post(new CustomerSendEvent(APIAccess.getCurrentUser(), stage));
++        } catch (IOException e) {
++            e.printStackTrace();
++        }
++    };
++
++    private void populateMenu() {
++        User user = APIAccess.getCurrentUser();
++        menu.clear();
++        if (user == null) {
++            menu.add(new Pair<>(buttonCatalog, callbackCatalog));
++            loginButton.setText("Login");
++            menu.add(new Pair<>(loginButton, loginCallback));
++            menu.add(new Pair<>(createAccountButton, createAccountCallback));
++        } else {
++            loginButton.setText("Logout");
++
++            if (user instanceof Customer) {
++                menu.add(new Pair<>(buttonCatalog, callbackCatalog));
++                menu.add(new Pair<>(loginButton, loginCallback));
++                menu.add(new Pair<>(myOrdersButton, (actionEvent -> {
++                    EventBus.getDefault().post(new DashboardSwitchEvent("order_list_view"));
++                })));
++                menu.add(new Pair<>(changeDetailsButton, changeDetailsCallback));
++                menu.add(new Pair<>(customerServiceButton, actionEvent -> {
++                    EventBus.getDefault().post(new DashboardSwitchEvent("complaint_filing"));
++                }));
++            } else if (user instanceof Employee) {
++                menu.add(new Pair<>(catalogEditButton, actionEvent -> {
++                    EventBus.getDefault().post(new DashboardSwitchEvent("edit_catalog_list"));
++                }));
++
++                menu.add(new Pair<>(loginButton, loginCallback));
++                menu.add(new Pair<>(complaintsButton, actionEvent -> {
++                    EventBus.getDefault().post(new DashboardSwitchEvent("complaint_list"));
++                }));
++                menu.add(new Pair<>(userListButton, actionEvent -> {
++                    EventBus.getDefault().post(new DashboardSwitchEvent("user_display"));
++                }));
++
++            }
++        }
++
++        menu.forEach(nodeCallbackPair -> {
++            Button button = (Button) nodeCallbackPair.getKey();
++            button.setMaxWidth(Double.MAX_VALUE);
++            VBox.setVgrow(nodeCallbackPair.getKey(), Priority.ALWAYS);
++            VBox.setMargin(nodeCallbackPair.getKey(), new Insets(5, 0, 5, 0));
++            button.setOnAction(nodeCallbackPair.getValue());
++        });
++        menuBox.getChildren().clear();
++        menuBox.getChildren().addAll(menu.stream()
++        .map(Pair::getKey).collect(Collectors.toList()));
++    }
++
+     private void setPage(String page) {
+         try {
+             if (currentWindow != null) {
+@@ -48,10 +155,8 @@ private void setPage(String page) {
+             }
+             containerPane.setContent(null);
+             currentWindow = null;
+-            containerPane.refreshPane();
+             Pair<Parent,Object> dataPair = LayoutManager.getInstance().getFXML(page);
+             containerPane.setContent(dataPair.getKey());
+-            containerPane.refreshPane();
+             Refreshable controller = (Refreshable) dataPair.getValue();
+             controller.refresh();
+             currentWindow = dataPair;
+@@ -72,6 +177,7 @@ public void handleUserLogin(LoginChangeEvent event) {
+             welcomeLabel.setText("Welcome, Guest");
+         else
+             welcomeLabel.setText("Welcome, "+user.getFirstName());
++        populateMenu();
+     }
+ 
+     @Override
+@@ -79,6 +185,7 @@ public void initialize(URL url, ResourceBundle resourceBundle) {
+         setPage("catalog");
+         EventBus.getDefault().register(this);
+         LoggerUtils.setupLogger(log);
++        populateMenu();
+     }
+     @FXML
+     void fileComplaint(ActionEvent event) {
+diff --git a/lilach-client/src/main/java/org/cshaifasweng/winter/EditCatalogListController.java b/lilach-client/src/main/java/org/cshaifasweng/winter/EditCatalogListController.java
+index 66b41de..2519795 100644
+--- a/lilach-client/src/main/java/org/cshaifasweng/winter/EditCatalogListController.java
++++ b/lilach-client/src/main/java/org/cshaifasweng/winter/EditCatalogListController.java
+@@ -4,6 +4,7 @@
+ import javafx.collections.FXCollections;
+ import javafx.event.EventTarget;
+ import javafx.fxml.FXML;
++import javafx.fxml.Initializable;
+ import javafx.scene.control.*;
+ import javafx.scene.control.cell.PropertyValueFactory;
+ import javafx.scene.image.Image;
+@@ -11,20 +12,24 @@
+ import javafx.util.StringConverter;
+ import org.cshaifasweng.winter.events.CatalogItemEditEvent;
+ import org.cshaifasweng.winter.events.DashboardSwitchEvent;
++import org.cshaifasweng.winter.events.EditCatalogListForceRefreshEvent;
+ import org.cshaifasweng.winter.models.CatalogItem;
+ import org.cshaifasweng.winter.models.Employee;
+ import org.cshaifasweng.winter.models.Store;
+ import org.cshaifasweng.winter.web.APIAccess;
+ import org.cshaifasweng.winter.web.LilachService;
+ import org.greenrobot.eventbus.EventBus;
++import org.greenrobot.eventbus.Subscribe;
+ import retrofit2.Call;
+ import retrofit2.Callback;
+ import retrofit2.Response;
+ 
+ import java.io.IOException;
++import java.net.URL;
+ import java.util.List;
++import java.util.ResourceBundle;
+ 
+-public class EditCatalogListController implements Refreshable {
++public class EditCatalogListController implements Refreshable, Initializable {
+ 
+     @FXML
+     private TableView<CatalogItem> dataTable;
+@@ -78,7 +83,7 @@ protected void updateItem(String image, boolean b) {
+                     priceColumn.setCellValueFactory(new PropertyValueFactory<>("price"));
+                     discountAmountColumn.setCellValueFactory(new PropertyValueFactory<>("discountAmount"));
+                     discountPercentColumn.setCellValueFactory(new PropertyValueFactory<>("discountPercent"));
+-
++                    dataTable.getColumns().clear();
+                     dataTable.getColumns().addAll(idColumn, descriptionColumn,
+                             priceColumn, discountAmountColumn, discountPercentColumn, pictureColumn);
+ 
+@@ -141,6 +146,7 @@ public void onFailure(Call<List<CatalogItem>> call, Throwable t) {
+ 
+     @Override
+     public void refresh() {
++        if (APIAccess.getCurrentUser() == null) return;
+         dataTable.getItems().clear();
+         dataTable.getColumns().clear();
+         service = APIAccess.getService();
+@@ -194,4 +200,15 @@ public void onSwitch() {
+     public void addItem() {
+         EventBus.getDefault().post(new DashboardSwitchEvent("add_item"));
+     }
++
++    @Override
++    public void initialize(URL url, ResourceBundle resourceBundle) {
++        EventBus.getDefault().register(this);
++    }
++
++    @Subscribe
++    public void onForceRefresh(EditCatalogListForceRefreshEvent event) {
++        dataTable.getItems().clear();
++        refresh();
++    }
+ }
+diff --git a/lilach-client/src/main/java/org/cshaifasweng/winter/EditCustomerController.java b/lilach-client/src/main/java/org/cshaifasweng/winter/EditCustomerController.java
+index ce25673..aa3058f 100644
+--- a/lilach-client/src/main/java/org/cshaifasweng/winter/EditCustomerController.java
++++ b/lilach-client/src/main/java/org/cshaifasweng/winter/EditCustomerController.java
+@@ -342,7 +342,7 @@ private void updateFields(){
+         customer.setMisparZehut(idNumField.getText());
+         customer.setPhone(phoneField.getText());
+         customer.setEmail(emailField.getText());
+-        if (passwordField.getText() != null && !passwordField.getText().isEmpty())
++        if (passwordField.getText() != null || !passwordField.getText().isEmpty())
+             customer.setPassword(passwordField.getText());
+         customer.setAddress(addressField.getText());
+         customer.setCreditCard(Long.parseLong(creditcardField.getText()));
+diff --git a/lilach-client/src/main/java/org/cshaifasweng/winter/LoginScreenController.java b/lilach-client/src/main/java/org/cshaifasweng/winter/LoginScreenController.java
+index a96275f..0c88cec 100644
+--- a/lilach-client/src/main/java/org/cshaifasweng/winter/LoginScreenController.java
++++ b/lilach-client/src/main/java/org/cshaifasweng/winter/LoginScreenController.java
+@@ -6,8 +6,10 @@
+ import javafx.scene.control.PasswordField;
+ import javafx.scene.control.TextField;
+ import org.cshaifasweng.winter.events.DashboardSwitchEvent;
++import org.cshaifasweng.winter.events.EditCatalogListForceRefreshEvent;
+ import org.cshaifasweng.winter.events.LoginChangeEvent;
+ import org.cshaifasweng.winter.events.TokenSetEvent;
++import org.cshaifasweng.winter.models.Customer;
+ import org.cshaifasweng.winter.models.User;
+ import org.cshaifasweng.winter.web.APIAccess;
+ import org.cshaifasweng.winter.web.LilachService;
+@@ -58,8 +60,15 @@ public void onResponse(Call<User> call, Response<User> response) {
+                             // Notify the dashboard
+                             Platform.runLater(() -> {
+                                 EventBus.getDefault().post(new LoginChangeEvent());
++                                if (APIAccess.getCurrentUser() instanceof Customer)
++                                    EventBus.getDefault().post(new DashboardSwitchEvent("catalog"));
++                                else {
++                                    EventBus.getDefault().post(new DashboardSwitchEvent("edit_catalog_list"));
++                                    EventBus.getDefault().post(new EditCatalogListForceRefreshEvent());
++                                }
+                             });
+ 
++
+                         }
+ 
+                         @Override
+@@ -68,9 +77,7 @@ public void onFailure(Call<User> call, Throwable throwable) {
+                             throwable.printStackTrace();
+                         }
+                     });
+-                    Platform.runLater(() -> {
+-                        EventBus.getDefault().post(new DashboardSwitchEvent("catalog"));
+-                    });
++
+ 
+                 }
+             }
+diff --git a/lilach-client/src/main/java/org/cshaifasweng/winter/ShowOrderController.java b/lilach-client/src/main/java/org/cshaifasweng/winter/ShowOrderController.java
+index d1ab727..353e018 100644
+--- a/lilach-client/src/main/java/org/cshaifasweng/winter/ShowOrderController.java
++++ b/lilach-client/src/main/java/org/cshaifasweng/winter/ShowOrderController.java
+@@ -19,6 +19,7 @@
+ import retrofit2.Response;
+ 
+ import java.net.URL;
++import java.text.SimpleDateFormat;
+ import java.util.ResourceBundle;
+ 
+ public class ShowOrderController implements Refreshable, Initializable {
+@@ -62,6 +63,9 @@
+     @FXML
+     private Label priceLabel;
+ 
++    @FXML
++    private Label orderNumLabel;
++
+ 
+     private Order currentOrder;
+     private Stage stage;
+@@ -71,6 +75,8 @@
+     @Subscribe
+     public void handleEvent(OrderShowEvent event){
+     currentOrder = event.getOrder();
++    if (currentOrder.getId() != null)
++        orderNumLabel.setText(currentOrder.getId().toString());
+     firstNameLabel.setText(currentOrder.getOrderedBy().getFirstName());
+     lastNameLabel.setText(currentOrder.getOrderedBy().getLastName());
+     idLabel.setText(currentOrder.getOrderedBy().getMisparZehut());
+@@ -81,6 +87,8 @@ public void handleEvent(OrderShowEvent event){
+     deliveryAddressLabel.setText(currentOrder.getDeliveryAddress());
+     recipientLabel.setText(currentOrder.getRecipientMail());
+     priceLabel.setText(Double.toString(currentOrder.getPrice()));
++    SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm");
++    deliveryDateLabel.setText(format.format(currentOrder.getSupplyDate()));
+     popupStage = event.getPopupStage();
+     }
+ 
+diff --git a/lilach-client/src/main/java/org/cshaifasweng/winter/events/EditCatalogListForceRefreshEvent.java b/lilach-client/src/main/java/org/cshaifasweng/winter/events/EditCatalogListForceRefreshEvent.java
+new file mode 100644
+index 0000000..4c84e6c
+--- /dev/null
++++ b/lilach-client/src/main/java/org/cshaifasweng/winter/events/EditCatalogListForceRefreshEvent.java
+@@ -0,0 +1,4 @@
++package org.cshaifasweng.winter.events;
++
++public class EditCatalogListForceRefreshEvent {
++}
+diff --git a/lilach-client/src/main/resources/org/cshaifasweng/winter/catalog_item.fxml b/lilach-client/src/main/resources/org/cshaifasweng/winter/catalog_item.fxml
+index 60dc67b..54cbf91 100644
+--- a/lilach-client/src/main/resources/org/cshaifasweng/winter/catalog_item.fxml
++++ b/lilach-client/src/main/resources/org/cshaifasweng/winter/catalog_item.fxml
+@@ -26,7 +26,7 @@
+             <Insets bottom="20.0" />
+          </VBox.margin>
+       </Label>
+-      <Label fx:id="itemPriceLabelDiscount" layoutX="95.0" layoutY="160.0" maxWidth="1.7976931348623157E308" text="Label" visible="false">
++      <Label fx:id="itemPriceLabelDiscount" alignment="CENTER" layoutX="95.0" layoutY="160.0" maxWidth="1.7976931348623157E308" text="Label" visible="false">
+          <VBox.margin>
+             <Insets bottom="20.0" />
+          </VBox.margin>
+@@ -36,12 +36,12 @@
+       </Label>
+       <HBox prefWidth="200.0">
+          <children>
+-            <Label maxHeight="1.7976931348623157E308" text="Qt.:">
++            <Label fx:id="quantityLabel" maxHeight="1.7976931348623157E308" text="Qt.:">
+                <HBox.margin>
+                   <Insets left="33.0" />
+                </HBox.margin>
+             </Label>
+-            <Button mnemonicParsing="false" onAction="#subtractAmount" text="-">
++            <Button fx:id="minusButton" mnemonicParsing="false" onAction="#subtractAmount" text="-">
+                <HBox.margin>
+                   <Insets right="5.0" />
+                </HBox.margin>
+@@ -51,7 +51,7 @@
+                   <Insets />
+                </HBox.margin>
+             </TextField>
+-            <Button layoutX="54.0" layoutY="10.0" mnemonicParsing="false" onAction="#addAmount" text="+">
++            <Button fx:id="plusButton" layoutX="54.0" layoutY="10.0" mnemonicParsing="false" onAction="#addAmount" text="+">
+                <HBox.margin>
+                   <Insets left="5.0" />
+                </HBox.margin>
+@@ -65,6 +65,6 @@
+             <Insets bottom="5.0" />
+          </padding>
+       </HBox>
+-      <Button mnemonicParsing="false" onAction="#buyItem" text="Buy" />
++      <Button fx:id="buyButton" mnemonicParsing="false" onAction="#buyItem" text="Buy" />
+    </children>
+ </VBox>
+diff --git a/lilach-client/src/main/resources/org/cshaifasweng/winter/dashboard.fxml b/lilach-client/src/main/resources/org/cshaifasweng/winter/dashboard.fxml
+index e87576d..f1488f5 100644
+--- a/lilach-client/src/main/resources/org/cshaifasweng/winter/dashboard.fxml
++++ b/lilach-client/src/main/resources/org/cshaifasweng/winter/dashboard.fxml
+@@ -6,31 +6,38 @@
+ <?import javafx.scene.layout.AnchorPane?>
+ <?import javafx.scene.layout.HBox?>
+ <?import javafx.scene.layout.VBox?>
+-<?import org.cshaifasweng.winter.DashboardPane?>
++<?import javafx.scene.text.Font?>
+ 
+ <HBox maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="768.0" prefWidth="1024.0" xmlns="http://javafx.com/javafx/11.0.1" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.cshaifasweng.winter.DashboardController">
+    <children>
+       <VBox prefWidth="120.0">
+          <children>
+-            <Label fx:id="welcomeLabel" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" text="Hello, Guest" textAlignment="CENTER" />
+-            <Button maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#backToCatalog" text="Catalog" />
+-            <Button layoutX="10.0" layoutY="10.0" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="-Infinity" minWidth="-Infinity" mnemonicParsing="false" onAction="#fileComplaint" text="Customer Service" />
+-            <Button layoutX="10.0" layoutY="37.0" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#handleComplaint" text="Handle complaint" />
+-            <Button layoutX="10.0" layoutY="64.0" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#showLoginScreen" text="Login" />
+-            <Button layoutX="10.0" layoutY="91.0" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#logout" text="Logout" />
+-            <Button layoutX="10.0" layoutY="114.0" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#createaccount" text="Create account" />
+-            <Button layoutX="10.0" layoutY="114.0" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#cartButton" text="Cart" />
+-            <Button layoutX="10.0" layoutY="182.0" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#addItem" text="Add item" />
+-            <Button layoutX="10.0" layoutY="208.0" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#myOrders" text="My orders" />
+-            <Button layoutX="10.0" layoutY="234.0" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#openComplaints" text="Open complaints" />
+-            <Button layoutX="10.0" layoutY="260.0" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#openPrimary" text="Edit catalog" />
+-            <Button layoutX="10.0" layoutY="286.0" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#listUsers" text="List Users" />
++            <Label fx:id="welcomeLabel" alignment="CENTER" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" text="Hello, Guest" textAlignment="CENTER">
++               <font>
++                  <Font size="17.0" />
++               </font></Label>
++            <VBox fx:id="menuBox">
++               <children>
++                  <Button maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#backToCatalog" text="Catalog" />
++                  <Button maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" minHeight="-Infinity" minWidth="-Infinity" mnemonicParsing="false" onAction="#fileComplaint" text="Customer Service" />
++                  <Button maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#handleComplaint" text="Handle complaint" />
++                  <Button maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#showLoginScreen" text="Login" />
++                  <Button maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#logout" text="Logout" />
++                  <Button maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#createaccount" text="Create account" />
++                  <Button maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#cartButton" text="Cart" />
++                  <Button maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#addItem" text="Add item" />
++                  <Button maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#myOrders" text="My orders" />
++                  <Button maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#openComplaints" text="Open complaints" />
++                  <Button maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#openPrimary" text="Edit catalog" />
++                  <Button maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#listUsers" text="List Users" />
++               </children>
++            </VBox>
+          </children>
+       </VBox>
+-      <DashboardPane fx:id="containerPane" fitToHeight="true" fitToWidth="true" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" prefHeight="696.0" prefWidth="904.0" HBox.hgrow="ALWAYS">
++      <ScrollPane fx:id="containerPane" fitToHeight="true" fitToWidth="true" maxHeight="1.7976931348623157E308" maxWidth="1.7976931348623157E308" prefHeight="696.0" prefWidth="904.0" HBox.hgrow="ALWAYS">
+         <content>
+           <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="200.0" prefWidth="200.0" />
+         </content>
+-      </DashboardPane>
++      </ScrollPane>
+    </children>
+ </HBox>
+diff --git a/lilach-client/src/main/resources/org/cshaifasweng/winter/show_order.fxml b/lilach-client/src/main/resources/org/cshaifasweng/winter/show_order.fxml
+index bc30457..6d30344 100644
+--- a/lilach-client/src/main/resources/org/cshaifasweng/winter/show_order.fxml
++++ b/lilach-client/src/main/resources/org/cshaifasweng/winter/show_order.fxml
+@@ -46,7 +46,7 @@
+                         <Font size="23.0" />
+                      </font>
+                   </Label>
+-                  <Label text="Label">
++                  <Label fx:id="orderNumLabel">
+                      <font>
+                         <Font size="23.0" />
+                      </font>
+diff --git a/lilach-server/src/main/java/org/cshaifasweng/winter/api/ImageController.java b/lilach-server/src/main/java/org/cshaifasweng/winter/api/ImageController.java
+index 8ef2694..cbcdbf5 100644
+--- a/lilach-server/src/main/java/org/cshaifasweng/winter/api/ImageController.java
++++ b/lilach-server/src/main/java/org/cshaifasweng/winter/api/ImageController.java
+@@ -19,6 +19,7 @@
+     @GetMapping("/image/{id}")
+     public ResponseEntity<byte[]> getImage(@PathVariable("id") String id) throws IOException, URISyntaxException {
+         System.out.println("ID: " + id);
++        id = id.replace("@2x", "");
+         File file = new File(SpringServer.class.getResource("uploads/" + id).toURI());
+         MimetypesFileTypeMap fileTypeMap = new MimetypesFileTypeMap();
+         String mimeType = fileTypeMap.getContentType(file);
+diff --git a/lilach-server/src/main/java/org/cshaifasweng/winter/services/UserService.java b/lilach-server/src/main/java/org/cshaifasweng/winter/services/UserService.java
+index 270310b..c861d78 100644
+--- a/lilach-server/src/main/java/org/cshaifasweng/winter/services/UserService.java
++++ b/lilach-server/src/main/java/org/cshaifasweng/winter/services/UserService.java
+@@ -128,8 +128,10 @@ public Customer updateCustomer(long id, Customer customer) throws LogicalExcepti
+         if (dbObject.getId() != id)
+             throw new LogicalException("Id does not match");
+         // Mispar Zehut should not be changed
+-        if (customer.getPassword() != null)
++        if (customer.getPassword() != null && !customer.getPassword().isEmpty()) {
++            System.out.println("Set password to: " + customer.getPassword());
+             dbObject.setPassword(new BCryptPasswordEncoder().encode(customer.getPassword()));
++        }
+         dbObject.setFirstName(customer.getFirstName());
+         dbObject.setLastName(customer.getLastName());
+         dbObject.setSubscriberType(customer.getSubscriberType());

@@ -1,0 +1,27 @@
+diff --git a/core/src/main/java/com/graphhopper/routing/weighting/AbstractWeighting.java b/core/src/main/java/com/graphhopper/routing/weighting/AbstractWeighting.java
+index 480f93a54c..b7f74194f6 100644
+--- a/core/src/main/java/com/graphhopper/routing/weighting/AbstractWeighting.java
++++ b/core/src/main/java/com/graphhopper/routing/weighting/AbstractWeighting.java
+@@ -36,7 +36,7 @@
+     protected final DecimalEncodedValue avSpeedEnc;
+     protected final BooleanEncodedValue accessEnc;
+     private final TurnCostProvider turnCostProvider;
+-    private String name;
++    private final String name;
+ 
+     protected AbstractWeighting(String name, FlagEncoder encoder) {
+         this(name, encoder, NO_TURN_COST_PROVIDER);
+diff --git a/tools/src/main/java/com/graphhopper/tools/Measurement.java b/tools/src/main/java/com/graphhopper/tools/Measurement.java
+index cf31ddc783..8322867fb5 100644
+--- a/tools/src/main/java/com/graphhopper/tools/Measurement.java
++++ b/tools/src/main/java/com/graphhopper/tools/Measurement.java
+@@ -198,7 +198,8 @@ protected DataReader importData() throws IOException {
+                 activeLMCount = 8;
+                 printTimeOfRouteQuery(hopper, new QuerySettings("routingLM" + activeLMCount + "_block_area", vehicleStr, count / 4, isCH, isLM).
+                         withInstructions().activeLandmarks(activeLMCount).blockArea(blockAreaStr));
+-                printTimeOfRouteQuery(hopper, new QuerySettings("routingLM" + activeLMCount + "_custom", vehicleStr, count / 4, isCH, isLM).
++                // TODO NOW it does not seem to work!? I.e. it is not faster than routing_custom
++                printTimeOfRouteQuery(hopper, new QuerySettings("routingLM" + activeLMCount + "_custom", vehicleStr, count / 20, isCH, isLM).
+                         withInstructions().activeLandmarks(activeLMCount).customModel(customModel));
+                 // compareRouting(hopper, vehicleStr, count / 5);
+             }

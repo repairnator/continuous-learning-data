@@ -1,0 +1,8 @@
+@@ -1,6 +1,6 @@
+ package com.clarity.compiler;
+ 
+-import com.clarity.CommonDir;
++import com.clarity.listener.JavaScriptExportsListener;
+ import com.clarity.listener.JavaScriptListener;
+ import com.clarity.sourcemodel.OOPSourceCodeModel;
+ import com.google.javascript.jscomp.Compiler;

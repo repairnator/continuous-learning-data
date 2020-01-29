@@ -1,0 +1,158 @@
+diff --git a/api/src/main/java/com/epam/pipeline/common/MessageConstants.java b/api/src/main/java/com/epam/pipeline/common/MessageConstants.java
+index 041187ce8..143e8ee60 100644
+--- a/api/src/main/java/com/epam/pipeline/common/MessageConstants.java
++++ b/api/src/main/java/com/epam/pipeline/common/MessageConstants.java
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2017-2019 EPAM Systems, Inc. (https://www.epam.com/)
++ * Copyright 2017-2020 EPAM Systems, Inc. (https://www.epam.com/)
+  *
+  * Licensed under the Apache License, Version 2.0 (the "License");
+  * you may not use this file except in compliance with the License.
+@@ -326,6 +326,7 @@
+     //Pipeline notification
+     public static final String ERROR_NOTIFICATION_SETTINGS_NOT_FOUND = "error.notification.settings.not.found";
+     public static final String INFO_NOTIFICATION_TEMPLATE_NOT_CONFIGURED = "info.notification.template.not.configured";
++    public static final String INFO_RUN_STATUS_NOT_CONFIGURED_FOR_NOTIFICATION = "info.run.status.not.configured.for.notification";
+     public static final String ERROR_TEMPLATE_ID_SHOULD_BE_EQUAL_TO_TYPE = "error.template.id.should.be.equal.to.type";
+     public static final String ERROR_NOTIFICATION_SUBJECT_NOT_SPECIFIED = "error.notification.subject.not.specified";
+     public static final String ERROR_NOTIFICATION_BODY_NOT_SPECIFIED = "error.notification.body.not.specified";
+diff --git a/api/src/main/java/com/epam/pipeline/dao/notification/NotificationSettingsDao.java b/api/src/main/java/com/epam/pipeline/dao/notification/NotificationSettingsDao.java
+index 24017cf23..2ca8d18c8 100644
+--- a/api/src/main/java/com/epam/pipeline/dao/notification/NotificationSettingsDao.java
++++ b/api/src/main/java/com/epam/pipeline/dao/notification/NotificationSettingsDao.java
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2017-2019 EPAM Systems, Inc. (https://www.epam.com/)
++ * Copyright 2017-2020 EPAM Systems, Inc. (https://www.epam.com/)
+  *
+  * Licensed under the Apache License, Version 2.0 (the "License");
+  * you may not use this file except in compliance with the License.
+diff --git a/api/src/main/java/com/epam/pipeline/manager/notification/NotificationManager.java b/api/src/main/java/com/epam/pipeline/manager/notification/NotificationManager.java
+index a6ab7d8f4..c63eaeeda 100644
+--- a/api/src/main/java/com/epam/pipeline/manager/notification/NotificationManager.java
++++ b/api/src/main/java/com/epam/pipeline/manager/notification/NotificationManager.java
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2017-2019 EPAM Systems, Inc. (https://www.epam.com/)
++ * Copyright 2017-2020 EPAM Systems, Inc. (https://www.epam.com/)
+  *
+  * Licensed under the Apache License, Version 2.0 (the "License");
+  * you may not use this file except in compliance with the License.
+@@ -208,11 +208,11 @@ public void notifyRunStatusChanged(PipelineRun pipelineRun) {
+             return;
+         }
+ 
+-        final List<TaskStatus> runStatusesToReport = runStatusSettings.getStatusesToInform();
++        final List<TaskStatus> runStatusesToReport = ListUtils.emptyIfNull(runStatusSettings.getStatusesToInform());
+         if (CollectionUtils.isEmpty(runStatusesToReport) || !runStatusesToReport.contains(pipelineRun.getStatus())) {
+-            LOGGER.info("Pipeline Run status is not in reporting list: [ "
+-                    + runStatusesToReport.stream().map(TaskStatus::name).collect(Collectors.joining(", "))
+-                    + "]! This event will be skipped!");
++            LOGGER.info(messageHelper.getMessage(MessageConstants.INFO_RUN_STATUS_NOT_CONFIGURED_FOR_NOTIFICATION,
++                    pipelineRun.getStatus(),
++                    runStatusesToReport.stream().map(TaskStatus::name).collect(Collectors.joining(", "))));
+             return;
+         }
+ 
+diff --git a/api/src/main/java/com/epam/pipeline/manager/notification/NotificationSettingsManager.java b/api/src/main/java/com/epam/pipeline/manager/notification/NotificationSettingsManager.java
+index 6e6ef44cb..8f8a6c15d 100644
+--- a/api/src/main/java/com/epam/pipeline/manager/notification/NotificationSettingsManager.java
++++ b/api/src/main/java/com/epam/pipeline/manager/notification/NotificationSettingsManager.java
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2017-2019 EPAM Systems, Inc. (https://www.epam.com/)
++ * Copyright 2017-2020 EPAM Systems, Inc. (https://www.epam.com/)
+  *
+  * Licensed under the Apache License, Version 2.0 (the "License");
+  * you may not use this file except in compliance with the License.
+diff --git a/api/src/main/resources/dao/notification-settings-dao.xml b/api/src/main/resources/dao/notification-settings-dao.xml
+index 8df1448ac..866af4654 100644
+--- a/api/src/main/resources/dao/notification-settings-dao.xml
++++ b/api/src/main/resources/dao/notification-settings-dao.xml
+@@ -1,6 +1,6 @@
+ <?xml version="1.0" encoding="UTF-8"?>
+ <!--
+-  ~ Copyright 2017-2019 EPAM Systems, Inc. (https://www.epam.com/)
++  ~ Copyright 2017-2020 EPAM Systems, Inc. (https://www.epam.com/)
+   ~
+   ~ Licensed under the Apache License, Version 2.0 (the "License");
+   ~ you may not use this file except in compliance with the License.
+diff --git a/api/src/main/resources/messages.properties b/api/src/main/resources/messages.properties
+index 05eb30b2c..d940113d9 100644
+--- a/api/src/main/resources/messages.properties
++++ b/api/src/main/resources/messages.properties
+@@ -315,6 +315,7 @@ info.notification.submitted=Notification was submitted with parameters: {0}
+ error.notification.settings.not.found=Notification with id: {0} not found or disabled
+ info.notification.template.not.configured=No template configured for {0} notification or notification was disabled!
+ error.template.id.should.be.equal.to.type=Notification template id should be equal to notification type id ({0}), but was ''{1}''
++info.run.status.not.configured.for.notification=Pipeline Run status: ''{0}'' is not in reporting list: [ {1} ]! This event will be skipped!
+ error.notification.subject.not.specified=Notification subject is not specified
+ error.notification.body.not.specified=Notification body is not specified
+ error.notification.receiver.not.specified=Notification receiver is not specified
+diff --git a/api/src/test/java/com/epam/pipeline/manager/notification/NotificationAspectTest.java b/api/src/test/java/com/epam/pipeline/manager/notification/NotificationAspectTest.java
+index 8e4ca6649..acf905486 100644
+--- a/api/src/test/java/com/epam/pipeline/manager/notification/NotificationAspectTest.java
++++ b/api/src/test/java/com/epam/pipeline/manager/notification/NotificationAspectTest.java
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2017-2019 EPAM Systems, Inc. (https://www.epam.com/)
++ * Copyright 2017-2020 EPAM Systems, Inc. (https://www.epam.com/)
+  *
+  * Licensed under the Apache License, Version 2.0 (the "License");
+  * you may not use this file except in compliance with the License.
+diff --git a/api/src/test/java/com/epam/pipeline/manager/notification/NotificationSettingsManagerTest.java b/api/src/test/java/com/epam/pipeline/manager/notification/NotificationSettingsManagerTest.java
+index febd81f7c..be1d9fccf 100644
+--- a/api/src/test/java/com/epam/pipeline/manager/notification/NotificationSettingsManagerTest.java
++++ b/api/src/test/java/com/epam/pipeline/manager/notification/NotificationSettingsManagerTest.java
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2017-2019 EPAM Systems, Inc. (https://www.epam.com/)
++ * Copyright 2017-2020 EPAM Systems, Inc. (https://www.epam.com/)
+  *
+  * Licensed under the Apache License, Version 2.0 (the "License");
+  * you may not use this file except in compliance with the License.
+diff --git a/core/src/main/java/com/epam/pipeline/entity/notification/NotificationSettings.java b/core/src/main/java/com/epam/pipeline/entity/notification/NotificationSettings.java
+index 3706298f5..8564fcf1c 100644
+--- a/core/src/main/java/com/epam/pipeline/entity/notification/NotificationSettings.java
++++ b/core/src/main/java/com/epam/pipeline/entity/notification/NotificationSettings.java
+@@ -1,5 +1,5 @@
+ /*
+- * Copyright 2017-2019 EPAM Systems, Inc. (https://www.epam.com/)
++ * Copyright 2017-2020 EPAM Systems, Inc. (https://www.epam.com/)
+  *
+  * Licensed under the Apache License, Version 2.0 (the "License");
+  * you may not use this file except in compliance with the License.
+@@ -23,6 +23,7 @@
+ import lombok.Setter;
+ 
+ import java.util.Arrays;
++import java.util.Collections;
+ import java.util.List;
+ import java.util.Map;
+ import java.util.stream.Collectors;
+@@ -85,16 +86,16 @@ public static NotificationSettings getDefault(final NotificationType type) {
+      * */
+     public enum NotificationType {
+ 
+-        LONG_RUNNING(1, 3600L, 600L, null, true, NotificationGroup.LONG_RUNNING),
+-        LONG_INIT(2, 3600L, 600L, null, true, NotificationGroup.LONG_RUNNING),
+-        NEW_ISSUE(3, MISSING_TIME_THRESHOLD, MISSING_TIME_THRESHOLD, null, true, NotificationGroup.ISSUE),
+-        NEW_ISSUE_COMMENT(4, MISSING_TIME_THRESHOLD, MISSING_TIME_THRESHOLD, null, true, NotificationGroup.ISSUE),
++        LONG_RUNNING(1, 3600L, 600L, Collections.emptyList(), true, NotificationGroup.LONG_RUNNING),
++        LONG_INIT(2, 3600L, 600L, Collections.emptyList(), true, NotificationGroup.LONG_RUNNING),
++        NEW_ISSUE(3, MISSING_TIME_THRESHOLD, MISSING_TIME_THRESHOLD, Collections.emptyList(), true, NotificationGroup.ISSUE),
++        NEW_ISSUE_COMMENT(4, MISSING_TIME_THRESHOLD, MISSING_TIME_THRESHOLD, Collections.emptyList(), true, NotificationGroup.ISSUE),
+         PIPELINE_RUN_STATUS(5, MISSING_TIME_THRESHOLD, MISSING_TIME_THRESHOLD,
+                 Arrays.asList(TaskStatus.SUCCESS, TaskStatus.FAILURE), true, NotificationGroup.PIPELINE_RUN_STATUS),
+-        IDLE_RUN(6, MISSING_TIME_THRESHOLD, MISSING_TIME_THRESHOLD, null, true, NotificationGroup.IDLE_RUN),
+-        IDLE_RUN_PAUSED(7, MISSING_TIME_THRESHOLD, MISSING_TIME_THRESHOLD, null, true, NotificationGroup.IDLE_RUN),
+-        IDLE_RUN_STOPPED(8, MISSING_TIME_THRESHOLD, MISSING_TIME_THRESHOLD, null, true, NotificationGroup.IDLE_RUN),
+-        HIGH_CONSUMED_RESOURCES(9, MISSING_TIME_THRESHOLD, 600L, null, true, NotificationGroup.RESOURCE_CONSUMING);
++        IDLE_RUN(6, MISSING_TIME_THRESHOLD, MISSING_TIME_THRESHOLD, Collections.emptyList(), true, NotificationGroup.IDLE_RUN),
++        IDLE_RUN_PAUSED(7, MISSING_TIME_THRESHOLD, MISSING_TIME_THRESHOLD, Collections.emptyList(), true, NotificationGroup.IDLE_RUN),
++        IDLE_RUN_STOPPED(8, MISSING_TIME_THRESHOLD, MISSING_TIME_THRESHOLD, Collections.emptyList(), true, NotificationGroup.IDLE_RUN),
++        HIGH_CONSUMED_RESOURCES(9, MISSING_TIME_THRESHOLD, 600L, Collections.emptyList(), true, NotificationGroup.RESOURCE_CONSUMING);
+ 
+         private static final Map<Long, NotificationType> BY_ID;
+ 

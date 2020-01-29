@@ -1,0 +1,9 @@
+@@ -89,7 +89,7 @@ public String listDirectDebitsBulk(@ShellOption(defaultValue = ShellOption.NULL)
+         }
+         return JsonPrinter.toJson(response);
+     }
+-    
++
+     @ShellMethod("List direct debits specific accounts")
+     public String listDirectDebitsSpecificAccounts(@ShellOption(defaultValue = ShellOption.NULL) Boolean check,
+         @ShellOption(defaultValue = ShellOption.NULL) List<String> accountIds,

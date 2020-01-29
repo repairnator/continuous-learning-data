@@ -1,0 +1,371 @@
+diff --git a/src/main/java/org/verapdf/parser/FunctionParser.java b/src/main/java/org/verapdf/parser/FunctionParser.java
+new file mode 100644
+index 0000000..8f85eca
+--- /dev/null
++++ b/src/main/java/org/verapdf/parser/FunctionParser.java
+@@ -0,0 +1,52 @@
++package org.verapdf.parser;
++
++import org.verapdf.cos.*;
++import org.verapdf.pd.function.FunctionKeywords;
++
++import java.io.IOException;
++import java.io.InputStream;
++import java.util.logging.Logger;
++
++public class FunctionParser extends COSParser {
++
++    private static final Logger LOGGER = Logger.getLogger(COSParser.class.getCanonicalName());
++
++    public FunctionParser(InputStream functionStream) throws IOException {
++        super(functionStream);
++    }
++
++    @Override
++    public COSObject nextObject() throws IOException {
++        if (!this.objects.isEmpty()) {
++            COSObject result = this.objects.peek();
++            this.objects.remove();
++            return result;
++        }
++
++        initializeToken();
++        nextToken();
++
++        final Token token = getToken();
++
++        switch (token.type) {
++            case TT_NONE:
++                break;
++            case TT_KEYWORD:
++                //Check if token is presented in function keywords
++                if (!FunctionKeywords.FUNCTION_KEYWORDS.contains(token.getValue())){
++                    LOGGER.warning("Invalid keyword in Function");
++                }
++            case TT_INTEGER:
++                return COSInteger.construct(token.integer);
++            case TT_REAL:
++                return COSReal.construct(token.real);
++            //marks the end of stream
++            case TT_EOF:
++                return null;
++            default:
++                LOGGER.warning("Invalid object type in Function");
++                break;
++        }
++        return new COSObject();
++    }
++}
+diff --git a/src/main/java/org/verapdf/parser/Token.java b/src/main/java/org/verapdf/parser/Token.java
+index 31b22c4..f33c540 100644
+--- a/src/main/java/org/verapdf/parser/Token.java
++++ b/src/main/java/org/verapdf/parser/Token.java
+@@ -96,7 +96,7 @@ public void clearValue() {
+ 		KW_F,
+ 		KW_XREF,
+ 		KW_STARTXREF,
+-		KW_TRAILER
++		KW_TRAILER,
+ 	}
+ 
+ 	private static final Map<String, Keyword> KEYWORDS = new HashMap<>();
+diff --git a/src/main/java/org/verapdf/pd/PDExtGState.java b/src/main/java/org/verapdf/pd/PDExtGState.java
+index bb584b3..b8264d2 100644
+--- a/src/main/java/org/verapdf/pd/PDExtGState.java
++++ b/src/main/java/org/verapdf/pd/PDExtGState.java
+@@ -21,12 +21,15 @@
+ package org.verapdf.pd;
+ 
+ import org.verapdf.as.ASAtom;
+-import org.verapdf.cos.COSName;
+-import org.verapdf.cos.COSNumber;
+-import org.verapdf.cos.COSObjType;
+-import org.verapdf.cos.COSObject;
++import org.verapdf.cos.*;
+ import org.verapdf.factory.fonts.PDFontFactory;
+ import org.verapdf.pd.font.PDFont;
++import org.verapdf.pd.function.PDFunction;
++
++import java.util.ArrayList;
++import java.util.Collections;
++import java.util.Iterator;
++import java.util.List;
+ 
+ /**
+  * @author Maksim Bezrukov
+@@ -125,4 +128,34 @@ public PDFont getFont() {
+         }
+         return null;
+     }
++
++    public List<PDFunction> getTRFunctions() {
++        List<PDFunction> resultList = new ArrayList<>();
++
++        COSObject trFunction = getKey(ASAtom.TR);
++        COSObject tr2Function = getKey(ASAtom.TR2);
++
++        resultList.addAll(getTRByObj(trFunction));
++        resultList.addAll(getTRByObj(tr2Function));
++
++        return resultList.isEmpty() ? Collections.emptyList() : Collections.unmodifiableList(resultList);
++    }
++
++    private List<PDFunction> getTRByObj(COSObject obj) {
++        List<PDFunction> resultList = new ArrayList<>();
++        switch(obj.getType()) {
++            case COS_STREAM:
++                resultList.add(new PDFunction((COSStream) obj.getDirectBase()));
++                break;
++            case COS_ARRAY:
++                COSArray array = (COSArray) obj.get();
++                Iterator<COSObject> iterator = array.iterator();
++                while (iterator.hasNext()) {
++                    resultList.add(new PDFunction((COSStream)iterator.next().getDirectBase()));
++                }
++            default:
++                break;
++        }
++        return resultList.isEmpty() ? Collections.emptyList() : Collections.unmodifiableList(resultList);
++    }
+ }
+diff --git a/src/main/java/org/verapdf/pd/PDHalftone.java b/src/main/java/org/verapdf/pd/PDHalftone.java
+index 3f238b8..ea6370a 100644
+--- a/src/main/java/org/verapdf/pd/PDHalftone.java
++++ b/src/main/java/org/verapdf/pd/PDHalftone.java
+@@ -23,6 +23,12 @@
+ import org.verapdf.as.ASAtom;
+ import org.verapdf.cos.COSObjType;
+ import org.verapdf.cos.COSObject;
++import org.verapdf.cos.COSStream;
++import org.verapdf.pd.function.PDFunction;
++
++import java.util.ArrayList;
++import java.util.Collections;
++import java.util.List;
+ 
+ /**
+  * @author Maksim Bezrukov
+@@ -52,4 +58,18 @@ public String getHalftoneName() {
+         }
+         return base.getStringKey(ASAtom.HALFTONE_NAME);
+     }
++
++    public List<PDFunction> getTransferFunction() {
++        COSObject transferFunction = getObject().getKey(ASAtom.getASAtom("transferFunction"));
++        if (transferFunction == null
++                || transferFunction.empty()
++                || transferFunction.getType() == COSObjType.COS_NULL) {
++            return Collections.emptyList();
++        }
++
++        List<PDFunction> resultList = new ArrayList<>();
++        resultList.add(new PDFunction((COSStream) transferFunction.getDirectBase()));
++
++        return resultList.isEmpty() ? Collections.emptyList() : Collections.unmodifiableList(resultList);
++    }
+ }
+diff --git a/src/main/java/org/verapdf/pd/colors/PDDeviceN.java b/src/main/java/org/verapdf/pd/colors/PDDeviceN.java
+index 1b3142c..51e4e07 100644
+--- a/src/main/java/org/verapdf/pd/colors/PDDeviceN.java
++++ b/src/main/java/org/verapdf/pd/colors/PDDeviceN.java
+@@ -23,7 +23,9 @@
+ import org.verapdf.as.ASAtom;
+ import org.verapdf.cos.COSObjType;
+ import org.verapdf.cos.COSObject;
++import org.verapdf.cos.COSStream;
+ import org.verapdf.pd.PDResources;
++import org.verapdf.pd.function.PDFunction;
+ 
+ import java.util.ArrayList;
+ import java.util.Collections;
+@@ -62,6 +64,15 @@ public COSObject getTintTransform() {
+         return getObject().at(3);
+     }
+ 
++    public List<PDFunction> getCustomTintTransform() {
++        COSObject cosFunction = getTintTransform();
++        List<PDFunction> resultList = new ArrayList<>();
++        if (cosFunction != null && cosFunction.getType().equals(COSObjType.COS_STREAM)) {
++            resultList.add(new PDFunction((COSStream) cosFunction.getDirectBase()));
++        }
++        return resultList.isEmpty() ? Collections.emptyList() : Collections.unmodifiableList(resultList);
++    }
++
+     public COSObject getAttributes() {
+         return getObject().at(4);
+     }
+diff --git a/src/main/java/org/verapdf/pd/colors/PDSeparation.java b/src/main/java/org/verapdf/pd/colors/PDSeparation.java
+index dc1e807..4723860 100644
+--- a/src/main/java/org/verapdf/pd/colors/PDSeparation.java
++++ b/src/main/java/org/verapdf/pd/colors/PDSeparation.java
+@@ -21,8 +21,15 @@
+ package org.verapdf.pd.colors;
+ 
+ import org.verapdf.as.ASAtom;
++import org.verapdf.cos.COSObjType;
+ import org.verapdf.cos.COSObject;
++import org.verapdf.cos.COSStream;
+ import org.verapdf.pd.PDResources;
++import org.verapdf.pd.function.PDFunction;
++
++import java.util.ArrayList;
++import java.util.Collections;
++import java.util.List;
+ 
+ /**
+  * @author Maksim Bezrukov
+@@ -45,15 +52,24 @@ public PDColorSpace getAlternate() {
+         return super.getBaseColorSpace();
+     }
+ 
++    public COSObject getTintTransform() {
++        return getObject().at(3);
++    }
++
++    public List<PDFunction> getCustomTintTransform() {
++        COSObject cosFunction = getTintTransform();
++        List<PDFunction> resultList = new ArrayList<>();
++        if (cosFunction != null && cosFunction.getType().equals(COSObjType.COS_STREAM)) {
++            resultList.add(new PDFunction((COSStream) cosFunction.getDirectBase()));
++        }
++        return resultList.isEmpty() ? Collections.emptyList() : Collections.unmodifiableList(resultList);
++    }
++
+     @Override
+     COSObject getBaseColorSpaceObject() {
+         return getObject().at(2);
+     }
+ 
+-    public COSObject getTintTransform() {
+-        return getObject().at(3);
+-    }
+-
+     @Override
+     public int getNumberOfComponents() {
+         return 1;
+diff --git a/src/main/java/org/verapdf/pd/function/FunctionKeywords.java b/src/main/java/org/verapdf/pd/function/FunctionKeywords.java
+new file mode 100644
+index 0000000..3151e55
+--- /dev/null
++++ b/src/main/java/org/verapdf/pd/function/FunctionKeywords.java
+@@ -0,0 +1,54 @@
++package org.verapdf.pd.function;
++
++import java.util.HashSet;
++import java.util.Set;
++
++public class FunctionKeywords {
++    public static final Set<String> FUNCTION_KEYWORDS = new HashSet<>();
++    static {
++        FUNCTION_KEYWORDS.add("abs");
++        FUNCTION_KEYWORDS.add("cvi");
++        FUNCTION_KEYWORDS.add("floor");
++        FUNCTION_KEYWORDS.add("mod");
++        FUNCTION_KEYWORDS.add("sin");
++        FUNCTION_KEYWORDS.add("add");
++        FUNCTION_KEYWORDS.add("cvr");
++        FUNCTION_KEYWORDS.add("idiv");
++        FUNCTION_KEYWORDS.add("mul");
++        FUNCTION_KEYWORDS.add("sqrt");
++        FUNCTION_KEYWORDS.add("atan");
++        FUNCTION_KEYWORDS.add("div");
++        FUNCTION_KEYWORDS.add("ln");
++        FUNCTION_KEYWORDS.add("neg");
++        FUNCTION_KEYWORDS.add("sub");
++        FUNCTION_KEYWORDS.add("ceiling");
++        FUNCTION_KEYWORDS.add("exp");
++        FUNCTION_KEYWORDS.add("log");
++        FUNCTION_KEYWORDS.add("round");
++        FUNCTION_KEYWORDS.add("truncate");
++        FUNCTION_KEYWORDS.add("cos");
++        FUNCTION_KEYWORDS.add("and");
++        FUNCTION_KEYWORDS.add("false");
++        FUNCTION_KEYWORDS.add("le");
++        FUNCTION_KEYWORDS.add("not");
++        FUNCTION_KEYWORDS.add("true");
++        FUNCTION_KEYWORDS.add("bitshift");
++        FUNCTION_KEYWORDS.add("ge");
++        FUNCTION_KEYWORDS.add("lt");
++        FUNCTION_KEYWORDS.add("or");
++        FUNCTION_KEYWORDS.add("xor");
++        FUNCTION_KEYWORDS.add("eq");
++        FUNCTION_KEYWORDS.add("gt");
++        FUNCTION_KEYWORDS.add("ne");
++        FUNCTION_KEYWORDS.add("if");
++        FUNCTION_KEYWORDS.add("ifelse");
++        FUNCTION_KEYWORDS.add("copy");
++        FUNCTION_KEYWORDS.add("exch");
++        FUNCTION_KEYWORDS.add("pop");
++        FUNCTION_KEYWORDS.add("dup");
++        FUNCTION_KEYWORDS.add("index");
++        FUNCTION_KEYWORDS.add("roll");
++        FUNCTION_KEYWORDS.add("{");
++        FUNCTION_KEYWORDS.add("}");
++    }
++}
+diff --git a/src/main/java/org/verapdf/pd/function/PDFunction.java b/src/main/java/org/verapdf/pd/function/PDFunction.java
+new file mode 100644
+index 0000000..eb31a7f
+--- /dev/null
++++ b/src/main/java/org/verapdf/pd/function/PDFunction.java
+@@ -0,0 +1,60 @@
++package org.verapdf.pd.function;
++
++import org.verapdf.as.ASAtom;
++import org.verapdf.as.io.ASInputStream;
++import org.verapdf.cos.COSArray;
++import org.verapdf.cos.COSObject;
++import org.verapdf.cos.COSStream;
++import org.verapdf.parser.FunctionParser;
++import org.verapdf.pd.PDObject;
++
++import java.io.IOException;
++import java.util.ArrayList;
++import java.util.Collections;
++import java.util.Iterator;
++import java.util.List;
++import java.util.logging.Level;
++import java.util.logging.Logger;
++
++public class PDFunction extends PDObject {
++
++    private static final Logger LOGGER = Logger.getLogger(PDFunction.class.getCanonicalName());
++
++    private final COSStream cosFunctionStream;
++    private final Long functionType;
++
++    public PDFunction(COSStream cosFunctionStream) {
++       super(cosFunctionStream.getDirect());
++       this.cosFunctionStream = cosFunctionStream;
++       this.functionType = cosFunctionStream.getIntegerKey(ASAtom.FUNCTION_TYPE);
++   }
++
++    public List<COSObject> parseFunctionObjects() {
++        List<COSObject> resultList = new ArrayList<>();
++        COSObject cosObject;
++        if (this.cosFunctionStream == null) {
++            return Collections.emptyList();
++        }
++        try(ASInputStream functionStream = cosFunctionStream.getData()) {
++            FunctionParser parser = new FunctionParser(functionStream);
++            cosObject = parser.nextObject();
++            while(cosObject != null) {
++                if (cosObject.get() != null) {
++                    resultList.add(cosObject);
++                }
++                cosObject = parser.nextObject();
++            }
++        } catch (IOException e) {
++            LOGGER.log(Level.FINE, "Can not parse Type4 function");
++        }
++        return resultList.isEmpty() ? Collections.emptyList() : Collections.unmodifiableList(resultList);
++    }
++
++    public Long getFunctionType() {
++        return this.functionType;
++    }
++
++    public COSStream getCosFunctionStream() {
++        return this.cosFunctionStream;
++    }
++}

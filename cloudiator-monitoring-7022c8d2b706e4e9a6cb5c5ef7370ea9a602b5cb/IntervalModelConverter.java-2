@@ -1,0 +1,9 @@
+@@ -2,7 +2,7 @@
+ 
+ import de.uniulm.omi.cloudiator.util.OneWayConverter;
+ import io.github.cloudiator.rest.model.Interval;
+-import io.github.cloudiator.rest.model.Interval.UnitEnum;
++import io.github.cloudiator.rest.model.TimeUnit;
+ import javax.annotation.Nullable;
+ 
+ public class IntervalModelConverter implements OneWayConverter<IntervalModel, Interval> {

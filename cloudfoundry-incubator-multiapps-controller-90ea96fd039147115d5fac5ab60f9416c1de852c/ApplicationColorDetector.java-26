@@ -1,0 +1,9 @@
+@@ -26,7 +26,7 @@
+ @Named("applicationColorDetector")
+ public class ApplicationColorDetector {
+ 
+-    private static final ApplicationColor COLOR_OF_APPLICATIONS_WITHOUT_SUFFIX = ApplicationColor.BLUE;
++    public static final ApplicationColor COLOR_OF_APPLICATIONS_WITHOUT_SUFFIX = ApplicationColor.BLUE;
+ 
+     @Inject
+     private OperationService operationService;

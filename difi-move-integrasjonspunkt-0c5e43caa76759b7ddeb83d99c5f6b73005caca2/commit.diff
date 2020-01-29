@@ -1,0 +1,35 @@
+diff --git a/common/src/main/java/no/difi/meldingsutveksling/DocumentType.java b/common/src/main/java/no/difi/meldingsutveksling/DocumentType.java
+index 5f3487879..48e306e98 100644
+--- a/common/src/main/java/no/difi/meldingsutveksling/DocumentType.java
++++ b/common/src/main/java/no/difi/meldingsutveksling/DocumentType.java
+@@ -20,7 +20,7 @@
+     ARKIVMELDING_KVITTERING("arkivmelding_kvittering", ApiType.NEXTMOVE),
+     ARKIVMELDING("arkivmelding", ApiType.NEXTMOVE, ARKIVMELDING_KVITTERING),
+ 
+-    AVTALT("beta", ApiType.NEXTMOVE),
++    AVTALT("avtalt", ApiType.NEXTMOVE),
+ 
+     DIGITAL("digital", ApiType.NEXTMOVE),
+     DIGITAL_DPV("digital_dpv", ApiType.NEXTMOVE),
+diff --git a/domain/src/main/java/no/difi/meldingsutveksling/domain/sbdh/StandardBusinessDocument.java b/domain/src/main/java/no/difi/meldingsutveksling/domain/sbdh/StandardBusinessDocument.java
+index 024c52097..0aad7130d 100755
+--- a/domain/src/main/java/no/difi/meldingsutveksling/domain/sbdh/StandardBusinessDocument.java
++++ b/domain/src/main/java/no/difi/meldingsutveksling/domain/sbdh/StandardBusinessDocument.java
+@@ -82,7 +82,7 @@
+ 
+     @XmlAnyElement(lax = true)
+     @JsonDeserialize(using = NextMoveMessageDeserializer.class)
+-    @JsonAlias({"arkivmelding", "arkivmelding_kvittering", "beta", "digital", "digital_dpv", "print", "innsynskrav", "publisering", "einnsyn_kvittering", "status"})
++    @JsonAlias({"arkivmelding", "arkivmelding_kvittering", "avtalt", "digital", "digital_dpv", "print", "innsynskrav", "publisering", "einnsyn_kvittering", "status"})
+     @NotNull
+     @InstanceOf(value = ArkivmeldingMessage.class, groups = ValidationGroups.DocumentType.Arkivmelding.class)
+     @InstanceOf(value = AvtaltMessage.class, groups = ValidationGroups.DocumentType.Avtalt.class)
+@@ -93,7 +93,7 @@
+     @InstanceOf(value = PubliseringMessage.class, groups = ValidationGroups.DocumentType.Publisering.class)
+     @ApiModelProperty(
+             value = "The business message. Please note that the property name is not 'any'. "
+-                    + "It is one of the following: arkivmelding, beta, digital, digital_dpv, print, innsynskrav or publisering.",
++                    + "It is one of the following: arkivmelding, avtalt, digital, digital_dpv, print, innsynskrav or publisering.",
+             dataType = "no.difi.meldingsutveksling.nextmove.BusinessMessage",
+             required = true
+     )

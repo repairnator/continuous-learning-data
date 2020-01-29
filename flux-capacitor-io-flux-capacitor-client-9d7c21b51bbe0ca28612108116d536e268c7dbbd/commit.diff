@@ -1,0 +1,44 @@
+diff --git a/java-client/src/main/java/io/fluxcapacitor/javaclient/publishing/DefaultErrorGateway.java b/java-client/src/main/java/io/fluxcapacitor/javaclient/publishing/DefaultErrorGateway.java
+index 848ac5b..118874e 100644
+--- a/java-client/src/main/java/io/fluxcapacitor/javaclient/publishing/DefaultErrorGateway.java
++++ b/java-client/src/main/java/io/fluxcapacitor/javaclient/publishing/DefaultErrorGateway.java
+@@ -30,7 +30,7 @@
+     private final MessageSerializer serializer;
+ 
+     @Override
+-    public void report(Exception payload, Metadata metadata, String target) {
++    public void report(Object payload, Metadata metadata, String target) {
+         try {
+             SerializedMessage message = serializer.serialize(new Message(payload, metadata));
+             message.setTarget(target);
+diff --git a/java-client/src/main/java/io/fluxcapacitor/javaclient/publishing/ErrorGateway.java b/java-client/src/main/java/io/fluxcapacitor/javaclient/publishing/ErrorGateway.java
+index a6b52eb..921e75c 100644
+--- a/java-client/src/main/java/io/fluxcapacitor/javaclient/publishing/ErrorGateway.java
++++ b/java-client/src/main/java/io/fluxcapacitor/javaclient/publishing/ErrorGateway.java
+@@ -23,7 +23,7 @@ default void report(Object error) {
+         if (error instanceof Message) {
+             report(((Message) error).getPayload(), ((Message) error).getMetadata());
+         } else {
+-            report((Exception) error, Metadata.empty());
++            report(error, Metadata.empty());
+         }
+     }
+ 
+@@ -31,14 +31,14 @@ default void report(Object error, String target) {
+         if (error instanceof Message) {
+             report(((Message) error).getPayload(), ((Message) error).getMetadata(), target);
+         } else {
+-            report((Exception) error, Metadata.empty(), target);
++            report(error, Metadata.empty(), target);
+         }
+     }
+ 
+-    default void report(Exception payload, Metadata metadata) {
++    default void report(Object payload, Metadata metadata) {
+         report(payload, metadata, null);
+     }
+ 
+-    void report(Exception payload, Metadata metadata, String target);
++    void report(Object payload, Metadata metadata, String target);
+ 
+ }

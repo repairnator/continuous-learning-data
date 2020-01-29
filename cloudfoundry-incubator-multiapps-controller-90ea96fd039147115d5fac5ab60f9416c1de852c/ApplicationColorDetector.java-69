@@ -1,0 +1,9 @@
+@@ -69,7 +69,7 @@ public ApplicationColor detectLiveApplicationColor(DeployedMta deployedMta, Stri
+         if (latestDeployedColor == null) {
+             return olderApplicationColor;
+         }
+-        return phase == Phase.UNDEPLOY ? latestDeployedColor : olderApplicationColor;
++        return phase == Phase.UNDEPLOY ? latestDeployedColor : latestDeployedColor.getAlternativeColor();
+     }
+ 
+     public ApplicationColor detectSingularDeployedApplicationColor(DeployedMta deployedMta) {

@@ -1,0 +1,163 @@
+diff --git a/de.uhd.ifi.se.decision.management.eclipse.tests/src/de/uhd/ifi/se/decision/management/eclipse/model/TestLink.java b/de.uhd.ifi.se.decision.management.eclipse.tests/src/de/uhd/ifi/se/decision/management/eclipse/model/TestLink.java
+index df6e52e..82808fb 100644
+--- a/de.uhd.ifi.se.decision.management.eclipse.tests/src/de/uhd/ifi/se/decision/management/eclipse/model/TestLink.java
++++ b/de.uhd.ifi.se.decision.management.eclipse.tests/src/de/uhd/ifi/se/decision/management/eclipse/model/TestLink.java
+@@ -9,7 +9,6 @@
+ import org.junit.Test;
+ 
+ import de.uhd.ifi.se.decision.management.eclipse.model.impl.ChangedFileImpl;
+-import de.uhd.ifi.se.decision.management.eclipse.model.impl.DecisionKnowledgeElementImpl;
+ import de.uhd.ifi.se.decision.management.eclipse.model.impl.LinkImpl;
+ 
+ public class TestLink {
+@@ -45,10 +44,8 @@ public void testConstructorNull() {
+ 	
+ 	@Test
+ 	public void testGetSetNode() {
+-		DecisionKnowledgeElement node1 = new DecisionKnowledgeElementImpl(KnowledgeType.ISSUE,
+-				"This is a decision!");
+-        DecisionKnowledgeElement node2 = new DecisionKnowledgeElementImpl(KnowledgeType.ISSUE,
+-				"This is also a decision!");
++		ChangedFile node1 = new ChangedFileImpl(new Path("./file1"));
++		ChangedFile node2 = new ChangedFileImpl(new Path("./file2"));
+         
+         Link link = new LinkImpl();
+         
+@@ -72,30 +69,24 @@ public void testGetSetNodeNull() {
+ 	
+ 	@Test
+ 	public void testGetNodeID() {
+-		DecisionKnowledgeElement node1 = new DecisionKnowledgeElementImpl(KnowledgeType.ISSUE,
+-				"This is a decision!");
+-        DecisionKnowledgeElement node2 = new DecisionKnowledgeElementImpl(KnowledgeType.ISSUE,
+-				"This is also a decision!");
++		ChangedFile node1 = new ChangedFileImpl(new Path("./file1"));
++		ChangedFile node2 = new ChangedFileImpl(new Path("./file2"));
+         
+         Link link = new LinkImpl();
+         
+         link.setSourceNode(node1);
+         link.setTargetNode(node2);
+         
+-        assertTrue(link.getSourceId().contains("This is a decision!"));
+-        assertTrue(link.getTargetId().contains("This is also a decision!"));
++        assertTrue(link.getSourceId().contains("file1"));
++        assertTrue(link.getTargetId().contains("file2"));
+ 	}
+ 	
+ 	@Test
+ 	public void testEqualsTrue() {
+-		DecisionKnowledgeElement node1 = new DecisionKnowledgeElementImpl(KnowledgeType.ISSUE,
+-				"Node1");
+-        DecisionKnowledgeElement node2 = new DecisionKnowledgeElementImpl(KnowledgeType.ISSUE,
+-				"Node2");
+-        DecisionKnowledgeElement node3 = new DecisionKnowledgeElementImpl(KnowledgeType.ISSUE,
+-				"Node1");
+-        DecisionKnowledgeElement node4 = new DecisionKnowledgeElementImpl(KnowledgeType.ISSUE,
+-				"Node2");
++		ChangedFile node1 = new ChangedFileImpl(new Path("./file1"));
++		ChangedFile node2 = new ChangedFileImpl(new Path("./file2"));
++		ChangedFile node3 = new ChangedFileImpl(new Path("./file1"));
++		ChangedFile node4 = new ChangedFileImpl(new Path("./file2"));
+         
+         Link link1 = new LinkImpl();
+         Link link2 = new LinkImpl();
+@@ -110,14 +101,10 @@ public void testEqualsTrue() {
+ 	
+ 	@Test
+ 	public void testEqualsFalse() {
+-		DecisionKnowledgeElement node1 = new DecisionKnowledgeElementImpl(KnowledgeType.ISSUE,
+-				"Node1");
+-        DecisionKnowledgeElement node2 = new DecisionKnowledgeElementImpl(KnowledgeType.ISSUE,
+-				"Node2");
+-        DecisionKnowledgeElement node3 = new DecisionKnowledgeElementImpl(KnowledgeType.ISSUE,
+-				"Node3");
+-        DecisionKnowledgeElement node4 = new DecisionKnowledgeElementImpl(KnowledgeType.ISSUE,
+-				"Node4");
++		ChangedFile node1 = new ChangedFileImpl(new Path("./file1"));
++		ChangedFile node2 = new ChangedFileImpl(new Path("./file2"));
++		ChangedFile node3 = new ChangedFileImpl(new Path("./file3"));
++		ChangedFile node4 = new ChangedFileImpl(new Path("./file4"));
+         
+         Link link1 = new LinkImpl();
+         Link link2 = new LinkImpl();
+@@ -133,12 +120,9 @@ public void testEqualsFalse() {
+ 	@SuppressWarnings("unlikely-arg-type")
+ 	@Test
+ 	public void testEqualsNolink() {
+-		DecisionKnowledgeElement node1 = new DecisionKnowledgeElementImpl(KnowledgeType.ISSUE,
+-				"Node1");
+-        DecisionKnowledgeElement node2 = new DecisionKnowledgeElementImpl(KnowledgeType.ISSUE,
+-				"Node2");
+-        DecisionKnowledgeElement node3 = new DecisionKnowledgeElementImpl(KnowledgeType.ISSUE,
+-				"Node3");
++		ChangedFile node1 = new ChangedFileImpl(new Path("./file1"));
++		ChangedFile node2 = new ChangedFileImpl(new Path("./file2"));
++		ChangedFile node3 = new ChangedFileImpl(new Path("./file3"));
+         
+         Link link1 = new LinkImpl();
+         
+diff --git a/de.uhd.ifi.se.decision.management.eclipse/src/de/uhd/ifi/se/decision/management/eclipse/model/impl/DecisionKnowledgeElementImpl.java b/de.uhd.ifi.se.decision.management.eclipse/src/de/uhd/ifi/se/decision/management/eclipse/model/impl/DecisionKnowledgeElementImpl.java
+index fd3fb7a..9c1e50d 100644
+--- a/de.uhd.ifi.se.decision.management.eclipse/src/de/uhd/ifi/se/decision/management/eclipse/model/impl/DecisionKnowledgeElementImpl.java
++++ b/de.uhd.ifi.se.decision.management.eclipse/src/de/uhd/ifi/se/decision/management/eclipse/model/impl/DecisionKnowledgeElementImpl.java
+@@ -87,6 +87,6 @@ public void setCommit(GitCommit commit) {
+ 	
+ 	@Override
+ 	public String getNodeId() {
+-		return commit.getNodeId();
++		return "DKE: " + type.getName() + " " + commit.getNodeId();
+ 	}
+ }
+diff --git a/de.uhd.ifi.se.decision.management.eclipse/src/de/uhd/ifi/se/decision/management/eclipse/model/impl/KnowledgeGraphImpl.java b/de.uhd.ifi.se.decision.management.eclipse/src/de/uhd/ifi/se/decision/management/eclipse/model/impl/KnowledgeGraphImpl.java
+index 50363eb..17cfebe 100644
+--- a/de.uhd.ifi.se.decision.management.eclipse/src/de/uhd/ifi/se/decision/management/eclipse/model/impl/KnowledgeGraphImpl.java
++++ b/de.uhd.ifi.se.decision.management.eclipse/src/de/uhd/ifi/se/decision/management/eclipse/model/impl/KnowledgeGraphImpl.java
+@@ -321,7 +321,7 @@ public void insertLink(Node node1, Node node2) {
+ 	
+ 	@Override
+ 	public void removeLink(Node node1, Node node2) {
+-		this.removeEdge(node1, node2);
++		this.removeAllEdges(node1, node2);
+ 	}
+ 	
+ 	@Override
+@@ -331,7 +331,7 @@ public void insertLink(Link link) {
+ 	
+ 	@Override
+ 	public void removeLink(Link link) {
+-		this.removeEdge(link.getSourceNode(), link.getTargetNode());
++		this.removeAllEdges(link.getSourceNode(), link.getTargetNode());
+ 	}
+ 	
+ 	@Override
+diff --git a/de.uhd.ifi.se.decision.management.eclipse/src/de/uhd/ifi/se/decision/management/eclipse/model/impl/LinkImpl.java b/de.uhd.ifi.se.decision.management.eclipse/src/de/uhd/ifi/se/decision/management/eclipse/model/impl/LinkImpl.java
+index ac0cd18..d1fea38 100644
+--- a/de.uhd.ifi.se.decision.management.eclipse/src/de/uhd/ifi/se/decision/management/eclipse/model/impl/LinkImpl.java
++++ b/de.uhd.ifi.se.decision.management.eclipse/src/de/uhd/ifi/se/decision/management/eclipse/model/impl/LinkImpl.java
+@@ -95,13 +95,20 @@ public void setTargetId(String targetId) {
+ 	
+ 	@Override
+ 	public boolean equals(Object other) {
+-	    if (!(other instanceof Link)) {
+-	        return false;
++		if (!(other instanceof Link)) {
++			return false;
+ 	    }
+ 
+ 	    Link that = (Link) other;
+ 
+-	    return this.getSourceId().equals(that.getSourceId())
+-	        && this.getTargetId().equals(that.getTargetId());
++	    if (this.getSourceId() != null && this.getTargetId() != null &&
++	    		that.getSourceId() != null && that.getTargetId() != null) {
++	    	return this.getSourceId().equals(that.getSourceId())
++	    	        && this.getTargetId().equals(that.getTargetId());
++	    }
++	    else {
++	    	return this.getSource().equals(that.getSource())
++	    	        && this.getTarget().equals(that.getTarget());
++	    }
+ 	}
+ }
+\ No newline at end of file
