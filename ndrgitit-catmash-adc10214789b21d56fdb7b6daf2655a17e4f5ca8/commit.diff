@@ -1,0 +1,149 @@
+diff --git a/src/main/java/org/ndrianja/catmash/CatImage.java b/src/main/java/org/ndrianja/catmash/CatImage.java
+index e3e4563..4e11eb6 100755
+--- a/src/main/java/org/ndrianja/catmash/CatImage.java
++++ b/src/main/java/org/ndrianja/catmash/CatImage.java
+@@ -8,7 +8,7 @@
+ 
+     public CatImage() {
+         score = 0;
+-        quota = 2;
++        quota = 3;
+     }
+ 
+     public String getUrl() {
+diff --git a/src/main/java/org/ndrianja/catmash/CatmashRepository.java b/src/main/java/org/ndrianja/catmash/CatmashRepository.java
+index dc47be8..407f7aa 100755
+--- a/src/main/java/org/ndrianja/catmash/CatmashRepository.java
++++ b/src/main/java/org/ndrianja/catmash/CatmashRepository.java
+@@ -5,6 +5,7 @@
+ import java.util.ArrayList;
+ import java.util.Comparator;
+ import java.util.List;
++import java.util.Map;
+ import java.util.TreeMap;
+ import java.util.stream.Collectors;
+ 
+@@ -18,52 +19,50 @@
+ public class CatmashRepository {
+ 
+     private CatmashJson catmashJson;
+-    private List<CatImage> catImageList;
++    private Map<String, CatImage> catImageMap = new TreeMap<>(Comparator.reverseOrder());
+ 
+     public CatmashRepository() throws JsonParseException, JsonMappingException, IOException {
+         ObjectMapper objectMapper = new ObjectMapper();
+         InputStream file = getClass().getClassLoader().getResourceAsStream("cats.json");
+         catmashJson = objectMapper.readValue(file, CatmashJson.class);
+-        catImageList = catmashJson.getImages();
++        catmashJson.getImages().forEach(c -> catImageMap.put(c.getId(), c));
+     }
+ 
+     public List<CatImage> getCatImageList() {
+-        return catImageList;
++        return new ArrayList<>(catImageMap.values());
+     }
+ 
+     public CatImage[] selectCats(int count) {
+-        return catImageList.stream()
++        return catImageMap.values().stream().filter(c -> c.getQuota() > 0)
+                 .sorted(Comparator.comparingInt(CatImage::getQuota).reversed()
+                         .thenComparing(Comparator.comparingInt(CatImage::getScore)))
+-                .filter(c -> c.getQuota() > 0)
+                 .limit(count).collect(Collectors.toList()).toArray(CatImage[]::new);
+     }
+ 
+     public TreeMap<Integer, List<CatImage>> getOrderedCatImageScores() {
+         TreeMap<Integer, List<CatImage>> orderedCatScores = new TreeMap<>(Comparator.reverseOrder());
+-        for (CatImage catImage : catImageList) {
+-            if (orderedCatScores.get(catImage.getScore()) == null) {
+-                orderedCatScores.put(catImage.getScore(), new ArrayList<CatImage>());
++        catImageMap.forEach((k, v) -> {
++            if (orderedCatScores.get(v.getScore()) == null) {
++                orderedCatScores.put(v.getScore(), new ArrayList<CatImage>());
+             }
+-            orderedCatScores.get(catImage.getScore()).add(catImage);
+-        }
++            orderedCatScores.get(v.getScore()).add(v);
++        });
+         return orderedCatScores;
+     }
+ 
+     public CatImage getCatImage(String id) {
+-        for (CatImage cat : catImageList) {
+-            if (cat.getId().equals(id)) {
+-                return cat;
+-            }
+-        }
+-        return null;
++        return catImageMap.get(id);
+     }
+ 
+     public void incrementCatImageScore(String id) {
+-        getCatImage(id).incrementScore();
++        CatImage x = catImageMap.get(id);
++        x.incrementScore();
++        catImageMap.replace(id, x);
+     }
+ 
+     public void decreaseQuota(String id) {
+-        getCatImage(id).decreaseQuota();
++        CatImage x = catImageMap.get(id);
++        x.decreaseQuota();
++        catImageMap.replace(id, x);
+     }
+ }
+diff --git a/src/main/java/org/ndrianja/catmash/CatmashService.java b/src/main/java/org/ndrianja/catmash/CatmashService.java
+index 337cd84..23b9b48 100755
+--- a/src/main/java/org/ndrianja/catmash/CatmashService.java
++++ b/src/main/java/org/ndrianja/catmash/CatmashService.java
+@@ -20,8 +20,9 @@
+ 
+     public CatImage[] selectThreeCatImage() throws JsonParseException, JsonMappingException, IOException {
+         CatImage[] x = catmashRepository.selectCats(3);
+-        catmashRepository.decreaseQuota(x[0].getId());
+-        catmashRepository.decreaseQuota(x[1].getId());
++        for (int i = 0; i < x.length; i++) {
++            catmashRepository.decreaseQuota(x[i].getId());
++        }
+         return x;
+     }
+ 
+diff --git a/src/main/resources/templates/vote.html b/src/main/resources/templates/vote.html
+index 1db74d7..1c998d7 100755
+--- a/src/main/resources/templates/vote.html
++++ b/src/main/resources/templates/vote.html
+@@ -11,7 +11,7 @@ <h1>Catmash voting</h1>
+ 
+ 			<div class="container jumbotron">
+ 				<div class="row justify-content-between align-items-center">
+-					<div class="card-body col-md-4" th:each="anews : ${cats}">
++					<div class="card-body col-md-4" th:if="${not #lists.isEmpty(cats)}" th:each="anews: ${cats}">
+ 						<div class="view overlay zoom">		
+ 							<figure class="figure">
+ 								<a th:href="@{/vote/{id}(id=${anews.id})}">
+@@ -20,16 +20,17 @@ <h1>Catmash voting</h1>
+ 							  	</a>
+ 							  <figcaption class="mask flex-center">Score: [[${anews.score}]], remaining: [[${anews.quota}]]</figcaption>
+ 							</figure>
+-
+-							<!-- div class="btn-group">
+-								<button
+-									th:onclick="'window.location.href = \'' + @{/vote/{id}(id=${anews.id})} + '\''"
+-									type="button" class="btn btn-sm btn-outline-secondary">
+-									vote
+-								</button>
+-							</div-->
++							
++						</div>
++					</div>
++					<div class="card-body col-md-12" th:if="${#lists.isEmpty(cats)}">
++						<div class="alert alert-info" role="alert">
++							Voting ends, please check <a href="/scores">scores</a>
+ 						</div>
+ 					</div>
++					<div class="alert alert-danger" role="alert">
++					  You can <a href="/vote">skip</a>! Just keep in minds that cats will loose points!
++					</div>
+ 				</div>
+ 			</div>
+ 		</div>
